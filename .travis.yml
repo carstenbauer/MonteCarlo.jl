@@ -1,35 +1,29 @@
-## Documentation: http://docs.travis-ci.com/user/languages/julia/
+# Documentation: http://docs.travis-ci.com/user/languages/julia/
 language: julia
 os:
   - linux
-  - osx
+#  - osx
 julia:
-  - 0.6
+  - release
   - nightly
+matrix:
+  allow_failures:
+    - julia: nightly
+#    - os: osx
 notifications:
   email: false
-git:
-  depth: 99999999
-
-## uncomment the following lines to allow failures on nightly julia
-## (tests will run but not make your overall status red)
-#matrix:
-#  allow_failures:
-#  - julia: nightly
-
-## uncomment and modify the following lines to manually install system packages
-#addons:
-#  apt: # apt-get for linux
-#    packages:
-#    - gfortran
-#before_script: # homebrew for mac
-#  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gcc; fi
-
-## uncomment the following lines to override the default test script
+# uncomment the following lines to override the default test script
 #script:
+#  - if [[ -a .git/shallow ]]; then git fetch --unshallow; fi
 #  - julia -e 'Pkg.clone(pwd()); Pkg.build("MonteCarlo"); Pkg.test("MonteCarlo"; coverage=true)'
+before_install:
+  - sudo apt-get -qq update
+  - sudo apt-get install -y hdf5-tools python-numpy python-scipy python-matplotlib
 after_success:
   # push coverage results to Coveralls
   - julia -e 'cd(Pkg.dir("MonteCarlo")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
   # push coverage results to Codecov
   - julia -e 'cd(Pkg.dir("MonteCarlo")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+  # Documenter
+  - julia -e 'Pkg.add("Documenter")'
+  - julia -e 'cd(Pkg.dir("MonteCarlo")); include(joinpath("docs", "make.jl"))'
