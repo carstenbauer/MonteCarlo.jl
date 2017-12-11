@@ -1,7 +1,17 @@
 # MonteCarlo
 
-[![Build Status](https://travis-ci.org/crstnbr/MonteCarlo.jl.svg?branch=master)](https://travis-ci.org/crstnbr/MonteCarlo.jl)
+[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://crstnbr.github.io/MonteCarlo.jl/latest)
+[![travis][travis-img]](https://travis-ci.org/crstnbr/MonteCarlo.jl)
+[![appveyor][appveyor-img]](https://ci.appveyor.com/project/crstnbr/montecarlo-jl/branch/master)
+[![codecov][codecov-img]](http://codecov.io/github/crstnbr/MonteCarlo.jl?branch=master)
 
-[![Coverage Status](https://coveralls.io/repos/crstnbr/MonteCarlo.jl/badge.svg?branch=master&service=github)](https://coveralls.io/github/crstnbr/MonteCarlo.jl?branch=master)
+[travis-img]: https://img.shields.io/travis/crstnbr/MonteCarlo.jl/master.svg?label=Linux+/+macOS
+[appveyor-img]: https://img.shields.io/appveyor/ci/crstnbr/montecarlo-jl/master.svg?label=Windows
+[codecov-img]: https://img.shields.io/codecov/c/github/crstnbr/MonteCarlo.jl/master.svg?label=codecov
 
-[![codecov.io](http://codecov.io/github/crstnbr/MonteCarlo.jl/coverage.svg?branch=master)](http://codecov.io/github/crstnbr/MonteCarlo.jl?branch=master)
+
+In Julia REPL:
+```
+Pkg.clone("https://github.com/crstnbr/MonteCarlo.jl")
+using MonteCarlo
+```
