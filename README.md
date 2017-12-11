@@ -1,4 +1,4 @@
-# MonteCarlo
+# MonteCarlo.jl
 
 [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://crstnbr.github.io/MonteCarlo.jl/latest)
 [![travis][travis-img]](https://travis-ci.org/crstnbr/MonteCarlo.jl)
