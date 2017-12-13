@@ -1,4 +1,4 @@
-using Documenter, Helpers
+using Documenter, MonteCarlo
 
 makedocs(
     # options
@@ -6,9 +6,9 @@ makedocs(
 )
 
 makedocs(
-    modules = [Helpers],
+    modules = [MonteCarlo],
     format = :html,
-    sitename = "ErrorAnalysis.jl",
+    sitename = "MonteCarlo.jl",
     pages = [
         "Home" => "index.md",
         "Functions" => "functions.md"
@@ -19,7 +19,7 @@ makedocs(
 )
 
 deploydocs(
-    repo   = "github.com/crstnbr/ErrorAnalysis.jl.git",
+    repo   = "github.com/crstnbr/MonteCarlo.jl.git",
     target = "build",
     deps   = nothing,
     make   = nothing,
