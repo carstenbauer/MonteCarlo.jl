@@ -1,3 +1,6 @@
+"""
+Analysis data
+"""
 mutable struct Analysis
     acc_rate::Float64
     prop_local::Int
@@ -9,6 +12,9 @@ mutable struct Analysis
     Analysis() = new(0.,0,0,0.,0,0)
 end
 
+"""
+Parameters of classical Monte Carlo
+"""
 mutable struct MCParameters
     global_moves::Bool
     global_rate::Int
@@ -17,6 +23,9 @@ mutable struct MCParameters
     MCParameters() = new()
 end
 
+"""
+Classical Monte Carlo simulation
+"""
 mutable struct MC{T, S} <: MonteCarloFlavor where T<:Model
     model::T
     conf::S
@@ -27,6 +36,11 @@ mutable struct MC{T, S} <: MonteCarloFlavor where T<:Model
     MC{T,S}() where {T,S} = new()
 end
 
+"""
+    MC(m::M) where M<:Model
+
+Create a classical Monte Carlo simulation for model `m` with default parameters.
+"""
 function MC(m::M) where M<:Model
     mc = MC{M, conftype(m)}()
     mc.model = m
@@ -43,6 +57,13 @@ end
 
 # TODO: constructor that allows one to set of some MCParameters via positonal or keyword arguments
 
+
+"""
+    init!(mc::MC[; seed::Real=-1])
+
+Initialize the classical Monte Carlo simulation `mc`.
+If `seed !=- 1` the random generator will be initialized with `srand(seed)`.
+"""
 function init!(mc::MC{<:Model, S}; seed::Real=-1) where S
     seed == -1 || srand(seed)
 
@@ -53,6 +74,12 @@ function init!(mc::MC{<:Model, S}; seed::Real=-1) where S
     nothing
 end
 
+"""
+    run!(mc::MC[; verbose::Bool=true, sweeps::Int])
+
+Runs the given classical Monte Carlo simulation `mc`.
+Progress will be printed to `STDOUT` if `verborse=true` (default).
+"""
 function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps) where S
     mc.p.sweeps = sweeps
 
@@ -98,6 +125,11 @@ function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps) w
     nothing
 end
 
+"""
+    sweep(mc::MC)
+
+Performs a sweep of local moves.
+"""
 function sweep(mc::MC{<:Model, S}) where S
     const N = mc.model.l.sites
     const beta = mc.model.p.β
