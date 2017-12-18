@@ -92,3 +92,41 @@ for that spin flip.
     conf[i] *= -1
     nothing
 end
+
+"""
+    global_move(m::IsingModel, conf::IsingConf, E::Float64) -> accepted::Bool
+
+Constructs a Wolff cluster spinflip for configuration `conf` with energy `E`.
+Returns wether a cluster spinflip has been performed (any spins have been flipped).
+"""
+function global_move(m::IsingModel, conf::IsingConf, E::Float64)
+    const N = m.l.sites
+    const neighs = m.l.neighs
+    const beta = m.p.β
+
+    cluster = Array{Int, 1}()
+    tocheck = Array{Int, 1}()
+
+    s = rand(1:N)
+    push!(tocheck, s)
+    push!(cluster, s)
+
+    while !isempty(tocheck)
+        cur = pop!(tocheck)
+        @inbounds for n in neighs[:,cur]
+
+            @inbounds if conf[cur] == conf[n] && !(n in cluster) && rand() < (1 - exp(- 2.0 * beta))
+                push!(tocheck, n)
+                push!(cluster, n)
+            end
+
+        end
+    end
+
+    for spin in cluster
+        conf[spin] *= -1
+    end
+
+    return length(cluster)>1
+    #return length(cluster) # technically a misuse. allows us to see the cluster size * 100 as acc_rate_global.
+end
