@@ -76,7 +76,7 @@ conftype(m::IsingModel) = IsingConf
 Propose a local spin flip at site `i` of current configuration `conf`
 with energy `E`. Returns the local move `Δi = new[i] - conf[i]` and energy difference `ΔE = E_new - E_old`.
 """
-function propose_local(m::IsingModel, i::Int, conf::IsingConf, E::Float64)
+@inline function propose_local(m::IsingModel, i::Int, conf::IsingConf, E::Float64)
     ΔE = 2. * conf[i] * sum(conf[m.l.neighs[:,i]])
     return ΔE, conf[i]==1?-2:2
 end
@@ -88,7 +88,7 @@ Accept a local spin flip at site `i` of current configuration `conf`
 with energy `E`. Arguments `Δi` and `ΔE` correspond to output of `propose_local()`
 for that spin flip.
 """
-function accept_local!(m::IsingModel, i::Int, conf::IsingConf, E::Float64, Δi, ΔE::Float64)
+@inline function accept_local!(m::IsingModel, i::Int, conf::IsingConf, E::Float64, Δi, ΔE::Float64)
     conf[i] *= -1
     nothing
 end
