@@ -1,7 +1,7 @@
 mutable struct IsingParameters
     L::Int
     dims::Int
-    β::Float64
+    β::Float64 # TODO: Decide wether temperature belongs to the model or to the MC flavor
 end
 
 const IsingSpin = Int8
@@ -17,7 +17,6 @@ Famous Ising model on a cubic lattice.
 mutable struct IsingModel <: Model
     p::IsingParameters
     l::CubicLattice
-    conftype::DataType
 end
 
 """
@@ -29,7 +28,7 @@ with linear system size `L` and inverse temperature `β`.
 """
 function IsingModel(dims::Int, L::Int, β::Float64)
     if dims == 2
-        return IsingModel(IsingParameters(L, 2, β), SquareLattice(L), IsingConf)
+        return IsingModel(IsingParameters(L, 2, β), SquareLattice(L))
     else
         error("Only `dims=2` supported for now.")
     end
@@ -58,11 +57,18 @@ end
 
 import Base.rand
 """
-    rand(model::IsingModel)
+    rand(m::IsingModel)
 
 Draw random Ising configuration.
 """
 rand(m::IsingModel) = rand(IsingDistribution, m.l.L, m.l.L)
+
+"""
+    conftype(m::IsingModel)
+
+Returns the type of an Ising model configuration.
+"""
+conftype(m::IsingModel) = IsingConf
 
 """
     propose_local(m::IsingModel, i::Int, conf::IsingConf, E::Float64) -> ΔE, Δi
@@ -76,7 +82,7 @@ function propose_local(m::IsingModel, i::Int, conf::IsingConf, E::Float64)
 end
 
 """
-    accept_local(m::IsingModel, i::Int, conf::IsingConf, E::Float64) -> Δi, ΔE
+    accept_local(m::IsingModel, i::Int, conf::IsingConf, E::Float64)
 
 Accept a local spin flip at site `i` of current configuration `conf`
 with energy `E`. Arguments `Δi` and `ΔE` correspond to output of `propose_local()`

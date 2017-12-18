@@ -1,7 +1,6 @@
 using MonteCarlo
 
-model = IsingModel(dims=2, L=64)
+m = MonteCarlo.IsingModel(dims=2, L=64)
+mc = MonteCarlo.MC(m)
 
-mc = DiscreteMC(model)
-
-run!(mc, sweeps=1000)
+MonteCarlo.run!(mc, sweeps=100)
