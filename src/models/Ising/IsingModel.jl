@@ -1,9 +1,3 @@
-mutable struct IsingParameters
-    L::Int
-    dims::Int
-    β::Float64 # TODO: Decide wether temperature belongs to the model or to the MC flavor
-end
-
 const IsingSpin = Int8
 const IsingDistribution = IsingSpin[-1,1]
 const IsingConf = Array{IsingSpin, 2}
@@ -15,7 +9,9 @@ const IsingTc = 1/(1/2*log(1+sqrt(2)))
 Famous Ising model on a cubic lattice.
 """
 mutable struct IsingModel <: Model
-    p::IsingParameters
+    L::Int
+    dims::Int
+    β::Float64
     l::CubicLattice
 end
 
@@ -28,7 +24,7 @@ with linear system size `L` and inverse temperature `β`.
 """
 function IsingModel(dims::Int, L::Int, β::Float64)
     if dims == 2
-        return IsingModel(IsingParameters(L, 2, β), SquareLattice(L))
+        return IsingModel(L, 2, β, SquareLattice(L))
     else
         error("Only `dims=2` supported for now.")
     end
@@ -102,7 +98,7 @@ Returns wether a cluster spinflip has been performed (any spins have been flippe
 function global_move(m::IsingModel, conf::IsingConf, E::Float64)
     const N = m.l.sites
     const neighs = m.l.neighs
-    const beta = m.p.β
+    const beta = m.β
 
     cluster = Array{Int, 1}()
     tocheck = Array{Int, 1}()

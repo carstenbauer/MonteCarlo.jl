@@ -1,7 +1,7 @@
 """
-Analysis data
+Analysis data of classical Monte Carlo simulation
 """
-mutable struct Analysis
+mutable struct MCAnalysis
     acc_rate::Float64
     prop_local::Int
     acc_local::Int
@@ -9,7 +9,7 @@ mutable struct Analysis
     prop_global::Int
     acc_global::Int
 
-    Analysis() = new(0.,0,0,0.,0,0)
+    MCAnalysis() = new(0.,0,0,0.,0,0)
 end
 
 """
@@ -31,7 +31,7 @@ mutable struct MC{T, S} <: MonteCarloFlavor where T<:Model
     conf::S
     energy::Float64
     p::MCParameters
-    a::Analysis
+    a::MCAnalysis
 
     MC{T,S}() where {T,S} = new()
 end
@@ -70,7 +70,7 @@ function init!(mc::MC{<:Model, S}; seed::Real=-1) where S
     mc.conf = rand(mc.model)
     mc.energy = energy(mc.model, mc.conf)
 
-    mc.a = Analysis()
+    mc.a = MCAnalysis()
     nothing
 end
 
@@ -132,7 +132,7 @@ Performs a sweep of local moves.
 """
 function sweep(mc::MC{<:Model, S}) where S
     const N = mc.model.l.sites
-    const beta = mc.model.p.β
+    const beta = mc.model.β
 
     @inbounds for i in eachindex(mc.conf)
         ΔE, Δi = propose_local(mc.model, i, mc.conf, mc.energy)
