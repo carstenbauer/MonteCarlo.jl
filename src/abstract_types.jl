@@ -3,20 +3,30 @@
 Abstract definition of a Monte Carlo flavor.
 
 A concrete monte carlo flavor must implement the following methods:
-    - `init!(mc::MonteCarloFlavor)`: initialize/reset the mc simulation
-    - `run!(mc::MonteCarloFlavor)`: run the mc simulation
+
+    - `init!(mc)`: initialize the simulation without overriding parameters (will also automatically be available as `reset!`)
+    - `run!(mc)`: run the simulation
 """
 abstract type MonteCarloFlavor end
 
+"""
+    reset!(mc::MonteCarloFlavor)
+
+Resets the Monte Carlo simulation `mc`.
+Previously set parameters will be retained.
+"""
+reset!(mc::MonteCarloFlavor) = init!(mc) # convenience mapping
 
 # abstract model definition
 """
 Abstract definition of a model.
 A concrete model type must have two fields:
-    - `p::Parameters`
-    - `l::Lattice`
+
+    - `β::Float64`: temperature (depends on MC flavor if this will actually be used)
+    - `l::Lattice`: any [Lattice](@ref)
 
 A concrete model must implement the following methods:
+
     - `conftype(m::Model)`: type of a configuration
     - `energy(m::Model, conf)`: energy of configuration
     - `rand(m::Model)`: random configuration
@@ -79,6 +89,7 @@ accept_local!(m::Model, i::Int, conf, E::Float64, Δi, ΔE::Float64) = error("Mo
 Abstract definition of a lattice.
 Necessary fields depend on Monte Carlo flavor.
 However, any concrete Lattice type should have at least the following fields:
+
     - `sites`: number of lattice sites
     - `neighs::Matrix{Int}`: neighbor matrix (row = neighbors, col = siteidx)
 """
@@ -86,8 +97,9 @@ abstract type Lattice end
 
 """
 Abstract cubic lattice.
-1D -> Chain
-2D -> SquareLattice
-ND -> NCubeLattice
+
+- 1D -> Chain
+- 2D -> SquareLattice
+- ND -> NCubeLattice
 """
 abstract type CubicLattice <: Lattice end
