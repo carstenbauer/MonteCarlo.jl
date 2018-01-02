@@ -15,19 +15,6 @@ matrix:
 
 init:
   - "ECHO %PYTHON_VERSION% %MINICONDA%"
-
-branches:
-  only:
-    - master
-    - /release-.*/
-
-# notifications:
-#   - provider: Email
-#     on_build_success: false
-#     on_build_failure: false
-#     on_build_status_changed: false
-
-install:
 # Python deps
   # - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
   # - conda config --set always_yes yes --set changeps1 no
@@ -42,6 +29,24 @@ install:
         "C:\projects\julia-binary.exe")
 # Run installer silently, output to C:\projects\julia
   - C:\projects\julia-binary.exe /S /D=C:\projects\julia
+
+branches:
+  only:
+    - master
+    - /release-.*/
+
+# notifications:
+#   - provider: Email
+#     on_build_success: false
+#     on_build_failure: false
+#     on_build_status_changed: false
+
+install:
+  - C:\projects\julia\bin\julia -e "Pkg.add(\"HDF5\")"
+  - C:\projects\julia\bin\julia -e "Pkg.add(\"JLD\")"
+  - C:\projects\julia\bin\julia -e "Pkg.add(\"PyPlot\")"
+  - C:\projects\julia\bin\julia -e "Pkg.clone(\"https://github.com/crstnbr/ErrorAnalysis.jl\")"
+  - C:\projects\julia\bin\julia -e "Pkg.clone(\"https://github.com/crstnbr/MonteCarloObservable.jl\")"
 
 build_script:
 # Need to convert from shallow to complete for Pkg.clone to work
