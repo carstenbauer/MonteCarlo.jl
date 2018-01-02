@@ -8,6 +8,7 @@ mutable struct MCAnalysis
     acc_rate_global::Float64
     prop_global::Int
     acc_global::Int
+    sweep_dur::Float64
 
     MCAnalysis() = new(0.,0,0,0.,0,0)
 end
@@ -31,6 +32,7 @@ mutable struct MC{T, S} <: MonteCarloFlavor where T<:Model
     model::T
     conf::S
     energy::Float64
+    obs::Dict{String, Observable}
     p::MCParameters
     a::MCAnalysis
 
@@ -72,6 +74,8 @@ function init!(mc::MC{<:Model, S}; seed::Real=-1) where S
     mc.conf = rand(mc.model)
     mc.energy = energy(mc.model, mc.conf)
 
+    mc.obs = prepare_observables(mc.model)
+
     mc.a = MCAnalysis()
     nothing
 end
@@ -87,7 +91,7 @@ function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps, t
     mc.p.thermalization = thermalization
     const total_sweeps = mc.p.sweeps + mc.p.thermalization
 
-    obs = prepare_observables(mc.model)
+    sweep_dur = Observable(Float64, "Sweep duration"; alloc=Int(total_sweeps/100))
 
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
@@ -101,14 +105,15 @@ function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps, t
             mc.a.acc_global += global_move(mc.model, mc.conf, mc.energy)
         end
 
-        (i > mc.p.thermalization) && measure_observables!(mc.model, obs, mc.conf, mc.energy)
+        (i > mc.p.thermalization) && measure_observables!(mc.model, mc.obs, mc.conf, mc.energy)
 
         if mod(i, 100) == 0
             mc.a.acc_rate = mc.a.acc_rate / 100
             mc.a.acc_rate_global = mc.a.acc_rate_global / (100 / mc.p.global_rate)
             if verbose
                 println("\t", i)
-                @printf("\t\tsweep dur: %.3fs\n", toq()/100)
+                add!(sweep_dur, toq()/100)
+                @printf("\t\tsweep dur: %.3fs\n", sweep_dur[end])
                 @printf("\t\tacc rate (local) : %.1f%%\n", mc.a.acc_rate*100)
                 if mc.p.global_moves
                   @printf("\t\tacc rate (global): %.1f%%\n", mc.a.acc_rate_global*100)
@@ -122,17 +127,18 @@ function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps, t
             tic()
         end
     end
-    finish_observables!(mc.model, obs)
+    finish_observables!(mc.model, mc.obs)
     toq();
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
+    mc.a.sweep_dur = mean(sweep_dur)
 
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000./60.)
     
-    obs
+    mc.obs
 end
 
 """
