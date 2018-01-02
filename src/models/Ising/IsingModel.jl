@@ -30,8 +30,6 @@ function IsingModel(dims::Int, L::Int, β::Float64)
     end
 end
 IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0) = IsingModel(dims, L, β)
-IsingModel(L::Int, β::Float64) = IsingModel(2, L, β)
-IsingModel(β::Float64, L::Int) = IsingModel(L, β)
 
 # methods
 """

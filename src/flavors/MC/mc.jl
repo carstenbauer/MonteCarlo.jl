@@ -81,7 +81,7 @@ function init!(mc::MC{<:Model, S}; seed::Real=-1) where S
 end
 
 """
-    run!(mc::MC[; verbose::Bool=true, sweeps::Int])
+    run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])
 
 Runs the given classical Monte Carlo simulation `mc`.
 Progress will be printed to `STDOUT` if `verborse=true` (default).

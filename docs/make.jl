@@ -11,10 +11,12 @@ makedocs(
     sitename = "MonteCarlo.jl",
     pages = [
         "Home" => "index.md",
-        "Functions" => "functions.md"
-        # "Subsection" => [
-        #     ...
-        # ]
+        "Manual" => [
+            "Getting started" => "manual/gettingstarted.md"
+        ],
+        "Methods" => [
+            "General" => "methods/general.md",
+        ]
     ]
 )
 
