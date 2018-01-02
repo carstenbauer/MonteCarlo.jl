@@ -50,19 +50,23 @@ for g in grps
 	fig, ax = subplots(2,2, figsize=(12,8))
 	ax[1][:plot](g[:T], g[:E], "o", color="darkred", markeredgecolor="black")
 	ax[1][:set_ylabel]("Energy")
+	ax[1][:set_xlabel]("Temperature")
 
 	ax[2][:plot](g[:T], g[:C_V], "o", color="darkred", markeredgecolor="black")
 	ax[2][:set_ylabel]("Specific heat")
+	ax[2][:set_xlabel]("Temperature")
 
 	ax[3][:plot](g[:T], g[:M], "o", color="C0", markeredgecolor="black")
 	ax[3][:axvline](x=MonteCarlo.IsingTc, color="black", linewidth=2.0, label="\$ T_c \$")
 	# ax[3][:legend](loc="best")
 	ax[3][:set_ylabel]("Magnetization")
+	ax[3][:set_xlabel]("Temperature")
 
 	ax[4][:plot](g[:T], g[:χ], "o", color="C0", markeredgecolor="black")
 	ax[4][:axvline](x=MonteCarlo.IsingTc, color="black", linewidth=2.0, label="\$ T_c \$")
 	# ax[4][:legend](loc="best")
 	ax[4][:set_ylabel]("Susceptibility χ")
+	ax[4][:set_xlabel]("Temperature")
 	tight_layout()
 	savefig("ising2d_L_$(L).pdf")
 end
@@ -79,15 +83,19 @@ for g in grps
 end
 ax[1][:legend](loc="best")
 ax[1][:set_ylabel]("Energy")
+ax[1][:set_xlabel]("Temperature")
 
 ax[2][:legend](loc="best")
 ax[2][:set_ylabel]("Specific heat")
+ax[2][:set_xlabel]("Temperature")
 
 ax[3][:legend](loc="best")
 ax[3][:set_ylabel]("Magnetization")
+ax[3][:set_xlabel]("Temperature")
 ax[3][:axvline](x=MonteCarlo.IsingTc, linewidth=2.0, color="black", label="\$ T_c \$")
 
 ax[4][:set_ylabel]("Susceptibility χ")
+ax[4][:set_xlabel]("Temperature")
 ax[4][:axvline](x=MonteCarlo.IsingTc, linewidth=2.0, color="black", label="\$ T_c \$")
 ax[4][:legend](loc="best")
 tight_layout()

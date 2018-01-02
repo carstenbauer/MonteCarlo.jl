@@ -107,12 +107,12 @@ function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps, t
 
         (i > mc.p.thermalization) && measure_observables!(mc.model, mc.obs, mc.conf, mc.energy)
 
-        if mod(i, 100) == 0
-            mc.a.acc_rate = mc.a.acc_rate / 100
-            mc.a.acc_rate_global = mc.a.acc_rate_global / (100 / mc.p.global_rate)
+        if mod(i, 1000) == 0
+            mc.a.acc_rate = mc.a.acc_rate / 1000
+            mc.a.acc_rate_global = mc.a.acc_rate_global / (1000 / mc.p.global_rate)
+            add!(sweep_dur, toq()/1000)
             if verbose
                 println("\t", i)
-                add!(sweep_dur, toq()/100)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur[end])
                 @printf("\t\tacc rate (local) : %.1f%%\n", mc.a.acc_rate*100)
                 if mc.p.global_moves

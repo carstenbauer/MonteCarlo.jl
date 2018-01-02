@@ -12,7 +12,7 @@ mutable struct IsingModel <: Model
     L::Int
     dims::Int
     β::Float64
-    l::CubicLattice
+    l::SquareLattice # TODO: parametrize on lattice to allow general cubiclattice
 end
 
 """
@@ -134,17 +134,17 @@ See also [measure_observables!](@ref) and [finish_observables!](@ref).
 """
 function prepare_observables(m::IsingModel)
     obs = Dict{String,Observable}()
-    obs["E"] = Observable(Float64, "Total energy")
-    obs["E2"] = Observable(Float64, "Total energy squared")
-    obs["e"] = Observable(Float64, "Energy (per site)")
+    obs["E"] = Observable(Float64, "Total energy", alloc=50000)
+    obs["E2"] = Observable(Float64, "Total energy squared", alloc=50000)
+    obs["e"] = Observable(Float64, "Energy (per site)", alloc=50000)
 
-    obs["M"] = Observable(Float64, "Total magnetization")
-    obs["M2"] = Observable(Float64, "Total magnetization squared")
-    obs["m"] = Observable(Float64, "Magnetization (per site)")
+    obs["M"] = Observable(Float64, "Total magnetization", alloc=50000)
+    obs["M2"] = Observable(Float64, "Total magnetization squared", alloc=50000)
+    obs["m"] = Observable(Float64, "Magnetization (per site)", alloc=50000)
 
-    obs["χ"] = Observable(Float64, "Susceptibility")
+    obs["χ"] = Observable(Float64, "Susceptibility", alloc=50000)
 
-    obs["C"] = Observable(Float64, "Specific Heat")
+    obs["C"] = Observable(Float64, "Specific Heat", alloc=50000)
 
     return obs
 end
