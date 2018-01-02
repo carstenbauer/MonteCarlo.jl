@@ -1,4 +1,5 @@
 module MonteCarlo
+using MonteCarloObservable
 
 include("abstract_types.jl")
 
@@ -22,5 +23,9 @@ for flv in filter(x->isdir(joinpath(@__DIR__,"flavors",x)),
         include(joinpath(@__DIR__,"flavors",flv,jlf))
     end
 end
+
+export run!
+export IsingModel
+export MC
 
 end # module

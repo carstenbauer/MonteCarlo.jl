@@ -126,3 +126,77 @@ function global_move(m::IsingModel, conf::IsingConf, E::Float64)
     return length(cluster)>1
     #return length(cluster) # technically a misuse. allows us to see the cluster size * 100 as acc_rate_global.
 end
+
+"""
+    prepare_observables(m::IsingModel)
+
+Initializes observables for the Ising model and returns a `Dict{String, Observable}`.
+
+See also [measure_observables!](@ref) and [finish_observables!](@ref).
+"""
+function prepare_observables(m::IsingModel)
+    obs = Dict{String,Observable}()
+    obs["E"] = Observable(Float64, "Total energy")
+    obs["E2"] = Observable(Float64, "Total energy squared")
+    obs["e"] = Observable(Float64, "Energy (per site)")
+
+    obs["M"] = Observable(Float64, "Total magnetization")
+    obs["M2"] = Observable(Float64, "Total magnetization squared")
+    obs["m"] = Observable(Float64, "Magnetization (per site)")
+
+    obs["χ"] = Observable(Float64, "Susceptibility")
+
+    obs["C"] = Observable(Float64, "Specific Heat")
+
+    return obs
+end
+
+"""
+    measure_observables!(m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
+
+Measures observables and updates corresponding `Observable` objects in `obs`.
+
+See also [prepare_observables](@ref) and [finish_observables!](@ref).
+"""
+function measure_observables!(m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
+    const N = m.l.sites
+
+    # energie
+    E2 = E^2
+    add!(obs["E"], E)
+    add!(obs["E2"], E2)
+    add!(obs["e"], E/N)
+
+    # magnetization
+    M::Float64 = abs(sum(conf))
+    M2 = M^2
+    add!(obs["M"], M)
+    add!(obs["M2"], M2)
+    add!(obs["m"], M/N)
+
+    nothing
+end
+
+"""
+    measure_observables!(m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
+
+Calculates magnetic susceptibility and specific heat and updates corresponding `Observable` objects in `obs`.
+
+See also [prepare_observables](@ref) and [measure_observables!](@ref).
+"""
+function finish_observables!(m::IsingModel, obs::Dict{String,Observable})
+    const N = m.l.sites
+    const β = m.β
+
+    # specific heat
+    const E = mean(obs["E"])
+    const E2 = mean(obs["E2"])
+    add!(obs["C"], β*β*(E2/N - E*E/N))
+
+    # susceptibility
+    const M = mean(obs["M"])
+    const M2 = mean(obs["M2"])
+    add!(obs["χ"], β*(M2/N - M*M/N))
+
+    nothing
+end

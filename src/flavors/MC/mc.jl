@@ -18,7 +18,8 @@ Parameters of classical Monte Carlo
 mutable struct MCParameters
     global_moves::Bool
     global_rate::Int
-    sweeps::Int
+    thermalization::Int # number of thermalization sweeps
+    sweeps::Int # number of sweeps (after thermalization)
 
     MCParameters() = new()
 end
@@ -49,6 +50,7 @@ function MC(m::M) where M<:Model
     mc.p = MCParameters()
     mc.p.global_moves = false
     mc.p.global_rate = 5
+    mc.p.thermalization = 0
     mc.p.sweeps = 1000
 
     init!(mc)
@@ -80,20 +82,26 @@ end
 Runs the given classical Monte Carlo simulation `mc`.
 Progress will be printed to `STDOUT` if `verborse=true` (default).
 """
-function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps) where S
+function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization) where S
     mc.p.sweeps = sweeps
+    mc.p.thermalization = thermalization
+    const total_sweeps = mc.p.sweeps + mc.p.thermalization
+
+    obs = prepare_observables(mc.model)
 
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
     tic()
-    for i in 1:mc.p.sweeps
+    for i in 1:total_sweeps
         sweep(mc)
 
         if mc.p.global_moves && mod(i, mc.p.global_rate) == 0
             mc.a.prop_global += 1
             mc.a.acc_global += global_move(mc.model, mc.conf, mc.energy)
         end
+
+        (i > mc.p.thermalization) && measure_observables!(mc.model, obs, mc.conf, mc.energy)
 
         if mod(i, 100) == 0
             mc.a.acc_rate = mc.a.acc_rate / 100
@@ -114,6 +122,7 @@ function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps) w
             tic()
         end
     end
+    finish_observables!(mc.model, obs)
     toq();
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
@@ -122,7 +131,8 @@ function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps) w
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000./60.)
-    nothing
+    
+    obs
 end
 
 """
