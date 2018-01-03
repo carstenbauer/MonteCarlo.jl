@@ -8,11 +8,11 @@ const IsingTc = 1/(1/2*log(1+sqrt(2)))
 """
 Famous Ising model on a cubic lattice.
 """
-mutable struct IsingModel <: Model
+mutable struct IsingModel{C<:CubicLattice} <: Model
     L::Int
     dims::Int
     β::Float64
-    l::SquareLattice # TODO: parametrize on lattice to allow general cubiclattice
+    l::C
 end
 
 """
