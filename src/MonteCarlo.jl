@@ -1,8 +1,10 @@
 module MonteCarlo
 using MonteCarloObservable
 
-include("abstract_types.jl")
-include("abstract_functions.jl")
+include("abstract/abstract_model.jl")
+include("abstract/abstract_flavor.jl")
+include("abstract/abstract_lattice.jl")
+include("abstract/abstract_functions.jl")
 
 # # include all lattices
 # for l in filter(x->endswith(x,".jl"), sort!(readdir(joinpath(@__DIR__,"lattices"))))

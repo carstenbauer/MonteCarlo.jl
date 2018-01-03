@@ -7,7 +7,7 @@ Although MonteCarlo.jl already ships with famous models, foremost the Ising and 
 Any concrete model type, let's call it `MyModel` in the following, must be a subtype of the abstract type `MonteCarlo.Model`. Internally it must have at least the following fields:
 
  * `β::Float64`: temperature (depends on MC flavor if this will actually be used)
- * `l::Lattice`: any [MonteCarlo.Lattice](@ref)
+ * `l::Lattice`: any [`MonteCarlo.Lattice`](@ref)
 
 Furthermore it must implement the following methods:
 

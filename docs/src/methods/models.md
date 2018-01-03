@@ -1,6 +1,6 @@
 # Methods: Models
 
-Below you find all methods that any particular implementation of the abstract type `MonteCarlo.Model` must implement.
+Below you find all methods that any particular implementation of the abstract type `MonteCarlo.Model` should implement. See [Custom models](@ref) for more information.
 
 ## Index
 
@@ -12,6 +12,6 @@ Pages = ["models.md"]
 
 ```@autodocs
 Modules = [MonteCarlo]
-Order   = [:function, :type]
-Pages = ["abstract_types.jl", "abstract_functions.jl"]
+Order   = [:function]
+Pages = ["abstract_model.jl", "abstract_functions.jl"]
 ```

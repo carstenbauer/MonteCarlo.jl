@@ -131,7 +131,7 @@ end
 
 Initializes observables for the Ising model and returns a `Dict{String, Observable}`.
 
-See also [measure_observables!](@ref) and [finish_observables!](@ref).
+See also [`measure_observables!`](@ref) and [`finish_observables!`](@ref).
 """
 function prepare_observables(m::IsingModel)
     obs = Dict{String,Observable}()
@@ -155,7 +155,7 @@ end
 
 Measures observables and updates corresponding `Observable` objects in `obs`.
 
-See also [prepare_observables](@ref) and [finish_observables!](@ref).
+See also [`prepare_observables`](@ref) and [`finish_observables!`](@ref).
 """
 function measure_observables!(m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
     const N = m.l.sites
@@ -181,7 +181,7 @@ end
 
 Calculates magnetic susceptibility and specific heat and updates corresponding `Observable` objects in `obs`.
 
-See also [prepare_observables](@ref) and [measure_observables!](@ref).
+See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 """
 function finish_observables!(m::IsingModel, obs::Dict{String,Observable})
     const N = m.l.sites

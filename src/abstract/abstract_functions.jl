@@ -1,3 +1,4 @@
+# general functions that apply to all abstract types
 """
 	observables(m::Model)
 

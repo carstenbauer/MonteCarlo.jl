@@ -1,29 +1,10 @@
-# abstract monte carlo flavor definition
-"""
-Abstract definition of a Monte Carlo flavor.
-
-A concrete monte carlo flavor must implement the following methods:
-
-    - `init!(mc)`: initialize the simulation without overriding parameters (will also automatically be available as `reset!`)
-    - `run!(mc)`: run the simulation
-"""
-abstract type MonteCarloFlavor end
-
-"""
-    reset!(mc::MonteCarloFlavor)
-
-Resets the Monte Carlo simulation `mc`.
-Previously set parameters will be retained.
-"""
-reset!(mc::MonteCarloFlavor) = init!(mc) # convenience mapping
-
 # abstract model definition
 """
 Abstract definition of a model.
 A concrete model type must have two fields:
 
     - `β::Float64`: temperature (depends on MC flavor if this will actually be used)
-    - `l::Lattice`: any [Lattice](@ref)
+    - `l::Lattice`: any [`Lattice`](@ref)
 
 A concrete model must implement the following methods:
 
@@ -60,8 +41,12 @@ rand(m::Model) = error("Model has no implementation of `rand(m::Model)`!")
 """
     propose_local(m::Model, i::Int, conf, E::Float64) -> ΔE, Δi
 
-Propose a local move for element `i` of current configuration `conf`
-with energy `E`. Returns the local move `Δi = new[i] - conf[i]` and energy difference `ΔE = E_new - E_old`.
+Propose a local move for lattice site `i` of current configuration `conf`
+with energy `E`. Returns local move information `Δi` 
+(e.g. `new[i] - conf[i]`, will be forwarded to `accept_local!`) and energy
+difference `ΔE = E_new - E_old`.
+
+See also [`accept_local!`](@ref).
 """
 propose_local(m::Model, i::Int, conf, E::Float64) = error("Model has no implementation of `propose_local(m::Model, i::Int, conf, E::Float64)`!")
 
@@ -71,35 +56,43 @@ propose_local(m::Model, i::Int, conf, E::Float64) = error("Model has no implemen
 Accept a local move for site `i` of current configuration `conf`
 with energy `E`. Arguments `Δi` and `ΔE` correspond to output of `propose_local()`
 for that local move.
+
+See also [`propose_local`](@ref).
 """
 accept_local!(m::Model, i::Int, conf, E::Float64, Δi, ΔE::Float64) = error("Model has no implementation of `accept_local!(m::Model, i::Int, conf, E::Float64, Δi, ΔE::Float64)`!")
 
-
-# abstract model parameters definition
-# """
-# Abstract definition of model parameters.
-# Necessary fields depend on Monte Carlo flavor.
-# However, any concrete model parameters type should (most likely) have the following fields:
-#     - β: temperature of the system
-# """
-
-
-# abstract lattice definition
 """
-Abstract definition of a lattice.
-Necessary fields depend on Monte Carlo flavor.
-However, any concrete Lattice type should have at least the following fields:
+    global_move(m::Model, conf, E::Float64) -> accepted::Bool
 
-    - `sites`: number of lattice sites
-    - `neighs::Matrix{Int}`: neighbor matrix (row = neighbors, col = siteidx)
+Propose a global move for configuration `conf` with energy `E`.
+Returns wether the global move has been accepted or not.
 """
-abstract type Lattice end
+global_move(m::Model, conf, E::Float64) = false
 
 """
-Abstract cubic lattice.
+    prepare_observables(m::Model) -> Dict{String, Observable}
 
-- 1D -> Chain
-- 2D -> SquareLattice
-- ND -> NCubeLattice
+Initializes observables and returns a `Dict{String, Observable}`. In the latter,
+keys are abbreviations for the observables names and values are the observables themselves.
+
+See also [`measure_observables!`](@ref) and [`finish_observables!`](@ref).
 """
-abstract type CubicLattice <: Lattice end
+prepare_observables(m::Model) = Dict{String, Observable}()
+
+"""
+    measure_observables!(m::Model, obs::Dict{String,Observable}, conf, E::Float64)
+
+Measures observables and updates corresponding `MonteCarloObservable.Observable` objects in `obs`.
+
+See also [`prepare_observables`](@ref) and [`finish_observables!`](@ref).
+"""
+measure_observables!(m::Model, obs::Dict{String,Observable}, conf, E::Float64) = nothing
+
+"""
+    measure_observables!(m::Model, obs::Dict{String,Observable}, conf, E::Float64)
+
+Measure observables and update corresponding `MonteCarloObservable.Observable` objects in `obs`.
+
+See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
+"""
+finish_observables!(m::Model, obs::Dict{String,Observable}) = nothing
