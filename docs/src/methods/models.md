@@ -1,6 +1,6 @@
 # Methods: Models
 
-Below you find all methods that any particular physical model (subtype of the abstract type `MonteCarlo.Model`) should implement. See [Custom models](@ref) for more information.
+Below you find all methods that any particular physical model (subtype of the abstract type `MonteCarlo.Model`) should implement. See also [Custom models](@ref) for more information.
 
 ## Index
 
