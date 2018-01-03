@@ -2,7 +2,7 @@
 """
 	observables(m::Model)
 
-Get all observables defined for a given model.
+Get a list of all observables defined for a given model.
 
 Returns a `Dict{String, String}` where values are the observables names and
 keys are short versions of those names. The keys can be used to
