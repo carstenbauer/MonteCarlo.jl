@@ -197,7 +197,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Models",
     "title": "Methods: Models",
     "category": "section",
-    "text": "Below you find all methods that any particular implementation of the abstract type MonteCarlo.Model must implement."
+    "text": "Below you find all methods that any particular implementation of the abstract type MonteCarlo.Model should implement. See Custom models for more information."
 },
 
 {
@@ -229,7 +229,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Models",
     "title": "MonteCarlo.accept_local!",
     "category": "Method",
-    "text": "accept_local(m::Model, i::Int, conf, E::Float64)\n\nAccept a local move for site i of current configuration conf with energy E. Arguments Δi and ΔE correspond to output of propose_local() for that local move.\n\n\n\n"
+    "text": "accept_local(m::Model, i::Int, conf, E::Float64)\n\nAccept a local move for site i of current configuration conf with energy E. Arguments Δi and ΔE correspond to output of propose_local() for that local move.\n\nSee also propose_local.\n\n\n\n"
 },
 
 {
@@ -249,51 +249,43 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "methods/models.html#MonteCarlo.finish_observables!-Tuple{MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}",
+    "page": "Models",
+    "title": "MonteCarlo.finish_observables!",
+    "category": "Method",
+    "text": "measure_observables!(m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasure observables and update corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and measure_observables!.\n\n\n\n"
+},
+
+{
+    "location": "methods/models.html#MonteCarlo.global_move-Tuple{MonteCarlo.Model,Any,Float64}",
+    "page": "Models",
+    "title": "MonteCarlo.global_move",
+    "category": "Method",
+    "text": "global_move(m::Model, conf, E::Float64) -> accepted::Bool\n\nPropose a global move for configuration conf with energy E. Returns wether the global move has been accepted or not.\n\n\n\n"
+},
+
+{
+    "location": "methods/models.html#MonteCarlo.measure_observables!-Tuple{MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}",
+    "page": "Models",
+    "title": "MonteCarlo.measure_observables!",
+    "category": "Method",
+    "text": "measure_observables!(m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasures observables and updates corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and finish_observables!.\n\n\n\n"
+},
+
+{
+    "location": "methods/models.html#MonteCarlo.prepare_observables-Tuple{MonteCarlo.Model}",
+    "page": "Models",
+    "title": "MonteCarlo.prepare_observables",
+    "category": "Method",
+    "text": "prepare_observables(m::Model) -> Dict{String, Observable}\n\nInitializes observables and returns a Dict{String, Observable}. In the latter, keys are abbreviations for the observables names and values are the observables themselves.\n\nSee also measure_observables! and finish_observables!.\n\n\n\n"
+},
+
+{
     "location": "methods/models.html#MonteCarlo.propose_local-Tuple{MonteCarlo.Model,Int64,Any,Float64}",
     "page": "Models",
     "title": "MonteCarlo.propose_local",
     "category": "Method",
-    "text": "propose_local(m::Model, i::Int, conf, E::Float64) -> ΔE, Δi\n\nPropose a local move for element i of current configuration conf with energy E. Returns the local move Δi = new[i] - conf[i] and energy difference ΔE = E_new - E_old.\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.reset!-Tuple{MonteCarlo.MonteCarloFlavor}",
-    "page": "Models",
-    "title": "MonteCarlo.reset!",
-    "category": "Method",
-    "text": "reset!(mc::MonteCarloFlavor)\n\nResets the Monte Carlo simulation mc. Previously set parameters will be retained.\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.CubicLattice",
-    "page": "Models",
-    "title": "MonteCarlo.CubicLattice",
-    "category": "Type",
-    "text": "Abstract cubic lattice.\n\n1D -> Chain\n2D -> SquareLattice\nND -> NCubeLattice\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.Lattice",
-    "page": "Models",
-    "title": "MonteCarlo.Lattice",
-    "category": "Type",
-    "text": "Abstract definition of a lattice. Necessary fields depend on Monte Carlo flavor. However, any concrete Lattice type should have at least the following fields:\n\n- `sites`: number of lattice sites\n- `neighs::Matrix{Int}`: neighbor matrix (row = neighbors, col = siteidx)\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.Model",
-    "page": "Models",
-    "title": "MonteCarlo.Model",
-    "category": "Type",
-    "text": "Abstract definition of a model. A concrete model type must have two fields:\n\n- `β::Float64`: temperature (depends on MC flavor if this will actually be used)\n- `l::Lattice`: any [Lattice](@ref)\n\nA concrete model must implement the following methods:\n\n- `conftype(m::Model)`: type of a configuration\n- `energy(m::Model, conf)`: energy of configuration\n- `rand(m::Model)`: random configuration\n- `propose_local(m::Model, i::Int, conf, E::Float64) -> ΔE, Δi`: propose local move\n- `accept_local(m::Model, i::Int, conf, E::Float64)`: accept a local move\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.MonteCarloFlavor",
-    "page": "Models",
-    "title": "MonteCarlo.MonteCarloFlavor",
-    "category": "Type",
-    "text": "Abstract definition of a Monte Carlo flavor.\n\nA concrete monte carlo flavor must implement the following methods:\n\n- `init!(mc)`: initialize the simulation without overriding parameters (will also automatically be available as `reset!`)\n- `run!(mc)`: run the simulation\n\n\n\n"
+    "text": "propose_local(m::Model, i::Int, conf, E::Float64) -> ΔE, Δi\n\nPropose a local move for lattice site i of current configuration conf with energy E. Returns local move information Δi  (e.g. new[i] - conf[i], will be forwarded to accept_local!) and energy difference ΔE = E_new - E_old.\n\nSee also accept_local!.\n\n\n\n"
 },
 
 {
@@ -301,7 +293,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Models",
     "title": "Documentation",
     "category": "section",
-    "text": "Modules = [MonteCarlo]\nOrder   = [:function, :type]\nPages = [\"abstract_types.jl\", \"abstract_functions.jl\"]"
+    "text": "Modules = [MonteCarlo]\nOrder   = [:function]\nPages = [\"abstract_model.jl\", \"abstract_functions.jl\"]"
 },
 
 ]}
