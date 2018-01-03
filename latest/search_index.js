@@ -101,7 +101,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Custom models",
     "title": "Mandatory fields and methods",
     "category": "section",
-    "text": "Any concrete model type, let's call it MyModel in the following, must be a subtype of the abstract type MonteCarlo.Model. Internally it must have at least the following fields:β::Float64: temperature (depends on MC flavor if this will actually be used)\nl::Lattice: any MonteCarlo.LatticeFurthermore it must implement the following methods:conftype(m::Model): type of a configuration\nenergy(m::Model, conf): energy of configuration\nrand(m::Model): random configuration\npropose_local(m::Model, i::Int, conf, E::Float64) -> ΔE, Δi: propose local move\naccept_local(m::Model, i::Int, conf, E::Float64): accept a local move"
+    "text": "Any concrete model type, let's call it MyModel in the following, must be a subtype of the abstract type MonteCarlo.Model. Internally it must have at least the following fields:β::Float64: inverse temperature\nl::Lattice: any LatticeFurthermore it must implement the following methods:conftype: type of a configuration\nenergy: energy of configuration\nrand: random configuration\npropose_local: propose local move\naccept_local: accept a local moveA full list of methods that should be implemented for MyModel can be found here: Methods: Models."
 },
 
 {
@@ -197,7 +197,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Models",
     "title": "Methods: Models",
     "category": "section",
-    "text": "Below you find all methods that any particular implementation of the abstract type MonteCarlo.Model should implement. See Custom models for more information."
+    "text": "Below you find all methods that any particular physical model (subtype of the abstract type MonteCarlo.Model) should implement. See Custom models for more information."
 },
 
 {
@@ -213,7 +213,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Models",
     "title": "MonteCarlo.observables",
     "category": "Method",
-    "text": "observables(m::Model)\n\nGet all observables defined for a given model.\n\nReturns a Dict{String, String} where values are the observables names and keys are short versions of those names. The keys can be used to collect correponding observable objects from a Monte Carlo simulation, e.g. like mc.obs[key].\n\n\n\n"
+    "text": "observables(m::Model)\n\nGet a list of all observables defined for a given model.\n\nReturns a Dict{String, String} where values are the observables names and keys are short versions of those names. The keys can be used to collect correponding observable objects from a Monte Carlo simulation, e.g. like mc.obs[key].\n\n\n\n"
 },
 
 {
