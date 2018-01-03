@@ -18,6 +18,7 @@ end
 """
     IsingModel(dims::Int, L::Int, β::Float64)
     IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)
+    IsingModel(; dims::Int=2, L::Int=8, T::Float64=1.0)
 
 Create Ising model on `dims`-dimensional cubic lattice
 with linear system size `L` and inverse temperature `β`.

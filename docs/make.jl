@@ -12,10 +12,13 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "Manual" => [
-            "Getting started" => "manual/gettingstarted.md"
+            "Getting started" => "manual/gettingstarted.md",
+            "Examples" => "manual/examples.md",
+            "Custom models" => "manual/custommodels.md"
         ],
         "Methods" => [
             "General" => "methods/general.md",
+            "Models" => "methods/models.md"
         ]
     ]
 )
