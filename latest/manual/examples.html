@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Examples · MonteCarlo.jl</title><link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/4.2.0/normalize.min.css" rel="stylesheet" type="text/css"/><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.6.3/css/font-awesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL=".."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.2.0/require.min.js" data-main="../assets/documenter.js"></script><script src="../siteinfo.js"></script><script src="../../versions.js"></script><link href="../assets/documenter.css" rel="stylesheet" type="text/css"/></head><body><nav class="toc"><h1>MonteCarlo.jl</h1><select id="version-selector" onChange="window.location.href=this.value" style="visibility: hidden"></select><form class="search" id="search-form" action="../search.html"><input id="search-query" name="q" type="text" placeholder="Search docs"/></form><ul><li><a class="toctext" href="../index.html">Home</a></li><li><span class="toctext">Manual</span><ul><li><a class="toctext" href="gettingstarted.html">Getting started</a></li><li class="current"><a class="toctext" href="examples.html">Examples</a><ul class="internal"><li><a class="toctext" href="#D-Ising-model-1">2D Ising model</a></li></ul></li><li><a class="toctext" href="custommodels.html">Custom models</a></li></ul></li><li><span class="toctext">Methods</span><ul><li><a class="toctext" href="../methods/general.html">General</a></li><li><a class="toctext" href="../methods/models.html">Models</a></li></ul></li></ul></nav><article id="docs"><header><nav><ul><li>Manual</li><li><a href="examples.html">Examples</a></li></ul><a class="edit-page" href="https://github.com/crstnbr/MonteCarlo.jl/blob/master/docs/src/manual/examples.md"><span class="fa"></span> Edit on GitHub</a></nav><hr/><div id="topbar"><span>Examples</span><a class="fa fa-bars" href="#"></a></div></header><h1><a class="nav-anchor" id="Examples-1" href="#Examples-1">Examples</a></h1><h2><a class="nav-anchor" id="D-Ising-model-1" href="#D-Ising-model-1">2D Ising model</a></h2><p><strong>Results:</strong> <img src="../assets/ising2d.svg" alt/></p><p><strong>Code:</strong></p><pre><code class="language-julia">using MonteCarlo, Distributions, PyPlot, DataFrames, JLD
+
+Tdist = Normal(MonteCarlo.IsingTc, .64)
+n_Ts = 2^8
+Ts = sort!(rand(Tdist, n_Ts))
+Ts = Ts[Ts.&gt;=1.2]
+Ts = Ts[Ts.&lt;=3.8]
+therm = 10^4
+sweeps = 10^3
+
+df = DataFrame(L=Int[], T=Float64[], M=Float64[], χ=Float64[], E=Float64[], C_V=Float64[])
+
+for L in 2.^[3, 4, 5, 6]
+	println(&quot;L = &quot;, L)
+	for (i, T) in enumerate(Ts)
+		println(&quot;\t T = &quot;, T)
+		β = 1/T
+		model = IsingModel(dims=2, L=L, β=β)
+		mc = MC(model)
+		obs = run!(mc, sweeps=sweeps, thermalization=therm, verbose=false)
+		push!(df, [L, T, mean(obs[&quot;m&quot;]), mean(obs[&quot;χ&quot;]), mean(obs[&quot;e&quot;]), mean(obs[&quot;C&quot;])])
+	end
+	flush(STDOUT)
+end
+
+sort!(df, cols = [:L, :T])
+@save &quot;ising2d.jld&quot; df
+
+# plot results together
+grps = groupby(df, :L)
+fig, ax = subplots(2,2, figsize=(12,8))
+for g in grps
+	L = g[:L][1]
+	ax[1][:plot](g[:T], g[:E], &quot;o&quot;, markeredgecolor=&quot;black&quot;, label=&quot;L=$L&quot;)
+	ax[2][:plot](g[:T], g[:C_V], &quot;o&quot;, markeredgecolor=&quot;black&quot;, label=&quot;L=$L&quot;)
+	ax[3][:plot](g[:T], g[:M], &quot;o&quot;, markeredgecolor=&quot;black&quot;, label=&quot;L=$L&quot;)
+	ax[4][:plot](g[:T], g[:χ], &quot;o&quot;, markeredgecolor=&quot;black&quot;, label=&quot;L=$L&quot;)
+end
+ax[1][:legend](loc=&quot;best&quot;)
+ax[1][:set_ylabel](&quot;Energy&quot;)
+ax[1][:set_xlabel](&quot;Temperature&quot;)
+
+ax[2][:set_ylabel](&quot;Specific heat&quot;)
+ax[2][:set_xlabel](&quot;Temperature&quot;)
+ax[2][:axvline](x=MonteCarlo.IsingTc, color=&quot;black&quot;, linestyle=&quot;dashed&quot;, label=&quot;\$ T_c \$&quot;)
+ax[2][:legend](loc=&quot;best&quot;)
+
+ax[3][:set_ylabel](&quot;Magnetization&quot;)
+ax[3][:set_xlabel](&quot;Temperature&quot;)
+x = linspace(1.2, MonteCarlo.IsingTc, 100)
+y = (1-sinh.(2.0 ./ (x)).^(-4)).^(1/8)
+ax[3][:plot](x,y, &quot;k--&quot;, label=&quot;exact&quot;)
+ax[3][:plot](linspace(MonteCarlo.IsingTc, 3.8, 100), zeros(100), &quot;k--&quot;)
+ax[3][:legend](loc=&quot;best&quot;)
+
+ax[4][:set_ylabel](&quot;Susceptibility χ&quot;)
+ax[4][:set_xlabel](&quot;Temperature&quot;)
+ax[4][:axvline](x=MonteCarlo.IsingTc, color=&quot;black&quot;, linestyle=&quot;dashed&quot;, label=&quot;\$ T_c \$&quot;)
+ax[4][:legend](loc=&quot;best&quot;)
+tight_layout()
+savefig(&quot;ising2d.pdf&quot;)</code></pre><footer><hr/><a class="previous" href="gettingstarted.html"><span class="direction">Previous</span><span class="title">Getting started</span></a><a class="next" href="custommodels.html"><span class="direction">Next</span><span class="title">Custom models</span></a></footer></article></body></html>
