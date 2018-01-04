@@ -77,7 +77,7 @@ with energy `E`. Returns the local move `Δi = new[i] - conf[i]` and energy diff
 end
 
 """
-    accept_local(m::IsingModel, i::Int, conf::IsingConf, E::Float64)
+    accept_local(m::IsingModel, i::Int, conf::IsingConf, E::Float64, Δi, ΔE::Float64)
 
 Accept a local spin flip at site `i` of current configuration `conf`
 with energy `E`. Arguments `Δi` and `ΔE` correspond to output of `propose_local()`
@@ -135,6 +135,8 @@ See also [`measure_observables!`](@ref) and [`finish_observables!`](@ref).
 """
 function prepare_observables(m::IsingModel)
     obs = Dict{String,Observable}()
+    obs["confs"] = Observable(IsingConf, "Configurations")
+
     obs["E"] = Observable(Float64, "Total energy")
     obs["E2"] = Observable(Float64, "Total energy squared")
     obs["e"] = Observable(Float64, "Energy (per site)")
@@ -159,6 +161,8 @@ See also [`prepare_observables`](@ref) and [`finish_observables!`](@ref).
 """
 function measure_observables!(m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
     const N = m.l.sites
+
+    add!(obs["confs"], conf)
 
     # energie
     E2 = E^2

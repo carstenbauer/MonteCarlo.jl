@@ -51,7 +51,7 @@ See also [`accept_local!`](@ref).
 propose_local(m::Model, i::Int, conf, E::Float64) = error("Model has no implementation of `propose_local(m::Model, i::Int, conf, E::Float64)`!")
 
 """
-    accept_local(m::Model, i::Int, conf, E::Float64)
+    accept_local(m::Model, i::Int, conf, E::Float64, Δi, ΔE::Float64)
 
 Accept a local move for site `i` of current configuration `conf`
 with energy `E`. Arguments `Δi` and `ΔE` correspond to output of `propose_local()`
