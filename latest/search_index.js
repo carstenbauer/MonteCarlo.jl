@@ -269,7 +269,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Models",
     "title": "MonteCarlo.accept_local!",
     "category": "Method",
-    "text": "accept_local(m::Model, i::Int, conf, E::Float64)\n\nAccept a local move for site i of current configuration conf with energy E. Arguments Δi and ΔE correspond to output of propose_local() for that local move.\n\nSee also propose_local.\n\n\n\n"
+    "text": "accept_local(m::Model, i::Int, conf, E::Float64, Δi, ΔE::Float64)\n\nAccept a local move for site i of current configuration conf with energy E. Arguments Δi and ΔE correspond to output of propose_local() for that local move.\n\nSee also propose_local.\n\n\n\n"
 },
 
 {
