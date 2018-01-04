@@ -14,8 +14,10 @@ makedocs(
         "Manual" => [
             "Getting started" => "manual/gettingstarted.md",
             "Examples" => "manual/examples.md",
-            "Custom models" => "manual/custommodels.md",
-            "Custom lattices" => "manual/customlattices.md"
+            "Customize" => [
+                "Models" => "manual/custommodels.md",
+                "Lattices" => "manual/customlattices.md"
+            ]
         ],
         "Methods" => [
             "General" => "methods/general.md",
