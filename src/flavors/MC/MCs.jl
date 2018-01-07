@@ -28,15 +28,16 @@ end
 """
 Classical Monte Carlo simulation
 """
-mutable struct MC{T<:Model, S} <: MonteCarloFlavor
-    model::T
-    conf::S
+mutable struct MC{M<:Model, C} <: MonteCarloFlavor
+    model::M
+    conf::C
     energy::Float64
+    
     obs::Dict{String, Observable}
     p::MCParameters
     a::MCAnalysis
 
-    MC{T,S}() where {T,S} = new()
+    MC{M,C}() where {M,C} = new()
 end
 
 """
@@ -68,7 +69,7 @@ end
 Initialize the classical Monte Carlo simulation `mc`.
 If `seed !=- 1` the random generator will be initialized with `srand(seed)`.
 """
-function init!(mc::MC{<:Model, S}; seed::Real=-1) where S
+function init!(mc::MC; seed::Real=-1)
     seed == -1 || srand(seed)
 
     mc.conf = rand(mc, mc.model)
@@ -86,7 +87,7 @@ end
 Runs the given classical Monte Carlo simulation `mc`.
 Progress will be printed to `STDOUT` if `verborse=true` (default).
 """
-function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization) where S
+function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
     mc.p.sweeps = sweeps
     mc.p.thermalization = thermalization
     const total_sweeps = mc.p.sweeps + mc.p.thermalization
@@ -146,7 +147,7 @@ end
 
 Performs a sweep of local moves.
 """
-function sweep(mc::MC{<:Model, S}) where S
+function sweep(mc::MC)
     const N = mc.model.l.sites
     const beta = mc.model.β
 
