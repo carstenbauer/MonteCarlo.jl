@@ -25,7 +25,7 @@ mc = MC(m);
 run!(mc, sweeps=1000, thermalization=1000, verbose=false);
 
 # analyze results
-observables(m) # what observables do exist for that simulation?
+observables(mc) # what observables do exist for that simulation?
 m = mc.obs["m"] # magnetization
 mean(m)
 std(m) # one-sigma error
