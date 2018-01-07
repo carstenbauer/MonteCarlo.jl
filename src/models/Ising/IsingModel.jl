@@ -1,4 +1,4 @@
-const IsingSpin = Float64 # can't use something more efficient here because of bug in MonteCarloObservable (see #10 on gitsrv)
+const IsingSpin = Int8 # can't use something more efficient here because of bug in MonteCarloObservable (see #10 on gitsrv)
 const IsingDistribution = IsingSpin[-1,1]
 const IsingConf = Array{IsingSpin, 2}
 const IsingConfs = Array{IsingSpin, 3}
