@@ -53,7 +53,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Getting started",
     "title": "Example",
     "category": "section",
-    "text": "This is a simple demontration of how to perform a classical Monte Carlo simulation of the 2D Ising model:# load packages\nusing MonteCarlo, MonteCarloObservable\n\n# load your model\nm = IsingModel(dims=2, L=8, β=0.35);\nobservables(m) # what observables do exist for that model?\n\n# choose a Monte Carlo flavor and run the simulation\nmc = MC(m);\nrun!(mc, sweeps=1000, thermalization=1000, verbose=false);\n\n# analyze results\nm = mc.obs[\"m\"] # magnetization\nmean(m)\nstd(m) # one-sigma error\n\n# create standard plots\nhist(m)\nplot(m)(Image: ) (Image: )"
+    "text": "This is a simple demontration of how to perform a classical Monte Carlo simulation of the 2D Ising model:# load packages\nusing MonteCarlo, MonteCarloObservable\n\n# load your model\nm = IsingModel(dims=2, L=8, β=0.35);\n\n# choose a Monte Carlo flavor and run the simulation\nmc = MC(m);\nrun!(mc, sweeps=1000, thermalization=1000, verbose=false);\n\n# analyze results\nobservables(m) # what observables do exist for that simulation?\nm = mc.obs[\"m\"] # magnetization\nmean(m)\nstd(m) # one-sigma error\n\n# create standard plots\nhist(m)\nplot(m)(Image: ) (Image: )"
 },
 
 {
@@ -169,7 +169,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "methods/general.html#MonteCarlo.init!-Union{Tuple{MonteCarlo.MC{#s83,S} where #s83<:MonteCarlo.Model}, Tuple{S}} where S",
+    "location": "methods/general.html#MonteCarlo.init!-Tuple{MonteCarlo.MC}",
     "page": "General",
     "title": "MonteCarlo.init!",
     "category": "Method",
@@ -177,7 +177,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "methods/general.html#MonteCarlo.run!-Union{Tuple{MonteCarlo.MC{#s12,S} where #s12<:MonteCarlo.Model}, Tuple{S}} where S",
+    "location": "methods/general.html#MonteCarlo.run!-Tuple{MonteCarlo.MC}",
     "page": "General",
     "title": "MonteCarlo.run!",
     "category": "Method",
@@ -213,7 +213,7 @@ var documenterSearchIndex = {"docs": [
     "page": "General",
     "title": "MonteCarlo.IsingModel",
     "category": "Method",
-    "text": "IsingModel(dims::Int, L::Int, β::Float64)\nIsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)\nIsingModel(; dims::Int=2, L::Int=8, T::Float64=1.0)\n\nCreate Ising model on dims-dimensional cubic lattice with linear system size L and inverse temperature β.\n\n\n\n"
+    "text": "IsingModel(dims::Int, L::Int, β::Float64)\nIsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)\n\nCreate Ising model on dims-dimensional cubic lattice with linear system size L and inverse temperature β.\n\n\n\n"
 },
 
 {
@@ -221,7 +221,7 @@ var documenterSearchIndex = {"docs": [
     "page": "General",
     "title": "Documentation",
     "category": "section",
-    "text": "Modules = [MonteCarlo]\nPrivate = false\nOrder   = [:function, :type]\nPages = [\"mc.jl\", \"IsingModel.jl\"]"
+    "text": "Modules = [MonteCarlo]\nPrivate = false\nOrder   = [:function, :type]\nPages = [\"MC.jl\", \"IsingModel.jl\"]"
 },
 
 {
@@ -246,86 +246,6 @@ var documenterSearchIndex = {"docs": [
     "title": "Index",
     "category": "section",
     "text": "Pages = [\"models.md\"]"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.observables-Tuple{MonteCarlo.Model}",
-    "page": "Models",
-    "title": "MonteCarlo.observables",
-    "category": "Method",
-    "text": "observables(m::Model)\n\nGet a list of all observables defined for a given model.\n\nReturns a Dict{String, String} where values are the observables names and keys are short versions of those names. The keys can be used to collect correponding observable objects from a Monte Carlo simulation, e.g. like mc.obs[key].\n\nNote, there is no need to implement this function for a custom model.\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#Base.Random.rand-Tuple{MonteCarlo.Model}",
-    "page": "Models",
-    "title": "Base.Random.rand",
-    "category": "Method",
-    "text": "rand(m::Model)\n\nDraw random configuration.\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.accept_local!-Tuple{MonteCarlo.Model,Int64,Any,Float64,Any,Float64}",
-    "page": "Models",
-    "title": "MonteCarlo.accept_local!",
-    "category": "Method",
-    "text": "accept_local(m::Model, i::Int, conf, E::Float64, Δi, ΔE::Float64)\n\nAccept a local move for site i of current configuration conf with energy E. Arguments Δi and ΔE correspond to output of propose_local() for that local move.\n\nSee also propose_local.\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.conftype-Tuple{MonteCarlo.Model}",
-    "page": "Models",
-    "title": "MonteCarlo.conftype",
-    "category": "Method",
-    "text": "conftype(m::Model)\n\nReturns the type of a configuration.\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.energy-Tuple{MonteCarlo.Model,Any}",
-    "page": "Models",
-    "title": "MonteCarlo.energy",
-    "category": "Method",
-    "text": "energy(m::Model, conf)\n\nCalculate energy of configuration conf for Model m.\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.finish_observables!-Tuple{MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}",
-    "page": "Models",
-    "title": "MonteCarlo.finish_observables!",
-    "category": "Method",
-    "text": "measure_observables!(m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasure observables and update corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and measure_observables!.\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.global_move-Tuple{MonteCarlo.Model,Any,Float64}",
-    "page": "Models",
-    "title": "MonteCarlo.global_move",
-    "category": "Method",
-    "text": "global_move(m::Model, conf, E::Float64) -> accepted::Bool\n\nPropose a global move for configuration conf with energy E. Returns wether the global move has been accepted or not.\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.measure_observables!-Tuple{MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}",
-    "page": "Models",
-    "title": "MonteCarlo.measure_observables!",
-    "category": "Method",
-    "text": "measure_observables!(m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasures observables and updates corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and finish_observables!.\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.prepare_observables-Tuple{MonteCarlo.Model}",
-    "page": "Models",
-    "title": "MonteCarlo.prepare_observables",
-    "category": "Method",
-    "text": "prepare_observables(m::Model) -> Dict{String, Observable}\n\nInitializes observables and returns a Dict{String, Observable}. In the latter, keys are abbreviations for the observables names and values are the observables themselves.\n\nSee also measure_observables! and finish_observables!.\n\n\n\n"
-},
-
-{
-    "location": "methods/models.html#MonteCarlo.propose_local-Tuple{MonteCarlo.Model,Int64,Any,Float64}",
-    "page": "Models",
-    "title": "MonteCarlo.propose_local",
-    "category": "Method",
-    "text": "propose_local(m::Model, i::Int, conf, E::Float64) -> ΔE, Δi\n\nPropose a local move for lattice site i of current configuration conf with energy E. Returns local move information Δi  (e.g. new[i] - conf[i], will be forwarded to accept_local!) and energy difference ΔE = E_new - E_old.\n\nSee also accept_local!.\n\n\n\n"
 },
 
 {
