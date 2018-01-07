@@ -28,7 +28,7 @@ end
 """
 Classical Monte Carlo simulation
 """
-mutable struct MC{T, S} <: MonteCarloFlavor where T<:Model
+mutable struct MC{T<:Model, S} <: MonteCarloFlavor
     model::T
     conf::S
     energy::Float64
@@ -71,10 +71,10 @@ If `seed !=- 1` the random generator will be initialized with `srand(seed)`.
 function init!(mc::MC{<:Model, S}; seed::Real=-1) where S
     seed == -1 || srand(seed)
 
-    mc.conf = rand(mc.model)
-    mc.energy = energy(mc.model, mc.conf)
+    mc.conf = rand(mc, mc.model)
+    mc.energy = energy(mc, mc.model, mc.conf)
 
-    mc.obs = prepare_observables(mc.model)
+    mc.obs = prepare_observables(mc, mc.model)
 
     mc.a = MCAnalysis()
     nothing
@@ -102,10 +102,10 @@ function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps, t
 
         if mc.p.global_moves && mod(i, mc.p.global_rate) == 0
             mc.a.prop_global += 1
-            mc.a.acc_global += global_move(mc.model, mc.conf, mc.energy)
+            mc.a.acc_global += global_move(mc, mc.model, mc.conf, mc.energy)
         end
 
-        (i > mc.p.thermalization) && measure_observables!(mc.model, mc.obs, mc.conf, mc.energy)
+        (i > mc.p.thermalization) && measure_observables!(mc, mc.model, mc.obs, mc.conf, mc.energy)
 
         if mod(i, 1000) == 0
             mc.a.acc_rate = mc.a.acc_rate / 1000
@@ -127,7 +127,7 @@ function run!(mc::MC{<:Model, S}; verbose::Bool=true, sweeps::Int=mc.p.sweeps, t
             tic()
         end
     end
-    finish_observables!(mc.model, mc.obs)
+    finish_observables!(mc, mc.model, mc.obs)
     toq();
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
@@ -151,11 +151,11 @@ function sweep(mc::MC{<:Model, S}) where S
     const beta = mc.model.β
 
     @inbounds for i in eachindex(mc.conf)
-        ΔE, Δi = propose_local(mc.model, i, mc.conf, mc.energy)
+        ΔE, Δi = propose_local(mc, mc.model, i, mc.conf, mc.energy)
         mc.a.prop_local += 1
         # Metropolis
         if ΔE <= 0 || rand() < exp(- beta*ΔE)
-            accept_local!(mc.model, i, mc.conf, mc.energy, Δi, ΔE)
+            accept_local!(mc, mc.model, i, mc.conf, mc.energy, Δi, ΔE)
             mc.a.acc_rate += 1/N
             mc.a.acc_local += 1
             mc.energy += ΔE
@@ -164,3 +164,6 @@ function sweep(mc::MC{<:Model, S}) where S
 
     nothing
 end
+
+include("interface_mandatory.jl")
+include("interface_optional.jl")

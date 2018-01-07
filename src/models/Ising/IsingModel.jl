@@ -1,4 +1,4 @@
-const IsingSpin = Int8
+const IsingSpin = Float64 # can't use something more efficient here because of bug in MonteCarloObservable (see #10 on gitsrv)
 const IsingDistribution = IsingSpin[-1,1]
 const IsingConf = Array{IsingSpin, 2}
 const IsingConfs = Array{IsingSpin, 3}
@@ -18,7 +18,6 @@ end
 """
     IsingModel(dims::Int, L::Int, β::Float64)
     IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)
-    IsingModel(; dims::Int=2, L::Int=8, T::Float64=1.0)
 
 Create Ising model on `dims`-dimensional cubic lattice
 with linear system size `L` and inverse temperature `β`.
@@ -32,13 +31,14 @@ function IsingModel(dims::Int, L::Int, β::Float64)
 end
 IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0) = IsingModel(dims, L, β)
 
-# methods
-"""
-    energy(m::IsingModel, conf::IsingConf)
 
-Calculate energy of Ising configuration `conf` for Ising Model `m`.
+# methods to use it with Monte Carlo flavor MC (classical Monte Carlo)
 """
-function energy(m::IsingModel, conf::IsingConf)
+    energy(mc::MC, m::IsingModel, conf::IsingConf)
+
+Calculate energy of Ising configuration `conf` for Ising model `m`.
+"""
+function energy(mc::MC, m::IsingModel, conf::IsingConf)
     const L = m.l.L
     const neigh = m.l.neighs_cartesian
     E = 0.0
@@ -52,11 +52,11 @@ end
 
 import Base.rand
 """
-    rand(m::IsingModel)
+    rand(mc::MC, m::IsingModel)
 
 Draw random Ising configuration.
 """
-rand(m::IsingModel) = rand(IsingDistribution, m.l.L, m.l.L)
+rand(mc::MC, m::IsingModel) = rand(IsingDistribution, m.l.L, m.l.L)
 
 """
     conftype(m::IsingModel)
@@ -66,35 +66,35 @@ Returns the type of an Ising model configuration.
 conftype(m::IsingModel) = IsingConf
 
 """
-    propose_local(m::IsingModel, i::Int, conf::IsingConf, E::Float64) -> ΔE, Δi
+    propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64) -> ΔE, Δi
 
 Propose a local spin flip at site `i` of current configuration `conf`
 with energy `E`. Returns the local move `Δi = new[i] - conf[i]` and energy difference `ΔE = E_new - E_old`.
 """
-@inline function propose_local(m::IsingModel, i::Int, conf::IsingConf, E::Float64)
+@inline function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64)
     ΔE = 2. * conf[i] * sum(conf[m.l.neighs[:,i]])
     return ΔE, conf[i]==1?-2:2
 end
 
 """
-    accept_local(m::IsingModel, i::Int, conf::IsingConf, E::Float64, Δi, ΔE::Float64)
+    accept_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64, Δi, ΔE::Float64)
 
 Accept a local spin flip at site `i` of current configuration `conf`
 with energy `E`. Arguments `Δi` and `ΔE` correspond to output of `propose_local()`
 for that spin flip.
 """
-@inline function accept_local!(m::IsingModel, i::Int, conf::IsingConf, E::Float64, Δi, ΔE::Float64)
+@inline function accept_local!(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64, Δi, ΔE::Float64)
     conf[i] *= -1
     nothing
 end
 
 """
-    global_move(m::IsingModel, conf::IsingConf, E::Float64) -> accepted::Bool
+    global_move(mc::MC, m::IsingModel, conf::IsingConf, E::Float64) -> accepted::Bool
 
 Constructs a Wolff cluster spinflip for configuration `conf` with energy `E`.
 Returns wether a cluster spinflip has been performed (any spins have been flipped).
 """
-function global_move(m::IsingModel, conf::IsingConf, E::Float64)
+function global_move(mc::MC, m::IsingModel, conf::IsingConf, E::Float64)
     const N = m.l.sites
     const neighs = m.l.neighs
     const beta = m.β
@@ -127,13 +127,13 @@ function global_move(m::IsingModel, conf::IsingConf, E::Float64)
 end
 
 """
-    prepare_observables(m::IsingModel)
+    prepare_observables(mc::MC, m::IsingModel)
 
 Initializes observables for the Ising model and returns a `Dict{String, Observable}`.
 
 See also [`measure_observables!`](@ref) and [`finish_observables!`](@ref).
 """
-function prepare_observables(m::IsingModel)
+@inline function prepare_observables(mc::MC, m::IsingModel)
     obs = Dict{String,Observable}()
     obs["confs"] = Observable(IsingConf, "Configurations")
 
@@ -153,13 +153,13 @@ function prepare_observables(m::IsingModel)
 end
 
 """
-    measure_observables!(m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
+    measure_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
 
 Measures observables and updates corresponding `Observable` objects in `obs`.
 
 See also [`prepare_observables`](@ref) and [`finish_observables!`](@ref).
 """
-function measure_observables!(m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
+@inline function measure_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
     const N = m.l.sites
 
     add!(obs["confs"], conf)
@@ -181,13 +181,13 @@ function measure_observables!(m::IsingModel, obs::Dict{String,Observable}, conf:
 end
 
 """
-    measure_observables!(m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
+    measure_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
 
 Calculates magnetic susceptibility and specific heat and updates corresponding `Observable` objects in `obs`.
 
 See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 """
-function finish_observables!(m::IsingModel, obs::Dict{String,Observable})
+@inline function finish_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable})
     const N = m.l.sites
     const β = m.β
 

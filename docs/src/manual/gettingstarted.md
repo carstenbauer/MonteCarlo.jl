@@ -19,13 +19,13 @@ using MonteCarlo, MonteCarloObservable
 
 # load your model
 m = IsingModel(dims=2, L=8, β=0.35);
-observables(m) # what observables do exist for that model?
 
 # choose a Monte Carlo flavor and run the simulation
 mc = MC(m);
 run!(mc, sweeps=1000, thermalization=1000, verbose=false);
 
 # analyze results
+observables(m) # what observables do exist for that simulation?
 m = mc.obs["m"] # magnetization
 mean(m)
 std(m) # one-sigma error
