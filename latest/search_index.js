@@ -81,7 +81,79 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/custommodels.html#",
+    "location": "manual/flavors/mc.html#",
+    "page": "MC",
+    "title": "MC",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "manual/flavors/dqmc.html#",
+    "page": "DQMC",
+    "title": "DQMC",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "manual/models/ising.html#",
+    "page": "Ising model",
+    "title": "Ising model",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "manual/models/ising.html#Ising-model-1",
+    "page": "Ising model",
+    "title": "Ising model",
+    "category": "section",
+    "text": "The famous Hamiltonian of the Ising model is given by \\begin{align} \\mathcal{H} = -\\sum_{\\langle i,j \\rangle} \\sigma_i \\sigma_j , \\end{align}where $ \\langle i, j \\rangle $ indicates that the sum has to be taken over nearest neighbors.You can create an Ising model as follows,model = IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)The following parameters can be set via keyword arguments:dims: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL: linear system size\nβ: inverse temperaturenote: Note\nSo far only dims=2 is supported. Feel free to extend the model and create a pull request!"
+},
+
+{
+    "location": "manual/models/ising.html#Square-lattice-(2D)-1",
+    "page": "Ising model",
+    "title": "Square lattice (2D)",
+    "category": "section",
+    "text": ""
+},
+
+{
+    "location": "manual/models/ising.html#Analytic-results-1",
+    "page": "Ising model",
+    "title": "Analytic results",
+    "category": "section",
+    "text": "The model can be solved exactly by transfer matrix method (Onsager solution). This gives the following results.Critical temperature: $ T_c = \\frac{2}{\\ln{1+\\sqrt{2}}} $Magnetization (per site): $ m = \\left(1-\\left[\\sinh 2\\beta \\right]^{-4}\\right)^{\\frac {1}{8}} $See also 2D Ising model."
+},
+
+{
+    "location": "manual/models/ising.html#Potential-extensions-1",
+    "page": "Ising model",
+    "title": "Potential extensions",
+    "category": "section",
+    "text": "Pull requests are very much welcome!Arbitrary dimensions\nMagnetic field\nMaybe explicit J instead of implicit J=1\nNon-cubic lattices (just add lattice::Lattice keyword)"
+},
+
+{
+    "location": "manual/models/hubbard.html#",
+    "page": "Hubbard model",
+    "title": "Hubbard model",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "manual/models/hubbard.html#Hubbard-model-1",
+    "page": "Hubbard model",
+    "title": "Hubbard model",
+    "category": "section",
+    "text": "The Hamiltonian of the repulsive Hubbard model is given by \\begin{align} \\mathcal{H} = -t \\sum_{\\langle i,j \\rangle, \\sigma} \\left( c^\\dagger_{i\\sigma} c_{j\\sigma} + \\text{h.c.} \\right) + U \\sum_j \\left( n_{j\\uparrow} - \\frac{1}{2} \\right) \\left( n_{j\\downarrow} - \\frac{1}{2} \\right) - \\mu\\sum_j\\left( n_{j\\uparrow} + n_{j\\downarrow} \\right), \\end{align}where sigma denotes spin, t is the hopping amplitude, U the on-site repulsive interaction strength, mu the chemical potential and $ \\langle i, j \\rangle $ indicates that the sum has to be taken over nearest neighbors. Note that (1) is the Hubbard model in particle-hole symmetric form which has the nice property that mu = 0 corresponds to half-filling.You can create a Hubbard model instance as follows,model = HubbardModel(; dims::Int=2, L::Int=8, β::Float64=1.0)The following parameters can be set via keyword arguments:dims: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL: linear system size\nβ: inverse temperature"
+},
+
+{
+    "location": "manual/custom/models.html#",
     "page": "Models",
     "title": "Models",
     "category": "page",
@@ -89,7 +161,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/custommodels.html#Custom-models-1",
+    "location": "manual/custom/models.html#Custom-models-1",
     "page": "Models",
     "title": "Custom models",
     "category": "section",
@@ -97,7 +169,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/custommodels.html#Semantics-1",
+    "location": "manual/custom/models.html#Semantics-1",
     "page": "Models",
     "title": "Semantics",
     "category": "section",
@@ -105,7 +177,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/custommodels.html#Mandatory-fields-and-methods-1",
+    "location": "manual/custom/models.html#Mandatory-fields-and-methods-1",
     "page": "Models",
     "title": "Mandatory fields and methods",
     "category": "section",
@@ -113,7 +185,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/custommodels.html#Lattice-requirements-1",
+    "location": "manual/custom/models.html#Lattice-requirements-1",
     "page": "Models",
     "title": "Lattice requirements",
     "category": "section",
@@ -121,7 +193,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/customlattices.html#",
+    "location": "manual/custom/lattices.html#",
     "page": "Lattices",
     "title": "Lattices",
     "category": "page",
@@ -129,7 +201,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/customlattices.html#Custom-lattices-1",
+    "location": "manual/custom/lattices.html#Custom-lattices-1",
     "page": "Lattices",
     "title": "Custom lattices",
     "category": "section",
@@ -137,11 +209,19 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/customlattices.html#Mandatory-fields-and-methods-1",
+    "location": "manual/custom/lattices.html#Mandatory-fields-and-methods-1",
     "page": "Lattices",
     "title": "Mandatory fields and methods",
     "category": "section",
     "text": "Any concrete lattice type, let's call it MyLattice in the following, must be a subtype of the abstract type MonteCarlo.Lattice. To work with a Monte Carlo flavor, it must internally have at least have the following field,sites: number of lattice sites.However, as already mentioned above depending on the physical model of interest it will typically also have (at least) something likeneighs: next nearest neighbors,as most Hamiltonian will need next nearest neighbor information.The only reason why such a field isn't generally mandatory is that the Monte Carlo routine doesn't care about the lattice much. Neighbor information is usually only used in the energy (difference) calculation of a particular configuration like done in energy or propose_local which both belong to a Model."
+},
+
+{
+    "location": "manual/custom/flavors.html#",
+    "page": "Flavors",
+    "title": "Flavors",
+    "category": "page",
+    "text": ""
 },
 
 {
