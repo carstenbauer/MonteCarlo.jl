@@ -9,9 +9,19 @@
 [appveyor-img]: https://img.shields.io/appveyor/ci/crstnbr/montecarlo-jl/master.svg?label=Windows
 [codecov-img]: https://img.shields.io/codecov/c/github/crstnbr/MonteCarlo.jl/master.svg?label=codecov
 
+This is a package for numerically simulating physical systems in Julia. The purpose of this package is to supply efficient Julia implementations of Monte Carlo flavors for the study of physical models of spins, bosons and/or fermions. Examples that ship with the package are
+
+* Ising spin model simulated by classical Monte Carlo
+* Fermionic Hubbard model simulated by variants of determinant quantum Monte Carlo
 
 In Julia REPL:
-```
+```julia
 Pkg.clone("https://github.com/crstnbr/MonteCarlo.jl")
 using MonteCarlo
 ```
+
+Look at the [documentation](https://crstnbr.github.io/MonteCarlo.jl/latest/) for more information.
+
+## Authors
+
+* Carsten Bauer ([github](https://github.com/crstnbr))
