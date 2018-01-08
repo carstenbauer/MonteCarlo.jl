@@ -1,5 +1,6 @@
 # Hubbard model
 
+## Hamiltonian
 The Hamiltonian of the repulsive Hubbard model is given by 
 
 \begin{align}
@@ -8,6 +9,7 @@ The Hamiltonian of the repulsive Hubbard model is given by
 
 where $\sigma$ denotes spin, $t$ is the hopping amplitude, $U$ the on-site repulsive interaction strength, $\mu$ the chemical potential and $ \langle i, j \rangle $ indicates that the sum has to be taken over nearest neighbors. Note that (1) is the Hubbard model in particle-hole symmetric form which has the nice property that $\mu = 0$ corresponds to half-filling.
 
+## Constructor
 You can create a Hubbard model instance as follows,
 ```julia
 model = HubbardModel(; dims::Int=2, L::Int=8, β::Float64=1.0)
