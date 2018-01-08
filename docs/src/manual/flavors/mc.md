@@ -23,8 +23,7 @@ Note that you can just do another `run!(mc, sweeps=1000)` to continue the simula
 
 ## Model interface
 
-Any model that wants to be simulatable by means of MC must implement the following interface, a specification of mandatory and optional fields and methods.
-One can exploit multiple dispatch to (if sensible) make a model work with multiple Monte Carlo flavors.
+Any model that wants to be simulatable by means of MC must implement the following interface.
 
 ### Mandatory fields
 

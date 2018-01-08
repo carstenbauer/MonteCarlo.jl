@@ -23,6 +23,10 @@ The following parameters can be set via keyword arguments:
 
     So far only `dims=2` is supported. Feel free to extend the model and create a pull request!
 
+## Supported Monte Carlo flavors
+
+ * [Monte Carlo](@ref)
+
 ## Square lattice (2D)
 
 ### Analytic results
