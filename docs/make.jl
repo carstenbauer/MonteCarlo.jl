@@ -14,9 +14,18 @@ makedocs(
         "Manual" => [
             "Getting started" => "manual/gettingstarted.md",
             "Examples" => "manual/examples.md",
-            "Customize" => [
-                "Models" => "manual/custommodels.md",
-                "Lattices" => "manual/customlattices.md"
+            "Monte Carlo flavors" => [
+                "MC" => "manual/flavors/mc.md",
+                "DQMC" => "manual/flavors/dqmc.md"
+            ],
+            "Physical models" => [
+                "Ising model" => "manual/models/ising.md",
+                "Hubbard model" => "manual/models/hubbard.md"
+            ],
+            "Custom" => [
+                "Models" => "manual/custom/models.md",
+                "Lattices" => "manual/custom/lattices.md",
+                "Flavors" => "manual/custom/flavors.md"
             ]
         ],
         "Methods" => [
