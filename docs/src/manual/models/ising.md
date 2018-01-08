@@ -1,5 +1,6 @@
-# Ising model
+# IsingModel
 
+## Hamiltonian
 The famous Hamiltonian of the Ising model is given by 
 
 \begin{align}
@@ -8,6 +9,7 @@ The famous Hamiltonian of the Ising model is given by
 
 where $ \langle i, j \rangle $ indicates that the sum has to be taken over nearest neighbors.
 
+## Constructor
 You can create an Ising model as follows,
 ```julia
 model = IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)
@@ -25,11 +27,11 @@ The following parameters can be set via keyword arguments:
 
 ## Supported Monte Carlo flavors
 
- * [Monte Carlo](@ref)
+ * MC, [Monte Carlo](@ref)
 
-## Square lattice (2D)
+## Analytic results
 
-### Analytic results
+### Square lattice (2D)
 
 The model can be solved exactly by transfer matrix method ([Onsager solution](https://en.wikipedia.org/wiki/Ising_model#Onsager's_exact_solution)). This gives the following results.
 
