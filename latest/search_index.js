@@ -101,7 +101,7 @@ var documenterSearchIndex = {"docs": [
     "page": "MC",
     "title": "Model interface",
     "category": "section",
-    "text": "Any model that wants to be simulatable by means of MC must implement the following interface, a specification of mandatory and optional fields and methods. One can exploit multiple dispatch to (if sensible) make a model work with multiple Monte Carlo flavors."
+    "text": "Any model that wants to be simulatable by means of MC must implement the following interface."
 },
 
 {
@@ -158,6 +158,14 @@ var documenterSearchIndex = {"docs": [
     "title": "Ising model",
     "category": "section",
     "text": "The famous Hamiltonian of the Ising model is given by \\begin{align} \\mathcal{H} = -\\sum_{\\langle i,j \\rangle} \\sigma_i \\sigma_j , \\end{align}where $ \\langle i, j \\rangle $ indicates that the sum has to be taken over nearest neighbors.You can create an Ising model as follows,model = IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)The following parameters can be set via keyword arguments:dims: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL: linear system size\nβ: inverse temperaturenote: Note\nSo far only dims=2 is supported. Feel free to extend the model and create a pull request!"
+},
+
+{
+    "location": "manual/models/ising.html#Supported-Monte-Carlo-flavors-1",
+    "page": "Ising model",
+    "title": "Supported Monte Carlo flavors",
+    "category": "section",
+    "text": "Monte Carlo"
 },
 
 {
