@@ -89,6 +89,54 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "manual/flavors/mc.html#Monte-Carlo-1",
+    "page": "MC",
+    "title": "Monte Carlo",
+    "category": "section",
+    "text": "This is plain simple classical Monte Carlo (MC). It can for example be used to simulate the Ising model (see 2D Ising Model).You can initialize a Monte Carlo simulation of a given model simply throughmc = MC(model)Allowed keywords are:sweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nglobal_moves: wether global moves should be proposed\nglobal_rate: frequency for proposing global movesAfterwards, you can run the simulation byrun!(mc)Note that you can just do another run!(mc, sweeps=1000) to continue the simulation."
+},
+
+{
+    "location": "manual/flavors/mc.html#Model-interface-1",
+    "page": "MC",
+    "title": "Model interface",
+    "category": "section",
+    "text": "Any model that wants to be simulatable by means of MC must implement the following interface, a specification of mandatory and optional fields and methods. One can exploit multiple dispatch to (if sensible) make a model work with multiple Monte Carlo flavors."
+},
+
+{
+    "location": "manual/flavors/mc.html#Mandatory-fields-1",
+    "page": "MC",
+    "title": "Mandatory fields",
+    "category": "section",
+    "text": "β::Float64: inverse temperature\nl::Lattice: any Lattice"
+},
+
+{
+    "location": "manual/flavors/mc.html#Mandatory-methods-1",
+    "page": "MC",
+    "title": "Mandatory methods",
+    "category": "section",
+    "text": "conftype: type of a configuration\nenergy: energy of configuration\nrand: random configuration\npropose_local: propose local move\naccept_local: accept a local movePrecise signatures can be found here: Methods: MC."
+},
+
+{
+    "location": "manual/flavors/mc.html#Optional-methods-1",
+    "page": "MC",
+    "title": "Optional methods",
+    "category": "section",
+    "text": "global_move: propose and accept or reject a local move\nprepare_observables: initialize observables\nmeasure_observables!: measure observables\nfinish_observables!: finish measurementsPrecise signatures can be found here: Methods: MC."
+},
+
+{
+    "location": "manual/flavors/mc.html#Potential-extensions-1",
+    "page": "MC",
+    "title": "Potential extensions",
+    "category": "section",
+    "text": "Pull requests are very much welcome!Heat bath (instead of Metropolis) option"
+},
+
+{
     "location": "manual/flavors/dqmc.html#",
     "page": "DQMC",
     "title": "DQMC",
