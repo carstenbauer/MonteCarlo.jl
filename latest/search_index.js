@@ -13,7 +13,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Documentation",
     "category": "section",
-    "text": "TODO"
+    "text": "This is a package for numerically simulating physical systems in Julia. The purpose of this package is to supply efficient Julia implementations of Monte Carlo flavors for the study of physical models of spins, bosons and/or fermions. Examples that ship with the package areIsing spin model simulated by classical Monte Carlo\nFermionic Hubbard model simulated by variants of determinant quantum Monte Carlo"
 },
 
 {
