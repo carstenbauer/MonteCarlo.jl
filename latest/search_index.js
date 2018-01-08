@@ -153,11 +153,27 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/models/ising.html#Ising-model-1",
+    "location": "manual/models/ising.html#IsingModel-1",
     "page": "Ising model",
-    "title": "Ising model",
+    "title": "IsingModel",
     "category": "section",
-    "text": "The famous Hamiltonian of the Ising model is given by \\begin{align} \\mathcal{H} = -\\sum_{\\langle i,j \\rangle} \\sigma_i \\sigma_j , \\end{align}where $ \\langle i, j \\rangle $ indicates that the sum has to be taken over nearest neighbors.You can create an Ising model as follows,model = IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)The following parameters can be set via keyword arguments:dims: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL: linear system size\nβ: inverse temperaturenote: Note\nSo far only dims=2 is supported. Feel free to extend the model and create a pull request!"
+    "text": ""
+},
+
+{
+    "location": "manual/models/ising.html#Hamiltonian-1",
+    "page": "Ising model",
+    "title": "Hamiltonian",
+    "category": "section",
+    "text": "The famous Hamiltonian of the Ising model is given by \\begin{align} \\mathcal{H} = -\\sum_{\\langle i,j \\rangle} \\sigma_i \\sigma_j , \\end{align}where $ \\langle i, j \\rangle $ indicates that the sum has to be taken over nearest neighbors."
+},
+
+{
+    "location": "manual/models/ising.html#Constructor-1",
+    "page": "Ising model",
+    "title": "Constructor",
+    "category": "section",
+    "text": "You can create an Ising model as follows,model = IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)The following parameters can be set via keyword arguments:dims: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL: linear system size\nβ: inverse temperaturenote: Note\nSo far only dims=2 is supported. Feel free to extend the model and create a pull request!"
 },
 
 {
@@ -165,21 +181,21 @@ var documenterSearchIndex = {"docs": [
     "page": "Ising model",
     "title": "Supported Monte Carlo flavors",
     "category": "section",
-    "text": "Monte Carlo"
-},
-
-{
-    "location": "manual/models/ising.html#Square-lattice-(2D)-1",
-    "page": "Ising model",
-    "title": "Square lattice (2D)",
-    "category": "section",
-    "text": ""
+    "text": "MC, Monte Carlo"
 },
 
 {
     "location": "manual/models/ising.html#Analytic-results-1",
     "page": "Ising model",
     "title": "Analytic results",
+    "category": "section",
+    "text": ""
+},
+
+{
+    "location": "manual/models/ising.html#Square-lattice-(2D)-1",
+    "page": "Ising model",
+    "title": "Square lattice (2D)",
     "category": "section",
     "text": "The model can be solved exactly by transfer matrix method (Onsager solution). This gives the following results.Critical temperature: $ T_c = \\frac{2}{\\ln{1+\\sqrt{2}}} $Magnetization (per site): $ m = \\left(1-\\left[\\sinh 2\\beta \\right]^{-4}\\right)^{\\frac {1}{8}} $See also 2D Ising model."
 },
