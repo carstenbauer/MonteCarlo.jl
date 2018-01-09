@@ -1,3 +1,6 @@
+include("linalg.jl")
+include("stack.jl")
+
 """
 Analysis data of determinant quantum Monte Carlo (DQMC) simulation
 """
@@ -22,6 +25,12 @@ mutable struct DQMCParameters
     thermalization::Int # number of thermalization sweeps
     sweeps::Int # number of sweeps (after thermalization)
 
+    chkr::Bool # use checkerboard?
+    all_checks::Bool # e.g. check if propagation is stable/instable (default should be true)
+    safe_mult::Int
+
+    slices::Int
+
     DQMCParameters() = new()
 end
 
@@ -44,8 +53,6 @@ mutable struct DQMC{M<:Model, GreensType<:Number, ConfType} <: MonteCarloFlavor
         new()
     end
 end
-
-
 
 
 
