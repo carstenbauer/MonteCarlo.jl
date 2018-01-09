@@ -2,15 +2,15 @@
 # Somehow dispatch based on mc.p.chkr wether to use checkerboard or usual slice matrix
 
 # Beff(slice) = exp(−1/2∆τT)exp(−1/2∆τT)exp(−∆τV(slice))
-function slice_matrix(mc::DQMC, slice::Int, power::Float64=1.) # direct calculation of effective slice matrix, i.e. no checkerboard
-	const expV = interaction_matrix_exp(mc, slice, power)
-	const expT = l.hopping_matrix_exp
-	const expTinv = l.hopping_matrix_exp_inv
+function slice_matrix(mc::DQMC, m::Model, slice::Int, power::Float64=1.) # direct calculation of effective slice matrix, i.e. no checkerboard
+	interaction_matrix_exp!(mc, m, mc.s.eV, slice, power)
+	const eT = mc.s.hopping_matrix_exp
+	const eTinv = mc.s.hopping_matrix_exp_inv
 
 	if power > 0
-		return expT * expT * expV
+		return eT * eT * mc.s.eV
 	else
-		return expV * expTinv * expTinv
+		return expV * eTinv * eTinv
 	end
 end
 

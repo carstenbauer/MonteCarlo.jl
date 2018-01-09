@@ -1,4 +1,4 @@
-mutable struct DQMCStack{GreensType}
+mutable struct DQMCStack{GreensType, HoppingType}
   eye_flv::Matrix{Float64}
   eye_full::Matrix{Float64}
   ones_vec::Vector{Float64}
@@ -46,16 +46,23 @@ mutable struct DQMCStack{GreensType}
   # # --------
 
 
-  #### Array allocations
+  # preallocated, reused arrays
   curr_U::Matrix{GreensType}
-  # eV::Matrix{GreensType}
+  eV::Matrix{GreensType}
   # eVop1::Matrix{GreensType}
   # eVop2::Matrix{GreensType}
+
+  # hopping matrices
+  hopping_matrix_exp::Matrix{HoppingType} # mu included
+  hopping_matrix_exp_inv::Matrix{HoppingType} # mu included
+
+  # checkerboard hopping matrices
+  # TODO
 
   Stack() = new()
 end
 
-# TODO constructor: takes mc simulation. initialize_stack and eye_full, eye_flv, and ones_vec
+# TODO constructor: takes mc simulation.
 
 function initialize_stack(mc::DQMC)
   const N = mc.model.l.sites
@@ -106,7 +113,7 @@ function initialize_stack(mc::DQMC)
   end
 
   mc.s.curr_U = zero(mc.s.U)
-  # mc.s.eV = zeros(GreensType, flv*N, flv*N)
+  mc.s.eV = zeros(GreensType, flv*N, flv*N)
   # mc.s.eVop1 = zeros(GreensType, flv, flv)
   # mc.s.eVop2 = zeros(GreensType, flv, flv)
 
