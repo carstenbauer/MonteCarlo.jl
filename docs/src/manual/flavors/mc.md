@@ -1,6 +1,6 @@
 # Monte Carlo
 
-This is plain simple classical Monte Carlo (MC). It can for example be used to simulate the Ising model (see [2D Ising Model](@ref)).
+This is plain simple classical Monte Carlo (MC). It can for example be used to simulate the Ising model (see [2D Ising model](@ref)).
 
 You can initialize a Monte Carlo simulation of a given `model` simply through
 ```julia
