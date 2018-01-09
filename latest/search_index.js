@@ -101,7 +101,7 @@ var documenterSearchIndex = {"docs": [
     "page": "MC",
     "title": "Monte Carlo",
     "category": "section",
-    "text": "This is plain simple classical Monte Carlo (MC). It can for example be used to simulate the Ising model (see 2D Ising Model).You can initialize a Monte Carlo simulation of a given model simply throughmc = MC(model)Allowed keywords are:sweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nglobal_moves: wether global moves should be proposed\nglobal_rate: frequency for proposing global movesAfterwards, you can run the simulation byrun!(mc)Note that you can just do another run!(mc, sweeps=1000) to continue the simulation."
+    "text": "This is plain simple classical Monte Carlo (MC). It can for example be used to simulate the Ising model (see 2D Ising model).You can initialize a Monte Carlo simulation of a given model simply throughmc = MC(model)Allowed keywords are:sweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nglobal_moves: wether global moves should be proposed\nglobal_rate: frequency for proposing global movesAfterwards, you can run the simulation byrun!(mc)Note that you can just do another run!(mc, sweeps=1000) to continue the simulation."
 },
 
 {
