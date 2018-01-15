@@ -100,7 +100,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
     mc.p.thermalization = thermalization
     const total_sweeps = mc.p.sweeps + mc.p.thermalization
 
-    sweep_dur = Observable(Float64, "Sweep duration"; alloc=Int(total_sweeps/100))
+    sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/100))
 
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
