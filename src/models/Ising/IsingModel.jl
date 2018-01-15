@@ -15,21 +15,27 @@ mutable struct IsingModel{C<:CubicLattice} <: Model
     l::C
 end
 
-"""
-    IsingModel(dims::Int, L::Int, β::Float64)
-    IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)
-
-Create Ising model on `dims`-dimensional cubic lattice
-with linear system size `L` and inverse temperature `β`.
-"""
-function IsingModel(dims::Int, L::Int, β::Float64)
+function _IsingModel(dims::Int, L::Int, β::Float64)
     if dims == 2
         return IsingModel(L, 2, β, SquareLattice(L))
     else
         error("Only `dims=2` supported for now.")
     end
 end
-IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0) = IsingModel(dims, L, β)
+
+"""
+    IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)
+
+Create Ising model on `dims`-dimensional cubic lattice
+with linear system size `L` and inverse temperature `β`.
+"""
+IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0) = _IsingModel(dims, L, β)
+"""
+    IsingModel(kwargs::Dict{String, Any})
+
+Create Ising model with (keyword) parameters as specified in `kwargs` dict.
+"""
+IsingModel(kwargs::Dict{String, Any}) = IsingModel(; convert(Dict{Symbol,Any}, kwargs)...)
 
 
 # methods to use it with Monte Carlo flavor MC (classical Monte Carlo)
