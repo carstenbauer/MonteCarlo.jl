@@ -393,11 +393,19 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "methods/general.html#MonteCarlo.IsingModel-Tuple{Int64,Int64,Float64}",
+    "location": "methods/general.html#MonteCarlo.IsingModel-Tuple{Dict{String,Any}}",
     "page": "General",
     "title": "MonteCarlo.IsingModel",
     "category": "Method",
-    "text": "IsingModel(dims::Int, L::Int, β::Float64)\nIsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)\n\nCreate Ising model on dims-dimensional cubic lattice with linear system size L and inverse temperature β.\n\n\n\n"
+    "text": "IsingModel(kwargs::Dict{String, Any})\n\nCreate Ising model with (keyword) parameters as specified in kwargs dict.\n\n\n\n"
+},
+
+{
+    "location": "methods/general.html#MonteCarlo.IsingModel-Tuple{}",
+    "page": "General",
+    "title": "MonteCarlo.IsingModel",
+    "category": "Method",
+    "text": "IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)\n\nCreate Ising model on dims-dimensional cubic lattice with linear system size L and inverse temperature β.\n\n\n\n"
 },
 
 {
