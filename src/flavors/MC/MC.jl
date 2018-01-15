@@ -66,8 +66,8 @@ end
 Create a classical Monte Carlo simulation for model `m` with (keyword) parameters
 as specified in the dictionary `kwargs`.
 """
-function MC(m::M, kwargs::Dict{String, Any})
-    MC(m::M; convert(Dict{Symbol, Any}, kwargs)...)
+function MC(m::M, kwargs::Dict{String, Any}) where M<:Model
+    MC(m; convert(Dict{Symbol, Any}, kwargs)...)
 end
 
 
