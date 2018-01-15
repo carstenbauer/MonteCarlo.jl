@@ -13,6 +13,7 @@ Allowed keywords are:
 * `thermalization`: number of thermalization (warmup) sweeps
 * `global_moves`: wether global moves should be proposed
 * `global_rate`: frequency for proposing global moves
+* `seed`: initialize MC with custom seed
 
 Afterwards, you can run the simulation by
 ```julia

@@ -41,26 +41,34 @@ mutable struct MC{M<:Model, C} <: MonteCarloFlavor
 end
 
 """
-    MC(m::M) where M<:Model
+    MC(m::M; kwargs...) where M<:Model
 
-Create a classical Monte Carlo simulation for model `m` with default parameters.
+Create a classical Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
-function MC(m::M) where M<:Model
+function MC(m::M; sweeps::Int=1000, thermalization::Int=0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1) where M<:Model
     mc = MC{M, conftype(m)}()
     mc.model = m
 
     # default params
     mc.p = MCParameters()
-    mc.p.global_moves = false
-    mc.p.global_rate = 5
-    mc.p.thermalization = 0
-    mc.p.sweeps = 1000
+    mc.p.global_moves = global_moves
+    mc.p.global_rate = global_rate
+    mc.p.thermalization = thermalization
+    mc.p.sweeps = sweeps
 
-    init!(mc)
+    init!(mc, seed=seed)
     return mc
 end
 
-# TODO: constructor that allows one to set of some MCParameters via positonal or keyword arguments
+"""
+    MC(m::M; kwargs::Dict{String, Any})
+
+Create a classical Monte Carlo simulation for model `m` with (keyword) parameters
+as specified in the dictionary `kwargs`.
+"""
+function MC(m::M, kwargs::Dict{String, Any})
+    MC(m::M; convert(Dict{Symbol, Any}, kwargs)...)
+end
 
 
 """
