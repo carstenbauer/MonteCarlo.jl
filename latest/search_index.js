@@ -101,7 +101,7 @@ var documenterSearchIndex = {"docs": [
     "page": "MC",
     "title": "Monte Carlo",
     "category": "section",
-    "text": "This is plain simple classical Monte Carlo (MC). It can for example be used to simulate the Ising model (see 2D Ising model).You can initialize a Monte Carlo simulation of a given model simply throughmc = MC(model)Allowed keywords are:sweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nglobal_moves: wether global moves should be proposed\nglobal_rate: frequency for proposing global movesAfterwards, you can run the simulation byrun!(mc)Note that you can just do another run!(mc, sweeps=1000) to continue the simulation."
+    "text": "This is plain simple classical Monte Carlo (MC). It can for example be used to simulate the Ising model (see 2D Ising model).You can initialize a Monte Carlo simulation of a given model simply throughmc = MC(model)Allowed keywords are:sweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nglobal_moves: wether global moves should be proposed\nglobal_rate: frequency for proposing global moves\nseed: initialize MC with custom seedAfterwards, you can run the simulation byrun!(mc)Note that you can just do another run!(mc, sweeps=1000) to continue the simulation."
 },
 
 {
@@ -369,11 +369,19 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "methods/general.html#MonteCarlo.MC-Union{Tuple{M,Dict{String,Any}}, Tuple{M}} where M<:MonteCarlo.Model",
+    "page": "General",
+    "title": "MonteCarlo.MC",
+    "category": "Method",
+    "text": "MC(m::M; kwargs::Dict{String, Any})\n\nCreate a classical Monte Carlo simulation for model m with (keyword) parameters as specified in the dictionary kwargs.\n\n\n\n"
+},
+
+{
     "location": "methods/general.html#MonteCarlo.MC-Union{Tuple{M}, Tuple{M}} where M<:MonteCarlo.Model",
     "page": "General",
     "title": "MonteCarlo.MC",
     "category": "Method",
-    "text": "MC(m::M) where M<:Model\n\nCreate a classical Monte Carlo simulation for model m with default parameters.\n\n\n\n"
+    "text": "MC(m::M; kwargs...) where M<:Model\n\nCreate a classical Monte Carlo simulation for model m with keyword parameters kwargs.\n\n\n\n"
 },
 
 {
