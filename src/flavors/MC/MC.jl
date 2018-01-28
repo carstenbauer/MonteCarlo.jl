@@ -32,7 +32,7 @@ mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     model::M
     conf::C
     energy::Float64
-    
+
     obs::Dict{String, Observable}
     p::MCParameters
     a::MCAnalysis
@@ -146,7 +146,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000./60.)
-    
+
     mc.obs
 end
 
