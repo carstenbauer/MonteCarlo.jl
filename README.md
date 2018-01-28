@@ -25,3 +25,4 @@ Look at the [documentation](https://crstnbr.github.io/MonteCarlo.jl/latest/) for
 ## Authors
 
 * Carsten Bauer ([github](https://github.com/crstnbr))
+* Peter Broecker ([github](https://pebroecker.github.io))
