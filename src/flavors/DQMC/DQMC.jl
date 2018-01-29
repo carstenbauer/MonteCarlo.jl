@@ -25,7 +25,6 @@ mutable struct DQMCParameters
     thermalization::Int # number of thermalization sweeps
     sweeps::Int # number of sweeps (after thermalization)
 
-    chkr::Bool # use checkerboard?
     all_checks::Bool # e.g. check if propagation is stable/instable (default should be true)
     safe_mult::Int
 
@@ -37,16 +36,17 @@ end
 """
 Determinant quantum Monte Carlo (DQMC) simulation
 """
-mutable struct DQMC{M<:Model, GreensType<:Number, ConfType} <: MonteCarloFlavor
+mutable struct DQMC{M<:Model, GreensType<:Number, ConfType, Checkerboard<:Bool} <: MonteCarloFlavor
     model::M
     conf::ConfType
     # greens::GreensType # should this be here or in DQMCStack?
     energy::Float64
-
-    obs::Dict{String, Observable}
     s::DQMCStack
+
     p::DQMCParameters
+
     a::DQMCAnalysis
+    obs::Dict{String, Observable}
 
     function DQMC{M,GreensType}() where {M<:Model,GreensType<:Number}
         @assert isleaftype(GreensType)
@@ -54,6 +54,54 @@ mutable struct DQMC{M<:Model, GreensType<:Number, ConfType} <: MonteCarloFlavor
     end
 end
 
+"""
+    DQMC(m::M; kwargs...) where M<:Model
+
+Create a determinant quantum Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
+"""
+function DQMC(m::M; sweeps::Int=1000, thermalization::Int=0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1, checkerboard::Bool=false) where M<:Model
+    mc = DQMC{M, greenstype(m), conftype(m), checkerboard}()
+    mc.model = m
+
+    # default params
+    mc.p = MCParameters()
+    mc.p.global_moves = global_moves
+    mc.p.global_rate = global_rate
+    mc.p.thermalization = thermalization
+    mc.p.sweeps = sweeps
+
+    init!(mc, seed=seed)
+    return mc
+end
+
+"""
+    DQMC(m::M; kwargs::Dict{String, Any})
+
+Create a determinant quantum Monte Carlo simulation for model `m` with (keyword) parameters
+as specified in the dictionary `kwargs`.
+"""
+function DQMC(m::M, kwargs::Dict{String, Any}) where M<:Model
+    DQMC(m; convert(Dict{Symbol, Any}, kwargs)...)
+end
+
+
+"""
+    init!(mc::DQMC[; seed::Real=-1])
+
+Initialize the determinant quantum Monte Carlo simulation `mc`.
+If `seed !=- 1` the random generator will be initialized with `srand(seed)`.
+"""
+function init!(mc::DQMC; seed::Real=-1)
+    seed == -1 || srand(seed)
+
+    mc.conf = rand(mc, mc.model)
+    mc.energy = energy(mc, mc.model, mc.conf)
+
+    mc.obs = prepare_observables(mc, mc.model)
+
+    mc.a = DQMCAnalysis()
+    nothing
+end
 
 
 

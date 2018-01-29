@@ -1,4 +1,19 @@
 """
+    conftype(m::Model)
+
+Returns the type of a configuration.
+"""
+conftype(m::Model) = error("Model has no implementation of `conftype(m::Model)`!")
+
+import Base.rand
+"""
+    rand(mc::DQMC, m::Model)
+
+Draw random configuration.
+"""
+rand(mc::DQMC, m::Model) = error("Model has no implementation of `rand(mc::DQMC, m::Model)`!")
+
+"""
 	hopping_matrix(mc::DQMC, m::Model)
 
 Calculates the hopping matrix \$ T_{i\\sigma, j\\sigma '} \$ where \$ i, j \$ are site indices and \$ \\sigma , \\sigma ' \$

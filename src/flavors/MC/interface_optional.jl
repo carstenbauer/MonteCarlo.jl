@@ -7,7 +7,7 @@ Returns wether the global move has been accepted or not.
 global_move(mc::MC, m::Model, conf, E::Float64) = false
 
 """
-    prepare_observables(m::Model) -> Dict{String, Observable}
+    prepare_observables(mc::MC, m::Model) -> Dict{String, Observable}
 
 Initializes observables and returns a `Dict{String, Observable}`. In the latter,
 keys are abbreviations for the observables names and values are the observables themselves.
