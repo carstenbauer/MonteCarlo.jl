@@ -1,7 +1,6 @@
 # fields
-#= A model that wants to use MC must have two fields:
+#= A model that wants to use MC must have fields:
 
-    - `β::Float64`: temperature
     - `l::Lattice`: any [`Lattice`](@ref)
 =#
 
@@ -32,7 +31,7 @@ rand(mc::MC, m::Model) = error("Model has no implementation of `rand(m::Model)`!
     propose_local(mc::MC, m::Model, i::Int, conf, E::Float64) -> ΔE, Δi
 
 Propose a local move for lattice site `i` of current configuration `conf`
-with energy `E`. Returns local move information `Δi` 
+with energy `E`. Returns local move information `Δi`
 (e.g. `new[i] - conf[i]`, will be forwarded to `accept_local!`) and energy
 difference `ΔE = E_new - E_old`.
 

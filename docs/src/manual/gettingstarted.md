@@ -18,10 +18,10 @@ This is a simple demontration of how to perform a classical Monte Carlo simulati
 using MonteCarlo, MonteCarloObservable
 
 # load your model
-m = IsingModel(dims=2, L=8, β=0.35);
+m = IsingModel(dims=2, L=8);
 
 # choose a Monte Carlo flavor and run the simulation
-mc = MC(m);
+mc = MC(m, β=0.35);
 run!(mc, sweeps=1000, thermalization=1000, verbose=false);
 
 # analyze results

@@ -9,6 +9,7 @@ mc = MC(model)
 
 Allowed keywords are:
 
+* `β`: inverse temperature
 * `sweeps`: number of measurement sweeps
 * `thermalization`: number of thermalization (warmup) sweeps
 * `global_moves`: wether global moves should be proposed
@@ -28,7 +29,6 @@ Any model that wants to be simulatable by means of MC must implement the followi
 
 ### Mandatory fields
 
- * `β::Float64`: inverse temperature
  * `l::Lattice`: any [`Lattice`](@ref MonteCarlo.Lattice)
 
 ### Mandatory methods
@@ -38,7 +38,7 @@ Any model that wants to be simulatable by means of MC must implement the followi
  * [`rand`](@ref MonteCarlo.rand): random configuration
  * [`propose_local`](@ref MonteCarlo.propose_local): propose local move
  * [`accept_local`](@ref MonteCarlo.accept_local): accept a local move
- 
+
 Precise signatures can be found here: [Methods: MC](@ref).
 
 ### Optional methods
@@ -47,11 +47,11 @@ Precise signatures can be found here: [Methods: MC](@ref).
  * [`prepare_observables`](@ref MonteCarlo.prepare_observables): initialize observables
  * [`measure_observables!`](@ref MonteCarlo.measure_observables!): measure observables
  * [`finish_observables!`](@ref MonteCarlo.finish_observables!): finish measurements
- 
+
  Precise signatures can be found here: [Methods: MC](@ref).
- 
+
  ## Potential extensions
- 
+
  Pull requests are very much welcome!
- 
+
  * Heat bath (instead of Metropolis) option
