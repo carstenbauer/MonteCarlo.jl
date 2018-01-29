@@ -32,7 +32,8 @@ mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     model::M
     conf::C
     energy::Float64
-    
+    β::Float64
+
     obs::Dict{String, Observable}
     p::MCParameters
     a::MCAnalysis
@@ -45,9 +46,10 @@ end
 
 Create a classical Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
-function MC(m::M; sweeps::Int=1000, thermalization::Int=0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1) where M<:Model
+function MC(m::M; sweeps::Int=1000, thermalization::Int=0, β::Float64=1.0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1) where M<:Model
     mc = MC{M, conftype(m)}()
     mc.model = m
+    mc.β = β
 
     # default params
     mc.p = MCParameters()
@@ -146,7 +148,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000./60.)
-    
+
     mc.obs
 end
 
@@ -157,7 +159,7 @@ Performs a sweep of local moves.
 """
 function sweep(mc::MC)
     const N = mc.model.l.sites
-    const beta = mc.model.β
+    const beta = mc.β
 
     @inbounds for i in eachindex(mc.conf)
         ΔE, Δi = propose_local(mc, mc.model, i, mc.conf, mc.energy)

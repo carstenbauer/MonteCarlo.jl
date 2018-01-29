@@ -11,25 +11,24 @@ Famous Ising model on a cubic lattice.
 mutable struct IsingModel{C<:CubicLattice} <: Model
     L::Int
     dims::Int
-    β::Float64
     l::C
 end
 
-function _IsingModel(dims::Int, L::Int, β::Float64)
+function _IsingModel(dims::Int, L::Int)
     if dims == 2
-        return IsingModel(L, 2, β, SquareLattice(L))
+        return IsingModel(L, 2, SquareLattice(L))
     else
         error("Only `dims=2` supported for now.")
     end
 end
 
 """
-    IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)
+    IsingModel(; dims::Int=2, L::Int=8)
 
 Create Ising model on `dims`-dimensional cubic lattice
-with linear system size `L` and inverse temperature `β`.
+with linear system size `L`.
 """
-IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0) = _IsingModel(dims, L, β)
+IsingModel(; dims::Int=2, L::Int=8) = _IsingModel(dims, L)
 """
     IsingModel(kwargs::Dict{String, Any})
 
@@ -103,7 +102,7 @@ Returns wether a cluster spinflip has been performed (any spins have been flippe
 function global_move(mc::MC, m::IsingModel, conf::IsingConf, E::Float64)
     const N = m.l.sites
     const neighs = m.l.neighs
-    const beta = m.β
+    const beta = mc.β
 
     cluster = Array{Int, 1}()
     tocheck = Array{Int, 1}()
@@ -195,7 +194,7 @@ See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 """
 @inline function finish_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable})
     const N = m.l.sites
-    const β = m.β
+    const β = mc.β
 
     # specific heat
     const E = mean(obs["E"])
