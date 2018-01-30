@@ -28,7 +28,9 @@ mutable struct DQMCParameters
     all_checks::Bool # e.g. check if propagation is stable/instable (default should be true)
     safe_mult::Int
 
+    Δτ::Float64
     slices::Int
+    β::Float64 # redundant (=slices*Δτ) but keep for convenience
 
     DQMCParameters() = new()
 end
@@ -59,12 +61,32 @@ end
 
 Create a determinant quantum Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
-function DQMC(m::M; sweeps::Int=1000, thermalization::Int=0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1, checkerboard::Bool=false) where M<:Model
+function DQMC(m::M; sweeps::Int=1000, thermalization::Int=0,
+            slices::Int=0, β::Float64=1.0, Δτ::Float64::0.1, # typically a user wants to specify beta not slices
+            global_moves::Bool=false, global_rate::Int=5,
+            seed::Int=-1,
+            checkerboard::Bool=false) where M<:Model
     mc = DQMC{M, greenstype(m), conftype(m), checkerboard}()
     mc.model = m
 
     # default params
     mc.p = MCParameters()
+
+    # number of imaginary time slices
+    if slices<=0 # user didn't specify slices (use beta and Δτ keywords)
+        try
+            mc.p.slices = β/Δτ
+            mc.p.β = β
+            mc.p.delta_tau = Δτ
+        catch
+            error("Number of imaginary time slices, i.e. β/Δτ, must be an integer.")
+        end
+    else # user did specify slices (ignore beta keyword)
+        mc.p.slices = slices
+        mc.p.Δτ = Δτ
+        mc.p.β = slices * Δτ
+    end
+
     mc.p.global_moves = global_moves
     mc.p.global_rate = global_rate
     mc.p.thermalization = thermalization
