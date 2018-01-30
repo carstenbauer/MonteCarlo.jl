@@ -22,6 +22,8 @@ mutable struct MCParameters
     thermalization::Int # number of thermalization sweeps
     sweeps::Int # number of sweeps (after thermalization)
 
+    β::Float64
+
     MCParameters() = new()
 end
 
@@ -32,7 +34,7 @@ mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     model::M
     conf::C
     energy::Float64
-    
+
     obs::Dict{String, Observable}
     p::MCParameters
     a::MCAnalysis
@@ -45,12 +47,13 @@ end
 
 Create a classical Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
-function MC(m::M; sweeps::Int=1000, thermalization::Int=0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1) where M<:Model
+function MC(m::M; sweeps::Int=1000, thermalization::Int=0, β::Float64=1.0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1) where M<:Model
     mc = MC{M, conftype(m)}()
     mc.model = m
 
     # default params
     mc.p = MCParameters()
+    mc.p.β = β
     mc.p.global_moves = global_moves
     mc.p.global_rate = global_rate
     mc.p.thermalization = thermalization
@@ -146,7 +149,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000./60.)
-    
+
     mc.obs
 end
 
@@ -157,7 +160,7 @@ Performs a sweep of local moves.
 """
 function sweep(mc::MC)
     const N = mc.model.l.sites
-    const beta = mc.model.β
+    const beta = mc.p.β
 
     @inbounds for i in eachindex(mc.conf)
         ΔE, Δi = propose_local(mc, mc.model, i, mc.conf, mc.energy)
