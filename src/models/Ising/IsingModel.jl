@@ -102,7 +102,7 @@ Returns wether a cluster spinflip has been performed (any spins have been flippe
 function global_move(mc::MC, m::IsingModel, conf::IsingConf, E::Float64)
     const N = m.l.sites
     const neighs = m.l.neighs
-    const beta = mc.β
+    const beta = mc.p.β
 
     cluster = Array{Int, 1}()
     tocheck = Array{Int, 1}()
@@ -194,7 +194,7 @@ See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 """
 @inline function finish_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable})
     const N = m.l.sites
-    const β = mc.β
+    const β = mc.p.β
 
     # specific heat
     const E = mean(obs["E"])
