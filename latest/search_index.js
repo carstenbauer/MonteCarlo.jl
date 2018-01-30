@@ -53,7 +53,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Getting started",
     "title": "Usage",
     "category": "section",
-    "text": "This is a simple demontration of how to perform a classical Monte Carlo simulation of the 2D Ising model:# load packages\nusing MonteCarlo, MonteCarloObservable\n\n# load your model\nm = IsingModel(dims=2, L=8, β=0.35);\n\n# choose a Monte Carlo flavor and run the simulation\nmc = MC(m);\nrun!(mc, sweeps=1000, thermalization=1000, verbose=false);\n\n# analyze results\nobservables(mc) # what observables do exist for that simulation?\nm = mc.obs[\"m\"] # magnetization\nmean(m)\nstd(m) # one-sigma error\n\n# create standard plots\nhist(m)\nplot(m)(Image: )"
+    "text": "This is a simple demontration of how to perform a classical Monte Carlo simulation of the 2D Ising model:# load packages\nusing MonteCarlo, MonteCarloObservable\n\n# load your model\nm = IsingModel(dims=2, L=8);\n\n# choose a Monte Carlo flavor and run the simulation\nmc = MC(m, β=0.35);\nrun!(mc, sweeps=1000, thermalization=1000, verbose=false);\n\n# analyze results\nobservables(mc) # what observables do exist for that simulation?\nm = mc.obs[\"m\"] # magnetization\nmean(m)\nstd(m) # one-sigma error\n\n# create standard plots\nhist(m)\nplot(m)(Image: )"
 },
 
 {
@@ -85,7 +85,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Examples",
     "title": "2D Ising model",
     "category": "section",
-    "text": "Results: (Image: )Code:using MonteCarlo, Distributions, PyPlot, DataFrames, JLD\n\nTdist = Normal(MonteCarlo.IsingTc, .64)\nn_Ts = 2^8\nTs = sort!(rand(Tdist, n_Ts))\nTs = Ts[Ts.>=1.2]\nTs = Ts[Ts.<=3.8]\ntherm = 10^4\nsweeps = 10^3\n\ndf = DataFrame(L=Int[], T=Float64[], M=Float64[], χ=Float64[], E=Float64[], C_V=Float64[])\n\nfor L in 2.^[3, 4, 5, 6]\n	println(\"L = \", L)\n	for (i, T) in enumerate(Ts)\n		println(\"\\t T = \", T)\n		β = 1/T\n		model = IsingModel(dims=2, L=L, β=β)\n		mc = MC(model)\n		obs = run!(mc, sweeps=sweeps, thermalization=therm, verbose=false)\n		push!(df, [L, T, mean(obs[\"m\"]), mean(obs[\"χ\"]), mean(obs[\"e\"]), mean(obs[\"C\"])])\n	end\n	flush(STDOUT)\nend\n\nsort!(df, cols = [:L, :T])\n@save \"ising2d.jld\" df\n\n# plot results together\ngrps = groupby(df, :L)\nfig, ax = subplots(2,2, figsize=(12,8))\nfor g in grps\n	L = g[:L][1]\n	ax[1][:plot](g[:T], g[:E], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[2][:plot](g[:T], g[:C_V], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[3][:plot](g[:T], g[:M], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[4][:plot](g[:T], g[:χ], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\nend\nax[1][:legend](loc=\"best\")\nax[1][:set_ylabel](\"Energy\")\nax[1][:set_xlabel](\"Temperature\")\n\nax[2][:set_ylabel](\"Specific heat\")\nax[2][:set_xlabel](\"Temperature\")\nax[2][:axvline](x=MonteCarlo.IsingTc, color=\"black\", linestyle=\"dashed\", label=\"\\$ T_c \\$\")\nax[2][:legend](loc=\"best\")\n\nax[3][:set_ylabel](\"Magnetization\")\nax[3][:set_xlabel](\"Temperature\")\nx = linspace(1.2, MonteCarlo.IsingTc, 100)\ny = (1-sinh.(2.0 ./ (x)).^(-4)).^(1/8)\nax[3][:plot](x,y, \"k--\", label=\"exact\")\nax[3][:plot](linspace(MonteCarlo.IsingTc, 3.8, 100), zeros(100), \"k--\")\nax[3][:legend](loc=\"best\")\n\nax[4][:set_ylabel](\"Susceptibility χ\")\nax[4][:set_xlabel](\"Temperature\")\nax[4][:axvline](x=MonteCarlo.IsingTc, color=\"black\", linestyle=\"dashed\", label=\"\\$ T_c \\$\")\nax[4][:legend](loc=\"best\")\ntight_layout()\nsavefig(\"ising2d.pdf\")"
+    "text": "Results: (Image: )Code:using MonteCarlo, Distributions, PyPlot, DataFrames, JLD\n\nTdist = Normal(MonteCarlo.IsingTc, .64)\nn_Ts = 2^8\nTs = sort!(rand(Tdist, n_Ts))\nTs = Ts[Ts.>=1.2]\nTs = Ts[Ts.<=3.8]\ntherm = 10^4\nsweeps = 10^3\n\ndf = DataFrame(L=Int[], T=Float64[], M=Float64[], χ=Float64[], E=Float64[], C_V=Float64[])\n\nfor L in 2.^[3, 4, 5, 6]\n	println(\"L = \", L)\n	for (i, T) in enumerate(Ts)\n		println(\"\\t T = \", T)\n		β = 1/T\n		model = IsingModel(dims=2, L=L)\n		mc = MC(model, β=β)\n		obs = run!(mc, sweeps=sweeps, thermalization=therm, verbose=false)\n		push!(df, [L, T, mean(obs[\"m\"]), mean(obs[\"χ\"]), mean(obs[\"e\"]), mean(obs[\"C\"])])\n	end\n	flush(STDOUT)\nend\n\nsort!(df, cols = [:L, :T])\n@save \"ising2d.jld\" df\n\n# plot results together\ngrps = groupby(df, :L)\nfig, ax = subplots(2,2, figsize=(12,8))\nfor g in grps\n	L = g[:L][1]\n	ax[1][:plot](g[:T], g[:E], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[2][:plot](g[:T], g[:C_V], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[3][:plot](g[:T], g[:M], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[4][:plot](g[:T], g[:χ], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\nend\nax[1][:legend](loc=\"best\")\nax[1][:set_ylabel](\"Energy\")\nax[1][:set_xlabel](\"Temperature\")\n\nax[2][:set_ylabel](\"Specific heat\")\nax[2][:set_xlabel](\"Temperature\")\nax[2][:axvline](x=MonteCarlo.IsingTc, color=\"black\", linestyle=\"dashed\", label=\"\\$ T_c \\$\")\nax[2][:legend](loc=\"best\")\n\nax[3][:set_ylabel](\"Magnetization\")\nax[3][:set_xlabel](\"Temperature\")\nx = linspace(1.2, MonteCarlo.IsingTc, 100)\ny = (1-sinh.(2.0 ./ (x)).^(-4)).^(1/8)\nax[3][:plot](x,y, \"k--\", label=\"exact\")\nax[3][:plot](linspace(MonteCarlo.IsingTc, 3.8, 100), zeros(100), \"k--\")\nax[3][:legend](loc=\"best\")\n\nax[4][:set_ylabel](\"Susceptibility χ\")\nax[4][:set_xlabel](\"Temperature\")\nax[4][:axvline](x=MonteCarlo.IsingTc, color=\"black\", linestyle=\"dashed\", label=\"\\$ T_c \\$\")\nax[4][:legend](loc=\"best\")\ntight_layout()\nsavefig(\"ising2d.pdf\")"
 },
 
 {
@@ -101,7 +101,7 @@ var documenterSearchIndex = {"docs": [
     "page": "MC",
     "title": "Monte Carlo",
     "category": "section",
-    "text": "This is plain simple classical Monte Carlo (MC). It can for example be used to simulate the Ising model (see 2D Ising model).You can initialize a Monte Carlo simulation of a given model simply throughmc = MC(model)Allowed keywords are:sweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nglobal_moves: wether global moves should be proposed\nglobal_rate: frequency for proposing global moves\nseed: initialize MC with custom seedAfterwards, you can run the simulation byrun!(mc)Note that you can just do another run!(mc, sweeps=1000) to continue the simulation."
+    "text": "This is plain simple classical Monte Carlo (MC). It can for example be used to simulate the Ising model (see 2D Ising model).You can initialize a Monte Carlo simulation of a given model simply throughmc = MC(model)Allowed keywords are:β: inverse temperature\nsweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nglobal_moves: wether global moves should be proposed\nglobal_rate: frequency for proposing global moves\nseed: initialize MC with custom seedAfterwards, you can run the simulation byrun!(mc)Note that you can just do another run!(mc, sweeps=1000) to continue the simulation."
 },
 
 {
@@ -117,7 +117,7 @@ var documenterSearchIndex = {"docs": [
     "page": "MC",
     "title": "Mandatory fields",
     "category": "section",
-    "text": "β::Float64: inverse temperature\nl::Lattice: any Lattice"
+    "text": "l::Lattice: any Lattice"
 },
 
 {
@@ -173,7 +173,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Ising model",
     "title": "Hamiltonian",
     "category": "section",
-    "text": "The famous Hamiltonian of the Ising model is given by \\begin{align} \\mathcal{H} = -\\sum_{\\langle i,j \\rangle} \\sigma_i \\sigma_j , \\end{align}where $ \\langle i, j \\rangle $ indicates that the sum has to be taken over nearest neighbors."
+    "text": "The famous Hamiltonian of the Ising model is given by\\begin{align} \\mathcal{H} = -\\sum_{\\langle i,j \\rangle} \\sigma_i \\sigma_j , \\end{align}where $ \\langle i, j \\rangle $ indicates that the sum has to be taken over nearest neighbors."
 },
 
 {
@@ -181,7 +181,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Ising model",
     "title": "Constructor",
     "category": "section",
-    "text": "You can create an Ising model as follows,model = IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)The following parameters can be set via keyword arguments:dims: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL: linear system size\nβ: inverse temperaturenote: Note\nSo far only dims=2 is supported. Feel free to extend the model and create a pull request!"
+    "text": "You can create an Ising model as follows,model = IsingModel(; dims::Int=2, L::Int=8)The following parameters can be set via keyword arguments:dims: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL: linear system sizenote: Note\nSo far only dims=2 is supported. Feel free to extend the model and create a pull request!"
 },
 
 {
@@ -405,7 +405,7 @@ var documenterSearchIndex = {"docs": [
     "page": "General",
     "title": "MonteCarlo.IsingModel",
     "category": "Method",
-    "text": "IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)\n\nCreate Ising model on dims-dimensional cubic lattice with linear system size L and inverse temperature β.\n\n\n\n"
+    "text": "IsingModel(; dims::Int=2, L::Int=8)\n\nCreate Ising model on dims-dimensional cubic lattice with linear system size L.\n\n\n\n"
 },
 
 {
