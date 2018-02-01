@@ -6,7 +6,7 @@ using MonteCarlo, MonteCarloObservable
 m = IsingModel(dims=2, L=8);
 
 # choose a Monte Carlo flavor and run the simulation
-mc = MC(m, β=0.35);
+mc = MC(m, beta=0.35);
 run!(mc, sweeps=1000, thermalization=1000, verbose=false);
 
 # analyze results
