@@ -179,3 +179,14 @@ end
 
 include("interface_mandatory.jl")
 include("interface_optional.jl")
+
+# cosmetics
+import Base.summary
+import Base.show
+Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
+function Base.show(io::IO, mc::MC)
+    print(io, "Monte Carlo simulation\n")
+    print(io, "Model: ", mc.model, "\n")
+    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, 3)))")
+end
+Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
