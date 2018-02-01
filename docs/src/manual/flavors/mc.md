@@ -9,7 +9,7 @@ mc = MC(model)
 
 Allowed keywords are:
 
-* `β`: inverse temperature
+* `beta`: inverse temperature
 * `sweeps`: number of measurement sweeps
 * `thermalization`: number of thermalization (warmup) sweeps
 * `global_moves`: wether global moves should be proposed

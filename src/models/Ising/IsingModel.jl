@@ -71,24 +71,24 @@ Returns the type of an Ising model configuration.
 conftype(m::IsingModel) = IsingConf
 
 """
-    propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64) -> ΔE, Δi
+    propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64) -> delta_E, delta_i
 
 Propose a local spin flip at site `i` of current configuration `conf`
-with energy `E`. Returns the local move `Δi = new[i] - conf[i]` and energy difference `ΔE = E_new - E_old`.
+with energy `E`. Returns the local move `delta_i = new[i] - conf[i]` and energy difference `delta_E = E_new - E_old`.
 """
 @inline function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64)
-    ΔE = 2. * conf[i] * sum(conf[m.l.neighs[:,i]])
-    return ΔE, conf[i]==1?-2:2
+    delta_E = 2. * conf[i] * sum(conf[m.l.neighs[:,i]])
+    return delta_E, conf[i]==1?-2:2
 end
 
 """
-    accept_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64, Δi, ΔE::Float64)
+    accept_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64, delta_i, delta_E::Float64)
 
 Accept a local spin flip at site `i` of current configuration `conf`
-with energy `E`. Arguments `Δi` and `ΔE` correspond to output of `propose_local()`
+with energy `E`. Arguments `delta_i` and `delta_E` correspond to output of `propose_local()`
 for that spin flip.
 """
-@inline function accept_local!(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64, Δi, ΔE::Float64)
+@inline function accept_local!(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64, delta_i, delta_E::Float64)
     conf[i] *= -1
     nothing
 end
@@ -102,7 +102,7 @@ Returns wether a cluster spinflip has been performed (any spins have been flippe
 function global_move(mc::MC, m::IsingModel, conf::IsingConf, E::Float64)
     const N = m.l.sites
     const neighs = m.l.neighs
-    const beta = mc.p.β
+    const beta = mc.p.beta
 
     cluster = Array{Int, 1}()
     tocheck = Array{Int, 1}()
@@ -194,17 +194,17 @@ See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 """
 @inline function finish_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable})
     const N = m.l.sites
-    const β = mc.p.β
+    const beta = mc.p.beta
 
     # specific heat
     const E = mean(obs["E"])
     const E2 = mean(obs["E2"])
-    add!(obs["C"], β*β*(E2/N - E*E/N))
+    add!(obs["C"], beta*beta*(E2/N - E*E/N))
 
     # susceptibility
     const M = mean(obs["M"])
     const M2 = mean(obs["M2"])
-    add!(obs["χ"], β*(M2/N - M*M/N))
+    add!(obs["χ"], beta*(M2/N - M*M/N))
 
     nothing
 end
