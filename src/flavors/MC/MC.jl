@@ -22,7 +22,7 @@ mutable struct MCParameters
     thermalization::Int # number of thermalization sweeps
     sweeps::Int # number of sweeps (after thermalization)
 
-    β::Float64
+    beta::Float64
 
     MCParameters() = new()
 end
@@ -47,13 +47,13 @@ end
 
 Create a classical Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
-function MC(m::M; sweeps::Int=1000, thermalization::Int=0, β::Float64=1.0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1) where M<:Model
+function MC(m::M; sweeps::Int=1000, thermalization::Int=0, beta::Float64=1.0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1) where M<:Model
     mc = MC{M, conftype(m)}()
     mc.model = m
 
     # default params
     mc.p = MCParameters()
-    mc.p.β = β
+    mc.p.beta = beta
     mc.p.global_moves = global_moves
     mc.p.global_rate = global_rate
     mc.p.thermalization = thermalization
@@ -160,17 +160,17 @@ Performs a sweep of local moves.
 """
 function sweep(mc::MC)
     const N = mc.model.l.sites
-    const beta = mc.p.β
+    const beta = mc.p.beta
 
     @inbounds for i in eachindex(mc.conf)
-        ΔE, Δi = propose_local(mc, mc.model, i, mc.conf, mc.energy)
+        delta_E, delta_i = propose_local(mc, mc.model, i, mc.conf, mc.energy)
         mc.a.prop_local += 1
         # Metropolis
-        if ΔE <= 0 || rand() < exp(- beta*ΔE)
-            accept_local!(mc, mc.model, i, mc.conf, mc.energy, Δi, ΔE)
+        if delta_E <= 0 || rand() < exp(- beta*delta_E)
+            accept_local!(mc, mc.model, i, mc.conf, mc.energy, delta_i, delta_E)
             mc.a.acc_rate += 1/N
             mc.a.acc_local += 1
-            mc.energy += ΔE
+            mc.energy += delta_E
         end
     end
 

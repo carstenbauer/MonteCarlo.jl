@@ -14,7 +14,7 @@ Loosely speeking, we define a Model to be a Hamiltonian on a lattice. Therefore,
 
 Any concrete model (type), let's call it `MyModel` in the following, must be a subtype of the abstract type `MonteCarlo.Model`. To work with a Monte Carlo flavor, it **must** internally have at least the following fields:
 
- * `β::Float64`: inverse temperature
+ * `beta::Float64`: inverse temperature
  * `l::Lattice`: any [`Lattice`](@ref MonteCarlo.Lattice)
 
 Furthermore it **must** implement the following methods:

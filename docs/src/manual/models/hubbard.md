@@ -12,11 +12,11 @@ where $\sigma$ denotes spin, $t$ is the hopping amplitude, $U$ the on-site repul
 ## Constructor
 You can create a Hubbard model instance as follows,
 ```julia
-model = HubbardModel(; dims::Int=2, L::Int=8, β::Float64=1.0)
+model = HubbardModel(; dims::Int=2, L::Int=8, beta::Float64=1.0)
 ```
 
 The following parameters can be set via keyword arguments:
 
 * `dims`: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)
 * `L`: linear system size
-* `β`: inverse temperature
+* `beta`: inverse temperature

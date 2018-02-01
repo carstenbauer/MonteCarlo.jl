@@ -23,9 +23,9 @@ for L in 2.^[3, 4, 5, 6]
 	println("L = ", L)
 	for (i, T) in enumerate(Ts)
 		println("\t T = ", T)
-		β = 1/T
+		beta = 1/T
 		model = IsingModel(dims=2, L=L)
-		mc = MC(model, β=β)
+		mc = MC(model, beta=beta)
 		obs = run!(mc, sweeps=sweeps, thermalization=therm, verbose=false)
 		push!(df, [L, T, mean(obs["m"]), mean(obs["χ"]), mean(obs["e"]), mean(obs["C"])])
 	end
