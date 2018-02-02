@@ -26,7 +26,7 @@ The following parameters can be set via keyword arguments:
 
 ## Supported Monte Carlo flavors
 
- * MC, [Monte Carlo](@ref)
+ * [Monte Carlo (MC)](@ref)
 
 ## Analytic results
 

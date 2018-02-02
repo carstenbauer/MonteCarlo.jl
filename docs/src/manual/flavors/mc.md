@@ -1,4 +1,4 @@
-# Monte Carlo
+# Monte Carlo (MC)
 
 This is plain simple classical Monte Carlo (MC). It can for example be used to simulate the Ising model (see [2D Ising model](@ref)).
 
@@ -39,7 +39,7 @@ Any model that wants to be simulatable by means of MC must implement the followi
  * [`propose_local`](@ref MonteCarlo.propose_local): propose local move
  * [`accept_local`](@ref MonteCarlo.accept_local): accept a local move
 
-Precise signatures can be found here: [Methods: MC](@ref).
+Precise signatures can be found here: [Methods: Monte Carlo (MC)](@ref).
 
 ### Optional methods
 
@@ -48,7 +48,7 @@ Precise signatures can be found here: [Methods: MC](@ref).
  * [`measure_observables!`](@ref MonteCarlo.measure_observables!): measure observables
  * [`finish_observables!`](@ref MonteCarlo.finish_observables!): finish measurements
 
- Precise signatures can be found here: [Methods: MC](@ref).
+ Precise signatures can be found here: [Methods: Monte Carlo (MC)](@ref).
 
  ## Potential extensions
 

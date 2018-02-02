@@ -2,7 +2,7 @@ using Documenter, MonteCarlo
 
 makedocs(
     # options
-    
+
 )
 
 makedocs(
@@ -15,8 +15,8 @@ makedocs(
             "Getting started" => "manual/gettingstarted.md",
             "Examples" => "manual/examples.md",
             "Monte Carlo flavors" => [
-                "MC" => "manual/flavors/mc.md",
-                "DQMC" => "manual/flavors/dqmc.md"
+                "MC" => "manual/flavors/mc.md"
+                # "DQMC" => "manual/flavors/dqmc.md"
             ],
             "Physical models" => [
                 "Ising model" => "manual/models/ising.md",
@@ -30,7 +30,9 @@ makedocs(
         ],
         "Methods" => [
             "General" => "methods/general.md",
-            "Models" => "methods/models.md"
+            "Flavors" => [
+                "MC" => "methods/flavors/MC.md"
+            ]
         ]
     ]
 )
