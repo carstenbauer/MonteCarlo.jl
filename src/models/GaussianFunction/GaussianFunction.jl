@@ -8,7 +8,7 @@ end
 """
     GaussianFunction(; mu::Vector{Float64}=[0.], sigma::Vector{Float64}=[1.])
 
-Prepare Gaussian with mean values mu and standard deviations sigma
+Prepare Gaussian with mean value vector `mu` and standard deviation vector `sigma`
 """
 GaussianFunction(; mu::Vector{Float64}=[0.], sigma::Vector{Float64}=[1.], min_x::Vector{Float64}=[-10.], max_x::Vector{Float64} = [10.]) = GaussianFunction(mu, sigma, min_x, max_x)
 """
