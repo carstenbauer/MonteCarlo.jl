@@ -1,5 +1,5 @@
 """
-Analysis data of classical Monte Carlo simulation
+Analysis data of Monte Carlo simulation
 """
 mutable struct MCAnalysis
     acc_rate::Float64
@@ -14,7 +14,7 @@ mutable struct MCAnalysis
 end
 
 """
-Parameters of classical Monte Carlo
+Parameters of Monte Carlo
 """
 mutable struct MCParameters
     global_moves::Bool
@@ -28,7 +28,7 @@ mutable struct MCParameters
 end
 
 """
-Classical Monte Carlo simulation
+Monte Carlo simulation
 """
 mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     model::M
@@ -45,7 +45,7 @@ end
 """
     MC(m::M; kwargs...) where M<:Model
 
-Create a classical Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
+Create a Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
 function MC(m::M; sweeps::Int=1000, thermalization::Int=0, beta::Float64=1.0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1) where M<:Model
     mc = MC{M, conftype(m)}()
@@ -66,7 +66,7 @@ end
 """
     MC(m::M; kwargs::Dict{String, Any})
 
-Create a classical Monte Carlo simulation for model `m` with (keyword) parameters
+Create a Monte Carlo simulation for model `m` with (keyword) parameters
 as specified in the dictionary `kwargs`.
 """
 function MC(m::M, kwargs::Dict{String, Any}) where M<:Model
@@ -77,7 +77,7 @@ end
 """
     init!(mc::MC[; seed::Real=-1])
 
-Initialize the classical Monte Carlo simulation `mc`.
+Initialize the Monte Carlo simulation `mc`.
 If `seed !=- 1` the random generator will be initialized with `srand(seed)`.
 """
 function init!(mc::MC; seed::Real=-1)
@@ -95,7 +95,7 @@ end
 """
     run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])
 
-Runs the given classical Monte Carlo simulation `mc`.
+Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `STDOUT` if `verborse=true` (default).
 """
 function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)

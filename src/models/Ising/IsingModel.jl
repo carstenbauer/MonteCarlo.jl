@@ -37,7 +37,7 @@ Create Ising model with (keyword) parameters as specified in `kwargs` dict.
 IsingModel(kwargs::Dict{String, Any}) = IsingModel(; convert(Dict{Symbol,Any}, kwargs)...)
 
 
-# methods to use it with Monte Carlo flavor MC (classical Monte Carlo)
+# methods to use it with Monte Carlo flavor MC (Monte Carlo)
 """
     energy(mc::MC, m::IsingModel, conf::IsingConf)
 

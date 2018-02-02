@@ -1,7 +1,7 @@
 # Hubbard model
 
 ## Hamiltonian
-The Hamiltonian of the repulsive Hubbard model is given by 
+The Hamiltonian of the repulsive Hubbard model is given by
 
 \begin{align}
 \mathcal{H} = -t \sum_{\langle i,j \rangle, \sigma} \left( c^\dagger_{i\sigma} c_{j\sigma} + \text{h.c.} \right) + U \sum_j \left( n_{j\uparrow} - \frac{1}{2} \right) \left( n_{j\downarrow} - \frac{1}{2} \right) - \mu\sum_j\left( n_{j\uparrow} + n_{j\downarrow} \right),

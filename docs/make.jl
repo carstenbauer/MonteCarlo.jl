@@ -13,26 +13,22 @@ makedocs(
         "Home" => "index.md",
         "Manual" => [
             "Getting started" => "manual/gettingstarted.md",
-            "Examples" => "manual/examples.md",
-            "Monte Carlo flavors" => [
-                "MC" => "manual/flavors/mc.md"
-                # "DQMC" => "manual/flavors/dqmc.md"
-            ],
-            "Physical models" => [
-                "Ising model" => "manual/models/ising.md",
-                "Hubbard model" => "manual/models/hubbard.md"
-            ],
-            "Custom" => [
-                "Models" => "manual/custom/models.md",
-                "Lattices" => "manual/custom/lattices.md",
-                "Flavors" => "manual/custom/flavors.md"
-            ]
+            "Examples" => "manual/examples.md"
         ],
+        "Physical models" => [
+            "Ising model" => "models/ising.md"
+        ],
+        "Monte Carlo flavors" => [
+            "MC" => "flavors/mc.md"
+            # "DQMC" => "manual/flavors/dqmc.md"
+        ],
+        "Lattices" => "lattices.md",
+        "Customize" => "customize.md",
         "Methods" => [
-            "General" => "methods/general.md",
-            "Flavors" => [
-                "MC" => "methods/flavors/MC.md"
-            ]
+            "General" => "methods/general.md"
+        ],
+        "Interfaces" => [
+            "MC" => "interfaces/MC.md"
         ]
     ]
 )
