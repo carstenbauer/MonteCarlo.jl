@@ -13,7 +13,7 @@ Pages = ["MC.md"]
 ```@autodocs
 Modules = [MonteCarlo]
 Order   = [:function]
-Pages = ["interface_mandatory.jl"]
+Pages = ["MC_mandatory.jl"]
 ```
 
 ## Optional methods
@@ -21,5 +21,5 @@ Pages = ["interface_mandatory.jl"]
 ```@autodocs
 Modules = [MonteCarlo]
 Order   = [:function]
-Pages = ["interface_optional.jl"]
+Pages = ["MC_optional.jl"]
 ```

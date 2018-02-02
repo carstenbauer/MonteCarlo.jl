@@ -177,8 +177,8 @@ function sweep(mc::MC)
     nothing
 end
 
-include("interface_mandatory.jl")
-include("interface_optional.jl")
+include("MC_mandatory.jl")
+include("MC_optional.jl")
 
 # cosmetics
 import Base.summary
