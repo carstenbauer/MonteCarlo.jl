@@ -26,7 +26,7 @@ The following parameters can be set via keyword arguments:
 
 ## Supported Monte Carlo flavors
 
- * [Monte Carlo (MC)](@ref)
+ * [Monte Carlo (MC)](@ref) (Have a look at the [2D Ising model](@ref) example)
 
 ## Analytic results
 
@@ -37,8 +37,6 @@ The model can be solved exactly by transfer matrix method ([Onsager solution](ht
 Critical temperature: $ T_c = \frac{2}{\ln{1+\sqrt{2}}} $
 
 Magnetization (per site): $ m = \left(1-\left[\sinh 2\beta \right]^{-4}\right)^{\frac {1}{8}} $
-
-See also [2D Ising model](@ref).
 
 ## Potential extensions
 
