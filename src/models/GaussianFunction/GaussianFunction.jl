@@ -28,3 +28,10 @@ Calculate energy of Ising configuration `conf` for Ising model `m`.
 function energy(mc::Integrator, m::GaussianFunction, value::Array{Float64, 1})
     return prod(exp.(-(value - m.mu).^2 ./ m.sigma))
 end
+
+# cosmetics
+import Base.summary
+import Base.show
+Base.summary(gf::GaussianFunction) = "GaussianFunction"
+Base.show(io::IO, gf::GaussianFunction) = print(io, "GaussianFunction (Mean: $(round.(gf.mu, 3)), Std: $(round.(gf.sigma, 3)))")
+Base.show(io::IO, m::MIME"text/plain", gf::GaussianFunction) = print(io, gf)

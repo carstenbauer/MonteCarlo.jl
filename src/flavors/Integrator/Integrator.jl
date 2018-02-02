@@ -1,23 +1,23 @@
 """
 Statistical data of Monte Carlo integration
 """
-mutable struct MonteCarloAnalysis
+mutable struct IntegratorAnalysis
     acceptance_rate::Float64
     proposed::Int
     accepted::Int
     sweep_duration::Float64
 
-    MonteCarloAnalysis() = new(0., 0, 0, 0.)
+    IntegratorAnalysis() = new(0., 0, 0, 0.)
 end
 
 """
 Parameters of Monte Carlo integration
 """
-mutable struct MonteCarloParameters
+mutable struct IntegratorParameters
     thermalization::Int # number of thermalization sweeps
     sweeps::Int # number of sweeps (after thermalization)
 
-    MonteCarloParameters() = new()
+    IntegratorParameters() = new()
 end
 
 """
@@ -29,8 +29,8 @@ mutable struct Integrator{M<:Model} <: MonteCarloFlavor
     energy::Float64
 
     obs::Dict{String, Observable}
-    p::MonteCarloParameters
-    a::MonteCarloAnalysis
+    p::IntegratorParameters
+    a::IntegratorAnalysis
 
     Integrator{M}() where {M} = new()
 end
@@ -45,7 +45,7 @@ function Integrator(m::M; sweeps::Int=1000, thermalization::Int=0, seed::Int=-1)
     mc.model = m
 
     # default params
-    mc.p = MonteCarloParameters()
+    mc.p = IntegratorParameters()
     mc.p.thermalization = thermalization
     mc.p.sweeps = sweeps
     init!(mc, seed=seed)
@@ -76,7 +76,7 @@ function init!(mc::Integrator; seed::Real=-1)
     mc.value = rand(mc, mc.model)
     mc.energy = energy(mc, mc.model, mc.value)
     mc.obs = prepare_observables(mc, mc.model)
-    mc.a = MonteCarloAnalysis()
+    mc.a = IntegratorAnalysis()
     nothing
 end
 
@@ -150,3 +150,13 @@ end
 
 include("Integrator_mandatory.jl")
 include("Integrator_optional.jl")
+
+# cosmetics
+import Base.summary
+import Base.show
+Base.summary(mc::Integrator) = "MC integration of $(summary(mc.model))"
+function Base.show(io::IO, mc::Integrator)
+    print(io, "Monte Carlo integration\n")
+    print(io, "Function: ", mc.model)
+end
+Base.show(io::IO, m::MIME"text/plain", mc::Integrator) = print(io, mc)
