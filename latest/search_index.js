@@ -13,7 +13,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Home",
     "title": "Documentation",
     "category": "section",
-    "text": "This is a package for numerically simulating physical systems in Julia. The purpose of this package is to supply efficient Julia implementations of Monte Carlo flavors for the study of physical models of spins, bosons and/or fermions. Examples that ship with the package areIsing spin model simulated by classical Monte Carlo\nFermionic Hubbard model simulated by variants of determinant quantum Monte Carlo"
+    "text": "This is a package for numerically simulating physical systems in Julia. The purpose of this package is to supply efficient Julia implementations of Monte Carlo flavors for the study of physical models of spins, bosons and/or fermions. Examples that ship with the package areIsing spin model simulated by Monte Carlo\nFermionic Hubbard model simulated by variants of determinant quantum Monte Carlo"
 },
 
 {
@@ -53,15 +53,15 @@ var documenterSearchIndex = {"docs": [
     "page": "Getting started",
     "title": "Usage",
     "category": "section",
-    "text": "This is a simple demontration of how to perform a classical Monte Carlo simulation of the 2D Ising model:# load packages\nusing MonteCarlo, MonteCarloObservable\n\n# load your model\nm = IsingModel(dims=2, L=8);\n\n# choose a Monte Carlo flavor and run the simulation\nmc = MC(m, beta=0.35);\nrun!(mc, sweeps=1000, thermalization=1000, verbose=false);\n\n# analyze results\nobservables(mc) # what observables do exist for that simulation?\nm = mc.obs[\"m\"] # magnetization\nmean(m)\nstd(m) # one-sigma error\n\n# create standard plots\nhist(m)\nplot(m)(Image: )"
+    "text": "This is a simple demontration of how to perform a Monte Carlo simulation of the 2D Ising model:# load packages\nusing MonteCarlo, MonteCarloObservable\n\n# load your model\nm = IsingModel(dims=2, L=8);\n\n# choose a Monte Carlo flavor and run the simulation\nmc = MC(m, beta=0.35);\nrun!(mc, sweeps=1000, thermalization=1000, verbose=false);\n\n# analyze results\nobservables(mc) # what observables do exist for that simulation?\nm = mc.obs[\"m\"] # magnetization\nmean(m)\nstd(m) # one-sigma error\n\n# create standard plots\nhist(m)\nplot(m)(Image: )"
 },
 
 {
-    "location": "manual/gettingstarted.html#Custom-models-1",
+    "location": "manual/gettingstarted.html#Create-custom-models-1",
     "page": "Getting started",
-    "title": "Custom models",
+    "title": "Create custom models",
     "category": "section",
-    "text": "Probably the most important idea underlying the package design is extensibility. Users should be able to define custom physical models and utilize already implemented Monte Carlo flavors to study them. To that end all Monte Carlo flavors have rather well defined interfaces, that is specifications of mandatory and optional fields and methods, that the user must implement for any model that he wants to simulate. The definition of the interface for the above used classical Monte Carlo can for example be found here: Monte Carlo. Practically, it is probably a good idea to start from a copy of one of the preimplemented models.We hope that MonteCarlo.jl allows the user to put his focus on the physical model rather than having to tediously implement general Monte Carlo schemes."
+    "text": "Probably the most important idea underlying the package design is extensibility. Users should be able to define custom physical models and utilize already implemented Monte Carlo flavors to study them. To that end all Monte Carlo flavors have rather well defined interfaces, that is specifications of mandatory and optional fields and methods, that the user must implement for any model that he wants to simulate. The definition of the interface for the above used Monte Carlo can for example be found here: Monte Carlo (MC). Practically, it is probably a good idea to start from a copy of one of the preimplemented models.We hope that MonteCarlo.jl allows the user to put his focus on the physical model rather than having to tediously implement general Monte Carlo schemes."
 },
 
 {
@@ -89,71 +89,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/flavors/mc.html#",
-    "page": "MC",
-    "title": "MC",
-    "category": "page",
-    "text": ""
-},
-
-{
-    "location": "manual/flavors/mc.html#Monte-Carlo-1",
-    "page": "MC",
-    "title": "Monte Carlo",
-    "category": "section",
-    "text": "This is plain simple classical Monte Carlo (MC). It can for example be used to simulate the Ising model (see 2D Ising model).You can initialize a Monte Carlo simulation of a given model simply throughmc = MC(model)Allowed keywords are:beta: inverse temperature\nsweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nglobal_moves: wether global moves should be proposed\nglobal_rate: frequency for proposing global moves\nseed: initialize MC with custom seedAfterwards, you can run the simulation byrun!(mc)Note that you can just do another run!(mc, sweeps=1000) to continue the simulation."
-},
-
-{
-    "location": "manual/flavors/mc.html#Model-interface-1",
-    "page": "MC",
-    "title": "Model interface",
-    "category": "section",
-    "text": "Any model that wants to be simulatable by means of MC must implement the following interface."
-},
-
-{
-    "location": "manual/flavors/mc.html#Mandatory-fields-1",
-    "page": "MC",
-    "title": "Mandatory fields",
-    "category": "section",
-    "text": "l::Lattice: any Lattice"
-},
-
-{
-    "location": "manual/flavors/mc.html#Mandatory-methods-1",
-    "page": "MC",
-    "title": "Mandatory methods",
-    "category": "section",
-    "text": "conftype: type of a configuration\nenergy: energy of configuration\nrand: random configuration\npropose_local: propose local move\naccept_local: accept a local movePrecise signatures can be found here: Methods: MC."
-},
-
-{
-    "location": "manual/flavors/mc.html#Optional-methods-1",
-    "page": "MC",
-    "title": "Optional methods",
-    "category": "section",
-    "text": "global_move: propose and accept or reject a local move\nprepare_observables: initialize observables\nmeasure_observables!: measure observables\nfinish_observables!: finish measurementsPrecise signatures can be found here: Methods: MC."
-},
-
-{
-    "location": "manual/flavors/mc.html#Potential-extensions-1",
-    "page": "MC",
-    "title": "Potential extensions",
-    "category": "section",
-    "text": "Pull requests are very much welcome!Heat bath (instead of Metropolis) option"
-},
-
-{
-    "location": "manual/flavors/dqmc.html#",
-    "page": "DQMC",
-    "title": "DQMC",
-    "category": "page",
-    "text": ""
-},
-
-{
-    "location": "manual/models/ising.html#",
+    "location": "models/ising.html#",
     "page": "Ising model",
     "title": "Ising model",
     "category": "page",
@@ -161,7 +97,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/models/ising.html#IsingModel-1",
+    "location": "models/ising.html#IsingModel-1",
     "page": "Ising model",
     "title": "IsingModel",
     "category": "section",
@@ -169,7 +105,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/models/ising.html#Hamiltonian-1",
+    "location": "models/ising.html#Hamiltonian-1",
     "page": "Ising model",
     "title": "Hamiltonian",
     "category": "section",
@@ -177,7 +113,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/models/ising.html#Constructor-1",
+    "location": "models/ising.html#Constructor-1",
     "page": "Ising model",
     "title": "Constructor",
     "category": "section",
@@ -185,15 +121,15 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/models/ising.html#Supported-Monte-Carlo-flavors-1",
+    "location": "models/ising.html#Supported-Monte-Carlo-flavors-1",
     "page": "Ising model",
     "title": "Supported Monte Carlo flavors",
     "category": "section",
-    "text": "MC, Monte Carlo"
+    "text": "Monte Carlo (MC)"
 },
 
 {
-    "location": "manual/models/ising.html#Analytic-results-1",
+    "location": "models/ising.html#Analytic-results-1",
     "page": "Ising model",
     "title": "Analytic results",
     "category": "section",
@@ -201,7 +137,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/models/ising.html#Square-lattice-(2D)-1",
+    "location": "models/ising.html#Square-lattice-(2D)-1",
     "page": "Ising model",
     "title": "Square lattice (2D)",
     "category": "section",
@@ -209,7 +145,7 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/models/ising.html#Potential-extensions-1",
+    "location": "models/ising.html#Potential-extensions-1",
     "page": "Ising model",
     "title": "Potential extensions",
     "category": "section",
@@ -217,79 +153,63 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/models/hubbard.html#",
-    "page": "Hubbard model",
-    "title": "Hubbard model",
+    "location": "flavors/mc.html#",
+    "page": "MC",
+    "title": "MC",
     "category": "page",
     "text": ""
 },
 
 {
-    "location": "manual/models/hubbard.html#Hubbard-model-1",
-    "page": "Hubbard model",
-    "title": "Hubbard model",
+    "location": "flavors/mc.html#Monte-Carlo-(MC)-1",
+    "page": "MC",
+    "title": "Monte Carlo (MC)",
     "category": "section",
-    "text": ""
+    "text": "This is plain simple Monte Carlo (MC). It can for example be used to simulate the Ising model (see 2D Ising model).You can initialize a Monte Carlo simulation of a given model simply throughmc = MC(model)Allowed keywords are:beta: inverse temperature\nsweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nglobal_moves: wether global moves should be proposed\nglobal_rate: frequency for proposing global moves\nseed: initialize MC with custom seedAfterwards, you can run the simulation byrun!(mc)Note that you can just do another run!(mc, sweeps=1000) to continue the simulation."
 },
 
 {
-    "location": "manual/models/hubbard.html#Hamiltonian-1",
-    "page": "Hubbard model",
-    "title": "Hamiltonian",
+    "location": "flavors/mc.html#Model-interface-1",
+    "page": "MC",
+    "title": "Model interface",
     "category": "section",
-    "text": "The Hamiltonian of the repulsive Hubbard model is given by \\begin{align} \\mathcal{H} = -t \\sum_{\\langle i,j \\rangle, \\sigma} \\left( c^\\dagger_{i\\sigma} c_{j\\sigma} + \\text{h.c.} \\right) + U \\sum_j \\left( n_{j\\uparrow} - \\frac{1}{2} \\right) \\left( n_{j\\downarrow} - \\frac{1}{2} \\right) - \\mu\\sum_j\\left( n_{j\\uparrow} + n_{j\\downarrow} \\right), \\end{align}where sigma denotes spin, t is the hopping amplitude, U the on-site repulsive interaction strength, mu the chemical potential and $ \\langle i, j \\rangle $ indicates that the sum has to be taken over nearest neighbors. Note that (1) is the Hubbard model in particle-hole symmetric form which has the nice property that mu = 0 corresponds to half-filling."
+    "text": "Any model that wants to be simulatable by means of MC must implement the following interface."
 },
 
 {
-    "location": "manual/models/hubbard.html#Constructor-1",
-    "page": "Hubbard model",
-    "title": "Constructor",
+    "location": "flavors/mc.html#Mandatory-fields-1",
+    "page": "MC",
+    "title": "Mandatory fields",
     "category": "section",
-    "text": "You can create a Hubbard model instance as follows,model = HubbardModel(; dims::Int=2, L::Int=8, beta::Float64=1.0)The following parameters can be set via keyword arguments:dims: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL: linear system size\nbeta: inverse temperature"
+    "text": "l::Lattice: any Lattice"
 },
 
 {
-    "location": "manual/custom/models.html#",
-    "page": "Models",
-    "title": "Models",
-    "category": "page",
-    "text": ""
-},
-
-{
-    "location": "manual/custom/models.html#Custom-models-1",
-    "page": "Models",
-    "title": "Custom models",
+    "location": "flavors/mc.html#Mandatory-methods-1",
+    "page": "MC",
+    "title": "Mandatory methods",
     "category": "section",
-    "text": "Although MonteCarlo.jl already ships with famous models, foremost the Ising and Hubbard models, a key idea of the design of the package is to have a (rather) well defined interface between models and Monte Carlo flavors. This way it should be easy for you to extend the package and implement your own physical model. Sometimes examples say more than words, so feel encouraged to have a look at the implementations of the above mentioned models."
+    "text": "conftype: type of a configuration\nenergy: energy of configuration\nrand: random configuration\npropose_local: propose local move\naccept_local!: accept a local movePrecise signatures can be found here: Interface: Monte Carlo (MC)."
 },
 
 {
-    "location": "manual/custom/models.html#Semantics-1",
-    "page": "Models",
-    "title": "Semantics",
+    "location": "flavors/mc.html#Optional-methods-1",
+    "page": "MC",
+    "title": "Optional methods",
     "category": "section",
-    "text": "Loosely speeking, we define a Model to be a Hamiltonian on a lattice. Therefore, the lattice is part of a model. The motivation for this modeling is that the physics of a system does not only depend on the Hamiltonian but also (sometime drastically) on the underlying lattice. This is for example very obvious for spin systems which due to the lattice might become (geometrically) frustrated and show spin liquids physics. Also, from a technical point of view, lattice information is almost exclusively processed in energy calculations which both relate to the Hamiltonian (and therefore the model).note: Note\nWe will generally use the terminology Hamiltonian, energy and so on. However, this doesn't restrict you from defining your model as an Lagrangian with an action in any way as this just corresponds to a one-to-one mapping of interpretations."
+    "text": "global_move: propose and accept or reject a local move\nprepare_observables: initialize observables\nmeasure_observables!: measure observables\nfinish_observables!: finish measurementsPrecise signatures can be found here: Interface: Monte Carlo (MC)."
 },
 
 {
-    "location": "manual/custom/models.html#Mandatory-fields-and-methods-1",
-    "page": "Models",
-    "title": "Mandatory fields and methods",
+    "location": "flavors/mc.html#Potential-extensions-1",
+    "page": "MC",
+    "title": "Potential extensions",
     "category": "section",
-    "text": "Any concrete model (type), let's call it MyModel in the following, must be a subtype of the abstract type MonteCarlo.Model. To work with a Monte Carlo flavor, it must internally have at least the following fields:beta::Float64: inverse temperature\nl::Lattice: any LatticeFurthermore it must implement the following methods:conftype: type of a configuration\nenergy: energy of configuration\nrand: random configuration\npropose_local: propose local move\naccept_local: accept a local moveA full list of methods with precise signatures that should be implemented for MyModel can be found here: Methods: Models."
+    "text": "Pull requests are very much welcome!Heat bath (instead of Metropolis) option"
 },
 
 {
-    "location": "manual/custom/models.html#Lattice-requirements-1",
-    "page": "Models",
-    "title": "Lattice requirements",
-    "category": "section",
-    "text": "The Hamiltonian of your model might impose some requirements on the Lattice object that you use as it must provide you with enough lattice information.It might be educating to look at the structure of the simple SquareLattice struct. mutable struct SquareLattice <: CubicLattice\n    L::Int\n    sites::Int\n    neighs::Matrix{Int} # row = up, right, down, left; col = siteidx\n    neighs_cartesian::Array{Int, 3} # row (1) = up, right, down, left; cols (2,3) = cartesian siteidx\n    sql::Matrix{Int}\n    SquareLattice() = new()\nendIt only provides access to next nearest neighbors through the arrays neighs and neighs_cartesian. If your model's Hamiltonian requires higher order neighbor information, because of, let's say, a next next nearest neighbor hopping term, the SquareLattice doesn't suffice. You could either extend this Lattice or implement a NNSquareLattice for example."
-},
-
-{
-    "location": "manual/custom/lattices.html#",
+    "location": "lattices.html#",
     "page": "Lattices",
     "title": "Lattices",
     "category": "page",
@@ -297,27 +217,91 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "manual/custom/lattices.html#Custom-lattices-1",
+    "location": "lattices.html#Lattices-1",
     "page": "Lattices",
+    "title": "Lattices",
+    "category": "section",
+    "text": "The package ships with a couple of standard lattices and routines to handle common lattice formats:MonteCarlo.SquareLattice"
+},
+
+{
+    "location": "lattices.html#Didn't-find-your-desired-lattice?-1",
+    "page": "Lattices",
+    "title": "Didn't find your desired lattice?",
+    "category": "section",
+    "text": "Just implement your own lattice for later use in a model of choice. See Custom lattices."
+},
+
+{
+    "location": "customize.html#",
+    "page": "Customize",
+    "title": "Customize",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "customize.html#Customize-1",
+    "page": "Customize",
+    "title": "Customize",
+    "category": "section",
+    "text": ""
+},
+
+{
+    "location": "customize.html#Custom-models-1",
+    "page": "Customize",
+    "title": "Custom models",
+    "category": "section",
+    "text": "Although MonteCarlo.jl already ships with famous models, foremost the Ising and Hubbard models, the central idea of the design of the package is to have a (rather) well defined interface between models and Monte Carlo flavors. This way it should be easy for you to extend the package and implement your own physical model (or variations of existing models). Sometimes examples say more than words, so feel encouraged to have a look at the implementations of the above mentioned models."
+},
+
+{
+    "location": "customize.html#General-remarks-for-lattice-models-1",
+    "page": "Customize",
+    "title": "General remarks for lattice models",
+    "category": "section",
+    "text": ""
+},
+
+{
+    "location": "customize.html#Semantics-1",
+    "page": "Customize",
+    "title": "Semantics",
+    "category": "section",
+    "text": "For lattice models, we define a Model to be a Hamiltonian on a lattice. Therefore, the lattice is part of the model (and not the Monte Carlo flavor). The motivation for this modeling is that the physics of a system does not only depend on the Hamiltonian but also (sometime drastically) on the underlying lattice. This is for example very obvious for spin systems which due to the lattice might become (geometrically) frustrated and show spin liquids physics. Also, from a technical point of view, lattice information is almost exclusively processed in energy calculations which both relate to the Hamiltonian (and therefore the model).note: Note\nWe will generally use the terminology Hamiltonian, energy and so on. However, this doesn't restrict you from defining your model as an Lagrangian with an action in any way as this just corresponds to a one-to-one mapping of interpretations."
+},
+
+{
+    "location": "customize.html#Lattice-requirements-1",
+    "page": "Customize",
+    "title": "Lattice requirements",
+    "category": "section",
+    "text": "The Hamiltonian of your model might impose some requirements on the Lattice object that you use as it must provide you with enough lattice information.It might be educating to look at the structure of the simple SquareLattice struct.mutable struct SquareLattice <: CubicLattice\n   L::Int\n   sites::Int\n   neighs::Matrix{Int} # row = up, right, down, left; col = siteidx\n   neighs_cartesian::Array{Int, 3} # row (1) = up, right, down, left; cols (2,3) = cartesian siteidx\n   sql::Matrix{Int}\n   SquareLattice() = new()\nendIt only provides access to next nearest neighbors through the arrays neighs and neighs_cartesian. If your model's Hamiltonian requires higher order neighbor information, because of, let's say, a next next nearest neighbor hopping term, the SquareLattice doesn't suffice. You could either extend this Lattice or implement a NNSquareLattice for example."
+},
+
+{
+    "location": "customize.html#Custom-lattices-1",
+    "page": "Customize",
     "title": "Custom lattices",
     "category": "section",
     "text": "As described in Custom models a lattice is considered to be part of a model. Hence, most of the requirements for fields of a Lattice subtype come from potential models (see Lattice requirements). Below you'll find information on which fields are mandatory from a Monte Carlo flavor point of view."
 },
 
 {
-    "location": "manual/custom/lattices.html#Mandatory-fields-and-methods-1",
-    "page": "Lattices",
-    "title": "Mandatory fields and methods",
+    "location": "customize.html#Mandatory-fields-1",
+    "page": "Customize",
+    "title": "Mandatory fields",
     "category": "section",
     "text": "Any concrete lattice type, let's call it MyLattice in the following, must be a subtype of the abstract type MonteCarlo.Lattice. To work with a Monte Carlo flavor, it must internally have at least have the following field,sites: number of lattice sites.However, as already mentioned above depending on the physical model of interest it will typically also have (at least) something likeneighs: next nearest neighbors,as most Hamiltonian will need next nearest neighbor information.The only reason why such a field isn't generally mandatory is that the Monte Carlo routine doesn't care about the lattice much. Neighbor information is usually only used in the energy (difference) calculation of a particular configuration like done in energy or propose_local which both belong to a Model."
 },
 
 {
-    "location": "manual/custom/flavors.html#",
-    "page": "Flavors",
-    "title": "Flavors",
-    "category": "page",
-    "text": ""
+    "location": "customize.html#Custom-Monte-Carlo-flavors-1",
+    "page": "Customize",
+    "title": "Custom Monte Carlo flavors",
+    "category": "section",
+    "text": "Coming soon..."
 },
 
 {
@@ -349,7 +333,7 @@ var documenterSearchIndex = {"docs": [
     "page": "General",
     "title": "MonteCarlo.init!",
     "category": "Method",
-    "text": "init!(mc::MC[; seed::Real=-1])\n\nInitialize the classical Monte Carlo simulation mc. If seed !=- 1 the random generator will be initialized with srand(seed).\n\n\n\n"
+    "text": "init!(mc::MC[; seed::Real=-1])\n\nInitialize the Monte Carlo simulation mc. If seed !=- 1 the random generator will be initialized with srand(seed).\n\n\n\n"
 },
 
 {
@@ -357,7 +341,7 @@ var documenterSearchIndex = {"docs": [
     "page": "General",
     "title": "MonteCarlo.run!",
     "category": "Method",
-    "text": "run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])\n\nRuns the given classical Monte Carlo simulation mc. Progress will be printed to STDOUT if verborse=true (default).\n\n\n\n"
+    "text": "run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])\n\nRuns the given Monte Carlo simulation mc. Progress will be printed to STDOUT if verborse=true (default).\n\n\n\n"
 },
 
 {
@@ -365,7 +349,7 @@ var documenterSearchIndex = {"docs": [
     "page": "General",
     "title": "MonteCarlo.MC",
     "category": "Type",
-    "text": "Classical Monte Carlo simulation\n\n\n\n"
+    "text": "Monte Carlo simulation\n\n\n\n"
 },
 
 {
@@ -373,7 +357,7 @@ var documenterSearchIndex = {"docs": [
     "page": "General",
     "title": "MonteCarlo.MC",
     "category": "Method",
-    "text": "MC(m::M; kwargs::Dict{String, Any})\n\nCreate a classical Monte Carlo simulation for model m with (keyword) parameters as specified in the dictionary kwargs.\n\n\n\n"
+    "text": "MC(m::M; kwargs::Dict{String, Any})\n\nCreate a Monte Carlo simulation for model m with (keyword) parameters as specified in the dictionary kwargs.\n\n\n\n"
 },
 
 {
@@ -381,7 +365,7 @@ var documenterSearchIndex = {"docs": [
     "page": "General",
     "title": "MonteCarlo.MC",
     "category": "Method",
-    "text": "MC(m::M; kwargs...) where M<:Model\n\nCreate a classical Monte Carlo simulation for model m with keyword parameters kwargs.\n\n\n\n"
+    "text": "MC(m::M; kwargs...) where M<:Model\n\nCreate a Monte Carlo simulation for model m with keyword parameters kwargs.\n\n\n\n"
 },
 
 {
@@ -417,35 +401,115 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "methods/models.html#",
-    "page": "Models",
-    "title": "Models",
+    "location": "interfaces/MC.html#",
+    "page": "MC",
+    "title": "MC",
     "category": "page",
     "text": ""
 },
 
 {
-    "location": "methods/models.html#Methods:-Models-1",
-    "page": "Models",
-    "title": "Methods: Models",
+    "location": "interfaces/MC.html#Interface:-Monte-Carlo-(MC)-1",
+    "page": "MC",
+    "title": "Interface: Monte Carlo (MC)",
     "category": "section",
-    "text": "Below you find all methods that any particular physical model (subtype of the abstract type MonteCarlo.Model) should implement. See also Custom models for more information."
+    "text": "Below you find all semantic definitions and precise signatures of mandatory and optional methods that any model should implement to work with the Monte Carlo flavor Monte Carlo (MC). Note that there might also be field requirements. See Monte Carlo (MC) for more information."
 },
 
 {
-    "location": "methods/models.html#Index-1",
-    "page": "Models",
+    "location": "interfaces/MC.html#Index-1",
+    "page": "MC",
     "title": "Index",
     "category": "section",
-    "text": "Pages = [\"models.md\"]"
+    "text": "Pages = [\"MC.md\"]"
 },
 
 {
-    "location": "methods/models.html#Documentation-1",
-    "page": "Models",
-    "title": "Documentation",
+    "location": "interfaces/MC.html#Base.Random.rand-Tuple{MonteCarlo.MC,MonteCarlo.Model}",
+    "page": "MC",
+    "title": "Base.Random.rand",
+    "category": "Method",
+    "text": "rand(mc::MC, m::Model)\n\nDraw random configuration.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/MC.html#MonteCarlo.accept_local!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64,Any,Float64}",
+    "page": "MC",
+    "title": "MonteCarlo.accept_local!",
+    "category": "Method",
+    "text": "accept_local(mc::MC, m::Model, i::Int, conf, E::Float64, delta_i, delta_E::Float64)\n\nAccept a local move for site i of current configuration conf with energy E. Arguments delta_i and delta_E correspond to output of propose_local() for that local move.\n\nSee also propose_local.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/MC.html#MonteCarlo.conftype-Tuple{MonteCarlo.Model}",
+    "page": "MC",
+    "title": "MonteCarlo.conftype",
+    "category": "Method",
+    "text": "conftype(m::Model)\n\nReturns the type of a configuration.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/MC.html#MonteCarlo.energy-Tuple{MonteCarlo.MC,MonteCarlo.Model,Any}",
+    "page": "MC",
+    "title": "MonteCarlo.energy",
+    "category": "Method",
+    "text": "energy(mc::MC, m::Model, conf)\n\nCalculate energy of configuration conf for Model m.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/MC.html#MonteCarlo.propose_local-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64}",
+    "page": "MC",
+    "title": "MonteCarlo.propose_local",
+    "category": "Method",
+    "text": "propose_local(mc::MC, m::Model, i::Int, conf, E::Float64) -> delta_E, delta_i\n\nPropose a local move for lattice site i of current configuration conf with energy E. Returns local move information delta_i (e.g. new[i] - conf[i], will be forwarded to accept_local!) and energy difference delta_E = E_new - E_old.\n\nSee also accept_local!.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/MC.html#Mandatory-methods-1",
+    "page": "MC",
+    "title": "Mandatory methods",
     "category": "section",
-    "text": "Modules = [MonteCarlo]\nOrder   = [:function]\nPages = [\"abstract_model.jl\", \"abstract_functions.jl\"]"
+    "text": "Modules = [MonteCarlo]\nOrder   = [:function]\nPages = [\"interface_mandatory.jl\"]"
+},
+
+{
+    "location": "interfaces/MC.html#MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}",
+    "page": "MC",
+    "title": "MonteCarlo.finish_observables!",
+    "category": "Method",
+    "text": "measure_observables!(mc::MC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasure observables and update corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and measure_observables!.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/MC.html#MonteCarlo.global_move-Tuple{MonteCarlo.MC,MonteCarlo.Model,Any,Float64}",
+    "page": "MC",
+    "title": "MonteCarlo.global_move",
+    "category": "Method",
+    "text": "global_move(mc::MC, m::Model, conf, E::Float64) -> accepted::Bool\n\nPropose a global move for configuration conf with energy E. Returns wether the global move has been accepted or not.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/MC.html#MonteCarlo.measure_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}",
+    "page": "MC",
+    "title": "MonteCarlo.measure_observables!",
+    "category": "Method",
+    "text": "measure_observables!(mc::MC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasures observables and updates corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and finish_observables!.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/MC.html#MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}",
+    "page": "MC",
+    "title": "MonteCarlo.prepare_observables",
+    "category": "Method",
+    "text": "prepare_observables(m::Model) -> Dict{String, Observable}\n\nInitializes observables and returns a Dict{String, Observable}. In the latter, keys are abbreviations for the observables names and values are the observables themselves.\n\nSee also measure_observables! and finish_observables!.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/MC.html#Optional-methods-1",
+    "page": "MC",
+    "title": "Optional methods",
+    "category": "section",
+    "text": "Modules = [MonteCarlo]\nOrder   = [:function]\nPages = [\"interface_optional.jl\"]"
 },
 
 ]}
