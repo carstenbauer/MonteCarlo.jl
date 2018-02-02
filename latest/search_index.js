@@ -469,7 +469,7 @@ var documenterSearchIndex = {"docs": [
     "page": "MC",
     "title": "Mandatory methods",
     "category": "section",
-    "text": "Modules = [MonteCarlo]\nOrder   = [:function]\nPages = [\"interface_mandatory.jl\"]"
+    "text": "Modules = [MonteCarlo]\nOrder   = [:function]\nPages = [\"MC_mandatory.jl\"]"
 },
 
 {
@@ -509,7 +509,7 @@ var documenterSearchIndex = {"docs": [
     "page": "MC",
     "title": "Optional methods",
     "category": "section",
-    "text": "Modules = [MonteCarlo]\nOrder   = [:function]\nPages = [\"interface_optional.jl\"]"
+    "text": "Modules = [MonteCarlo]\nOrder   = [:function]\nPages = [\"MC_optional.jl\"]"
 },
 
 ]}
