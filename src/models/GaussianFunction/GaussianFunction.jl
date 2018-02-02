@@ -1,16 +1,16 @@
 mutable struct GaussianFunction <: Model
-    mu::Array{Float64, 1}
-    sigma::Array{Float64, 1}
-    min_x::Array{Float64, 1}
-    max_x::Array{Float64, 1}
+    mu::Vector{Float64}
+    sigma::Vector{Float64}
+    min_x::Vector{Float64}
+    max_x::Vector{Float64}
 end
 
 """
-    GaussianFunction(; mu::Array{Float64, 1}=[0.], sigma::Array{Float64, 1}=[1.])
+    GaussianFunction(; mu::Vector{Float64}=[0.], sigma::Vector{Float64}=[1.])
 
 Prepare Gaussian with mean values mu and standard deviations sigma
 """
-GaussianFunction(; mu::Array{Float64, 1}=[0.], sigma::Array{Float64, 1}=[1.], min_x::Array{Float64, 1}=[-10.], max_x::Array{Float64, 1} = [10.]) = GaussianFunction(mu, sigma, min_x, max_x)
+GaussianFunction(; mu::Vector{Float64}=[0.], sigma::Vector{Float64}=[1.], min_x::Vector{Float64}=[-10.], max_x::Vector{Float64} = [10.]) = GaussianFunction(mu, sigma, min_x, max_x)
 """
     GaussianFunction(kwargs::Dict{String, Any})
 
@@ -25,7 +25,7 @@ GaussianFunction(kwargs::Dict{String, Any}) = GaussianFunction(; convert(Dict{Sy
 
 Calculate energy of Ising configuration `conf` for Ising model `m`.
 """
-function energy(mc::Integrator, m::GaussianFunction, value::Array{Float64, 1})
+function energy(mc::Integrator, m::GaussianFunction, value::Vector{Float64})
     return prod(exp.(-(value - m.mu).^2 ./ m.sigma))
 end
 

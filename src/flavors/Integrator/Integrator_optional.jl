@@ -15,12 +15,12 @@ function rand(mc::Integrator, m::Model)
 end
 
 """
-    propose(mc::Integrator, m::Model, value::Array{Float64, 1}, energy::Float64) -> proposed_value, r
+    propose(mc::Integrator, m::Model, value::Vector{Float64}, energy::Float64) -> proposed_value, r
 
 Propose a local move from point value to proposed_value
 Returns information about the move proposed_value and the ratio of weights r.
 """
-@inline function propose(mc::Integrator, m::Model, value::Array{Float64, 1}, E::Float64)
+@inline function propose(mc::Integrator, m::Model, value::Vector{Float64}, E::Float64)
     proposed_shift = [(m.max_x[i] - m.min_x[i]) * 0.2 * (rand() - 0.5) for i in size(m.min_x, 1)]
     proposed_value = max.(min.(value + proposed_shift, m.max_x), m.min_x)
     r = energy(mc, m, proposed_value) / E

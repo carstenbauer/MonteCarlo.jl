@@ -25,7 +25,7 @@ Monte Carlo integration
 """
 mutable struct Integrator{M<:Model} <: MonteCarloFlavor
     model::M
-    value::Array{Float64, 1}
+    value::Vector{Float64}
     energy::Float64
 
     obs::Dict{String, Observable}
