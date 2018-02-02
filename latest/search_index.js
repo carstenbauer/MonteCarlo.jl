@@ -125,7 +125,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Ising model",
     "title": "Supported Monte Carlo flavors",
     "category": "section",
-    "text": "Monte Carlo (MC)"
+    "text": "Monte Carlo (MC) (Have a look at the 2D Ising model example)"
 },
 
 {
@@ -141,7 +141,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Ising model",
     "title": "Square lattice (2D)",
     "category": "section",
-    "text": "The model can be solved exactly by transfer matrix method (Onsager solution). This gives the following results.Critical temperature: $ T_c = \\frac{2}{\\ln{1+\\sqrt{2}}} $Magnetization (per site): $ m = \\left(1-\\left[\\sinh 2\\beta \\right]^{-4}\\right)^{\\frac {1}{8}} $See also 2D Ising model."
+    "text": "The model can be solved exactly by transfer matrix method (Onsager solution). This gives the following results.Critical temperature: $ T_c = \\frac{2}{\\ln{1+\\sqrt{2}}} $Magnetization (per site): $ m = \\left(1-\\left[\\sinh 2\\beta \\right]^{-4}\\right)^{\\frac {1}{8}} $"
 },
 
 {
