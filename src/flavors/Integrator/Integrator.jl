@@ -148,5 +148,5 @@ function sweep(mc::Integrator)
     nothing
 end
 
-include("interface_mandatory.jl")
-include("interface_optional.jl")
+include("Integrator_mandatory.jl")
+include("Integrator_optional.jl")
