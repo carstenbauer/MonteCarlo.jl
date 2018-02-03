@@ -2,7 +2,7 @@ import Base.rand
 """
     rand(mc::Integrator, m::Model)
 
-Draw random value in the domain.
+Draw random vector in the integration domain.
 """
 function rand(mc::Integrator, m::Model)
     value = copy(mc.p.min_x)
@@ -15,17 +15,17 @@ function rand(mc::Integrator, m::Model)
 end
 
 """
-    propose(mc::Integrator, m::Model, value::Vector{Float64}, energy::Float64) -> proposed_value, r
+    propose(mc::Integrator, m::Model, x::Vector{Float64}, energy::Float64) -> proposed_x, r
 
-Propose a local move from point `value` to `proposed_value`.
-Returns the `proposed_value` and the ratio of weights `r`.
+Propose a local move from point `x` to `proposed_x`.
+Returns the `proposed_x` and the ratio of weights `r`.
 """
-@inline function propose(mc::Integrator, m::Model, value::Vector{Float64}, E::Float64)
+@inline function propose(mc::Integrator, m::Model, x::Vector{Float64}, E::Float64)
     proposed_shift = [(mc.p.max_x[i] - mc.p.min_x[i]) * 0.2 * (rand() - 0.5) for i in size(mc.p.min_x, 1)]
-    proposed_value = max.(min.(value + proposed_shift, mc.p.max_x), mc.p.min_x)
-    r = energy(mc, m, proposed_value) / E
+    proposed_x = max.(min.(x + proposed_shift, mc.p.max_x), mc.p.min_x)
+    r = energy(mc, m, proposed_x) / E
 
-    return proposed_value, r
+    return proposed_x, r
 end
 
 

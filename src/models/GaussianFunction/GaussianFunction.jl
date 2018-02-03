@@ -6,7 +6,7 @@ end
 """
     GaussianFunction(; mu::Vector{Float64}=[0.], sigma::Vector{Float64}=[1.])
 
-Prepare (multidimensional) Gaussian with mean value vector `mu` and
+Prepare (multidimensional) Gaussian with mean vector `mu` and
 standard deviation vector `sigma`.
 """
 GaussianFunction(; mu::Vector{Float64}=[0.], sigma::Vector{Float64}=[1.]) = GaussianFunction(mu, sigma)
@@ -20,12 +20,12 @@ GaussianFunction(kwargs::Dict{String, Any}) = GaussianFunction(; convert(Dict{Sy
 
 # methods to use it with Monte Carlo flavor Integrator
 """
-    energy(mc::Integrator, m::GaussianFunction, value::IsingConf)
+    energy(mc::Integrator, m::GaussianFunction, x::Vector{Float64})
 
-Calculate energy of Ising configuration `conf` for Ising model `m`.
+Calculate energy (i.e. function value) of the Gaussian function `m` at point `x`.
 """
-function energy(mc::Integrator, m::GaussianFunction, value::Vector{Float64})
-    return prod(exp.(-(value - m.mu).^2 ./ m.sigma))
+function energy(mc::Integrator, m::GaussianFunction, x::Vector{Float64})
+    return prod(exp.(-(x - m.mu).^2 ./ m.sigma))
 end
 
 # cosmetics

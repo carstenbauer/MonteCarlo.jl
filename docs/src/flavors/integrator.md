@@ -35,13 +35,13 @@ Any model to be integrated by means of Monte Carlo integration must implement th
 
 ### Mandatory methods
 
- * [`energy`](@ref MonteCarlo.energy): energy (i.e. function value) at location `value`
+ * [`energy`](@ref MonteCarlo.energy): energy (i.e. function value `f(x)`) at point `x`
 
 Precise signatures can be found here: [Interface: Monte Carlo integration (Integrator)](@ref).
 
 ### Optional methods
 
- * `rand`: draw random value in the integration domain
+ * `rand`: draw random point `x` in the integration domain
  * `propose`: propose a local move
  * `prepare_observables`: initialize observables
  * `measure_observables!`: measure observables

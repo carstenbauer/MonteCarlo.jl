@@ -27,7 +27,7 @@ Monte Carlo integration
 """
 mutable struct Integrator{M<:Model} <: MonteCarloFlavor
     model::M
-    value::Vector{Float64}
+    x::Vector{Float64}
     energy::Float64
 
     obs::Dict{String, Observable}
@@ -78,8 +78,8 @@ If `seed !=- 1` the random generator will be initialized with `srand(seed)`.
 function init!(mc::Integrator; seed::Real=-1)
     seed == -1 || srand(seed)
 
-    mc.value = rand(mc, mc.model)
-    mc.energy = energy(mc, mc.model, mc.value)
+    mc.x = rand(mc, mc.model)
+    mc.energy = energy(mc, mc.model, mc.x)
     mc.obs = prepare_observables(mc, mc.model)
     mc.a = IntegratorAnalysis()
     nothing
@@ -141,12 +141,12 @@ end
 Performs a sweep of local moves.
 """
 function sweep(mc::Integrator)
-    proposed_value, r = propose(mc, mc.model, mc.value, mc.energy)
+    proposed_x, r = propose(mc, mc.model, mc.x, mc.energy)
     mc.a.proposed += 1
 
     # Metropolis
     if rand() < r
-        mc.value = proposed_value
+        mc.x = proposed_x
         mc.energy *= r
         mc.a.accepted += 1
     end
