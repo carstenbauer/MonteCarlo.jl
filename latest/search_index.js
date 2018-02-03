@@ -201,19 +201,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "flavors/mc.html#MonteCarlo.init!-Tuple{MonteCarlo.MC}",
-    "page": "MC",
-    "title": "MonteCarlo.init!",
-    "category": "Method",
-    "text": "init!(mc::MC[; seed::Real=-1])\n\nInitialize the Monte Carlo simulation mc. If seed !=- 1 the random generator will be initialized with srand(seed).\n\n\n\n"
-},
-
-{
     "location": "flavors/mc.html#MonteCarlo.run!-Tuple{MonteCarlo.MC}",
     "page": "MC",
     "title": "MonteCarlo.run!",
     "category": "Method",
-    "text": "run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])\n\nRuns the given Monte Carlo simulation mc. Progress will be printed to STDOUT if verborse=true (default).\n\n\n\n"
+    "text": "run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])\n\nRuns the given Monte Carlo simulation mc. Progress will be printed to STDOUT if verbose=true (default).\n\n\n\n"
 },
 
 {
@@ -414,6 +406,14 @@ var documenterSearchIndex = {"docs": [
     "title": "MonteCarlo.observables",
     "category": "Method",
     "text": "observables(mc::MonteCarloFlavor)\n\nGet a list of all observables defined for a given Monte Carlo simulation.\n\nReturns a Dict{String, String} where values are the observables names and keys are short versions of those names. The keys can be used to collect correponding observable objects from the Monte Carlo simulation, e.g. like mc.obs[key].\n\nNote, there is no need to implement this function for a custom MonteCarloFlavor.\n\n\n\n"
+},
+
+{
+    "location": "methods/general.html#MonteCarlo.reset!-Tuple{MonteCarlo.MonteCarloFlavor}",
+    "page": "General",
+    "title": "MonteCarlo.reset!",
+    "category": "Method",
+    "text": "reset!(mc::MonteCarloFlavor)\n\nResets the Monte Carlo simulation mc. Previously set parameters will be retained.\n\n\n\n"
 },
 
 {
