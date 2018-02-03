@@ -24,6 +24,8 @@ The following parameters can be set via keyword arguments:
 
     So far only `dims=2` is supported. Feel free to extend the model and create a pull request!
 
+
+
 ## Supported Monte Carlo flavors
 
  * [Monte Carlo (MC)](@ref) (Have a look at the [2D Ising model](@ref) example)
@@ -37,6 +39,15 @@ The model can be solved exactly by transfer matrix method ([Onsager solution](ht
 Critical temperature: $ T_c = \frac{2}{\ln{1+\sqrt{2}}} $
 
 Magnetization (per site): $ m = \left(1-\left[\sinh 2\beta \right]^{-4}\right)^{\frac {1}{8}} $
+
+## Exports
+
+```@autodocs
+Modules = [MonteCarlo]
+Private = false
+Order   = [:function, :type]
+Pages = ["IsingModel.jl"]
+```
 
 ## Potential extensions
 

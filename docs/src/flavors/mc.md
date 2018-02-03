@@ -23,6 +23,15 @@ run!(mc)
 
 Note that you can just do another `run!(mc, sweeps=1000)` to continue the simulation.
 
+## Exports
+
+```@autodocs
+Modules = [MonteCarlo]
+Private = false
+Order   = [:function, :type]
+Pages = ["MC.jl"]
+```
+
 ## Model interface
 
 Any model that wants to be simulatable by means of MC must implement the following interface.
