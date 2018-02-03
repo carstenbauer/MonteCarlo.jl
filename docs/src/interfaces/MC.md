@@ -1,8 +1,12 @@
 # Interface: Monte Carlo (MC)
 
-Below you find all semantic definitions and precise signatures of mandatory and optional methods that any model should implement to work with the Monte Carlo flavor [Monte Carlo (MC)](@ref). Note that there might also be field requirements. See [Monte Carlo (MC)](@ref) for more information.
+Any model that wants to be simulated by means of MC must implement the following interface. Below you find all semantic definitions and precise signatures of mandatory fields and mandatory and optional methods that any model should implement to work with the Monte Carlo flavor [Monte Carlo (MC)](@ref).
 
-## Index
+## Mandatory fields
+
+ * `l::Lattice`: any [`Lattice`](@ref Lattices)
+
+## Index of all methods
 
 ```@index
 Pages = ["MC.md"]

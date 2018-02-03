@@ -2,7 +2,9 @@
 
 ## Custom models
 
-Although MonteCarlo.jl already ships with famous models, foremost the Ising and Hubbard models, the central idea of the design of the package is to have a (rather) well defined interface between models and Monte Carlo flavors. This way it should be easy for you to extend the package and implement your own physical model (or variations of existing models). Sometimes examples say more than words, so feel encouraged to have a look at the implementations of the above mentioned models.
+Although MonteCarlo.jl already ships with famous models, foremost the Ising and Hubbard models, the central idea of the design of the package is to have a (rather) well defined interface between models and Monte Carlo flavors. This way it should be easy for you to extend the package and implement your own physical model (or variations of existing models). You can find the interfaces in the corresponding section of the documentation, for example: [Interface: Monte Carlo (MC)](@ref).
+
+Sometimes examples tell the most, so feel encouraged to have a look at the implementations of the above mentioned models to get a feeling of how to implement your own model.
 
 ### General remarks for lattice models
 

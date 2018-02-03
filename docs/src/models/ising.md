@@ -9,7 +9,7 @@ The famous Hamiltonian of the Ising model is given by
 
 where $ \langle i, j \rangle $ indicates that the sum has to be taken over nearest neighbors.
 
-## Constructor
+## Creating an Ising model
 You can create an Ising model as follows,
 ```julia
 model = IsingModel(; dims::Int=2, L::Int=8)
@@ -28,7 +28,20 @@ The following parameters can be set via keyword arguments:
 
 ## Supported Monte Carlo flavors
 
- * [Monte Carlo (MC)](@ref) (Have a look at the [2D Ising model](@ref) example)
+ * [Monte Carlo (MC)](@ref) (Have a look at the examples section below)
+
+## Examples
+
+You can find example simulations of the 2D Ising model under [Getting started](@ref Usage) and here: [2D Ising model](@ref).
+
+## Exports
+
+```@autodocs
+Modules = [MonteCarlo]
+Private = false
+Order   = [:function, :type]
+Pages = ["IsingModel.jl"]
+```
 
 ## Analytic results
 
@@ -40,16 +53,7 @@ Critical temperature: $ T_c = \frac{2}{\ln{1+\sqrt{2}}} $
 
 Magnetization (per site): $ m = \left(1-\left[\sinh 2\beta \right]^{-4}\right)^{\frac {1}{8}} $
 
-## Exports
-
-```@autodocs
-Modules = [MonteCarlo]
-Private = false
-Order   = [:function, :type]
-Pages = ["IsingModel.jl"]
-```
-
-## Potential extensions
+### Potential extensions
 
 Pull requests are very much welcome!
 
