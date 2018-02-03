@@ -277,7 +277,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Lattices",
     "title": "Lattices",
     "category": "section",
-    "text": "The package ships with a couple of standard lattices and routines to handle common lattice formats:MonteCarlo.SquareLattice"
+    "text": "The package ships with a couple of standard latticesMonteCarlo.Chain\nMonteCarlo.SquareLattice\nMonteCarlo.CubicLatticeIt also provides routines to load the following common lattice formatsMonteCarlo.ALPSLattice"
 },
 
 {
