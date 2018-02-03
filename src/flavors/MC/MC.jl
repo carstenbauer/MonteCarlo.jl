@@ -96,7 +96,7 @@ end
     run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])
 
 Runs the given Monte Carlo simulation `mc`.
-Progress will be printed to `STDOUT` if `verborse=true` (default).
+Progress will be printed to `STDOUT` if `verbose=true` (default).
 """
 function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
     mc.p.sweeps = sweeps

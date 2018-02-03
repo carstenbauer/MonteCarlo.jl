@@ -12,8 +12,7 @@ include("lattices/ALPS.jl")
 include("models/Ising/IsingModel.jl")
 include("models/GaussianFunction/GaussianFunction.jl")
 
-# general methods
-export init!
+export reset!
 export run!
 export observables
 

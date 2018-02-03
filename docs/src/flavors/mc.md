@@ -23,35 +23,21 @@ run!(mc)
 
 Note that you can just do another `run!(mc, sweeps=1000)` to continue the simulation.
 
-## Model interface
+## Examples
 
-Any model that wants to be simulatable by means of MC must implement the following interface.
+You can find example simulations of the 2D Ising model under [Getting started](@ref Usage) and here: [2D Ising model](@ref).
 
-### Mandatory fields
+## Exports
 
- * `l::Lattice`: any [`Lattice`](@ref Lattices)
+```@autodocs
+Modules = [MonteCarlo]
+Private = false
+Order   = [:function, :type]
+Pages = ["MC.jl"]
+```
 
-### Mandatory methods
+### Potential extensions
 
- * `conftype`: type of a configuration
- * `energy`: energy of configuration
- * `rand`: random configuration
- * `propose_local`: propose local move
- * `accept_local!`: accept a local move
-
-Precise signatures can be found here: [Interface: Monte Carlo (MC)](@ref).
-
-### Optional methods
-
- * `global_move`: propose and accept or reject a local move
- * `prepare_observables`: initialize observables
- * `measure_observables!`: measure observables
- * `finish_observables!`: finish measurements
-
- Precise signatures can be found here: [Interface: Monte Carlo (MC)](@ref).
-
- ## Potential extensions
-
- Pull requests are very much welcome!
+Pull requests are very much welcome!
 
  * Heat bath (instead of Metropolis) option
