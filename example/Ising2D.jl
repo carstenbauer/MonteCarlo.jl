@@ -14,8 +14,8 @@ for L in 2.^[3, 4, 5, 6] #[3, 4, 5, 6]
 	println("L = ", L)
 	for (i, T) in enumerate(Ts)
 		println("\t T = ", T)
-		β = 1/T
-		model = IsingModel(dims=2, L=L, β=β)
+		beta = 1/T
+		model = IsingModel(dims=2, L=L, beta=beta)
 		mc = MC(model)
 		# mc.p.global_moves = true # enable Wolff cluster
 		# mc.p.global_rate = 1

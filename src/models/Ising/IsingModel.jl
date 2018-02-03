@@ -11,25 +11,24 @@ Famous Ising model on a cubic lattice.
 mutable struct IsingModel{C<:CubicLattice} <: Model
     L::Int
     dims::Int
-    β::Float64
     l::C
 end
 
-function _IsingModel(dims::Int, L::Int, β::Float64)
+function _IsingModel(dims::Int, L::Int)
     if dims == 2
-        return IsingModel(L, 2, β, SquareLattice(L))
+        return IsingModel(L, 2, SquareLattice(L))
     else
         error("Only `dims=2` supported for now.")
     end
 end
 
 """
-    IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)
+    IsingModel(; dims::Int=2, L::Int=8)
 
 Create Ising model on `dims`-dimensional cubic lattice
-with linear system size `L` and inverse temperature `β`.
+with linear system size `L`.
 """
-IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0) = _IsingModel(dims, L, β)
+IsingModel(; dims::Int=2, L::Int=8) = _IsingModel(dims, L)
 """
     IsingModel(kwargs::Dict{String, Any})
 
@@ -38,7 +37,7 @@ Create Ising model with (keyword) parameters as specified in `kwargs` dict.
 IsingModel(kwargs::Dict{String, Any}) = IsingModel(; convert(Dict{Symbol,Any}, kwargs)...)
 
 
-# methods to use it with Monte Carlo flavor MC (classical Monte Carlo)
+# methods to use it with Monte Carlo flavor MC (Monte Carlo)
 """
     energy(mc::MC, m::IsingModel, conf::IsingConf)
 
@@ -72,24 +71,24 @@ Returns the type of an Ising model configuration.
 conftype(m::IsingModel) = IsingConf
 
 """
-    propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64) -> ΔE, Δi
+    propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64) -> delta_E, delta_i
 
 Propose a local spin flip at site `i` of current configuration `conf`
-with energy `E`. Returns the local move `Δi = new[i] - conf[i]` and energy difference `ΔE = E_new - E_old`.
+with energy `E`. Returns the local move `delta_i = new[i] - conf[i]` and energy difference `delta_E = E_new - E_old`.
 """
 @inline function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64)
-    ΔE = 2. * conf[i] * sum(conf[m.l.neighs[:,i]])
-    return ΔE, conf[i]==1?-2:2
+    delta_E = 2. * conf[i] * sum(conf[m.l.neighs[:,i]])
+    return delta_E, conf[i]==1?-2:2
 end
 
 """
-    accept_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64, Δi, ΔE::Float64)
+    accept_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64, delta_i, delta_E::Float64)
 
 Accept a local spin flip at site `i` of current configuration `conf`
-with energy `E`. Arguments `Δi` and `ΔE` correspond to output of `propose_local()`
+with energy `E`. Arguments `delta_i` and `delta_E` correspond to output of `propose_local()`
 for that spin flip.
 """
-@inline function accept_local!(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64, Δi, ΔE::Float64)
+@inline function accept_local!(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64, delta_i, delta_E::Float64)
     conf[i] *= -1
     nothing
 end
@@ -103,7 +102,7 @@ Returns wether a cluster spinflip has been performed (any spins have been flippe
 function global_move(mc::MC, m::IsingModel, conf::IsingConf, E::Float64)
     const N = m.l.sites
     const neighs = m.l.neighs
-    const beta = m.β
+    const beta = mc.p.beta
 
     cluster = Array{Int, 1}()
     tocheck = Array{Int, 1}()
@@ -195,17 +194,24 @@ See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 """
 @inline function finish_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable})
     const N = m.l.sites
-    const β = m.β
+    const beta = mc.p.beta
 
     # specific heat
     const E = mean(obs["E"])
     const E2 = mean(obs["E2"])
-    add!(obs["C"], β*β*(E2/N - E*E/N))
+    add!(obs["C"], beta*beta*(E2/N - E*E/N))
 
     # susceptibility
     const M = mean(obs["M"])
     const M2 = mean(obs["M2"])
-    add!(obs["χ"], β*(M2/N - M*M/N))
+    add!(obs["χ"], beta*(M2/N - M*M/N))
 
     nothing
 end
+
+# cosmetics
+import Base.summary
+import Base.show
+Base.summary(model::IsingModel) = "$(model.dims)D-Ising model"
+Base.show(io::IO, model::IsingModel) = print(io, "$(model.dims)D-Ising model, L=$(model.L) ($(model.l.sites) sites)")
+Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)

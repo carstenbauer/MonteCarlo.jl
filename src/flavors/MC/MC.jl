@@ -1,5 +1,5 @@
 """
-Analysis data of classical Monte Carlo simulation
+Analysis data of Monte Carlo simulation
 """
 mutable struct MCAnalysis
     acc_rate::Float64
@@ -14,7 +14,7 @@ mutable struct MCAnalysis
 end
 
 """
-Parameters of classical Monte Carlo
+Parameters of Monte Carlo
 """
 mutable struct MCParameters
     global_moves::Bool
@@ -22,11 +22,13 @@ mutable struct MCParameters
     thermalization::Int # number of thermalization sweeps
     sweeps::Int # number of sweeps (after thermalization)
 
+    beta::Float64
+
     MCParameters() = new()
 end
 
 """
-Classical Monte Carlo simulation
+Monte Carlo simulation
 """
 mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     model::M
@@ -43,14 +45,15 @@ end
 """
     MC(m::M; kwargs...) where M<:Model
 
-Create a classical Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
+Create a Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
-function MC(m::M; sweeps::Int=1000, thermalization::Int=0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1) where M<:Model
+function MC(m::M; sweeps::Int=1000, thermalization::Int=0, beta::Float64=1.0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1) where M<:Model
     mc = MC{M, conftype(m)}()
     mc.model = m
 
     # default params
     mc.p = MCParameters()
+    mc.p.beta = beta
     mc.p.global_moves = global_moves
     mc.p.global_rate = global_rate
     mc.p.thermalization = thermalization
@@ -63,7 +66,7 @@ end
 """
     MC(m::M; kwargs::Dict{String, Any})
 
-Create a classical Monte Carlo simulation for model `m` with (keyword) parameters
+Create a Monte Carlo simulation for model `m` with (keyword) parameters
 as specified in the dictionary `kwargs`.
 """
 function MC(m::M, kwargs::Dict{String, Any}) where M<:Model
@@ -74,7 +77,7 @@ end
 """
     init!(mc::MC[; seed::Real=-1])
 
-Initialize the classical Monte Carlo simulation `mc`.
+Initialize the Monte Carlo simulation `mc`.
 If `seed !=- 1` the random generator will be initialized with `srand(seed)`.
 """
 function init!(mc::MC; seed::Real=-1)
@@ -92,7 +95,7 @@ end
 """
     run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])
 
-Runs the given classical Monte Carlo simulation `mc`.
+Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `STDOUT` if `verborse=true` (default).
 """
 function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
@@ -157,22 +160,33 @@ Performs a sweep of local moves.
 """
 function sweep(mc::MC)
     const N = mc.model.l.sites
-    const beta = mc.model.β
+    const beta = mc.p.beta
 
     @inbounds for i in eachindex(mc.conf)
-        ΔE, Δi = propose_local(mc, mc.model, i, mc.conf, mc.energy)
+        delta_E, delta_i = propose_local(mc, mc.model, i, mc.conf, mc.energy)
         mc.a.prop_local += 1
         # Metropolis
-        if ΔE <= 0 || rand() < exp(- beta*ΔE)
-            accept_local!(mc, mc.model, i, mc.conf, mc.energy, Δi, ΔE)
+        if delta_E <= 0 || rand() < exp(- beta*delta_E)
+            accept_local!(mc, mc.model, i, mc.conf, mc.energy, delta_i, delta_E)
             mc.a.acc_rate += 1/N
             mc.a.acc_local += 1
-            mc.energy += ΔE
+            mc.energy += delta_E
         end
     end
 
     nothing
 end
 
-include("interface_mandatory.jl")
-include("interface_optional.jl")
+include("MC_mandatory.jl")
+include("MC_optional.jl")
+
+# cosmetics
+import Base.summary
+import Base.show
+Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
+function Base.show(io::IO, mc::MC)
+    print(io, "Monte Carlo simulation\n")
+    print(io, "Model: ", mc.model, "\n")
+    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, 3)))")
+end
+Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)

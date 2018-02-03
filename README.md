@@ -11,7 +11,7 @@
 
 This is a package for numerically simulating physical systems in Julia. The purpose of this package is to supply efficient Julia implementations of Monte Carlo flavors for the study of physical models of spins, bosons and/or fermions. Examples that ship with the package are
 
-* Ising spin model simulated by classical Monte Carlo
+* Ising spin model simulated by Monte Carlo
 * Fermionic Hubbard model simulated by variants of determinant quantum Monte Carlo
 
 In Julia REPL:
