@@ -145,6 +145,38 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "models/ising.html#MonteCarlo.IsingModel",
+    "page": "Ising model",
+    "title": "MonteCarlo.IsingModel",
+    "category": "Type",
+    "text": "Famous Ising model on a cubic lattice.\n\n\n\n"
+},
+
+{
+    "location": "models/ising.html#MonteCarlo.IsingModel-Tuple{Dict{String,Any}}",
+    "page": "Ising model",
+    "title": "MonteCarlo.IsingModel",
+    "category": "Method",
+    "text": "IsingModel(kwargs::Dict{String, Any})\n\nCreate Ising model with (keyword) parameters as specified in kwargs dict.\n\n\n\n"
+},
+
+{
+    "location": "models/ising.html#MonteCarlo.IsingModel-Tuple{}",
+    "page": "Ising model",
+    "title": "MonteCarlo.IsingModel",
+    "category": "Method",
+    "text": "IsingModel(; dims::Int=2, L::Int=8)\n\nCreate Ising model on dims-dimensional cubic lattice with linear system size L.\n\n\n\n"
+},
+
+{
+    "location": "models/ising.html#Exports-1",
+    "page": "Ising model",
+    "title": "Exports",
+    "category": "section",
+    "text": "Modules = [MonteCarlo]\nPrivate = false\nOrder   = [:function, :type]\nPages = [\"IsingModel.jl\"]"
+},
+
+{
     "location": "models/ising.html#Potential-extensions-1",
     "page": "Ising model",
     "title": "Potential extensions",
@@ -166,6 +198,54 @@ var documenterSearchIndex = {"docs": [
     "title": "Monte Carlo (MC)",
     "category": "section",
     "text": "This is plain simple Monte Carlo (MC). It can for example be used to simulate the Ising model (see 2D Ising model).You can initialize a Monte Carlo simulation of a given model simply throughmc = MC(model)Allowed keywords are:beta: inverse temperature\nsweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nglobal_moves: wether global moves should be proposed\nglobal_rate: frequency for proposing global moves\nseed: initialize MC with custom seedAfterwards, you can run the simulation byrun!(mc)Note that you can just do another run!(mc, sweeps=1000) to continue the simulation."
+},
+
+{
+    "location": "flavors/mc.html#MonteCarlo.init!-Tuple{MonteCarlo.MC}",
+    "page": "MC",
+    "title": "MonteCarlo.init!",
+    "category": "Method",
+    "text": "init!(mc::MC[; seed::Real=-1])\n\nInitialize the Monte Carlo simulation mc. If seed !=- 1 the random generator will be initialized with srand(seed).\n\n\n\n"
+},
+
+{
+    "location": "flavors/mc.html#MonteCarlo.run!-Tuple{MonteCarlo.MC}",
+    "page": "MC",
+    "title": "MonteCarlo.run!",
+    "category": "Method",
+    "text": "run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])\n\nRuns the given Monte Carlo simulation mc. Progress will be printed to STDOUT if verborse=true (default).\n\n\n\n"
+},
+
+{
+    "location": "flavors/mc.html#MonteCarlo.MC",
+    "page": "MC",
+    "title": "MonteCarlo.MC",
+    "category": "Type",
+    "text": "Monte Carlo simulation\n\n\n\n"
+},
+
+{
+    "location": "flavors/mc.html#MonteCarlo.MC-Union{Tuple{M,Dict{String,Any}}, Tuple{M}} where M<:MonteCarlo.Model",
+    "page": "MC",
+    "title": "MonteCarlo.MC",
+    "category": "Method",
+    "text": "MC(m::M; kwargs::Dict{String, Any})\n\nCreate a Monte Carlo simulation for model m with (keyword) parameters as specified in the dictionary kwargs.\n\n\n\n"
+},
+
+{
+    "location": "flavors/mc.html#MonteCarlo.MC-Union{Tuple{M}, Tuple{M}} where M<:MonteCarlo.Model",
+    "page": "MC",
+    "title": "MonteCarlo.MC",
+    "category": "Method",
+    "text": "MC(m::M; kwargs...) where M<:Model\n\nCreate a Monte Carlo simulation for model m with keyword parameters kwargs.\n\n\n\n"
+},
+
+{
+    "location": "flavors/mc.html#Exports-1",
+    "page": "MC",
+    "title": "Exports",
+    "category": "section",
+    "text": "Modules = [MonteCarlo]\nPrivate = false\nOrder   = [:function, :type]\nPages = [\"MC.jl\"]"
 },
 
 {
@@ -329,67 +409,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "methods/general.html#MonteCarlo.init!-Tuple{MonteCarlo.MC}",
+    "location": "methods/general.html#MonteCarlo.observables-Tuple{MonteCarlo.MonteCarloFlavor}",
     "page": "General",
-    "title": "MonteCarlo.init!",
+    "title": "MonteCarlo.observables",
     "category": "Method",
-    "text": "init!(mc::MC[; seed::Real=-1])\n\nInitialize the Monte Carlo simulation mc. If seed !=- 1 the random generator will be initialized with srand(seed).\n\n\n\n"
-},
-
-{
-    "location": "methods/general.html#MonteCarlo.run!-Tuple{MonteCarlo.MC}",
-    "page": "General",
-    "title": "MonteCarlo.run!",
-    "category": "Method",
-    "text": "run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])\n\nRuns the given Monte Carlo simulation mc. Progress will be printed to STDOUT if verborse=true (default).\n\n\n\n"
-},
-
-{
-    "location": "methods/general.html#MonteCarlo.MC",
-    "page": "General",
-    "title": "MonteCarlo.MC",
-    "category": "Type",
-    "text": "Monte Carlo simulation\n\n\n\n"
-},
-
-{
-    "location": "methods/general.html#MonteCarlo.MC-Union{Tuple{M,Dict{String,Any}}, Tuple{M}} where M<:MonteCarlo.Model",
-    "page": "General",
-    "title": "MonteCarlo.MC",
-    "category": "Method",
-    "text": "MC(m::M; kwargs::Dict{String, Any})\n\nCreate a Monte Carlo simulation for model m with (keyword) parameters as specified in the dictionary kwargs.\n\n\n\n"
-},
-
-{
-    "location": "methods/general.html#MonteCarlo.MC-Union{Tuple{M}, Tuple{M}} where M<:MonteCarlo.Model",
-    "page": "General",
-    "title": "MonteCarlo.MC",
-    "category": "Method",
-    "text": "MC(m::M; kwargs...) where M<:Model\n\nCreate a Monte Carlo simulation for model m with keyword parameters kwargs.\n\n\n\n"
-},
-
-{
-    "location": "methods/general.html#MonteCarlo.IsingModel",
-    "page": "General",
-    "title": "MonteCarlo.IsingModel",
-    "category": "Type",
-    "text": "Famous Ising model on a cubic lattice.\n\n\n\n"
-},
-
-{
-    "location": "methods/general.html#MonteCarlo.IsingModel-Tuple{Dict{String,Any}}",
-    "page": "General",
-    "title": "MonteCarlo.IsingModel",
-    "category": "Method",
-    "text": "IsingModel(kwargs::Dict{String, Any})\n\nCreate Ising model with (keyword) parameters as specified in kwargs dict.\n\n\n\n"
-},
-
-{
-    "location": "methods/general.html#MonteCarlo.IsingModel-Tuple{}",
-    "page": "General",
-    "title": "MonteCarlo.IsingModel",
-    "category": "Method",
-    "text": "IsingModel(; dims::Int=2, L::Int=8)\n\nCreate Ising model on dims-dimensional cubic lattice with linear system size L.\n\n\n\n"
+    "text": "observables(mc::MonteCarloFlavor)\n\nGet a list of all observables defined for a given Monte Carlo simulation.\n\nReturns a Dict{String, String} where values are the observables names and keys are short versions of those names. The keys can be used to collect correponding observable objects from the Monte Carlo simulation, e.g. like mc.obs[key].\n\nNote, there is no need to implement this function for a custom MonteCarloFlavor.\n\n\n\n"
 },
 
 {
@@ -397,7 +421,7 @@ var documenterSearchIndex = {"docs": [
     "page": "General",
     "title": "Documentation",
     "category": "section",
-    "text": "Modules = [MonteCarlo]\nPrivate = false\nOrder   = [:function, :type]\nPages = [\"MC.jl\", \"IsingModel.jl\"]"
+    "text": "Modules = [MonteCarlo]\nPrivate = false\nOrder   = [:function, :type]\nPages = [\"abstract.jl\"]"
 },
 
 {
