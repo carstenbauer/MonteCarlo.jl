@@ -11,7 +11,7 @@ include("lattices/ALPS.jl")
 include("models/Ising/IsingModel.jl")
 # include("models/Hubbard/HubbardModel.jl")
 
-export init!
+export reset!
 export run!
 export IsingModel
 export MC
