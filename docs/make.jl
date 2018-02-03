@@ -16,10 +16,12 @@ makedocs(
             "Examples" => "manual/examples.md"
         ],
         "Physical models" => [
-            "Ising model" => "models/ising.md"
+            "Ising model" => "models/ising.md",
+            "Gaussian function" => "models/gaussianfunction.md"
         ],
         "Monte Carlo flavors" => [
             "MC" => "flavors/mc.md"
+            "Integrator" => "flavors/integrator.md"
             # "DQMC" => "manual/flavors/dqmc.md"
         ],
         "Lattices" => "lattices.md",
@@ -28,7 +30,8 @@ makedocs(
             "General" => "methods/general.md"
         ],
         "Interfaces" => [
-            "MC" => "interfaces/MC.md"
+            "MC" => "interfaces/MC.md",
+            "Integrator" => "interfaces/Integrator.md",
         ]
     ]
 )

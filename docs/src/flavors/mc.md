@@ -33,20 +33,20 @@ Any model that wants to be simulatable by means of MC must implement the followi
 
 ### Mandatory methods
 
- * [`conftype`](@ref MonteCarlo.conftype): type of a configuration
- * [`energy`](@ref MonteCarlo.energy): energy of configuration
- * [`rand`](@ref MonteCarlo.rand): random configuration
- * [`propose_local`](@ref MonteCarlo.propose_local): propose local move
- * [`accept_local!`](@ref MonteCarlo.accept_local!): accept a local move
+ * `conftype`: type of a configuration
+ * `energy`: energy of configuration
+ * `rand`: random configuration
+ * `propose_local`: propose local move
+ * `accept_local!`: accept a local move
 
 Precise signatures can be found here: [Interface: Monte Carlo (MC)](@ref).
 
 ### Optional methods
 
- * [`global_move`](@ref MonteCarlo.global_move): propose and accept or reject a local move
- * [`prepare_observables`](@ref MonteCarlo.prepare_observables): initialize observables
- * [`measure_observables!`](@ref MonteCarlo.measure_observables!): measure observables
- * [`finish_observables!`](@ref MonteCarlo.finish_observables!): finish measurements
+ * `global_move`: propose and accept or reject a local move
+ * `prepare_observables`: initialize observables
+ * `measure_observables!`: measure observables
+ * `finish_observables!`: finish measurements
 
  Precise signatures can be found here: [Interface: Monte Carlo (MC)](@ref).
 
