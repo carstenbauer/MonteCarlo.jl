@@ -1,24 +1,25 @@
 const IsingSpin = Int8 # can't use something more efficient here because of bug in MonteCarloObservable (see #10 on gitsrv)
 const IsingDistribution = IsingSpin[-1,1]
-const IsingConf = Array{IsingSpin, 2}
-const IsingConfs = Array{IsingSpin, 3}
+const IsingConf = Array{IsingSpin}
 
 const IsingTc = 1/(1/2*log(1+sqrt(2)))
 
 """
 Famous Ising model on a cubic lattice.
 """
-mutable struct IsingModel{C<:CubicLattice} <: Model
+mutable struct IsingModel{C<:AbstractCubicLattice} <: Model
     L::Int
     dims::Int
     l::C
 end
 
 function _IsingModel(dims::Int, L::Int)
-    if dims == 2
+    if dims == 1
+        return IsingModel(L, 1, Chain(L))
+    elseif dims == 2
         return IsingModel(L, 2, SquareLattice(L))
     else
-        error("Only `dims=2` supported for now.")
+        return IsingModel(L, dims, CubicLattice(dims, L))
     end
 end
 
@@ -44,13 +45,29 @@ IsingModel(kwargs::Dict{String, Any}) = IsingModel(; convert(Dict{Symbol,Any}, k
 Calculate energy of Ising configuration `conf` for Ising model `m`.
 """
 function energy(mc::MC, m::IsingModel, conf::IsingConf)
-    const L = m.l.L
-    const neigh = m.l.neighs_cartesian
+    const neigh = m.l.neighs
     E = 0.0
-    @simd for x in 1:L
-        @simd for y in 1:L
-            @inbounds E += - (conf[x,y]*conf[neigh[1,x,y]] + conf[x,y]*conf[neigh[2,x,y]])
+    for n in 1:m.dims
+        @inbounds @simd for i in 1:m.l.sites
+            E -= conf[i]*conf[neigh[n,i]]
         end
+    end
+    return E
+end
+
+"""
+    energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
+
+Calculate energy of Ising configuration `conf` for 2D Ising model `m`.
+This method is a faster variant of the general method for the square lattice case.
+(It is roughly twice as fast in this case.)
+"""
+function energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
+    const neigh = m.l.neighs
+    println("SquareLattice energy")
+    E = 0.0
+    @inbounds @simd for i in 1:m.l.sites
+        E -= conf[i]*conf[neigh[1,i]] + conf[i]*conf[neigh[2,i]]
     end
     return E
 end
@@ -61,14 +78,14 @@ import Base.rand
 
 Draw random Ising configuration.
 """
-rand(mc::MC, m::IsingModel) = rand(IsingDistribution, m.l.L, m.l.L)
+rand(mc::MC, m::IsingModel) = rand(IsingDistribution, fill(m.L, m.dims)...)
 
 """
     conftype(m::IsingModel)
 
 Returns the type of an Ising model configuration.
 """
-conftype(m::IsingModel) = IsingConf
+conftype(m::IsingModel) = Array{IsingSpin, m.dims}
 
 """
     propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64) -> delta_E, delta_i
@@ -140,7 +157,7 @@ See also [`measure_observables!`](@ref) and [`finish_observables!`](@ref).
 """
 @inline function prepare_observables(mc::MC, m::IsingModel)
     obs = Dict{String,Observable}()
-    obs["confs"] = Observable(IsingConf, "Configurations")
+    obs["confs"] = Observable(conftype(m), "Configurations")
 
     obs["E"] = Observable(Float64, "Total energy")
     obs["E2"] = Observable(Float64, "Total energy squared")

@@ -6,6 +6,8 @@ include("abstract.jl")
 include("flavors/MC/MC.jl")
 
 include("lattices/square.jl")
+include("lattices/chain.jl")
+include("lattices/dcubic.jl")
 include("lattices/ALPS.jl")
 
 include("models/Ising/IsingModel.jl")
