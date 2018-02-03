@@ -1,23 +1,22 @@
 mutable struct GaussianFunction <: Model
     mu::Vector{Float64}
     sigma::Vector{Float64}
-    min_x::Vector{Float64}
-    max_x::Vector{Float64}
 end
 
 """
     GaussianFunction(; mu::Vector{Float64}=[0.], sigma::Vector{Float64}=[1.])
 
-Prepare Gaussian with mean value vector `mu` and standard deviation vector `sigma`
+Prepare (multidimensional) Gaussian with mean value vector `mu` and
+standard deviation vector `sigma`.
 """
-GaussianFunction(; mu::Vector{Float64}=[0.], sigma::Vector{Float64}=[1.], min_x::Vector{Float64}=[-10.], max_x::Vector{Float64} = [10.]) = GaussianFunction(mu, sigma, min_x, max_x)
+GaussianFunction(; mu::Vector{Float64}=[0.], sigma::Vector{Float64}=[1.]) = GaussianFunction(mu, sigma)
+
 """
     GaussianFunction(kwargs::Dict{String, Any})
 
 Create Gaussian with (keyword) parameters as specified in `kwargs` dict.
 """
 GaussianFunction(kwargs::Dict{String, Any}) = GaussianFunction(; convert(Dict{Symbol,Any}, kwargs)...)
-
 
 # methods to use it with Monte Carlo flavor Integrator
 """

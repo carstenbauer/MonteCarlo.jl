@@ -16,6 +16,8 @@ Parameters of Monte Carlo integration
 mutable struct IntegratorParameters
     thermalization::Int # number of thermalization sweeps
     sweeps::Int # number of sweeps (after thermalization)
+    min_x::Vector{Float64} # integration bounds
+    max_x::Vector{Float64}
 
     IntegratorParameters() = new()
 end
@@ -40,7 +42,8 @@ end
 
 Create a Monte Carlo integrator for model `m` with keyword parameters `kwargs`.
 """
-function Integrator(m::M; sweeps::Int=1000, thermalization::Int=0, seed::Int=-1) where M<:Model
+function Integrator(m::M; sweeps::Int=1000, thermalization::Int=0, seed::Int=-1,
+                    min_x::Vector{Float64}=[-10.], max_x::Vector{Float64} = [10.]) where M<:Model
     mc = Integrator{M}()
     mc.model = m
 
@@ -48,6 +51,8 @@ function Integrator(m::M; sweeps::Int=1000, thermalization::Int=0, seed::Int=-1)
     mc.p = IntegratorParameters()
     mc.p.thermalization = thermalization
     mc.p.sweeps = sweeps
+    mc.p.min_x = min_x
+    mc.p.max_x = max_x
     init!(mc, seed=seed)
 
     return mc
@@ -157,6 +162,7 @@ import Base.show
 Base.summary(mc::Integrator) = "MC integration of $(summary(mc.model))"
 function Base.show(io::IO, mc::Integrator)
     print(io, "Monte Carlo integration\n")
-    print(io, "Function: ", mc.model)
+    print(io, "Function: ", mc.model, "\n")
+    print(io, "Lower bounds: ", mc.p.min_x, ", Upper bounds: ", mc.p.max_x)
 end
 Base.show(io::IO, m::MIME"text/plain", mc::Integrator) = print(io, mc)

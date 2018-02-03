@@ -5,10 +5,10 @@ import Base.rand
 Draw random value in the domain.
 """
 function rand(mc::Integrator, m::Model)
-    value = copy(m.min_x)
+    value = copy(mc.p.min_x)
 
-    for i in 1:size(m.min_x, 1)
-        value[i] = rand() * (m.max_x[i] - m.min_x[i]) + m.min_x[i]
+    for i in 1:size(mc.p.min_x, 1)
+        value[i] = rand() * (mc.p.max_x[i] - mc.p.min_x[i]) + mc.p.min_x[i]
     end
 
     return value
@@ -17,12 +17,12 @@ end
 """
     propose(mc::Integrator, m::Model, value::Vector{Float64}, energy::Float64) -> proposed_value, r
 
-Propose a local move from point value to proposed_value
-Returns information about the move proposed_value and the ratio of weights r.
+Propose a local move from point `value` to `proposed_value`.
+Returns the `proposed_value` and the ratio of weights `r`.
 """
 @inline function propose(mc::Integrator, m::Model, value::Vector{Float64}, E::Float64)
-    proposed_shift = [(m.max_x[i] - m.min_x[i]) * 0.2 * (rand() - 0.5) for i in size(m.min_x, 1)]
-    proposed_value = max.(min.(value + proposed_shift, m.max_x), m.min_x)
+    proposed_shift = [(mc.p.max_x[i] - mc.p.min_x[i]) * 0.2 * (rand() - 0.5) for i in size(mc.p.min_x, 1)]
+    proposed_value = max.(min.(value + proposed_shift, mc.p.max_x), mc.p.min_x)
     r = energy(mc, m, proposed_value) / E
 
     return proposed_value, r
@@ -65,7 +65,7 @@ See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 """
 
 @inline function finish_observables!(mc::Integrator, m::Model, obs::Dict{String,Observable})
-    volume = prod(abs.(m.max_x - m.min_x))
+    volume = prod(abs.(mc.p.max_x - mc.p.min_x))
     add!(obs["integral"], volume * mean(obs["energy"]))
     println("Integral is $(volume * mean(obs["energy"]))")
     nothing

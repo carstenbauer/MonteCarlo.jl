@@ -1,9 +1,5 @@
 # fields
-#= A model that wants to use `Integrator` has to implement
-
-    - `min_x::Float64[]`: minimum value(s) for input
-    - `max_x::Float64[]`: maximum value(s) for input
-=#
+# none
 
 # methods
 
