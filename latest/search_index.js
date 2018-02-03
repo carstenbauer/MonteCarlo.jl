@@ -61,7 +61,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Getting started",
     "title": "Create custom models",
     "category": "section",
-    "text": "Probably the most important idea underlying the package design is extensibility. Users should be able to define custom physical models and utilize already implemented Monte Carlo flavors to study them. To that end all Monte Carlo flavors have rather well defined interfaces, that is specifications of mandatory and optional fields and methods, that the user must implement for any model that he wants to simulate. The definition of the interface for the above used Monte Carlo can for example be found here: Monte Carlo (MC). Practically, it is probably a good idea to start from a copy of one of the preimplemented models.We hope that MonteCarlo.jl allows the user to put his focus on the physical model rather than having to tediously implement general Monte Carlo schemes."
+    "text": "Probably the most important idea underlying the package design is extensibility. Users should be able to define custom physical models and utilize already implemented Monte Carlo flavors to study them. To that end, all Monte Carlo flavors have rather well defined interfaces, that is specifications of mandatory and optional fields and methods, that the user must implement for any model that he wants to simulate. The definition of the interface for the above used Monte Carlo can for example be found here: Interface: Monte Carlo (MC). Practically, it is probably a good idea to start from a copy of one of the preimplemented models.We hope that MonteCarlo.jl allows the user to put his focus on the physical model rather than having to tediously implement general Monte Carlo schemes, often over and over again."
 },
 
 {
@@ -113,9 +113,9 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "models/ising.html#Constructor-1",
+    "location": "models/ising.html#Creating-an-Ising-model-1",
     "page": "Ising model",
-    "title": "Constructor",
+    "title": "Creating an Ising model",
     "category": "section",
     "text": "You can create an Ising model as follows,model = IsingModel(; dims::Int=2, L::Int=8)The following parameters can be set via keyword arguments:dims: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL: linear system sizenote: Note\nSo far only dims=2 is supported. Feel free to extend the model and create a pull request!"
 },
@@ -125,23 +125,15 @@ var documenterSearchIndex = {"docs": [
     "page": "Ising model",
     "title": "Supported Monte Carlo flavors",
     "category": "section",
-    "text": "Monte Carlo (MC) (Have a look at the 2D Ising model example)"
+    "text": "Monte Carlo (MC) (Have a look at the examples section below)"
 },
 
 {
-    "location": "models/ising.html#Analytic-results-1",
+    "location": "models/ising.html#Examples-1",
     "page": "Ising model",
-    "title": "Analytic results",
+    "title": "Examples",
     "category": "section",
-    "text": ""
-},
-
-{
-    "location": "models/ising.html#Square-lattice-(2D)-1",
-    "page": "Ising model",
-    "title": "Square lattice (2D)",
-    "category": "section",
-    "text": "The model can be solved exactly by transfer matrix method (Onsager solution). This gives the following results.Critical temperature: $ T_c = \\frac{2}{\\ln{1+\\sqrt{2}}} $Magnetization (per site): $ m = \\left(1-\\left[\\sinh 2\\beta \\right]^{-4}\\right)^{\\frac {1}{8}} $"
+    "text": "You can find example simulations of the 2D Ising model under Getting started and here: 2D Ising model."
 },
 
 {
@@ -177,6 +169,22 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "models/ising.html#Analytic-results-1",
+    "page": "Ising model",
+    "title": "Analytic results",
+    "category": "section",
+    "text": ""
+},
+
+{
+    "location": "models/ising.html#Square-lattice-(2D)-1",
+    "page": "Ising model",
+    "title": "Square lattice (2D)",
+    "category": "section",
+    "text": "The model can be solved exactly by transfer matrix method (Onsager solution). This gives the following results.Critical temperature: $ T_c = \\frac{2}{\\ln{1+\\sqrt{2}}} $Magnetization (per site): $ m = \\left(1-\\left[\\sinh 2\\beta \\right]^{-4}\\right)^{\\frac {1}{8}} $"
+},
+
+{
     "location": "models/ising.html#Potential-extensions-1",
     "page": "Ising model",
     "title": "Potential extensions",
@@ -198,6 +206,14 @@ var documenterSearchIndex = {"docs": [
     "title": "Monte Carlo (MC)",
     "category": "section",
     "text": "This is plain simple Monte Carlo (MC). It can for example be used to simulate the Ising model (see 2D Ising model).You can initialize a Monte Carlo simulation of a given model simply throughmc = MC(model)Allowed keywords are:beta: inverse temperature\nsweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nglobal_moves: wether global moves should be proposed\nglobal_rate: frequency for proposing global moves\nseed: initialize MC with custom seedAfterwards, you can run the simulation byrun!(mc)Note that you can just do another run!(mc, sweeps=1000) to continue the simulation."
+},
+
+{
+    "location": "flavors/mc.html#Examples-1",
+    "page": "MC",
+    "title": "Examples",
+    "category": "section",
+    "text": "You can find example simulations of the 2D Ising model under Getting started and here: 2D Ising model."
 },
 
 {
@@ -238,38 +254,6 @@ var documenterSearchIndex = {"docs": [
     "title": "Exports",
     "category": "section",
     "text": "Modules = [MonteCarlo]\nPrivate = false\nOrder   = [:function, :type]\nPages = [\"MC.jl\"]"
-},
-
-{
-    "location": "flavors/mc.html#Model-interface-1",
-    "page": "MC",
-    "title": "Model interface",
-    "category": "section",
-    "text": "Any model that wants to be simulatable by means of MC must implement the following interface."
-},
-
-{
-    "location": "flavors/mc.html#Mandatory-fields-1",
-    "page": "MC",
-    "title": "Mandatory fields",
-    "category": "section",
-    "text": "l::Lattice: any Lattice"
-},
-
-{
-    "location": "flavors/mc.html#Mandatory-methods-1",
-    "page": "MC",
-    "title": "Mandatory methods",
-    "category": "section",
-    "text": "conftype: type of a configuration\nenergy: energy of configuration\nrand: random configuration\npropose_local: propose local move\naccept_local!: accept a local movePrecise signatures can be found here: Interface: Monte Carlo (MC)."
-},
-
-{
-    "location": "flavors/mc.html#Optional-methods-1",
-    "page": "MC",
-    "title": "Optional methods",
-    "category": "section",
-    "text": "global_move: propose and accept or reject a local move\nprepare_observables: initialize observables\nmeasure_observables!: measure observables\nfinish_observables!: finish measurementsPrecise signatures can be found here: Interface: Monte Carlo (MC)."
 },
 
 {
@@ -325,7 +309,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Customize",
     "title": "Custom models",
     "category": "section",
-    "text": "Although MonteCarlo.jl already ships with famous models, foremost the Ising and Hubbard models, the central idea of the design of the package is to have a (rather) well defined interface between models and Monte Carlo flavors. This way it should be easy for you to extend the package and implement your own physical model (or variations of existing models). Sometimes examples say more than words, so feel encouraged to have a look at the implementations of the above mentioned models."
+    "text": "Although MonteCarlo.jl already ships with famous models, foremost the Ising and Hubbard models, the central idea of the design of the package is to have a (rather) well defined interface between models and Monte Carlo flavors. This way it should be easy for you to extend the package and implement your own physical model (or variations of existing models). You can find the interfaces in the corresponding section of the documentation, for example: Interface: Monte Carlo (MC).Sometimes examples tell the most, so feel encouraged to have a look at the implementations of the above mentioned models to get a feeling of how to implement your own model."
 },
 
 {
@@ -437,13 +421,21 @@ var documenterSearchIndex = {"docs": [
     "page": "MC",
     "title": "Interface: Monte Carlo (MC)",
     "category": "section",
-    "text": "Below you find all semantic definitions and precise signatures of mandatory and optional methods that any model should implement to work with the Monte Carlo flavor Monte Carlo (MC). Note that there might also be field requirements. See Monte Carlo (MC) for more information."
+    "text": "Any model that wants to be simulated by means of MC must implement the following interface. Below you find all semantic definitions and precise signatures of mandatory fields and mandatory and optional methods that any model should implement to work with the Monte Carlo flavor Monte Carlo (MC)."
 },
 
 {
-    "location": "interfaces/MC.html#Index-1",
+    "location": "interfaces/MC.html#Mandatory-fields-1",
     "page": "MC",
-    "title": "Index",
+    "title": "Mandatory fields",
+    "category": "section",
+    "text": "l::Lattice: any Lattice"
+},
+
+{
+    "location": "interfaces/MC.html#Index-of-all-methods-1",
+    "page": "MC",
+    "title": "Index of all methods",
     "category": "section",
     "text": "Pages = [\"MC.md\"]"
 },
