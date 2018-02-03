@@ -2,7 +2,11 @@
 
 Below you find all semantic definitions and precise signatures of mandatory and optional methods that any model to be integrated by [Monte Carlo integration (Integrator)](@ref) should implement.
 
-## Index
+## Mandatory fields
+
+ * There are no mandatory fields for this Monte Carlo flavor :)
+
+## Index of all methods
 
 ```@index
 Pages = ["Integrator.md"]

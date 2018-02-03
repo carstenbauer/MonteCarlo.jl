@@ -29,22 +29,29 @@ By default, every Monte Carlo integration stores the energies (function values) 
 mean(mc.obs["integral"])
 ```
 
-## Model interface
+## Examples
 
-Any model to be integrated by means of Monte Carlo integration must implement the following interface.
+```julia
+julia> g = GaussianFunction()
+GaussianFunction (Mean: [0.0], Std: [1.0])
 
-### Mandatory methods
+julia> mc = Integrator(g)
+Monte Carlo integration
+Function: GaussianFunction (Mean: [0.0], Std: [1.0])
+Lower bounds: [-10.0], Upper bounds: [10.0]
 
- * [`energy`](@ref MonteCarlo.energy): energy (i.e. function value `f(x)`) at point `x`
+julia> run!(mc, thermalization=100000, sweeps=100000, verbose=false);
+Integral is 14.146761636413965
 
-Precise signatures can be found here: [Interface: Monte Carlo integration (Integrator)](@ref).
+```
 
-### Optional methods
+TODO: Nothing important, just that the result is wrong :)
 
- * `rand`: draw random point `x` in the integration domain
- * `propose`: propose a local move
- * `prepare_observables`: initialize observables
- * `measure_observables!`: measure observables
- * `finish_observables!`: finish measurements
+## Exports
 
- Precise signatures can be found here: [Interface: Monte Carlo integration (Integrator)](@ref).
+```@autodocs
+Modules = [MonteCarlo]
+Private = false
+Order   = [:function, :type]
+Pages = ["Integrator.jl"]
+```
