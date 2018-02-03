@@ -44,7 +44,7 @@ IsingModel(kwargs::Dict{String, Any}) = IsingModel(; convert(Dict{Symbol,Any}, k
 Calculate energy of Ising configuration `conf` for Ising model `m`.
 """
 function energy(mc::MC, m::IsingModel, conf::IsingConf)
-    const L = m.l.L
+    const L = m.L
     const neigh = m.l.neighs_cartesian
     E = 0.0
     @simd for x in 1:L
@@ -61,7 +61,7 @@ import Base.rand
 
 Draw random Ising configuration.
 """
-rand(mc::MC, m::IsingModel) = rand(IsingDistribution, m.l.L, m.l.L)
+rand(mc::MC, m::IsingModel) = rand(IsingDistribution, m.L, m.L)
 
 """
     conftype(m::IsingModel)
