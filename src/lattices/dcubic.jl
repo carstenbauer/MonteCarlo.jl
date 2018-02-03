@@ -1,7 +1,7 @@
 """
 D-dimensional cubic lattice.
 """
-mutable struct DCubicLattice{T<:AbstractArray{Int}} <: CubicLattice
+mutable struct CubicLattice{T<:AbstractArray{Int}} <: AbstractCubicLattice
     L::Int
     D::Int
     sites::Int
@@ -11,20 +11,20 @@ end
 
 # constructors
 """
-    DCubicLattice(D, L)
+    CubicLattice(D, L)
 
 Create a D-dimensional cubic lattice with linear dimension `L`.
 """
-function DCubicLattice(D::Int, L::Int)
+function CubicLattice(D::Int, L::Int)
     sites = L^D
     lattice = convert(Array, reshape(1:sites, (fill(L, D)...)))
 
-    l = DCubicLattice{Array{Int, D}}(L, D, sites, zeros(Int, 1,1), lattice)
+    l = CubicLattice{Array{Int, D}}(L, D, sites, zeros(Int, 1,1), lattice)
     build_neighbortable!(l)
     return l
 end
 
-function build_neighbortable!(l::DCubicLattice{T}) where T
+function build_neighbortable!(l::CubicLattice{T}) where T
 
     uprights = Vector{Vector{Int}}(l.D)
     downlefts = Vector{Vector{Int}}(l.D)

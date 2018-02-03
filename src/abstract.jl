@@ -36,7 +36,7 @@ Abstract cubic lattice.
 - 2D -> SquareLattice
 - ND -> NCubeLattice
 """
-abstract type CubicLattice <: Lattice end
+abstract type AbstractCubicLattice <: Lattice end
 
 
 # abstract model definition

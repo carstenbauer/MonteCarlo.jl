@@ -23,7 +23,7 @@ The Hamiltonian of your model might impose some requirements on the `Lattice` ob
 It might be educating to look at the structure of the simple `SquareLattice` struct.
 
 ```julia
-mutable struct SquareLattice <: CubicLattice
+mutable struct SquareLattice <: AbstractCubicLattice
    L::Int
    sites::Int
    neighs::Matrix{Int} # row = up, right, down, left; col = siteidx

@@ -162,7 +162,7 @@ function sweep(mc::MC)
     const N = mc.model.l.sites
     const beta = mc.p.beta
 
-    @inbounds for i in eachindex(mc.conf)
+     for i in eachindex(mc.conf)
         delta_E, delta_i = propose_local(mc, mc.model, i, mc.conf, mc.energy)
         mc.a.prop_local += 1
         # Metropolis

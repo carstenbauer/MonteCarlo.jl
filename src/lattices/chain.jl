@@ -1,7 +1,7 @@
 """
 One dimensional chain.
 """
-mutable struct Chain <: CubicLattice
+mutable struct Chain <: AbstractCubicLattice
     sites::Int
     neighs::Matrix{Int} # row = right, left; col = siteidx
 
