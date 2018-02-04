@@ -43,9 +43,10 @@ branches:
 
 install:
   - C:\projects\julia\bin\julia -e "Pkg.add(\"HDF5\")"
+  - C:\projects\julia\bin\julia -e "Pkg.add(\"LightXML\")"
   - C:\projects\julia\bin\julia -e "Pkg.add(\"JLD\")"
   - C:\projects\julia\bin\julia -e "Pkg.add(\"PyPlot\")"
-  - C:\projects\julia\bin\julia -e "using Conda; Conda.add("basemap")"
+  - C:\projects\julia\bin\julia -e "using Conda; Conda.add(\"basemap\")"
   - C:\projects\julia\bin\julia -e "Pkg.clone(\"https://github.com/crstnbr/ErrorAnalysis.jl\")"
   - C:\projects\julia\bin\julia -e "Pkg.clone(\"https://github.com/crstnbr/MonteCarloObservable.jl\")"
 
