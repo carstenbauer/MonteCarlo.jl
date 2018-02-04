@@ -277,7 +277,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Lattices",
     "title": "Lattices",
     "category": "section",
-    "text": "The package ships with a couple of standard latticesMonteCarlo.Chain\nMonteCarlo.SquareLattice\nMonteCarlo.CubicLatticeIt also provides routines to load the following common lattice formatsMonteCarlo.ALPSLattice"
+    "text": "The package ships with a couple of standard latticesType Description\nMonteCarlo.Chain 1-dimensional chain\nMonteCarlo.SquareLattice 2-dimensional square lattice\nMonteCarlo.CubicLattice D-dimensional cubic latticeIt also provides routines to load the following common lattice formatsType Description\nMonteCarlo.ALPSLattice ALPS simple lattice graph (XML file)"
 },
 
 {
