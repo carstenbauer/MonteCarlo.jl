@@ -64,7 +64,6 @@ This method is a faster variant of the general method for the square lattice cas
 """
 function energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
     const neigh = m.l.neighs
-    println("SquareLattice energy")
     E = 0.0
     @inbounds @simd for i in 1:m.l.sites
         E -= conf[i]*conf[neigh[1,i]] + conf[i]*conf[neigh[2,i]]

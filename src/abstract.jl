@@ -62,7 +62,7 @@ function observables(mc::MonteCarloFlavor)
 	obs = Dict{String, String}()
 	obsobjects = prepare_observables(mc, mc.model)
 	for (s, o) in obsobjects
-		obs[s] = name(o)
+		obs[s] = MonteCarloObservable.name(o)
 	end
 	return obs
 end
