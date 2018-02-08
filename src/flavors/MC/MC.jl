@@ -1,30 +1,26 @@
 """
 Analysis data of Monte Carlo simulation
 """
-mutable struct MCAnalysis
-    acc_rate::Float64
-    prop_local::Int
-    acc_local::Int
-    acc_rate_global::Float64
-    prop_global::Int
-    acc_global::Int
-    sweep_dur::Float64
-
-    MCAnalysis() = new(0.,0,0,0.,0,0)
+@with_kw mutable struct MCAnalysis
+    acc_rate::Float64 = 0.
+    prop_local::Int = 0
+    acc_local::Int = 0
+    acc_rate_global::Float64 = 0.
+    prop_global::Int = 0
+    acc_global::Int = 0
+    sweep_dur::Float64 = 0.
 end
 
 """
 Parameters of Monte Carlo
 """
-mutable struct MCParameters
-    global_moves::Bool
-    global_rate::Int
-    thermalization::Int # number of thermalization sweeps
-    sweeps::Int # number of sweeps (after thermalization)
+@with_kw mutable struct MCParameters
+    global_moves::Bool = false
+    global_rate::Int = 5
+    thermalization::Int = 0 # number of thermalization sweeps
+    sweeps::Int = 1000 # number of sweeps (after thermalization)
 
-    beta::Float64
-
-    MCParameters() = new()
+    beta::Float64 = 1.0
 end
 
 """
@@ -47,18 +43,10 @@ end
 
 Create a Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
-function MC(m::M; sweeps::Int=1000, thermalization::Int=0, beta::Float64=1.0, global_moves::Bool=false, global_rate::Int=5, seed::Int=-1) where M<:Model
+function MC(m::M; seed::Int=-1, kwargs...) where M<:Model
     mc = MC{M, conftype(m)}()
     mc.model = m
-
-    # default params
-    mc.p = MCParameters()
-    mc.p.beta = beta
-    mc.p.global_moves = global_moves
-    mc.p.global_rate = global_rate
-    mc.p.thermalization = thermalization
-    mc.p.sweeps = sweeps
-
+    mc.p = MCParameters(; kwargs...) # forward kwargs to MCParameters
     init!(mc, seed=seed)
     return mc
 end
@@ -69,10 +57,19 @@ end
 Create a Monte Carlo simulation for model `m` with (keyword) parameters
 as specified in the dictionary `kwargs`.
 """
-function MC(m::M, kwargs::Dict{String, Any}) where M<:Model
+MC(m::M, kwargs::Union{Dict{String, Any}, Dict{Symbol, Any}}) where M<:Model =
     MC(m; convert(Dict{Symbol, Any}, kwargs)...)
-end
 
+# cosmetics
+import Base.summary
+import Base.show
+Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
+function Base.show(io::IO, mc::MC)
+    print(io, "Monte Carlo simulation\n")
+    print(io, "Model: ", mc.model, "\n")
+    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, 3)))")
+end
+Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 
 """
     init!(mc::MC[; seed::Real=-1])
@@ -99,8 +96,7 @@ Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `STDOUT` if `verbose=true` (default).
 """
 function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
-    mc.p.sweeps = sweeps
-    mc.p.thermalization = thermalization
+    @pack mc.p = sweeps, thermalization
     const total_sweeps = mc.p.sweeps + mc.p.thermalization
 
     sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/100))
@@ -150,7 +146,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000./60.)
 
-    mc.obs
+    nothing
 end
 
 """
@@ -179,14 +175,3 @@ end
 
 include("MC_mandatory.jl")
 include("MC_optional.jl")
-
-# cosmetics
-import Base.summary
-import Base.show
-Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
-function Base.show(io::IO, mc::MC)
-    print(io, "Monte Carlo simulation\n")
-    print(io, "Model: ", mc.model, "\n")
-    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, 3)))")
-end
-Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)

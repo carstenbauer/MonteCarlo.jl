@@ -1,6 +1,7 @@
 module MonteCarlo
 using MonteCarloObservable
 using LightXML
+using Parameters
 
 include("abstract.jl")
 
