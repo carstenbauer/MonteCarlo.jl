@@ -1,7 +1,7 @@
 # IsingModel
 
 ## Hamiltonian
-The famous Hamiltonian of the Ising model is given by 
+The famous Hamiltonian of the Ising model is given by
 
 \begin{align}
 \mathcal{H} = -\sum_{\langle i,j \rangle} \sigma_i \sigma_j ,
@@ -9,25 +9,39 @@ The famous Hamiltonian of the Ising model is given by
 
 where $ \langle i, j \rangle $ indicates that the sum has to be taken over nearest neighbors.
 
-## Constructor
+## Creating an Ising model
 You can create an Ising model as follows,
 ```julia
-model = IsingModel(; dims::Int=2, L::Int=8, β::Float64=1.0)
+model = IsingModel(; dims::Int=2, L::Int=8)
 ```
 
 The following parameters can be set via keyword arguments:
 
 * `dims`: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)
 * `L`: linear system size
-* `β`: inverse temperature
 
 !!! note
 
     So far only `dims=2` is supported. Feel free to extend the model and create a pull request!
 
+
+
 ## Supported Monte Carlo flavors
 
- * MC, [Monte Carlo](@ref)
+ * [Monte Carlo (MC)](@ref) (Have a look at the examples section below)
+
+## Examples
+
+You can find example simulations of the 2D Ising model under [Getting started](@ref Usage) and here: [2D Ising model](@ref).
+
+## Exports
+
+```@autodocs
+Modules = [MonteCarlo]
+Private = false
+Order   = [:function, :type]
+Pages = ["IsingModel.jl"]
+```
 
 ## Analytic results
 
@@ -39,9 +53,7 @@ Critical temperature: $ T_c = \frac{2}{\ln{1+\sqrt{2}}} $
 
 Magnetization (per site): $ m = \left(1-\left[\sinh 2\beta \right]^{-4}\right)^{\frac {1}{8}} $
 
-See also [2D Ising model](@ref).
-
-## Potential extensions
+### Potential extensions
 
 Pull requests are very much welcome!
 

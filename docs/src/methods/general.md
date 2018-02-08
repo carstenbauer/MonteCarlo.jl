@@ -14,5 +14,5 @@ Pages = ["general.md"]
 Modules = [MonteCarlo]
 Private = false
 Order   = [:function, :type]
-Pages = ["MC.jl", "IsingModel.jl"]
+Pages = ["abstract.jl"]
 ```

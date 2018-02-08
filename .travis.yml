@@ -19,7 +19,7 @@ notifications:
 before_install:
   - sudo apt-get -qq update
   - sudo apt-get install -y hdf5-tools python-numpy python-scipy python-matplotlib
-  - julia -e 'Pkg.add("HDF5"); Pkg.add("JLD"); Pkg.add("PyPlot"); Pkg.clone("https://github.com/crstnbr/ErrorAnalysis.jl"); Pkg.clone("https://github.com/crstnbr/MonteCarloObservable.jl");'
+  - julia -e 'Pkg.add("HDF5"); Pkg.add("LightXML"); Pkg.add("JLD"); Pkg.add("PyPlot"); Pkg.clone("https://github.com/crstnbr/ErrorAnalysis.jl"); Pkg.clone("https://github.com/crstnbr/MonteCarloObservable.jl");'
 after_success:
   # push coverage results to Coveralls
   - julia -e 'cd(Pkg.dir("MonteCarlo")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
