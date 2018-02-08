@@ -37,7 +37,7 @@ end
 Create Hubbard model on `dims`-dimensional cubic lattice
 with linear system size `L`. Additional allowed `kwargs` are:
 
- * `flv::Int=2`: 
+ * `flv::Int=2`:
  * `mu::Float64=.0`:
  * `lambda::Float64`:
  * `t::Float64`:
