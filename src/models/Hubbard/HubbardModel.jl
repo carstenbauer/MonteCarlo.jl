@@ -10,35 +10,47 @@ Discrete Hubbard Stratonovich transformation (Hirsch transformation) in the dens
 """
 mutable struct HubbardModel{C<:CubicLattice} <: Model
 	# mandatory
-	L::Int
 	dims::Int
-	beta::Float64
-	l::C
+    l::C
+	L::Int
 
 	# mandatory?
 	flv::Int # flavors: GF matrix will have size flv*l.sites x flv*l.sites
 
 	# model specific
-	μ::Float64
-	λ::Float64
+	mu::Float64
+	lambda::Float64
 	t::Float64
 end
 
-"""
-    HubbardModel(dims::Int, L::Int, beta::Float64)
-    HubbardModel(; dims::Int=2, L::Int=8, beta::Float64=1.0)
-
-Create Hubbard model on `dims`-dimensional cubic lattice
-with linear system size `L` and inverse temperature `beta`.
-"""
-function HubbardModel(dims::Int, L::Int, beta::Float64)
-    if dims == 2
-        return HubbardModel(L, 2, beta, SquareLattice(L))
+function _HubbardModel(dims::Int, args...)
+    if dims == 1
+        return HubbardModel(1, Chain(L), args...)
     else
-        error("Only `dims=2` supported for now.")
+        error("Only `dims=1` supported for now.")
     end
 end
-HubbardModel(; dims::Int=2, L::Int=8, beta::Float64=1.0) = HubbardModel(dims, L, beta)
+
+"""
+    HubbardModel(; dims=1, L=8, kwargs...)
+
+Create Hubbard model on `dims`-dimensional cubic lattice
+with linear system size `L`. Additional allowed `kwargs` are:
+
+ * `flv::Int=2`: 
+ * `mu::Float64=.0`:
+ * `lambda::Float64`:
+ * `t::Float64`:
+
+"""
+HubbardModel(; dims::Int=1, L::Int=8, flv::Int=2, mu::Float64=.0, lambda::Float64=1.0, t::Float64=1.0) =
+            _HubbardModel(dims, L, flv, mu, lambda, t)
+"""
+    HubbardModel(kwargs::Dict{String, Any})
+
+Create Hubbard model with (keyword) parameters as specified in `kwargs` dict.
+"""
+IsingModel(kwargs::Dict{String, Any}) = HubbardModel(; convert(Dict{Symbol,Any}, kwargs)...)
 
 # methods
 """
@@ -47,7 +59,7 @@ HubbardModel(; dims::Int=2, L::Int=8, beta::Float64=1.0) = HubbardModel(dims, L,
 Calculate energy of Hubbard hsfieldiguration `hsfield` for Hubbard model `m`.
 """
 function energy(m::HubbardModel, hsfield::HubbardConf) # not needed for propose_local
-    return m.λ * sum(hsfield)
+    return m.lambda * sum(hsfield)
 end
 
 import Base.rand

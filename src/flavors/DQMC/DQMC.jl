@@ -46,7 +46,6 @@ mutable struct DQMC{M<:Model, GreensType<:Number, ConfType, Checkerboard<:Bool} 
     s::DQMCStack
 
     p::DQMCParameters
-
     a::DQMCAnalysis
     obs::Dict{String, Observable}
 
@@ -120,6 +119,8 @@ function init!(mc::DQMC; seed::Real=-1)
     mc.energy = energy(mc, mc.model, mc.conf)
 
     mc.obs = prepare_observables(mc, mc.model)
+
+    mc.s = DQMCStack()
 
     mc.a = DQMCAnalysis()
     nothing

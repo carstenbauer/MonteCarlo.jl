@@ -10,7 +10,7 @@ function hopping_matrix(m::HubbardModel)
   const N = m.l.sites
   const neighs = m.l.neighs # row = up, right, down, left; col = siteidx
 
-  T = diagm(fill(-m.μ, N)) #TODO: Sign of mu?
+  T = diagm(fill(-m.mu, N)) #TODO: Sign of mu?
 
   # Nearest neighbor hoppings
   @inbounds @views begin

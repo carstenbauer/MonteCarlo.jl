@@ -12,12 +12,14 @@ include("lattices/cubic.jl")
 include("lattices/ALPS.jl")
 
 include("models/Ising/IsingModel.jl")
-# include("models/Hubbard/HubbardModel.jl")
+include("models/Hubbard/HubbardModel.jl")
 
 export reset!
 export run!
 export IsingModel
+export HubbardModel
 export MC
+export DQMC
 export observables
 
 end # module
