@@ -12,7 +12,7 @@ mutable struct HubbardModel{C<:CubicLattice} <: Model
 	# mandatory
 	L::Int
 	dims::Int
-	β::Float64
+	beta::Float64
 	l::C
 
 	# mandatory?
@@ -25,20 +25,20 @@ mutable struct HubbardModel{C<:CubicLattice} <: Model
 end
 
 """
-    HubbardModel(dims::Int, L::Int, β::Float64)
-    HubbardModel(; dims::Int=2, L::Int=8, β::Float64=1.0)
+    HubbardModel(dims::Int, L::Int, beta::Float64)
+    HubbardModel(; dims::Int=2, L::Int=8, beta::Float64=1.0)
 
 Create Hubbard model on `dims`-dimensional cubic lattice
-with linear system size `L` and inverse temperature `β`.
+with linear system size `L` and inverse temperature `beta`.
 """
-function HubbardModel(dims::Int, L::Int, β::Float64)
+function HubbardModel(dims::Int, L::Int, beta::Float64)
     if dims == 2
-        return HubbardModel(L, 2, β, SquareLattice(L))
+        return HubbardModel(L, 2, beta, SquareLattice(L))
     else
         error("Only `dims=2` supported for now.")
     end
 end
-HubbardModel(; dims::Int=2, L::Int=8, β::Float64=1.0) = HubbardModel(dims, L, β)
+HubbardModel(; dims::Int=2, L::Int=8, beta::Float64=1.0) = HubbardModel(dims, L, beta)
 
 # methods
 """
@@ -66,10 +66,10 @@ Returns the type of an Hubbard model configuration.
 conftype(m::HubbardModel) = HubbardConf
 
 """
-    propose_local(m::HubbardModel, i::Int, conf::HubbardConf, E::Float64) -> ΔE, Δi
+    propose_local(m::HubbardModel, i::Int, conf::HubbardConf, E::Float64) -> delta_E, delta_i
 
 Propose a local HS field flip at site `i` of current configuration `conf`
-with energy `E`. Returns `(ΔE, nothing)`.
+with energy `E`. Returns `(delta_E, nothing)`.
 """
 @inline function propose_local(m::HubbardModel, i::Int, slice::Int, conf::HubbardConf, E::Float64)
 	gamma = exp(-1. * 2 * p.hsfield[i, s.current_slice] * p.lambda) - 1
@@ -84,13 +84,13 @@ with energy `E`. Returns `(ΔE, nothing)`.
 end
 
 """
-    accept_local(m::HubbardModel, i::Int, conf::HubbardConf, E::Float64, Δi, ΔE::Float64)
+    accept_local(m::HubbardModel, i::Int, conf::HubbardConf, E::Float64, delta_i, delta_E::Float64)
 
 Accept a local HS field flip at site `i` of current configuration `conf`
-with energy `E`. Arguments `Δi` and `ΔE` correspond to output of `propose_local()`
+with energy `E`. Arguments `delta_i` and `delta_E` correspond to output of `propose_local()`
 for that flip.
 """
-@inline function accept_local!(m::HubbardModel, i::Int, slice::Int, conf::HubbardConf, E::Float64, Δi, ΔE::Float64)
+@inline function accept_local!(m::HubbardModel, i::Int, slice::Int, conf::HubbardConf, E::Float64, delta_i, delta_E::Float64)
     u = -s.greens[:, i]
     u[i] += 1.
     s.greens -= kron(u * 1./(1 + gamma * u[i]), transpose(gamma * s.greens[i, :]))

@@ -1,7 +1,7 @@
 # We need all multiply_slice_matrix etc. functions (see checkerboard)
 # Somehow dispatch based on mc.p.chkr wether to use checkerboard or usual slice matrix
 
-# Beff(slice) = exp(−1/2∆τT)exp(−1/2∆τT)exp(−∆τV(slice))
+# Beff(slice) = exp(−1/2∆tauT)exp(−1/2∆tauT)exp(−∆tauV(slice))
 function slice_matrix(mc::DQMC, m::Model, slice::Int, power::Float64=1.) # direct calculation of effective slice matrix, i.e. no checkerboard
 	interaction_matrix_exp!(mc, m, mc.s.eV, slice, power)
 	const eT = mc.s.hopping_matrix_exp
