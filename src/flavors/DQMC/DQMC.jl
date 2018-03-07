@@ -38,7 +38,7 @@ end
 """
 Determinant quantum Monte Carlo (DQMC) simulation
 """
-mutable struct DQMC{M<:Model, GreensType<:Number, ConfType, Checkerboard<:Bool} <: MonteCarloFlavor
+mutable struct DQMC{M<:Model, Checkerboard<:Bool, GreensType<:Number, ConfType} <: MonteCarloFlavor
     model::M
     conf::ConfType
     # greens::GreensType # should this be here or in DQMCStack?
@@ -65,7 +65,7 @@ function DQMC(m::M; sweeps::Int=1000, thermalization::Int=0,
             global_moves::Bool=false, global_rate::Int=5,
             seed::Int=-1,
             checkerboard::Bool=false) where M<:Model
-    mc = DQMC{M, greenstype(m), conftype(m), checkerboard}()
+    mc = DQMC{M, checkerboard, greenstype(m), conftype(m)}()
     mc.model = m
 
     # default params
