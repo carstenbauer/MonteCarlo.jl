@@ -6,6 +6,7 @@ using Parameters
 include("abstract.jl")
 
 include("flavors/MC/MC.jl")
+include("flavors/DQMC/DQMC.jl")
 
 include("lattices/square.jl")
 include("lattices/chain.jl")

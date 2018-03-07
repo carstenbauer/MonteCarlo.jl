@@ -5,52 +5,55 @@ const HubbardGreens = Complex{Float64}
 
 """
 Famous Hubbard model on a cubic lattice.
-
 Discrete Hubbard Stratonovich transformation (Hirsch transformation) in the density/charge channel.
-"""
-mutable struct HubbardModel{C<:CubicLattice} <: Model
-	# mandatory
-	dims::Int
-    l::C
-	L::Int
 
-	# mandatory?
-	flv::Int # flavors: GF matrix will have size flv*l.sites x flv*l.sites
-
-	# model specific
-	mu::Float64
-	lambda::Float64
-	t::Float64
-end
-
-function _HubbardModel(dims::Int, args...)
-    if dims == 1
-        return HubbardModel(1, Chain(L), args...)
-    else
-        error("Only `dims=1` supported for now.")
-    end
-end
-
-"""
-    HubbardModel(; dims=1, L=8, kwargs...)
+    HubbardModel(; dims, L[, kwargs...])
 
 Create Hubbard model on `dims`-dimensional cubic lattice
 with linear system size `L`. Additional allowed `kwargs` are:
 
- * `flv::Int=2`:
- * `mu::Float64=.0`:
- * `lambda::Float64`:
- * `t::Float64`:
-
+ * `mu::Float64=0.0`: chemical potential
+ * `U::Float64=1.0`: interaction strength
+ * `t::Float64=1.0`: hopping energy
 """
-HubbardModel(; dims::Int=1, L::Int=8, flv::Int=2, mu::Float64=.0, lambda::Float64=1.0, t::Float64=1.0) =
-            _HubbardModel(dims, L, flv, mu, lambda, t)
+@with_kw_noshow mutable struct HubbardModel{C<:AbstractCubicLattice} <: Model
+	# mandatory
+	dims::Int
+    l::C = choose_lattice(HubbardModel, dims, L)
+	L::Int
+
+	# mandatory?
+	flv::Int = 2 # flavors: GF matrix will have size flv*l.sites x flv*l.sites
+
+	# model specific
+	mu::Float64 = 0.0
+	lambda::Float64 = 1.0
+	t::Float64 = 1.0
+end
+
+function choose_lattice(::Type{HubbardModel}, dims::Int, L::Int)
+    if dims == 1
+        return Chain(L)
+    elseif dims == 2
+        return SquareLattice(L)
+    else
+        return CubicLattice(dims, L)
+    end
+end
+
 """
     HubbardModel(kwargs::Dict{String, Any})
 
 Create Hubbard model with (keyword) parameters as specified in `kwargs` dict.
 """
-IsingModel(kwargs::Dict{String, Any}) = HubbardModel(; convert(Dict{Symbol,Any}, kwargs)...)
+HubbardModel(kwargs::Dict{String, Any}) = HubbardModel(; convert(Dict{Symbol,Any}, kwargs)...)
+
+# cosmetics
+import Base.summary
+import Base.show
+Base.summary(model::HubbardModel) = "$(model.dims)D-Hubbard model"
+Base.show(io::IO, model::HubbardModel) = print(io, "$(model.dims)D-Hubbard model, L=$(model.L) ($(model.l.sites) sites)")
+Base.show(io::IO, m::MIME"text/plain", model::HubbardModel) = print(io, model)
 
 # methods
 """
@@ -64,18 +67,25 @@ end
 
 import Base.rand
 """
-    rand(m::HubbardModel)
+    rand(mc::DQMC, m::HubbardModel)
 
 Draw random HS field configuration.
 """
-rand(m::HubbardModel) = rand(HubbardDistribution, m.l.L, m.l.L)
+rand(mc::DQMC, m::HubbardModel) = rand(HubbardDistribution, m.l.sites, mc.p.slices)
 
 """
-    conftype(m::HubbardModel)
+    confeltype(::Type{DQMC}, m::HubbardModel)
 
 Returns the type of an Hubbard model configuration.
 """
-conftype(m::HubbardModel) = HubbardConf
+conftype(::Type{DQMC}, m::HubbardModel) = HubbardConf
+
+"""
+    greenseltype(::Type{DQMC}, m::HubbardModel)
+
+Returns the type of an Hubbard model configuration.
+"""
+greenseltype(::Type{DQMC}, m::HubbardModel) = Complex{Float64}
 
 """
     propose_local(m::HubbardModel, i::Int, conf::HubbardConf, E::Float64) -> delta_E, delta_i

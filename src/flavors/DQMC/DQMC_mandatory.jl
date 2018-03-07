@@ -1,9 +1,9 @@
 """
-    conftype(m::Model)
+    conftype(::Type{DQMC}, m::Model)
 
 Returns the type of a configuration.
 """
-conftype(m::Model) = error("Model has no implementation of `conftype(m::Model)`!")
+conftype(::Type{DQMC}, m::Model) = error("Model has no implementation of `conftype(::Type{DQMC}, m::Model)`!")
 
 import Base.rand
 """

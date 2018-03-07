@@ -1,95 +1,77 @@
-include("linalg.jl")
-include("stack.jl")
+include("abstract.jl")
 
 """
 Analysis data of determinant quantum Monte Carlo (DQMC) simulation
 """
-mutable struct DQMCAnalysis
-    acc_rate::Float64
-    prop_local::Int
-    acc_local::Int
-    acc_rate_global::Float64
-    prop_global::Int
-    acc_global::Int
-    sweep_dur::Float64
-
-    DQMCAnalysis() = new(0.,0,0,0.,0,0)
+@with_kw mutable struct DQMCAnalysis
+    acc_rate::Float64 = 0.
+    prop_local::Int = 0
+    acc_local::Int = 0
+    acc_rate_global::Float64 = 0.
+    prop_global::Int = 0
+    acc_global::Int = 0
+    sweep_dur::Float64 = 0.
 end
 
 """
 Parameters of determinant quantum Monte Carlo (DQMC)
 """
-mutable struct DQMCParameters
-    global_moves::Bool
-    global_rate::Int
-    thermalization::Int # number of thermalization sweeps
-    sweeps::Int # number of sweeps (after thermalization)
+@with_kw mutable struct DQMCParameters
+    global_moves::Bool = true
+    global_rate::Int = 5
+    thermalization::Int = 0 # number of thermalization sweeps
+    sweeps::Int = 1000 # number of sweeps (after thermalization)
 
-    all_checks::Bool # e.g. check if propagation is stable/instable (default should be true)
-    safe_mult::Int
+    all_checks::Bool = true # e.g. check if propagation is stable/instable (default should be true)
+    safe_mult::Int = 10
 
-    delta_tau::Float64
-    slices::Int
-    beta::Float64 # redundant (=slices*delta_tau) but keep for convenience
-
-    DQMCParameters() = new()
+    delta_tau::Float64 = 0.1
+    slices::Int = -1
+    beta::Float64
 end
 
 """
 Determinant quantum Monte Carlo (DQMC) simulation
 """
-mutable struct DQMC{M<:Model, Checkerboard<:Bool, GreensType<:Number, ConfType} <: MonteCarloFlavor
+mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any, Stack<:AbstractDQMCStack} <: MonteCarloFlavor
     model::M
     conf::ConfType
     # greens::GreensType # should this be here or in DQMCStack?
     energy::Float64
-    s::DQMCStack
+    s::AbstractDQMCStack
 
     p::DQMCParameters
     a::DQMCAnalysis
     obs::Dict{String, Observable}
 
-    function DQMC{M,GreensType}() where {M<:Model,GreensType<:Number}
-        @assert isleaftype(GreensType)
-        new()
-    end
+    DQMC{M, CB, ConfType, Stack}() where {M<:Model, CB<:Checkerboard, ConfType<:Any, Stack<:AbstractDQMCStack} = new()
 end
+
+include("linalg.jl")
+include("stack.jl")
 
 """
     DQMC(m::M; kwargs...) where M<:Model
 
 Create a determinant quantum Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
-function DQMC(m::M; sweeps::Int=1000, thermalization::Int=0,
-            slices::Int=0, beta::Float64=1.0, delta_tau::Float64::0.1, # typically a user wants to specify beta not slices
-            global_moves::Bool=false, global_rate::Int=5,
-            seed::Int=-1,
-            checkerboard::Bool=false) where M<:Model
-    mc = DQMC{M, checkerboard, greenstype(m), conftype(m)}()
+function DQMC(m::M; seed::Int=-1, checkerboard::Bool=false, kwargs...) where M<:Model
+    geltype = greenseltype(DQMC, m)
+    mc = DQMC{M, checkerboard?CheckerboardTrue:CheckerboardFalse, conftype(DQMC, m), DQMCStack{geltype,Float64}}()
     mc.model = m
 
     # default params
-    mc.p = MCParameters()
+    # paramskwargs = filter(kw->kw[1] in fieldnames(DQMCParameters), kwargs)
+    mc.p = DQMCParameters(; kwargs...)
 
-    # number of imaginary time slices
-    if slices<=0 # user didn't specify slices (use beta and delta_tau keywords)
-        try
-            mc.p.slices = beta/delta_tau
-            mc.p.beta = beta
-            mc.p.delta_tau = delta_tau
-        catch
-            error("Number of imaginary time slices, i.e. beta/delta_tau, must be an integer.")
-        end
-    else # user did specify slices (ignore beta keyword)
-        mc.p.slices = slices
-        mc.p.delta_tau = delta_tau
-        mc.p.beta = slices * delta_tau
+    try
+        mc.p.slices = mc.p.beta / mc.p.delta_tau
+    catch
+        error("beta/delta_tau (= number of imaginary time slices) must be an integer
+                but is $(mc.p.beta / mc.p.delta_tau).")
     end
 
-    mc.p.global_moves = global_moves
-    mc.p.global_rate = global_rate
-    mc.p.thermalization = thermalization
-    mc.p.sweeps = sweeps
+    mc.s = DQMCStack{geltype,Float64}()
 
     init!(mc, seed=seed)
     return mc
@@ -106,6 +88,18 @@ function DQMC(m::M, kwargs::Dict{String, Any}) where M<:Model
 end
 
 
+# cosmetics
+import Base.summary
+import Base.show
+Base.summary(mc::DQMC) = "DQMC simulation of $(summary(mc.model))"
+function Base.show(io::IO, mc::DQMC)
+    print(io, "Determinant quantum Monte Carlo simulation\n")
+    print(io, "Model: ", mc.model, "\n")
+    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, 3)))")
+end
+Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
+
+
 """
     init!(mc::DQMC[; seed::Real=-1])
 
@@ -120,7 +114,7 @@ function init!(mc::DQMC; seed::Real=-1)
 
     mc.obs = prepare_observables(mc, mc.model)
 
-    mc.s = DQMCStack()
+    initialize_stack(mc)
 
     mc.a = DQMCAnalysis()
     nothing
@@ -209,3 +203,6 @@ function sweep(mc::DQMC{<:Model, S}) where S
 
     nothing
 end
+
+include("DQMC_mandatory.jl")
+include("DQMC_optional.jl")

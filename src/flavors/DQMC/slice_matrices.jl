@@ -20,7 +20,7 @@ function slice_matrix(mc::DQMC, m::Model, slice::Int, power::Float64=1.)
 end
 
 function multiply_slice_matrix_left!(mc::DQMC, m::Model, slice::Int, M::AbstractMatrix)
-	
+
 end
 # multiply_slice_matrix_inv_left!
 # multiply_slice_matrix_right!

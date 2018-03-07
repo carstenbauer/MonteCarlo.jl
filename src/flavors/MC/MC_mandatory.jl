@@ -6,11 +6,11 @@
 
 # methods
 """
-    conftype(m::Model)
+    conftype(::Type{MC}, m::Model)
 
 Returns the type of a configuration.
 """
-conftype(m::Model) = error("Model has no implementation of `conftype(m::Model)`!")
+conftype(::Type{MC}, m::Model) = error("Model has no implementation of `conftype(::Type{MC}, m::Model)`!")
 
 """
     energy(mc::MC, m::Model, conf)

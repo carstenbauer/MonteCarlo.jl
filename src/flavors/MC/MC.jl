@@ -44,7 +44,7 @@ end
 Create a Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
 function MC(m::M; seed::Int=-1, kwargs...) where M<:Model
-    mc = MC{M, conftype(m)}()
+    mc = MC{M, conftype(MC, m)}()
     mc.model = m
     mc.p = MCParameters(; kwargs...) # forward kwargs to MCParameters
     init!(mc, seed=seed)
