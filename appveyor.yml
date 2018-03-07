@@ -43,6 +43,7 @@ branches:
 
 install:
   - C:\projects\julia\bin\julia -e "Pkg.add(\"HDF5\")"
+  - C:\projects\julia\bin\julia -e "Pkg.add(\"Parameters\")"
   - C:\projects\julia\bin\julia -e "Pkg.add(\"LightXML\")"
   - C:\projects\julia\bin\julia -e "Pkg.add(\"JLD\")"
   - C:\projects\julia\bin\julia -e "Pkg.add(\"PyPlot\")"

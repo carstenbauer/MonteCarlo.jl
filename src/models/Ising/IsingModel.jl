@@ -6,39 +6,45 @@ const IsingTc = 1/(1/2*log(1+sqrt(2)))
 
 """
 Famous Ising model on a cubic lattice.
-"""
-mutable struct IsingModel{C<:AbstractCubicLattice} <: Model
-    L::Int
-    dims::Int
-    l::C
-end
 
-function _IsingModel(dims::Int, L::Int)
-    if dims == 1
-        return IsingModel(L, 1, Chain(L))
-    elseif dims == 2
-        return IsingModel(L, 2, SquareLattice(L))
-    else
-        return IsingModel(L, dims, CubicLattice(dims, L))
-    end
-end
-
-"""
     IsingModel(; dims::Int=2, L::Int=8)
 
 Create Ising model on `dims`-dimensional cubic lattice
 with linear system size `L`.
 """
-IsingModel(; dims::Int=2, L::Int=8) = _IsingModel(dims, L)
+@with_kw_noshow mutable struct IsingModel{C<:AbstractCubicLattice} <: Model # noshow because we override it below
+    L::Int = 8
+    dims::Int = 2
+    l::C = choose_lattice(dims, L)
+end
+
+function choose_lattice(dims::Int, L::Int)
+    if dims == 1
+        return Chain(L)
+    elseif dims == 2
+        return SquareLattice(L)
+    else
+        return CubicLattice(dims, L)
+    end
+end
+
 """
     IsingModel(kwargs::Dict{String, Any})
 
 Create Ising model with (keyword) parameters as specified in `kwargs` dict.
 """
-IsingModel(kwargs::Dict{String, Any}) = IsingModel(; convert(Dict{Symbol,Any}, kwargs)...)
+IsingModel(kwargs::Union{Dict{String, Any}, Dict{Symbol, Any}}) =
+            IsingModel(; convert(Dict{Symbol,Any}, kwargs)...)
+
+# cosmetics
+import Base.summary
+import Base.show
+Base.summary(model::IsingModel) = "$(model.dims)D-Ising model"
+Base.show(io::IO, model::IsingModel) = print(io, "$(model.dims)D-Ising model, L=$(model.L) ($(model.l.sites) sites)")
+Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 
 
-# methods to use it with Monte Carlo flavor MC (Monte Carlo)
+# methods for using it with Monte Carlo flavor MC (Monte Carlo)
 """
     energy(mc::MC, m::IsingModel, conf::IsingConf)
 
@@ -224,10 +230,3 @@ See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 
     nothing
 end
-
-# cosmetics
-import Base.summary
-import Base.show
-Base.summary(model::IsingModel) = "$(model.dims)D-Ising model"
-Base.show(io::IO, model::IsingModel) = print(io, "$(model.dims)D-Ising model, L=$(model.L) ($(model.l.sites) sites)")
-Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
