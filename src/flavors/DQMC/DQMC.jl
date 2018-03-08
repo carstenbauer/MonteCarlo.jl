@@ -37,7 +37,7 @@ mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any, Stack<:AbstractDQ
     model::M
     conf::ConfType
     # greens::GreensType # should this be here or in DQMCStack?
-    energy::Float64
+    energy_boson::Float64
     s::AbstractDQMCStack
 
     p::DQMCParameters
@@ -110,7 +110,7 @@ function init!(mc::DQMC; seed::Real=-1)
     seed == -1 || srand(seed)
 
     mc.conf = rand(mc, mc.model)
-    mc.energy = energy(mc, mc.model, mc.conf)
+    mc.energy_boson = energy_boson(mc, mc.model, mc.conf)
 
     mc.obs = prepare_observables(mc, mc.model)
 
@@ -142,10 +142,10 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
 
         if mc.p.global_moves && mod(i, mc.p.global_rate) == 0
             mc.a.prop_global += 1
-            mc.a.acc_global += global_move(mc, mc.model, mc.conf, mc.energy)
+            mc.a.acc_global += global_move(mc, mc.model, mc.conf, mc.energy_boson)
         end
 
-        (i > mc.p.thermalization) && measure_observables!(mc, mc.model, mc.obs, mc.conf, mc.energy)
+        (i > mc.p.thermalization) && measure_observables!(mc, mc.model, mc.obs, mc.conf, mc.energy_boson)
 
         if mod(i, 1000) == 0
             mc.a.acc_rate = mc.a.acc_rate / 1000
@@ -190,14 +190,14 @@ function sweep(mc::DQMC{<:Model, S}) where S
     const N = mc.model.l.sites
 
     @inbounds for i in eachindex(mc.conf)
-        delta_E, delta_i = propose_local(mc.model, i, mc.conf, mc.energy)
+        delta_E, delta_i = propose_local(mc.model, i, mc.conf, mc.energy_boson)
         mc.a.prop_local += 1
         # Metropolis
         if delta_E <= 0 || rand() < exp(- delta_E)
-            accept_local!(mc.model, i, mc.conf, mc.energy, delta_i, delta_E)
+            accept_local!(mc.model, i, mc.conf, mc.energy_boson, delta_i, delta_E)
             mc.a.acc_rate += 1/N
             mc.a.acc_local += 1
-            mc.energy += delta_E
+            mc.energy_boson += delta_E
         end
     end
 

@@ -7,4 +7,6 @@
     m = HubbardModelAttractive(d)
     @test typeof(m) == MonteCarlo.HubbardModelAttractive{MonteCarlo.SquareLattice}
     @test m.L == 3 && m.dims == 2
+
+    
 end

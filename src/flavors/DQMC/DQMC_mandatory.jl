@@ -37,26 +37,25 @@ interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, slice::Int, power::F
 
 
 """
-    propose_local(mc::DQMC, m::Model, i::Int, conf, E_boson::Float64) -> delta_E, delta_E_boson, delta_i
+    propose_local(mc::DQMC, m::Model, i::Int, conf, E_boson::Float64) -> detratio, delta_E_boson, delta
 
 Propose a local move for lattice site `i` of current configuration `conf`
-with boson energy `E_boson`. Returns full energy difference
-`delta_E = E_new - E_old` (boson + fermion determinant ratio), boson energy
-difference `delta_E_boson = delta_E_boson_new - delta_E_boson`, and local move
-information `delta_i` (e.g. `new[i] - conf[i]`, will be forwarded to
+with boson energy `E_boson`. Returns the Green's function determinant ratio,
+the boson energy difference `delta_E_boson = delta_E_boson_new - delta_E_boson`,
+and additional local move information `delta` (will be forwarded to
 `accept_local!`).
 
 See also [`accept_local!`](@ref).
 """
-propose_local(mc::MC, m::Model, i::Int, conf, E_boson::Float64) = error("Model has no implementation of `propose_local(mc::DQMC, m::Model, i::Int, conf, E_boson::Float64)`!")
+propose_local(mc::DQMC, m::Model, i::Int, conf, E_boson::Float64) = error("Model has no implementation of `propose_local(mc::DQMC, m::Model, i::Int, conf, E_boson::Float64)`!")
 
 """
-    accept_local(mc::DQMC, m::Model, i::Int, conf, E::Float64, delta_i, delta_E::Float64, delta_E_boson::Float64)
+    accept_local(mc::DQMC, m::Model, i::Int, slice::Int, conf, delta, detratio, delta_E_boson)
 
-Accept a local move for site `i` of current configuration `conf`
-with energy `E`. Arguments `delta_i` and `delta_E` correspond to output of `propose_local()`
-for that local move.
+Accept a local move for site `i` at imaginary time slice `slice` of current
+configuration `conf` with energy `E`. Arguments `delta`, `detratio` and
+`delta_E_boson` correspond to output of `propose_local()` for that local move.
 
 See also [`propose_local`](@ref).
 """
-accept_local!(mc::MC, m::Model, i::Int, conf, E_boson::Float64, delta_i, delta_E::Float64, delta_E_boson::Float64) = error("Model has no implementation of `accept_local!(m::Model, i::Int, conf, E::Float64, delta_i, delta_E::Float64, delta_E_boson::Float64)`!")
+accept_local(mc::DQMC, m::Model, i::Int, slice::Int, conf, delta, detratio, delta_E_boson) = error("Model has no implementation of `accept_local(mc::DQMC, m::Model, i::Int, slice::Int, conf, delta, detratio, delta_E_boson)`!")
