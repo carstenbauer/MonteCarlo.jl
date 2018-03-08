@@ -74,16 +74,16 @@ Draw random HS field configuration.
 rand(mc::DQMC, m::HubbardModel) = rand(HubbardDistribution, m.l.sites, mc.p.slices)
 
 """
-    confeltype(::Type{DQMC}, m::HubbardModel)
+    conftype(::Type{DQMC}, m::HubbardModel)
 
-Returns the type of an Hubbard model configuration.
+Returns the type of a (Hubbard-Stratonovich field) configuration of the Hubbard model.
 """
 conftype(::Type{DQMC}, m::HubbardModel) = HubbardConf
 
 """
     greenseltype(::Type{DQMC}, m::HubbardModel)
 
-Returns the type of an Hubbard model configuration.
+Returns the element type of the Green's function.
 """
 greenseltype(::Type{DQMC}, m::HubbardModel) = Complex{Float64}
 

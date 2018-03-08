@@ -68,9 +68,9 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
 end
 
 geltype(::Type{DQMCStack{G,H}}) where {G,H} = G
-htype(::Type{DQMCStack{G,H}}) where {G,H} = H
-geltype(mc::DQMC) = geltype(typeof(mc.s))
-htype(mc::DQMC) = htype(typeof(mc.s))
+heltype(::Type{DQMCStack{G,H}}) where {G,H} = H
+geltype(mc::DQMC{M, CB, ConfType, Stack}) where {M, CB, ConfType, Stack} = geltype(Stack)
+heltype(mc::DQMC{M, CB, ConfType, Stack}) where {M, CB, ConfType, Stack} = heltype(Stack)
 
 # TODO constructor: takes mc simulation.
 
