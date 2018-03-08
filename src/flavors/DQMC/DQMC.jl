@@ -38,7 +38,7 @@ mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any, Stack<:AbstractDQ
     conf::ConfType
     # greens::GreensType # should this be here or in DQMCStack?
     energy_boson::Float64
-    s::AbstractDQMCStack
+    s::Stack
 
     p::DQMCParameters
     a::DQMCAnalysis
