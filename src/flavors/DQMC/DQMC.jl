@@ -49,6 +49,7 @@ end
 
 include("linalg.jl")
 include("stack.jl")
+include("slice_matrices.jl")
 
 """
     DQMC(m::M; kwargs...) where M<:Model

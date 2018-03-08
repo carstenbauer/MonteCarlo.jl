@@ -163,6 +163,7 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
   const N = m.l.sites
   const neighs = m.l.neighs # row = up, right, down, left; col = siteidx
 
+  # TODO: Mu Mu Mu!
   T = zeros(N,N) # we take the chemical potential as part of the interaction
 
   # Nearest neighbor hoppings

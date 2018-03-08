@@ -26,9 +26,6 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
   d::Vector{Float64}
   t::Matrix{GreensEltype}
 
-  # delta_i::Matrix{GreensEltype}
-  # M::Matrix{GreensEltype}
-
   ranges::Array{UnitRange, 1}
   n_elements::Int
   current_slice::Int # running internally over 0:mc.p.slices+1, where 0 and mc.p.slices+1 are artifcial to prepare next sweep direction.
@@ -49,11 +46,8 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
   # preallocated, reused arrays
   curr_U::Matrix{GreensEltype}
   eV::Matrix{GreensEltype}
-  # eVop1::Matrix{GreensEltype}
-  # eVop2::Matrix{GreensEltype}
 
   # hopping matrices
-  # TODO so far not initialized
   hopping_matrix_exp::Matrix{HoppingEltype} # mu included
   hopping_matrix_exp_inv::Matrix{HoppingEltype} # mu included
 
@@ -72,10 +66,9 @@ heltype(::Type{DQMCStack{G,H}}) where {G,H} = H
 geltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = geltype(S)
 heltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = heltype(S)
 
-# TODO constructor: takes mc simulation.
-
 function initialize_stack(mc::DQMC)
   const GreensEltype = geltype(mc)
+  const HoppingEltype = heltype(mc)
   const N = mc.model.l.sites
   const flv = mc.model.flv
 
@@ -106,9 +99,6 @@ function initialize_stack(mc::DQMC)
   mc.s.d = zeros(Float64, flv*N)
   mc.s.t = zeros(GreensEltype, flv*N, flv*N)
 
-  # mc.s.delta_i = zeros(GreensEltype, flv, flv)
-  # mc.s.M = zeros(GreensEltype, flv, flv)
-
   # # Global update backup
   # mc.s.gb_u_stack = zero(mc.s.u_stack)
   # mc.s.gb_d_stack = zero(mc.s.d_stack)
@@ -125,11 +115,36 @@ function initialize_stack(mc::DQMC)
 
   mc.s.curr_U = zero(mc.s.U)
   mc.s.eV = zeros(GreensEltype, flv*N, flv*N)
-  # mc.s.eVop1 = zeros(GreensEltype, flv, flv)
-  # mc.s.eVop2 = zeros(GreensEltype, flv, flv)
+
+  mc.s.hopping_matrix_exp = zeros(HoppingEltype, flv*N, flv*N)
+  mc.s.hopping_matrix_exp_inv = zeros(HoppingEltype, flv*N, flv*N)
 end
 
+function init_hopping_matrices(mc::DQMC, m::Model)
+  init_hopping_matrix_exp(mc, m)
+  # init_checkerboard_matrices(mc, m)
+end
+function init_hopping_matrix_exp(mc::DQMC, m::Model)
+  const N = m.l.sites
+  const flv = m.flv
+  const eT = mc.s.hopping_matrix_exp
+  const eTinv = mc.s.hopping_matrix_exp_inv
+  const dtau = mc.p.delta_tau
 
+  T = hopping_matrix(mc, m)
+  size(T) == (flv*N, flv*N) || error("Hopping matrix should have size "*
+                                "$((flv*N, flv*N)) but has size $(size(T)) .")
+  eT .= expm(-0.5 * dtau * T)
+  eTinv .= expm(0.5 * dtau * T)
+  nothing
+end
+# function init_checkerboard_matrices(mc::DQMC, m::Model)
+#
+# end
+
+"""
+Build (already initialized) stack from scratch.
+"""
 function build_stack(mc::DQMC)
   mc.s.u_stack[:, :, 1] = eye_full
   mc.s.d_stack[:, 1] = ones_vec
@@ -144,8 +159,6 @@ function build_stack(mc::DQMC)
 
   nothing
 end
-
-
 """
 Updates stack[idx+1] based on stack[idx]
 """
@@ -161,8 +174,6 @@ function add_slice_sequence_left(mc::DQMC, idx::Int)
   mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], T = decompose_udt(mc.s.curr_U)
   mc.s.t_stack[:, :, idx + 1] =  T * mc.s.t_stack[:, :, idx]
 end
-
-
 """
 Updates stack[idx] based on stack[idx+1]
 """
@@ -176,23 +187,6 @@ function add_slice_sequence_right(mc::DQMC, idx::Int)
   mc.s.curr_U *=  spdiagm(mc.s.d_stack[:, idx + 1])
   mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], T = decompose_udt(mc.s.curr_U)
   mc.s.t_stack[:, :, idx] = T * mc.s.t_stack[:, :, idx + 1]
-end
-
-
-@inline function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)
-  if direction == -1
-    multiply_slice_matrix_inv_left!(mc, mc.model, curr_slice - 1, gf)
-    multiply_slice_matrix_right!(mc, mc.model, curr_slice - 1, gf)
-  else
-    multiply_slice_matrix_left!(mc, mc.model, curr_slice, gf)
-    multiply_slice_matrix_inv_right!(mc, mc.model, curr_slice, gf)
-  end
-end
-
-@inline function wrap_greens(mc::DQMC, gf::Matrix,slice::Int,direction::Int)
-  temp = copy(gf)
-  wrap_greens!(mc, temp, slice, direction)
-  return temp
 end
 
 
@@ -215,8 +209,6 @@ function calculate_greens(mc::DQMC)
 
   mc.s.greens = mc.s.T * spdiagm(mc.s.d) * mc.s.U
 end
-
-
 """
 Only reasonable immediately after calculate_greens()!
 """
@@ -233,6 +225,24 @@ end
 ################################################################################
 # Propagation
 ################################################################################
+# Green's function propagation
+################################################################################
+@inline function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)
+  if direction == -1
+    multiply_slice_matrix_inv_left!(mc, mc.model, curr_slice - 1, gf)
+    multiply_slice_matrix_right!(mc, mc.model, curr_slice - 1, gf)
+  else
+    multiply_slice_matrix_left!(mc, mc.model, curr_slice, gf)
+    multiply_slice_matrix_inv_right!(mc, mc.model, curr_slice, gf)
+  end
+  nothing
+end
+# @inline function wrap_greens(mc::DQMC, gf::Matrix,slice::Int,direction::Int)
+#   temp = copy(gf)
+#   wrap_greens!(mc, temp, slice, direction)
+#   return temp
+# end
+
 function propagate(mc::DQMC)
   if mc.s.direction == 1
     if mod(mc.s.current_slice, mc.p.safe_mult) == 0
