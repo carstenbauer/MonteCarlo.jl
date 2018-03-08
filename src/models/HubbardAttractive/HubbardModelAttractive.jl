@@ -129,12 +129,19 @@ end
 
 
 """
+    interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive, result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
+
+Calculate the interaction matrix exponential
 # interactionm = exp(- power delta_tau V(slice)), with power = +- 1.
 """
 @inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive, result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
-  const dtau = mc.p.delta_tau
-  # return spdiagm(exp(sign(power) * p.lambda * p.hsfield[:,slice]))
-  return - 1/dtau * m.lambda * conf[:,slice]
+    # const dtau = mc.p.delta_tau
+    # V = - 1/dtau * m.lambda * conf[:,slice]
+    # result = spdiagm(exp(- sign(power) * dtau * V))
+
+    # TODO: add mu either here or in hopping matrix
+    result = spdiagm(exp(sign(power) * m.lambda * conf[:,slice]))
+    nothing
 end
 
 """
