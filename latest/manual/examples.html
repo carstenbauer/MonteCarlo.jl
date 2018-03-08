@@ -18,8 +18,8 @@ for L in 2.^[3, 4, 5, 6]
 		beta = 1/T
 		model = IsingModel(dims=2, L=L)
 		mc = MC(model, beta=beta)
-		obs = run!(mc, sweeps=sweeps, thermalization=therm, verbose=false)
-		push!(df, [L, T, mean(obs[&quot;m&quot;]), mean(obs[&quot;χ&quot;]), mean(obs[&quot;e&quot;]), mean(obs[&quot;C&quot;])])
+		run!(mc, sweeps=sweeps, thermalization=therm, verbose=false)
+		push!(df, [L, T, mean(mc.obs[&quot;m&quot;]), mean(mc.obs[&quot;χ&quot;]), mean(mc.obs[&quot;e&quot;]), mean(mc.obs[&quot;C&quot;])])
 	end
 	flush(STDOUT)
 end

@@ -85,7 +85,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Examples",
     "title": "2D Ising model",
     "category": "section",
-    "text": "Results: (Image: )Code:using MonteCarlo, Distributions, PyPlot, DataFrames, JLD\n\nTdist = Normal(MonteCarlo.IsingTc, .64)\nn_Ts = 2^8\nTs = sort!(rand(Tdist, n_Ts))\nTs = Ts[Ts.>=1.2]\nTs = Ts[Ts.<=3.8]\ntherm = 10^4\nsweeps = 10^3\n\ndf = DataFrame(L=Int[], T=Float64[], M=Float64[], χ=Float64[], E=Float64[], C_V=Float64[])\n\nfor L in 2.^[3, 4, 5, 6]\n	println(\"L = \", L)\n	for (i, T) in enumerate(Ts)\n		println(\"\\t T = \", T)\n		beta = 1/T\n		model = IsingModel(dims=2, L=L)\n		mc = MC(model, beta=beta)\n		obs = run!(mc, sweeps=sweeps, thermalization=therm, verbose=false)\n		push!(df, [L, T, mean(obs[\"m\"]), mean(obs[\"χ\"]), mean(obs[\"e\"]), mean(obs[\"C\"])])\n	end\n	flush(STDOUT)\nend\n\nsort!(df, cols = [:L, :T])\n@save \"ising2d.jld\" df\n\n# plot results together\ngrps = groupby(df, :L)\nfig, ax = subplots(2,2, figsize=(12,8))\nfor g in grps\n	L = g[:L][1]\n	ax[1][:plot](g[:T], g[:E], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[2][:plot](g[:T], g[:C_V], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[3][:plot](g[:T], g[:M], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[4][:plot](g[:T], g[:χ], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\nend\nax[1][:legend](loc=\"best\")\nax[1][:set_ylabel](\"Energy\")\nax[1][:set_xlabel](\"Temperature\")\n\nax[2][:set_ylabel](\"Specific heat\")\nax[2][:set_xlabel](\"Temperature\")\nax[2][:axvline](x=MonteCarlo.IsingTc, color=\"black\", linestyle=\"dashed\", label=\"\\$ T_c \\$\")\nax[2][:legend](loc=\"best\")\n\nax[3][:set_ylabel](\"Magnetization\")\nax[3][:set_xlabel](\"Temperature\")\nx = linspace(1.2, MonteCarlo.IsingTc, 100)\ny = (1-sinh.(2.0 ./ (x)).^(-4)).^(1/8)\nax[3][:plot](x,y, \"k--\", label=\"exact\")\nax[3][:plot](linspace(MonteCarlo.IsingTc, 3.8, 100), zeros(100), \"k--\")\nax[3][:legend](loc=\"best\")\n\nax[4][:set_ylabel](\"Susceptibility χ\")\nax[4][:set_xlabel](\"Temperature\")\nax[4][:axvline](x=MonteCarlo.IsingTc, color=\"black\", linestyle=\"dashed\", label=\"\\$ T_c \\$\")\nax[4][:legend](loc=\"best\")\ntight_layout()\nsavefig(\"ising2d.pdf\")"
+    "text": "Results: (Image: )Code:using MonteCarlo, Distributions, PyPlot, DataFrames, JLD\n\nTdist = Normal(MonteCarlo.IsingTc, .64)\nn_Ts = 2^8\nTs = sort!(rand(Tdist, n_Ts))\nTs = Ts[Ts.>=1.2]\nTs = Ts[Ts.<=3.8]\ntherm = 10^4\nsweeps = 10^3\n\ndf = DataFrame(L=Int[], T=Float64[], M=Float64[], χ=Float64[], E=Float64[], C_V=Float64[])\n\nfor L in 2.^[3, 4, 5, 6]\n	println(\"L = \", L)\n	for (i, T) in enumerate(Ts)\n		println(\"\\t T = \", T)\n		beta = 1/T\n		model = IsingModel(dims=2, L=L)\n		mc = MC(model, beta=beta)\n		run!(mc, sweeps=sweeps, thermalization=therm, verbose=false)\n		push!(df, [L, T, mean(mc.obs[\"m\"]), mean(mc.obs[\"χ\"]), mean(mc.obs[\"e\"]), mean(mc.obs[\"C\"])])\n	end\n	flush(STDOUT)\nend\n\nsort!(df, cols = [:L, :T])\n@save \"ising2d.jld\" df\n\n# plot results together\ngrps = groupby(df, :L)\nfig, ax = subplots(2,2, figsize=(12,8))\nfor g in grps\n	L = g[:L][1]\n	ax[1][:plot](g[:T], g[:E], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[2][:plot](g[:T], g[:C_V], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[3][:plot](g[:T], g[:M], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\n	ax[4][:plot](g[:T], g[:χ], \"o\", markeredgecolor=\"black\", label=\"L=$L\")\nend\nax[1][:legend](loc=\"best\")\nax[1][:set_ylabel](\"Energy\")\nax[1][:set_xlabel](\"Temperature\")\n\nax[2][:set_ylabel](\"Specific heat\")\nax[2][:set_xlabel](\"Temperature\")\nax[2][:axvline](x=MonteCarlo.IsingTc, color=\"black\", linestyle=\"dashed\", label=\"\\$ T_c \\$\")\nax[2][:legend](loc=\"best\")\n\nax[3][:set_ylabel](\"Magnetization\")\nax[3][:set_xlabel](\"Temperature\")\nx = linspace(1.2, MonteCarlo.IsingTc, 100)\ny = (1-sinh.(2.0 ./ (x)).^(-4)).^(1/8)\nax[3][:plot](x,y, \"k--\", label=\"exact\")\nax[3][:plot](linspace(MonteCarlo.IsingTc, 3.8, 100), zeros(100), \"k--\")\nax[3][:legend](loc=\"best\")\n\nax[4][:set_ylabel](\"Susceptibility χ\")\nax[4][:set_xlabel](\"Temperature\")\nax[4][:axvline](x=MonteCarlo.IsingTc, color=\"black\", linestyle=\"dashed\", label=\"\\$ T_c \\$\")\nax[4][:legend](loc=\"best\")\ntight_layout()\nsavefig(\"ising2d.pdf\")"
 },
 
 {
@@ -140,7 +140,7 @@ var documenterSearchIndex = {"docs": [
     "location": "models/ising.html#MonteCarlo.IsingModel",
     "page": "Ising model",
     "title": "MonteCarlo.IsingModel",
-    "category": "Type",
+    "category": "type",
     "text": "Famous Ising model on a cubic lattice.\n\nIsingModel(; dims::Int=2, L::Int=8)\n\nCreate Ising model on dims-dimensional cubic lattice with linear system size L.\n\n\n\n"
 },
 
@@ -148,7 +148,7 @@ var documenterSearchIndex = {"docs": [
     "location": "models/ising.html#MonteCarlo.IsingModel-Tuple{Union{Dict{String,Any}, Dict{Symbol,Any}}}",
     "page": "Ising model",
     "title": "MonteCarlo.IsingModel",
-    "category": "Method",
+    "category": "method",
     "text": "IsingModel(kwargs::Dict{String, Any})\n\nCreate Ising model with (keyword) parameters as specified in kwargs dict.\n\n\n\n"
 },
 
@@ -212,7 +212,7 @@ var documenterSearchIndex = {"docs": [
     "location": "flavors/mc.html#MonteCarlo.run!-Tuple{MonteCarlo.MC}",
     "page": "MC",
     "title": "MonteCarlo.run!",
-    "category": "Method",
+    "category": "method",
     "text": "run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])\n\nRuns the given Monte Carlo simulation mc. Progress will be printed to STDOUT if verbose=true (default).\n\n\n\n"
 },
 
@@ -220,7 +220,7 @@ var documenterSearchIndex = {"docs": [
     "location": "flavors/mc.html#MonteCarlo.MC",
     "page": "MC",
     "title": "MonteCarlo.MC",
-    "category": "Type",
+    "category": "type",
     "text": "Monte Carlo simulation\n\n\n\n"
 },
 
@@ -228,7 +228,7 @@ var documenterSearchIndex = {"docs": [
     "location": "flavors/mc.html#MonteCarlo.MC-Union{Tuple{M,Union{Dict{String,Any}, Dict{Symbol,Any}}}, Tuple{M}} where M<:MonteCarlo.Model",
     "page": "MC",
     "title": "MonteCarlo.MC",
-    "category": "Method",
+    "category": "method",
     "text": "MC(m::M; kwargs::Dict{String, Any})\n\nCreate a Monte Carlo simulation for model m with (keyword) parameters as specified in the dictionary kwargs.\n\n\n\n"
 },
 
@@ -236,7 +236,7 @@ var documenterSearchIndex = {"docs": [
     "location": "flavors/mc.html#MonteCarlo.MC-Union{Tuple{M}, Tuple{M}} where M<:MonteCarlo.Model",
     "page": "MC",
     "title": "MonteCarlo.MC",
-    "category": "Method",
+    "category": "method",
     "text": "MC(m::M; kwargs...) where M<:Model\n\nCreate a Monte Carlo simulation for model m with keyword parameters kwargs.\n\n\n\n"
 },
 
@@ -380,7 +380,7 @@ var documenterSearchIndex = {"docs": [
     "location": "methods/general.html#MonteCarlo.observables-Tuple{MonteCarlo.MonteCarloFlavor}",
     "page": "General",
     "title": "MonteCarlo.observables",
-    "category": "Method",
+    "category": "method",
     "text": "observables(mc::MonteCarloFlavor)\n\nGet a list of all observables defined for a given Monte Carlo simulation.\n\nReturns a Dict{String, String} where values are the observables names and keys are short versions of those names. The keys can be used to collect correponding observable objects from the Monte Carlo simulation, e.g. like mc.obs[key].\n\nNote, there is no need to implement this function for a custom MonteCarloFlavor.\n\n\n\n"
 },
 
@@ -388,7 +388,7 @@ var documenterSearchIndex = {"docs": [
     "location": "methods/general.html#MonteCarlo.reset!-Tuple{MonteCarlo.MonteCarloFlavor}",
     "page": "General",
     "title": "MonteCarlo.reset!",
-    "category": "Method",
+    "category": "method",
     "text": "reset!(mc::MonteCarloFlavor)\n\nResets the Monte Carlo simulation mc. Previously set parameters will be retained.\n\n\n\n"
 },
 
@@ -436,7 +436,7 @@ var documenterSearchIndex = {"docs": [
     "location": "interfaces/MC.html#Base.Random.rand-Tuple{MonteCarlo.MC,MonteCarlo.Model}",
     "page": "MC",
     "title": "Base.Random.rand",
-    "category": "Method",
+    "category": "method",
     "text": "rand(mc::MC, m::Model)\n\nDraw random configuration.\n\n\n\n"
 },
 
@@ -444,7 +444,7 @@ var documenterSearchIndex = {"docs": [
     "location": "interfaces/MC.html#MonteCarlo.accept_local!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64,Any,Float64}",
     "page": "MC",
     "title": "MonteCarlo.accept_local!",
-    "category": "Method",
+    "category": "method",
     "text": "accept_local(mc::MC, m::Model, i::Int, conf, E::Float64, delta_i, delta_E::Float64)\n\nAccept a local move for site i of current configuration conf with energy E. Arguments delta_i and delta_E correspond to output of propose_local() for that local move.\n\nSee also propose_local.\n\n\n\n"
 },
 
@@ -452,7 +452,7 @@ var documenterSearchIndex = {"docs": [
     "location": "interfaces/MC.html#MonteCarlo.conftype-Tuple{MonteCarlo.Model}",
     "page": "MC",
     "title": "MonteCarlo.conftype",
-    "category": "Method",
+    "category": "method",
     "text": "conftype(m::Model)\n\nReturns the type of a configuration.\n\n\n\n"
 },
 
@@ -460,7 +460,7 @@ var documenterSearchIndex = {"docs": [
     "location": "interfaces/MC.html#MonteCarlo.energy-Tuple{MonteCarlo.MC,MonteCarlo.Model,Any}",
     "page": "MC",
     "title": "MonteCarlo.energy",
-    "category": "Method",
+    "category": "method",
     "text": "energy(mc::MC, m::Model, conf)\n\nCalculate energy of configuration conf for Model m.\n\n\n\n"
 },
 
@@ -468,7 +468,7 @@ var documenterSearchIndex = {"docs": [
     "location": "interfaces/MC.html#MonteCarlo.propose_local-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64}",
     "page": "MC",
     "title": "MonteCarlo.propose_local",
-    "category": "Method",
+    "category": "method",
     "text": "propose_local(mc::MC, m::Model, i::Int, conf, E::Float64) -> delta_E, delta_i\n\nPropose a local move for lattice site i of current configuration conf with energy E. Returns local move information delta_i (e.g. new[i] - conf[i], will be forwarded to accept_local!) and energy difference delta_E = E_new - E_old.\n\nSee also accept_local!.\n\n\n\n"
 },
 
@@ -484,7 +484,7 @@ var documenterSearchIndex = {"docs": [
     "location": "interfaces/MC.html#MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}",
     "page": "MC",
     "title": "MonteCarlo.finish_observables!",
-    "category": "Method",
+    "category": "method",
     "text": "measure_observables!(mc::MC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasure observables and update corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and measure_observables!.\n\n\n\n"
 },
 
@@ -492,7 +492,7 @@ var documenterSearchIndex = {"docs": [
     "location": "interfaces/MC.html#MonteCarlo.global_move-Tuple{MonteCarlo.MC,MonteCarlo.Model,Any,Float64}",
     "page": "MC",
     "title": "MonteCarlo.global_move",
-    "category": "Method",
+    "category": "method",
     "text": "global_move(mc::MC, m::Model, conf, E::Float64) -> accepted::Bool\n\nPropose a global move for configuration conf with energy E. Returns wether the global move has been accepted or not.\n\n\n\n"
 },
 
@@ -500,7 +500,7 @@ var documenterSearchIndex = {"docs": [
     "location": "interfaces/MC.html#MonteCarlo.measure_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}",
     "page": "MC",
     "title": "MonteCarlo.measure_observables!",
-    "category": "Method",
+    "category": "method",
     "text": "measure_observables!(mc::MC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasures observables and updates corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and finish_observables!.\n\n\n\n"
 },
 
@@ -508,7 +508,7 @@ var documenterSearchIndex = {"docs": [
     "location": "interfaces/MC.html#MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}",
     "page": "MC",
     "title": "MonteCarlo.prepare_observables",
-    "category": "Method",
+    "category": "method",
     "text": "prepare_observables(m::Model) -> Dict{String, Observable}\n\nInitializes observables and returns a Dict{String, Observable}. In the latter, keys are abbreviations for the observables names and values are the observables themselves.\n\nSee also measure_observables! and finish_observables!.\n\n\n\n"
 },
 
