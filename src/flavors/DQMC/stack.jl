@@ -69,8 +69,8 @@ end
 
 geltype(::Type{DQMCStack{G,H}}) where {G,H} = G
 heltype(::Type{DQMCStack{G,H}}) where {G,H} = H
-geltype(mc::DQMC{M, CB, ConfType, Stack}) where {M, CB, ConfType, Stack} = geltype(Stack)
-heltype(mc::DQMC{M, CB, ConfType, Stack}) where {M, CB, ConfType, Stack} = heltype(Stack)
+geltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = geltype(S)
+heltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = heltype(S)
 
 # TODO constructor: takes mc simulation.
 
@@ -127,7 +127,6 @@ function initialize_stack(mc::DQMC)
   mc.s.eV = zeros(GreensEltype, flv*N, flv*N)
   # mc.s.eVop1 = zeros(GreensEltype, flv, flv)
   # mc.s.eVop2 = zeros(GreensEltype, flv, flv)
-
 end
 
 
