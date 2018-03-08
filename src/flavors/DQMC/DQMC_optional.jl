@@ -8,9 +8,9 @@ greenseltype(::Type{DQMC}, m::Model) = Complex128
 """
     energy(mc::DQMC, m::Model, conf)
 
-Calculate non-Green's function determinant (bosonic) part of energy for configuration `conf` for Model `m`.
+Calculate bosonic part (non-Green's function determinant part) of energy for configuration `conf` for Model `m`.
 """
-energy(mc::DQMC, m::Model, conf) = 0.
+energy_boson(mc::DQMC, m::Model, conf) = 0.
 
 """
     prepare_observables(mc::DQMC, m::Model) -> Dict{String, Observable}

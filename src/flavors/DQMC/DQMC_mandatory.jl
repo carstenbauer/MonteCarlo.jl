@@ -34,3 +34,29 @@ Calculates the matrix exponential \$ exp(- power \\Delta \\tau V_{slice}) \$ and
 Efficient in-place (in `result`) construction of the interaction matrix might speed up the simulation.
 """
 interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, slice::Int, power::Float64=1.) = error("Model has no implementation of `interaction_matrix_exp!`.")
+
+
+"""
+    propose_local(mc::DQMC, m::Model, i::Int, conf, E_boson::Float64) -> delta_E, delta_E_boson, delta_i
+
+Propose a local move for lattice site `i` of current configuration `conf`
+with boson energy `E_boson`. Returns full energy difference
+`delta_E = E_new - E_old` (boson + fermion determinant ratio), boson energy
+difference `delta_E_boson = delta_E_boson_new - delta_E_boson`, and local move
+information `delta_i` (e.g. `new[i] - conf[i]`, will be forwarded to
+`accept_local!`).
+
+See also [`accept_local!`](@ref).
+"""
+propose_local(mc::MC, m::Model, i::Int, conf, E_boson::Float64) = error("Model has no implementation of `propose_local(mc::DQMC, m::Model, i::Int, conf, E_boson::Float64)`!")
+
+"""
+    accept_local(mc::DQMC, m::Model, i::Int, conf, E::Float64, delta_i, delta_E::Float64, delta_E_boson::Float64)
+
+Accept a local move for site `i` of current configuration `conf`
+with energy `E`. Arguments `delta_i` and `delta_E` correspond to output of `propose_local()`
+for that local move.
+
+See also [`propose_local`](@ref).
+"""
+accept_local!(mc::MC, m::Model, i::Int, conf, E_boson::Float64, delta_i, delta_E::Float64, delta_E_boson::Float64) = error("Model has no implementation of `accept_local!(m::Model, i::Int, conf, E::Float64, delta_i, delta_E::Float64, delta_E_boson::Float64)`!")

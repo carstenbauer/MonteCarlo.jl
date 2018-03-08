@@ -58,9 +58,9 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 """
     energy(m::HubbardModelAttractive, hsfield::HubbardConf)
 
-Calculate energy of configuration (`hsfield`) for attractive Hubbard model `m`.
+Calculate bosonic part of the energy for configuration `hsfield`.
 """
-function energy(m::HubbardModelAttractive, hsfield::HubbardConf) # not needed for propose_local
+function energy_boson(m::HubbardModelAttractive, hsfield::HubbardConf) # not needed for propose_local
     return m.lambda * sum(hsfield)
 end
 
@@ -70,21 +70,21 @@ import Base.rand
 
 Draw random HS field configuration.
 """
-rand(mc::DQMC, m::HubbardModelAttractive) = rand(HubbardDistribution, m.l.sites, mc.p.slices)
+@inline rand(mc::DQMC, m::HubbardModelAttractive) = rand(HubbardDistribution, m.l.sites, mc.p.slices)
 
 """
     conftype(::Type{DQMC}, m::HubbardModelAttractive)
 
 Returns the type of a (Hubbard-Stratonovich field) configuration of the attractive Hubbard model.
 """
-conftype(::Type{DQMC}, m::HubbardModelAttractive) = HubbardConf
+@inline conftype(::Type{DQMC}, m::HubbardModelAttractive) = HubbardConf
 
 """
     greenseltype(::Type{DQMC}, m::HubbardModelAttractive)
 
 Returns the element type of the Green's function.
 """
-greenseltype(::Type{DQMC}, m::HubbardModelAttractive) = Complex{Float64}
+@inline greenseltype(::Type{DQMC}, m::HubbardModelAttractive) = Complex{Float64}
 
 """
     propose_local(m::HubbardModelAttractive, i::Int, conf::HubbardConf, E::Float64) -> delta_E, delta_i
@@ -93,7 +93,7 @@ Propose a local HS field flip at site `i` of current configuration `conf`
 with energy `E`. Returns `(delta_E, nothing)`.
 """
 @inline function propose_local(m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, E::Float64)
-	gamma = exp(-1. * 2 * p.hsfield[i, s.current_slice] * p.lambda) - 1
+	gamma = exp(-1. * 2 * conf[i, slice] * m.lambda) - 1
     prob = (1 + gamma * (1 - s.greens[i,i]))^2 / (gamma + 1)
 
     # if abs(imag(prob)) > 1e-6
@@ -119,5 +119,5 @@ for that flip.
     nothing
 end
 
-# include("matrix_exponentials.jl")
+include("matrix_exponentials.jl")
 include("observables.jl")
