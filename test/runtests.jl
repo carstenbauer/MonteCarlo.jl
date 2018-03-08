@@ -4,7 +4,7 @@ using Base.Test
 @testset "All Tests" begin
     @testset "Models" begin
         include("modeltests_IsingModel.jl")
-        include("modeltests_HubbardModel.jl")
+        include("modeltests_HubbardModelAttractive.jl")
     end
 
     @testset "Flavors" begin

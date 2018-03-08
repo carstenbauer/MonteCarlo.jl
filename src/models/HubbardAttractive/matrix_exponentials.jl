@@ -1,12 +1,12 @@
 # interactionm = exp(- power delta_tau V(slice)), with power = +- 1.
-@inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModel, result::Matrix, slice::Int, power::Float64=1.)
+@inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive, result::Matrix, slice::Int, power::Float64=1.)
   # return spdiagm(exp(sign(power) * p.lambda * p.hsfield[:,slice]))
   return - 1/p.delta_tau * p.lambda * p.hsfield[:,slice]
 
   # TODO needs delta_tau. How to provide it. Maybe Monte Carlo object as argument everywhere?
 end
 
-function hopping_matrix(m::HubbardModel)
+function hopping_matrix(m::HubbardModelAttractive)
   const N = m.l.sites
   const neighs = m.l.neighs # row = up, right, down, left; col = siteidx
 
