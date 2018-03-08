@@ -24,16 +24,17 @@ A matrix element is the hopping amplitude for a hopping process: \$ j,\\sigma ' 
 Regarding the order of indices, if `T[i, σ, j, σ']` is your desired 4D hopping array, then `reshape(T, (n_sites * n_flavors, :))`
 is the hopping matrix.
 """
-hopping_matrix(mc::DQMC, m::Model) = error("Model has no implementation of `hopping_matrix`.")
+hopping_matrix(mc::DQMC, m::Model) = error("Model has no implementation of `hopping_matrix(mc::DQMC, m::Model)`.")
 
 """
-	interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, slice::Int, power::Float64) -> nothing
+    interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.) -> nothing
 
-Calculates the matrix exponential \$ exp(- power \\Delta \\tau V_{slice}) \$ and stores it into `result`.
+Calculate the interaction matrix exponential `expV = exp(- power * delta_tau * V(slice))`
+and store it in `result::Matrix`.
 
-Efficient in-place (in `result`) construction of the interaction matrix might speed up the simulation.
+This is a performance critical method and one might consider efficient in-place (in `result`) construction.
 """
-interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, slice::Int, power::Float64=1.) = error("Model has no implementation of `interaction_matrix_exp!`.")
+interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.) = error("Model has no implementation of `interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.)`.")
 
 
 """
