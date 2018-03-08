@@ -60,7 +60,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 
 Calculate bosonic part of the energy for configuration `hsfield`.
 """
-function energy_boson(m::HubbardModelAttractive, hsfield::HubbardConf) # not needed for propose_local
+@inline function energy_boson(m::HubbardModelAttractive, hsfield::HubbardConf) # not needed for propose_local
     return m.lambda * sum(hsfield)
 end
 
@@ -87,37 +87,89 @@ Returns the element type of the Green's function.
 @inline greenseltype(::Type{DQMC}, m::HubbardModelAttractive) = Complex{Float64}
 
 """
-    propose_local(m::HubbardModelAttractive, i::Int, conf::HubbardConf, E::Float64) -> delta_E, delta_i
+    propose_local(m::HubbardModelAttractive, i::Int, conf::HubbardConf, E_boson::Float64) -> detratio, delta_E_boson, delta
 
-Propose a local HS field flip at site `i` of current configuration `conf`
-with energy `E`. Returns `(delta_E, nothing)`.
+Propose a local HS field flip at site `i` and imaginary time slice `slice` of current configuration `conf`.
 """
-@inline function propose_local(m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, E::Float64)
-	gamma = exp(-1. * 2 * conf[i, slice] * m.lambda) - 1
-    prob = (1 + gamma * (1 - s.greens[i,i]))^2 / (gamma + 1)
+@inline function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, E_boson::Float64)
+    # see for example dos Santos (2002)
+    const greens = mc.s.greens
 
-    # if abs(imag(prob)) > 1e-6
+    delta_E_boson = -2. * m.lambda * conf[i, slice]
+	gamma = exp(delta_E_boson) - 1
+    detratio = (1 + gamma * (1 - greens[i,i]))^2 # squared because of two spin sectors.
+
+    # if abs(imag(prob_fermion)) > 1e-6
     #     println("Did you expect a sign problem?", abs(imag(prob)))
     #     @printf "%.10e" abs(imag(prob))
     # end
 
-    return -log(abs(prob)), nothing
+    return detratio, delta_E_boson, gamma
 end
 
 """
-    accept_local(m::HubbardModelAttractive, i::Int, conf::HubbardConf, E::Float64, delta_i, delta_E::Float64)
+    accept_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf, delta, detratio, delta_E_boson)
 
-Accept a local HS field flip at site `i` of current configuration `conf`
-with energy `E`. Arguments `delta_i` and `delta_E` correspond to output of `propose_local()`
+Accept a local HS field flip at site `i` and imaginary time slice `slice` of current configuration `conf`.
+Arguments `delta`, `detratio` and `delta_E_boson` correspond to output of `propose_local()`
 for that flip.
 """
-@inline function accept_local!(m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, E::Float64, delta_i, delta_E::Float64)
-    u = -s.greens[:, i]
+@inline function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, delta_E_boson::Float64)
+    const greens = mc.s.greens
+    const gamma = delta_i
+
+    u = -greens[:, i]
     u[i] += 1.
-    s.greens -= kron(u * 1./(1 + gamma * u[i]), transpose(gamma * s.greens[i, :]))
-    conf[i, s.current_slice] *= -1.
+    # TODO: speed check, maybe @views/@inbounds
+    greens .-= kron(u * 1./(1 + gamma * u[i]), transpose(gamma * greens[i, :]))
+    conf[i, slice] .*= -1.
+    mc.energy_boson += delta_E_boson
     nothing
 end
 
-include("matrix_exponentials.jl")
+
+"""
+# interactionm = exp(- power delta_tau V(slice)), with power = +- 1.
+"""
+@inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive, result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
+  const dtau = mc.p.delta_tau
+  # return spdiagm(exp(sign(power) * p.lambda * p.hsfield[:,slice]))
+  return - 1/dtau * m.lambda * conf[:,slice]
+end
+
+"""
+	hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
+
+Calculates the hopping matrix \$ T_{i, j} \$ where \$ i, j \$ are
+site indices.
+
+Note that since we have a time reversal symmetry relating spin-up
+to spin-down we only consider one spin sector (one flavor) for the attractive
+Hubbard model in the DQMC simulation.
+
+This isn't a performance critical method as it is only used once before the
+actual simulation.
+"""
+function hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
+  const N = m.l.sites
+  const neighs = m.l.neighs # row = up, right, down, left; col = siteidx
+
+  T = zeros(N,N) # we take the chemical potential as part of the interaction
+
+  # Nearest neighbor hoppings
+  @inbounds @views begin
+    for src in 1:N
+      for nb in 1:size(neighs,1)
+        trg = neighs[nb,src]
+        T[trg,src] += -m.t
+      end
+    end
+  end
+
+  # const dtau = mc.p.delta_tau
+  # l.hopping_matrix_exp = expm(-0.5 * dtau * T)
+  # l.hopping_matrix_exp_inv = expm(0.5 * dtau * T)
+  return T
+end
+
 include("observables.jl")
