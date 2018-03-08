@@ -26,7 +26,7 @@ for L in 2.^[3, 4, 5, 6]
 		beta = 1/T
 		model = IsingModel(dims=2, L=L)
 		mc = MC(model, beta=beta)
-		obs = run!(mc, sweeps=sweeps, thermalization=therm, verbose=false)
+		run!(mc, sweeps=sweeps, thermalization=therm, verbose=false)
 		push!(df, [L, T, mean(mc.obs["m"]), mean(mc.obs["χ"]), mean(mc.obs["e"]), mean(mc.obs["C"])])
 	end
 	flush(STDOUT)
