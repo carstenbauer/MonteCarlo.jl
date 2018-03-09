@@ -7,6 +7,8 @@ mutable struct CubicLattice{T<:AbstractArray{Int}} <: AbstractCubicLattice
     sites::Int
     neighs::Matrix{Int} # row = first half uprights, second half downlefts, D in total; col = siteidx
     lattice::T
+
+    #TODO: generic checkerboard
 end
 
 # constructors

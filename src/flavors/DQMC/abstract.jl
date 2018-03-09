@@ -18,7 +18,7 @@ To work with this generic algorithm a lattice must have the following fields:
                           indicate `source site`, `target site`, `bondtype`.
 
 The methods returns
-  * `checkerboard::Matrix{Float64}`: size `(3, n_bonds)` where
+  * `checkerboard::Matrix{Int}`: size `(3, n_bonds)` where
                   rows = `source site`, `target site`, `bondid` and cols
                   correspond to bonds. Sorted (along columns) in such a way
                   that `checkerboard[3, groups[i]]` are all the bond indices
@@ -35,7 +35,7 @@ function build_checkerboard(l::Lattice)
 
   groups = UnitRange[]
   edges_used = zeros(Int64, l.n_bonds)
-  checkerboard = zeros(3, l.n_bonds)
+  checkerboard = zeros(Int64, 3, l.n_bonds)
   group_start = 1
   group_end = 1
 
