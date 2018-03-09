@@ -4,11 +4,14 @@ Generic ALPS lattice parsed from XML file.
 mutable struct ALPSLattice <: Lattice
     sites::Int # n_sites
     dim::Int
+    neighs::Matrix{Int} # row = neighbors; col = siteidx (assumption: const. coordination nr.)
+    n_neighs::Int
+    bond_vecs::Matrix{Float64}
+
+    # for generic checkerboard support
     n_bonds::Int
     bonds::Matrix{Int} # src, trg, type
-    bond_vecs::Matrix{Float64}
-    n_neighs::Int
-    neighs::Matrix{Int} # row = neighbors; col = siteidx (assumption: const. coordination nr.)
+
     ALPSLattice() = new()
 end
 

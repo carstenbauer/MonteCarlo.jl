@@ -1,3 +1,4 @@
+# type
 mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: AbstractDQMCStack
   eye_flv::Matrix{Float64}
   eye_full::Matrix{Float64}
@@ -52,7 +53,20 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
   hopping_matrix_exp_inv::Matrix{HoppingEltype} # mu included
 
   # checkerboard hopping matrices
-  # TODO
+  checkerboard::Matrix{Int} # src, trg, bondid
+  groups::Vector{UnitRange}
+  n_groups::Int
+  chkr_hop_half::Vector{SparseMatrixCSC{HoppingEltype, Int64}}
+  chkr_hop_half_inv::Vector{SparseMatrixCSC{HoppingEltype, Int64}}
+  chkr_hop_half_dagger::Vector{SparseMatrixCSC{HoppingEltype, Int64}}
+  chkr_hop::Vector{SparseMatrixCSC{HoppingEltype, Int64}} # without prefactor 0.5 in matrix exponentials
+  chkr_hop_inv::Vector{SparseMatrixCSC{HoppingEltype, Int64}}
+  chkr_hop_dagger::Vector{SparseMatrixCSC{HoppingEltype, Int64}}
+  chkr_mu_half::SparseMatrixCSC{HoppingEltype, Int64}
+  chkr_mu_half_inv::SparseMatrixCSC{HoppingEltype, Int64}
+  chkr_mu::SparseMatrixCSC{HoppingEltype, Int64}
+  chkr_mu_inv::SparseMatrixCSC{HoppingEltype, Int64}
+
 
   DQMCStack{GreensEltype, HoppingEltype}() where {GreensEltype<:Number, HoppingEltype<:Number} = begin
     @assert isleaftype(GreensEltype);
@@ -61,11 +75,13 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
   end
 end
 
+# type helpers
 geltype(::Type{DQMCStack{G,H}}) where {G,H} = G
 heltype(::Type{DQMCStack{G,H}}) where {G,H} = H
 geltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = geltype(S)
 heltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = heltype(S)
 
+# type initialization
 function initialize_stack(mc::DQMC)
   const GreensEltype = geltype(mc)
   const HoppingEltype = heltype(mc)
@@ -120,6 +136,7 @@ function initialize_stack(mc::DQMC)
   mc.s.hopping_matrix_exp_inv = zeros(HoppingEltype, flv*N, flv*N)
 end
 
+# hopping
 function init_hopping_matrices(mc::DQMC, m::Model)
   init_hopping_matrix_exp(mc, m)
   # init_checkerboard_matrices(mc, m)
@@ -138,12 +155,15 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
   eTinv .= expm(0.5 * dtau * T)
   nothing
 end
+
+# checkerboard
 # function init_checkerboard_matrices(mc::DQMC, m::Model)
 #
 # end
 
+# stack construction
 """
-Build (already initialized) stack from scratch.
+Build stack from scratch.
 """
 function build_stack(mc::DQMC)
   mc.s.u_stack[:, :, 1] = eye_full
@@ -189,9 +209,10 @@ function add_slice_sequence_right(mc::DQMC, idx::Int)
   mc.s.t_stack[:, :, idx] = T * mc.s.t_stack[:, :, idx + 1]
 end
 
-
+# Green's function calculation
 """
-Calculates G(slice) using mc.s.Ur,mc.s.Dr,mc.s.Tr=B(slice)' ... B(M)' and mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
+Calculates G(slice) using mc.s.Ur,mc.s.Dr,mc.s.Tr=B(slice)' ... B(M)' and
+mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
 """
 function calculate_greens(mc::DQMC)
 
@@ -221,12 +242,7 @@ function calculate_logdet(mc::DQMC)
   end
 end
 
-
-################################################################################
-# Propagation
-################################################################################
 # Green's function propagation
-################################################################################
 @inline function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)
   if direction == -1
     multiply_slice_matrix_inv_left!(mc, mc.model, curr_slice - 1, gf)
@@ -242,7 +258,6 @@ end
 #   wrap_greens!(mc, temp, slice, direction)
 #   return temp
 # end
-
 function propagate(mc::DQMC)
   if mc.s.direction == 1
     if mod(mc.s.current_slice, mc.p.safe_mult) == 0
