@@ -140,6 +140,7 @@ end
 function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerboard}
   init_hopping_matrix_exp(mc, m)
   CB <: CheckerboardTrue && init_checkerboard_matrices(mc, m)
+  nothing
 end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
   const N = m.l.sites
@@ -214,9 +215,9 @@ end
 Build stack from scratch.
 """
 function build_stack(mc::DQMC)
-  mc.s.u_stack[:, :, 1] = eye_full
-  mc.s.d_stack[:, 1] = ones_vec
-  mc.s.t_stack[:, :, 1] = eye_full
+  mc.s.u_stack[:, :, 1] = mc.s.eye_full
+  mc.s.d_stack[:, 1] = mc.s.ones_vec
+  mc.s.t_stack[:, :, 1] = mc.s.eye_full
 
   @inbounds for i in 1:length(mc.s.ranges)
     add_slice_sequence_left(mc, i)

@@ -136,7 +136,8 @@ and store it in `result::Matrix`.
 
 This is a performance critical method.
 """
-@inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive, result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
+@inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
+            result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
     # const dtau = mc.p.delta_tau
     # V = - 1/dtau * m.lambda * conf[:,slice]
     # result = spdiagm(exp(- sign(power) * dtau * V))
