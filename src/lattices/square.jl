@@ -9,6 +9,7 @@ mutable struct SquareLattice <: AbstractCubicLattice
     lattice::Matrix{Int}
 
     # for generic checkerboard decomposition
+    # OPT: implement Assaad's two-group square lattice version
     n_bonds::Int
     bonds::Matrix{Int} # src, trg, type
 

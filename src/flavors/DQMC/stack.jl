@@ -137,9 +137,9 @@ function initialize_stack(mc::DQMC)
 end
 
 # hopping
-function init_hopping_matrices(mc::DQMC, m::Model)
+function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerboard}
   init_hopping_matrix_exp(mc, m)
-  # init_checkerboard_matrices(mc, m)
+  CB <: CheckerboardTrue && init_checkerboard_matrices(mc, m)
 end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
   const N = m.l.sites
@@ -157,9 +157,57 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
 end
 
 # checkerboard
-# function init_checkerboard_matrices(mc::DQMC, m::Model)
-#
-# end
+rem_eff_zeros!(X::AbstractArray) = map!(e->abs.(e)<1e-15?zero(e):e,X,X)
+function init_checkerboard_matrices(mc::DQMC, m::Model)
+  const s = mc.s
+  const l = m.l
+  const flv = m.flv
+  const H = heltype(mc)
+  const N = m.l.sites
+  const dtau = mc.p.delta_tau
+  const mu = m.mu
+
+  s.checkerboard, s.groups, s.n_groups = build_checkerboard(l)
+  const n_grps = s.n_groups
+  const cb = s.checkerboard
+
+  T = reshape(hopping_matrix(mc, m), (N, flv, N, flv))
+
+  s.chkr_hop_half = Vector{SparseMatrixCSC{H, Int}}(n_grps)
+  s.chkr_hop_half_inv = Vector{SparseMatrixCSC{H, Int}}(n_grps)
+  s.chkr_hop = Vector{SparseMatrixCSC{H, Int}}(n_grps)
+  s.chkr_hop_inv = Vector{SparseMatrixCSC{H, Int}}(n_grps)
+
+  for (g, gr) in enumerate(s.groups)
+    Tg = zeros(H, N, flv, N, flv)
+    for i in gr
+      src, trg = cb[1:2,i]
+      for f1 in 1:flv, f2 in 1:flv
+        Tg[trg, f1, src, f2] = T[trg, f1, src, f2]
+      end
+    end
+
+    Tgg = reshape(Tg, (N*flv, N*flv))
+    s.chkr_hop_half[g] = sparse(rem_eff_zeros!(expm(-0.5 * dtau * Tgg)))
+    s.chkr_hop_half_inv[g] = sparse(rem_eff_zeros!(expm(0.5 * dtau * Tgg)))
+    s.chkr_hop[g] = sparse(rem_eff_zeros!(expm(- dtau * Tgg)))
+    s.chkr_hop_inv[g] = sparse(rem_eff_zeros!(expm(dtau * Tgg)))
+  end
+
+  s.chkr_hop_half_dagger = ctranspose.(s.chkr_hop_half)
+  s.chkr_hop_dagger = ctranspose.(s.chkr_hop)
+
+  s.chkr_mu_half = spdiagm(fill(exp(-0.5*dtau * -mu), flv * N))
+  s.chkr_mu_half_inv = spdiagm(fill(exp(0.5*dtau * -mu), flv * N))
+  s.chkr_mu = spdiagm(fill(exp(-dtau * -mu), flv * N))
+  s.chkr_mu_inv = spdiagm(fill(exp(dtau * -mu), flv * N))
+
+  # hop_mat_exp_chkr = foldl(*,l.chkr_hop_half) * sqrt.(l.chkr_mu)
+  # r = effreldiff(l.hopping_matrix_exp,hop_mat_exp_chkr)
+  # r[find(x->x==zero(x),hop_mat_exp_chkr)] = 0.
+  # println("Checkerboard (generic) - exact (abs):\t\t", maximum(absdiff(l.hopping_matrix_exp,hop_mat_exp_chkr)))
+  nothing
+end
 
 # stack construction
 """

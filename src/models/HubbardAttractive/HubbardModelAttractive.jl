@@ -120,7 +120,7 @@ for that flip.
 
     u = -greens[:, i]
     u[i] += 1.
-    # TODO: speed check, maybe @views/@inbounds
+    # OPT: speed check, maybe @views/@inbounds
     greens .-= kron(u * 1./(1 + gamma * u[i]), transpose(gamma * greens[i, :]))
     conf[i, slice] .*= -1.
     mc.energy_boson += delta_E_boson
