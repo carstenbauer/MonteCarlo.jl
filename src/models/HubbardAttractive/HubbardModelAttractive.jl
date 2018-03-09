@@ -142,8 +142,7 @@ This is a performance critical method.
     # V = - 1/dtau * m.lambda * conf[:,slice]
     # result = spdiagm(exp(- sign(power) * dtau * V))
 
-    # TODO: add mu either here or in hopping matrix
-    result .= spdiagm(exp(sign(power) * m.lambda * conf[:,slice]))
+    result .= spdiagm(exp.(sign(power) * m.lambda * conf[:,slice]))
     nothing
 end
 
@@ -164,8 +163,7 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
   const N = m.l.sites
   const neighs = m.l.neighs # row = up, right, down, left; col = siteidx
 
-  # TODO: Mu Mu Mu!
-  T = zeros(N,N) # we take the chemical potential as part of the interaction
+  T = fill(-m.mu, N, N)
 
   # Nearest neighbor hoppings
   @inbounds @views begin
