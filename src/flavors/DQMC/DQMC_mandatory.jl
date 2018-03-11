@@ -17,7 +17,8 @@ rand(mc::DQMC, m::Model) = error("Model has no implementation of `rand(mc::DQMC,
 	hopping_matrix(mc::DQMC, m::Model)
 
 Calculates the hopping matrix \$ T_{i\\sigma, j\\sigma '} \$ where \$ i, j \$ are site indices and \$ \\sigma , \\sigma ' \$
-are flavor indices (e.g. spin indices).
+are flavor indices (e.g. spin indices). The hopping matrix should also contain
+potential chemical potential terms on the diagonal.
 
 A matrix element is the hopping amplitude for a hopping process: \$ j,\\sigma ' \\rightarrow i,\\sigma \$.
 
@@ -30,7 +31,8 @@ hopping_matrix(mc::DQMC, m::Model) = error("Model has no implementation of `hopp
     interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.) -> nothing
 
 Calculate the interaction matrix exponential `expV = exp(- power * delta_tau * V(slice))`
-and store it in `result::Matrix`.
+and store it in `result::Matrix`. Potential chemical potential terms should be
+part of the `hopping_matrix` and not the interaction.
 
 This is a performance critical method and one might consider efficient in-place (in `result`) construction.
 """

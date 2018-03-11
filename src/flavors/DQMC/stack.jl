@@ -198,15 +198,16 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
   s.chkr_hop_half_dagger = ctranspose.(s.chkr_hop_half)
   s.chkr_hop_dagger = ctranspose.(s.chkr_hop)
 
-  s.chkr_mu_half = spdiagm(fill(exp(-0.5*dtau * -mu), flv * N))
-  s.chkr_mu_half_inv = spdiagm(fill(exp(0.5*dtau * -mu), flv * N))
-  s.chkr_mu = spdiagm(fill(exp(-dtau * -mu), flv * N))
-  s.chkr_mu_inv = spdiagm(fill(exp(dtau * -mu), flv * N))
+  mus = diag(reshape(T, (N*flv, N*flv)))
+  s.chkr_mu_half = spdiagm(exp.(-0.5 * dtau * mus))
+  s.chkr_mu_half_inv = spdiagm(exp.(0.5 * dtau * mus))
+  s.chkr_mu = spdiagm(exp.(-dtau * mus))
+  s.chkr_mu_inv = spdiagm(exp.(dtau * mus))
 
-  # hop_mat_exp_chkr = foldl(*,l.chkr_hop_half) * sqrt.(l.chkr_mu)
-  # r = effreldiff(l.hopping_matrix_exp,hop_mat_exp_chkr)
+  # hop_mat_exp_chkr = foldl(*,s.chkr_hop_half) * sqrt.(s.chkr_mu)
+  # r = effreldiff(s.hopping_matrix_exp,hop_mat_exp_chkr)
   # r[find(x->x==zero(x),hop_mat_exp_chkr)] = 0.
-  # println("Checkerboard (generic) - exact (abs):\t\t", maximum(absdiff(l.hopping_matrix_exp,hop_mat_exp_chkr)))
+  # println("Checkerboard - Exact ≈ ", round(maximum(absdiff(s.hopping_matrix_exp,hop_mat_exp_chkr)), 4))
   nothing
 end
 

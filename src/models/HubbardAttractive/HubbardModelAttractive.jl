@@ -163,7 +163,7 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
   const N = m.l.sites
   const neighs = m.l.neighs # row = up, right, down, left; col = siteidx
 
-  T = fill(-m.mu, N, N)
+  T = diagm(fill(-m.mu, N))
 
   # Nearest neighbor hoppings
   @inbounds @views begin

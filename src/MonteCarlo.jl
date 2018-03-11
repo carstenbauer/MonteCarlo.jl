@@ -3,6 +3,7 @@ using MonteCarloObservable
 using LightXML
 using Parameters
 
+include("helpers.jl")
 include("abstract.jl")
 
 include("flavors/MC/MC.jl")
