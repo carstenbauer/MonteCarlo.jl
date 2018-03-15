@@ -28,6 +28,8 @@ Parameters of determinant quantum Monte Carlo (DQMC)
     delta_tau::Float64 = 0.1
     slices::Int = -1
     beta::Float64
+
+    measure_every_nth::Int = 10
 end
 
 """
@@ -36,7 +38,6 @@ Determinant quantum Monte Carlo (DQMC) simulation
 mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any, Stack<:AbstractDQMCStack} <: MonteCarloFlavor
     model::M
     conf::ConfType
-    # greens::GreensType # should this be here or in DQMCStack?
     energy_boson::Float64
     s::Stack
 
@@ -132,26 +133,33 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
     mc.p.thermalization = thermalization
     const total_sweeps = mc.p.sweeps + mc.p.thermalization
 
-    sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/100))
+    sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/10))
 
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
-    tic()
-    for i in 1:total_sweeps
-        sweep(mc)
+    # fresh stack
+    verbose && println("Preparing Green's function stack")
+    initialize_stack(mc) # redundant ?!
+    build_stack(mc)
+    propagate(mc)
 
-        if mc.p.global_moves && mod(i, mc.p.global_rate) == 0
-            mc.a.prop_global += 1
-            mc.a.acc_global += global_move(mc, mc.model, mc.conf, mc.energy_boson)
+    tic()
+    verbose && println("\n\nThermalization stage - ", thermalization)
+    for i in 1:total_sweeps
+        verbose && (i == mc.p.thermalization + 1) && println("\n\nMeasurement stage - ", mc.p.sweeps)
+        for u in 1:2 * mc.p.slices
+            update(mc, i)
+
+            if i > mc.p.thermalization && mc.s.current_slice == mc.p.slices && mc.s.direction == -1 && (i-1)%mc.p.measure_every_nth == 0 # measure criterium
+                measure_observables!(mc, mc.model, mc.obs, mc.conf, mc.energy_boson)
+            end
         end
 
-        (i > mc.p.thermalization) && measure_observables!(mc, mc.model, mc.obs, mc.conf, mc.energy_boson)
-
-        if mod(i, 1000) == 0
-            mc.a.acc_rate = mc.a.acc_rate / 1000
-            mc.a.acc_rate_global = mc.a.acc_rate_global / (1000 / mc.p.global_rate)
-            add!(sweep_dur, toq()/1000)
+        if mod(i, 10) == 0
+            mc.a.acc_rate = mc.a.acc_rate / 10
+            mc.a.acc_rate_global = mc.a.acc_rate_global / (10 / mc.p.global_rate)
+            add!(sweep_dur, toq()/10)
             if verbose
                 println("\t", i)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur[end])
@@ -183,25 +191,50 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
 end
 
 """
-    sweep(mc::DQMC)
+    update(mc::DQMC, i::Int)
 
-Performs a sweep of local moves.
+Propagates the Green's function and performs local and global updates at
+current imaginary time slice.
 """
-function sweep(mc::DQMC{<:Model, S}) where S
-    const N = mc.model.l.sites
+function update(mc::DQMC, i::Int)
+    propagate(mc)
 
-    @inbounds for i in eachindex(mc.conf)
-        delta_E, delta_i = propose_local(mc.model, i, mc.conf, mc.energy_boson)
-        mc.a.prop_local += 1
-        # Metropolis
-        if delta_E <= 0 || rand() < exp(- delta_E)
-            accept_local!(mc.model, i, mc.conf, mc.energy_boson, delta_i, delta_E)
-            mc.a.acc_rate += 1/N
-            mc.a.acc_local += 1
-            mc.energy_boson += delta_E
-        end
+    # global move
+    if mc.p.global_moves && (mc.s.current_slice == mc.p.slices && mc.s.direction == -1 && mod(i, p.global_rate) == 0)
+        mc.a.prop_global += 1
+        b = global_move(mc, mc.model, mc.conf, mc.energy_boson) # not yet in DQMC_optional, i.e. unsupported
+        mc.a.acc_global += b
     end
 
+    # local moves
+    sweep_spatial(mc)
+
+    nothing
+end
+
+"""
+    sweep_spatial(mc::DQMC)
+
+Performs a sweep of local moves along spatial dimension at current imaginary time slice.
+"""
+function sweep_spatial(mc::DQMC)
+    const N = mc.model.l.sites
+
+    @inbounds for i in 1:N
+        detratio, delta_E_boson, delta = propose_local(mc, mc.m, i, mc.s.current_slice, mc.conf, mc.energy_boson)
+        mc.a.prop_local += 1
+
+        #TODO: check for sign problem
+        p = exp(- delta_E_boson) * detratio
+
+        # Metropolis
+        if p > 1 || rand() < p
+            accept_local!(mc, mc.m, i, mc.s.current_slice, mc.conf, delta, detratio, delta_E_boson)
+            mc.a.acc_rate += 1/N
+            mc.a.acc_local += 1
+            mc.energy_boson += delta_E_boson
+        end
+    end
     nothing
 end
 
