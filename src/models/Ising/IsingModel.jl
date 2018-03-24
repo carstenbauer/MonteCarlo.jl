@@ -7,18 +7,18 @@ const IsingTc = 1/(1/2*log(1+sqrt(2)))
 """
 Famous Ising model on a cubic lattice.
 
-    IsingModel(; dims::Int=2, L::Int=8)
+    IsingModel(; dims, L)
 
 Create Ising model on `dims`-dimensional cubic lattice
 with linear system size `L`.
 """
 @with_kw_noshow mutable struct IsingModel{C<:AbstractCubicLattice} <: Model # noshow because we override it below
-    L::Int = 8
-    dims::Int = 2
-    l::C = choose_lattice(dims, L)
+    L::Int
+    dims::Int
+    l::C = choose_lattice(IsingModel, dims, L)
 end
 
-function choose_lattice(dims::Int, L::Int)
+function choose_lattice(::Type{IsingModel}, dims::Int, L::Int)
     if dims == 1
         return Chain(L)
     elseif dims == 2
@@ -86,11 +86,11 @@ Draw random Ising configuration.
 rand(mc::MC, m::IsingModel) = rand(IsingDistribution, fill(m.L, m.dims)...)
 
 """
-    conftype(m::IsingModel)
+    conftype(::Type{MC}, m::IsingModel)
 
 Returns the type of an Ising model configuration.
 """
-conftype(m::IsingModel) = Array{IsingSpin, m.dims}
+conftype(::Type{MC}, m::IsingModel) = Array{IsingSpin, m.dims}
 
 """
     propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64) -> delta_E, delta_i
@@ -162,7 +162,7 @@ See also [`measure_observables!`](@ref) and [`finish_observables!`](@ref).
 """
 @inline function prepare_observables(mc::MC, m::IsingModel)
     obs = Dict{String,Observable}()
-    obs["confs"] = Observable(conftype(m), "Configurations")
+    obs["confs"] = Observable(conftype(MC, m), "Configurations")
 
     obs["E"] = Observable(Float64, "Total energy")
     obs["E2"] = Observable(Float64, "Total energy squared")

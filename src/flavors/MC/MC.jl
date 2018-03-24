@@ -20,7 +20,7 @@ Parameters of Monte Carlo
     thermalization::Int = 0 # number of thermalization sweeps
     sweeps::Int = 1000 # number of sweeps (after thermalization)
 
-    beta::Float64 = 1.0
+    beta::Float64
 end
 
 """
@@ -44,7 +44,7 @@ end
 Create a Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
 function MC(m::M; seed::Int=-1, kwargs...) where M<:Model
-    mc = MC{M, conftype(m)}()
+    mc = MC{M, conftype(MC, m)}()
     mc.model = m
     mc.p = MCParameters(; kwargs...) # forward kwargs to MCParameters
     init!(mc, seed=seed)
@@ -99,7 +99,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
     @pack mc.p = sweeps, thermalization
     const total_sweeps = mc.p.sweeps + mc.p.thermalization
 
-    sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/100))
+    sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/1000))
 
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))

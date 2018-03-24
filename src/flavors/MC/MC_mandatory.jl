@@ -6,18 +6,18 @@
 
 # methods
 """
-    conftype(m::Model)
+    conftype(::Type{MC}, m::Model)
 
 Returns the type of a configuration.
 """
-conftype(m::Model) = error("Model has no implementation of `conftype(m::Model)`!")
+conftype(::Type{MC}, m::Model) = error("Model has no implementation of `conftype(::Type{MC}, m::Model)`!")
 
 """
     energy(mc::MC, m::Model, conf)
 
 Calculate energy of configuration `conf` for Model `m`.
 """
-energy(mc::MC, m::Model, conf) = error("Model has no implementation of `energy(m::Model, conf)`!")
+energy(mc::MC, m::Model, conf) = error("Model has no implementation of `energy(mc::MC, m::Model, conf)`!")
 
 import Base.rand
 """
@@ -25,7 +25,7 @@ import Base.rand
 
 Draw random configuration.
 """
-rand(mc::MC, m::Model) = error("Model has no implementation of `rand(m::Model)`!")
+rand(mc::MC, m::Model) = error("Model has no implementation of `rand(mc::MC, m::Model)`!")
 
 """
     propose_local(mc::MC, m::Model, i::Int, conf, E::Float64) -> delta_E, delta_i
@@ -37,7 +37,7 @@ difference `delta_E = E_new - E_old`.
 
 See also [`accept_local!`](@ref).
 """
-propose_local(mc::MC, m::Model, i::Int, conf, E::Float64) = error("Model has no implementation of `propose_local(m::Model, i::Int, conf, E::Float64)`!")
+propose_local(mc::MC, m::Model, i::Int, conf, E::Float64) = error("Model has no implementation of `propose_local(mc::MC, m::Model, i::Int, conf, E::Float64)`!")
 
 """
     accept_local(mc::MC, m::Model, i::Int, conf, E::Float64, delta_i, delta_E::Float64)
