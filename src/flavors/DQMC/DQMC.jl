@@ -158,7 +158,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
         end
 
         if mod(i, 10) == 0
-            mc.a.acc_rate = mc.a.acc_rate / 10
+            mc.a.acc_rate = mc.a.acc_rate / (10 * 2 * mc.p.slices)
             mc.a.acc_rate_global = mc.a.acc_rate_global / (10 / mc.p.global_rate)
             add!(sweep_dur, toq()/10)
             if verbose
@@ -201,11 +201,11 @@ function update(mc::DQMC, i::Int)
     propagate(mc)
 
     # global move
-    if mc.p.global_moves && (mc.s.current_slice == mc.p.slices && mc.s.direction == -1 && mod(i, mc.p.global_rate) == 0)
-        mc.a.prop_global += 1
-        b = global_move(mc, mc.model, mc.conf, mc.energy_boson) # not yet in DQMC_optional, i.e. unsupported
-        mc.a.acc_global += b
-    end
+    # if mc.p.global_moves && (mc.s.current_slice == mc.p.slices && mc.s.direction == -1 && mod(i, mc.p.global_rate) == 0)
+    #     mc.a.prop_global += 1
+    #     b = global_move(mc, mc.model, mc.conf, mc.energy_boson) # not yet in DQMC_optional, i.e. unsupported
+    #     mc.a.acc_global += b
+    # end
 
     # local moves
     sweep_spatial(mc)
@@ -226,7 +226,10 @@ function sweep_spatial(mc::DQMC)
         detratio, delta_E_boson, delta = propose_local(mc, m, i, mc.s.current_slice, mc.conf, mc.energy_boson)
         mc.a.prop_local += 1
 
-        #TODO: check for sign problem
+        if abs(imag(detratio)) > 1e-6
+            println("Did you expect a sign problem? imag. detratio: ", abs(imag(detratio)))
+            @printf "%.10e" abs(imag(detratio))
+        end
         p = real(exp(- delta_E_boson) * detratio)
 
         # Metropolis

@@ -337,7 +337,7 @@ function propagate(mc::DQMC)
         if mc.p.all_checks
           greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
           if greensdiff > 1e-7
-            @printf("->%d \t+1 Propagation instability\t %.4f\n", mc.s.current_slice, greensdiff)
+            @printf("->%d \t+1 Propagation instability\t %.1e\n", mc.s.current_slice, greensdiff)
           end
         end
 
@@ -386,7 +386,7 @@ function propagate(mc::DQMC)
         if mc.p.all_checks
           greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
           if greensdiff > 1e-7
-            @printf("->%d \t-1 Propagation instability\t %.4f\n", mc.s.current_slice, greensdiff)
+            @printf("->%d \t-1 Propagation instability\t %.1e\n", mc.s.current_slice, greensdiff)
           end
         end
 

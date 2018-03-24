@@ -30,4 +30,19 @@
     r = MonteCarlo.effreldiff(mc.s.hopping_matrix_exp,hop_mat_exp_chkr)
     r[find(x->x==zero(x),hop_mat_exp_chkr)] = 0.
     @test maximum(MonteCarlo.absdiff(mc.s.hopping_matrix_exp,hop_mat_exp_chkr)) <= mc.p.delta_tau
+
+    # initial greens test
+    mc = DQMC(m, beta=5.0, safe_mult=1)
+    MonteCarlo.build_stack(mc)
+    MonteCarlo.propagate(mc)
+    greens, = MonteCarlo.calculate_greens_and_logdet(mc, mc.s.current_slice, 1)
+    @test maximum(absdiff(greens, mc.s.greens)) < 1e-13
+
+    # wrap greens test
+    for k in 0:9
+        MonteCarlo.wrap_greens!(mc, mc.s.greens, mc.s.current_slice - k, -1)
+    end
+    greens, = MonteCarlo.calculate_greens_and_logdet(mc, mc.s.current_slice-10, 1)
+    @test maximum(absdiff(greens, mc.s.greens)) < 1e-9
+
 end

@@ -22,7 +22,7 @@ with linear system size `L`. Additional allowed `kwargs` are:
 	dims::Int
 	L::Int
 
-    l::C = choose_lattice(HubbardModelAttractive, dims, L)
+  l::C = choose_lattice(HubbardModelAttractive, dims, L)
 	flv::Int = 1
 
 	mu::Float64 = 0.0
@@ -98,11 +98,6 @@ Propose a local HS field flip at site `i` and imaginary time slice `slice` of cu
     delta_E_boson = -2. * m.lambda * conf[i, slice]
     gamma = exp(delta_E_boson) - 1
     detratio = (1 + gamma * (1 - greens[i,i]))^2 # squared because of two spin sectors.
-
-    # if abs(imag(prob_fermion)) > 1e-6
-    #     println("Did you expect a sign problem?", abs(imag(prob)))
-    #     @printf "%.10e" abs(imag(prob))
-    # end
 
     return detratio, delta_E_boson, gamma
 end
