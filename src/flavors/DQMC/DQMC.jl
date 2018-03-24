@@ -19,8 +19,8 @@ Parameters of determinant quantum Monte Carlo (DQMC)
 @with_kw mutable struct DQMCParameters
     global_moves::Bool = false
     global_rate::Int = 5
-    thermalization::Int = 0 # number of thermalization sweeps
-    sweeps::Int = 1000 # number of sweeps (after thermalization)
+    thermalization::Int = 100 # number of thermalization sweeps
+    sweeps::Int = 100 # number of sweeps (after thermalization)
 
     all_checks::Bool = true # e.g. check if propagation is stable/instable (default should be true)
     safe_mult::Int = 10
@@ -188,7 +188,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000./60.)
 
-    mc.obs
+    nothing
 end
 
 """

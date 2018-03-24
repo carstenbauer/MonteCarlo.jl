@@ -174,9 +174,6 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
     end
   end
 
-  # const dtau = mc.p.delta_tau
-  # l.hopping_matrix_exp = expm(-0.5 * dtau * T)
-  # l.hopping_matrix_exp_inv = expm(0.5 * dtau * T)
   return T
 end
 

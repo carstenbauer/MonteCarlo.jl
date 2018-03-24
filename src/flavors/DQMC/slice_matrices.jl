@@ -43,7 +43,7 @@ function multiply_slice_matrix_inv_left!(mc::DQMC_CBFalse, m::Model,
 end
 function multiply_daggered_slice_matrix_left!(mc::DQMC_CBFalse, m::Model,
 								slice::Int, M::AbstractMatrix)
-	M .= ctranspose(slice_matrix(mc, m, slice, -1.)) * M
+	M .= ctranspose(slice_matrix(mc, m, slice, 1.)) * M
 	nothing
 end
 
