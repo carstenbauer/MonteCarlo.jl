@@ -17,7 +17,7 @@ end
 Parameters of determinant quantum Monte Carlo (DQMC)
 """
 @with_kw mutable struct DQMCParameters
-    global_moves::Bool = true
+    global_moves::Bool = false
     global_rate::Int = 5
     thermalization::Int = 0 # number of thermalization sweeps
     sweeps::Int = 1000 # number of sweeps (after thermalization)
@@ -116,6 +116,7 @@ function init!(mc::DQMC; seed::Real=-1)
 
     mc.obs = prepare_observables(mc, mc.model)
 
+    init_hopping_matrices(mc, mc.model)
     initialize_stack(mc)
 
     mc.a = DQMCAnalysis()
@@ -200,7 +201,7 @@ function update(mc::DQMC, i::Int)
     propagate(mc)
 
     # global move
-    if mc.p.global_moves && (mc.s.current_slice == mc.p.slices && mc.s.direction == -1 && mod(i, p.global_rate) == 0)
+    if mc.p.global_moves && (mc.s.current_slice == mc.p.slices && mc.s.direction == -1 && mod(i, mc.p.global_rate) == 0)
         mc.a.prop_global += 1
         b = global_move(mc, mc.model, mc.conf, mc.energy_boson) # not yet in DQMC_optional, i.e. unsupported
         mc.a.acc_global += b
@@ -219,17 +220,18 @@ Performs a sweep of local moves along spatial dimension at current imaginary tim
 """
 function sweep_spatial(mc::DQMC)
     const N = mc.model.l.sites
+    const m = mc.model
 
     @inbounds for i in 1:N
-        detratio, delta_E_boson, delta = propose_local(mc, mc.m, i, mc.s.current_slice, mc.conf, mc.energy_boson)
+        detratio, delta_E_boson, delta = propose_local(mc, m, i, mc.s.current_slice, mc.conf, mc.energy_boson)
         mc.a.prop_local += 1
 
         #TODO: check for sign problem
-        p = exp(- delta_E_boson) * detratio
+        p = real(exp(- delta_E_boson) * detratio)
 
         # Metropolis
         if p > 1 || rand() < p
-            accept_local!(mc, mc.m, i, mc.s.current_slice, mc.conf, delta, detratio, delta_E_boson)
+            accept_local!(mc, m, i, mc.s.current_slice, mc.conf, delta, detratio, delta_E_boson)
             mc.a.acc_rate += 1/N
             mc.a.acc_local += 1
             mc.energy_boson += delta_E_boson

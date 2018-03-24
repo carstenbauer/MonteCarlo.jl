@@ -132,8 +132,9 @@ function initialize_stack(mc::DQMC)
   mc.s.curr_U = zero(mc.s.U)
   mc.s.eV = zeros(GreensEltype, flv*N, flv*N)
 
-  mc.s.hopping_matrix_exp = zeros(HoppingEltype, flv*N, flv*N)
-  mc.s.hopping_matrix_exp_inv = zeros(HoppingEltype, flv*N, flv*N)
+  # mc.s.hopping_matrix_exp = zeros(HoppingEltype, flv*N, flv*N)
+  # mc.s.hopping_matrix_exp_inv = zeros(HoppingEltype, flv*N, flv*N)
+  nothing
 end
 
 # hopping
@@ -145,15 +146,13 @@ end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
   const N = m.l.sites
   const flv = m.flv
-  const eT = mc.s.hopping_matrix_exp
-  const eTinv = mc.s.hopping_matrix_exp_inv
   const dtau = mc.p.delta_tau
 
   T = hopping_matrix(mc, m)
   size(T) == (flv*N, flv*N) || error("Hopping matrix should have size "*
                                 "$((flv*N, flv*N)) but has size $(size(T)) .")
-  eT .= expm(-0.5 * dtau * T)
-  eTinv .= expm(0.5 * dtau * T)
+  mc.s.hopping_matrix_exp = expm(-0.5 * dtau * T)
+  mc.s.hopping_matrix_exp_inv = expm(0.5 * dtau * T)
   nothing
 end
 
@@ -285,11 +284,9 @@ Only reasonable immediately after calculate_greens()!
 """
 function calculate_logdet(mc::DQMC)
   # TODO: How does this depend on model?
-  if p.opdim == 1
-    mc.s.log_det = real(log(complex(det(mc.s.U))) + sum(log.(mc.s.d)) + log(complex(det(mc.s.T))))
-  else
-    mc.s.log_det = real(logdet(mc.s.U) + sum(log.(mc.s.d)) + logdet(mc.s.T))
-  end
+  # if p.opdim == 1
+    # mc.s.log_det = real(log(complex(det(mc.s.U))) + sum(log.(mc.s.d)) + log(complex(det(mc.s.T))))
+  mc.s.log_det = real(logdet(mc.s.U) + sum(log.(mc.s.d)) + logdet(mc.s.T))
 end
 
 # Green's function propagation
@@ -338,9 +335,9 @@ function propagate(mc::DQMC)
         calculate_greens(mc) # greens_{slice we are propagating to}
 
         if mc.p.all_checks
-          greensdiff = maximum(abs(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
-          if diff > 1e-7
-            @printf("->%d \t+1 Propagation instability\t %.4f\n", mc.s.current_slice, diff)
+          greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
+          if greensdiff > 1e-7
+            @printf("->%d \t+1 Propagation instability\t %.4f\n", mc.s.current_slice, greensdiff)
           end
         end
 
@@ -387,7 +384,7 @@ function propagate(mc::DQMC)
         calculate_greens(mc)
 
         if mc.p.all_checks
-          greensdiff = maximum(abs(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
+          greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
           if greensdiff > 1e-7
             @printf("->%d \t-1 Propagation instability\t %.4f\n", mc.s.current_slice, greensdiff)
           end

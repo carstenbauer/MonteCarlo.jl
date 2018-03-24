@@ -96,7 +96,7 @@ Propose a local HS field flip at site `i` and imaginary time slice `slice` of cu
     const greens = mc.s.greens
 
     delta_E_boson = -2. * m.lambda * conf[i, slice]
-	gamma = exp(delta_E_boson) - 1
+    gamma = exp(delta_E_boson) - 1
     detratio = (1 + gamma * (1 - greens[i,i]))^2 # squared because of two spin sectors.
 
     # if abs(imag(prob_fermion)) > 1e-6
@@ -116,7 +116,7 @@ for that flip.
 """
 @inline function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, delta_E_boson::Float64)
     const greens = mc.s.greens
-    const gamma = delta_i
+    const gamma = delta
 
     u = -greens[:, i]
     u[i] += 1.

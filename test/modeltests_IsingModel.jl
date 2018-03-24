@@ -12,10 +12,10 @@
     @test m.L == 3 && m.dims == 3
 
     # energy, general
-    @test MonteCarlo.energy(MC(m), m, reshape(Int8.(1:27), (3,3,3))) == 355.0
+    @test MonteCarlo.energy(MC(m, beta=1), m, reshape(Int8.(1:27), (3,3,3))) == 355.0
     # energy, square lattice
     m = IsingModel(dims=2, L=8)
-    mc = MC(m)
+    mc = MC(m, beta=1)
     conf = reshape(Int8.(1:64), (8,8))
     conff = deepcopy(conf)
     @test MonteCarlo.energy(mc, m, conf) == 288.0
