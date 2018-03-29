@@ -14,20 +14,22 @@ Create an attractive Hubbard model on `dims`-dimensional cubic lattice
 with linear system size `L`. Additional allowed `kwargs` are:
 
  * `mu::Float64=0.0`: chemical potential
- * `lambda::Float64=1.0`: interaction strength
+ * `U::Float64=1.0`: onsite interaction strength, "Hubbard U"
  * `t::Float64=1.0`: hopping energy
 """
 @with_kw_noshow mutable struct HubbardModelAttractive{C<:AbstractCubicLattice} <: Model
-	# user mandatory
-	dims::Int
-	L::Int
+    # user mandatory
+    dims::Int
+    L::Int
 
-  l::C = choose_lattice(HubbardModelAttractive, dims, L)
-	flv::Int = 1
+    # user optional
+    mu::Float64 = 0.0
+    U::Float64 = 1.0
+    t::Float64 = 1.0
 
-	mu::Float64 = 0.0
-	lambda::Float64 = 1.0
-	t::Float64 = 1.0
+    # non-user fields
+    l::C = choose_lattice(HubbardModelAttractive, dims, L)
+    flv::Int = 1
 end
 
 function choose_lattice(::Type{HubbardModelAttractive}, dims::Int, L::Int)
@@ -60,8 +62,10 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 
 Calculate bosonic part of the energy for configuration `hsfield`.
 """
-@inline function energy_boson(m::HubbardModelAttractive, hsfield::HubbardConf) # not needed for propose_local
-    return m.lambda * sum(hsfield)
+@inline function energy_boson(m::HubbardModelAttractive, hsfield::HubbardConf)
+    const dtau = mc.p.delta_tau
+    lambda = acosh(exp(m.U * dtau/2))
+    return lambda * sum(hsfield)
 end
 
 import Base.rand
@@ -94,8 +98,10 @@ Propose a local HS field flip at site `i` and imaginary time slice `slice` of cu
 @inline function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, E_boson::Float64)
     # see for example dos Santos (2002)
     const greens = mc.s.greens
+    const dtau = mc.p.delta_tau
+    lambda = acosh(exp(m.U * dtau/2))
 
-    delta_E_boson = -2. * m.lambda * conf[i, slice]
+    delta_E_boson = -2. * lambda * conf[i, slice]
     gamma = exp(delta_E_boson) - 1
     detratio = (1 + gamma * (1 - greens[i,i]))^2 # squared because of two spin sectors.
 
@@ -132,11 +138,9 @@ This is a performance critical method.
 """
 @inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
             result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
-    # const dtau = mc.p.delta_tau
-    # V = - 1/dtau * m.lambda * conf[:,slice]
-    # result = spdiagm(exp(- sign(power) * dtau * V))
-
-    result .= spdiagm(exp.(sign(power) * m.lambda * conf[:,slice]))
+    const dtau = mc.p.delta_tau
+    lambda = acosh(exp(m.U * dtau/2))
+    result .= spdiagm(exp.(sign(power) * lambda * conf[:,slice]))
     nothing
 end
 
