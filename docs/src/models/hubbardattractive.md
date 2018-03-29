@@ -7,7 +7,7 @@ The Hamiltonian of the attractive (negative $U$) Hubbard model reads
 \mathcal{H} = -t \sum_{\langle i,j \rangle, \sigma} \left( c^\dagger_{i\sigma} c_{j\sigma} + \text{h.c.} \right) - |U| \sum_j \left( n_{j\uparrow} - \frac{1}{2} \right) \left( n_{j\downarrow} - \frac{1}{2} \right) - \mu\sum_j n_{j},
 \end{align}
 
-where $\sigma$ denotes spin, $t$ is the hopping amplitude, $U$ the on-site repulsive interaction strength, $\mu$ the chemical potential and $ \langle i, j \rangle $ indicates that the sum has to be taken over nearest neighbors. Note that (1) is written in particle-hole symmetric form such that $\mu = 0$ corresponds to half-filling.
+where $\sigma$ denotes spin, $t$ is the hopping amplitude, $U$ the on-site repulsive interaction strength, $\mu$ the chemical potential and $\langle i, j \rangle$ indicates that the sum has to be taken over nearest neighbors. Note that (1) is written in particle-hole symmetric form such that $\mu = 0$ corresponds to half-filling.
 
 ## Constructor
 You can create an attractive Hubbard model instance as follows,

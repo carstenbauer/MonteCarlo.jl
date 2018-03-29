@@ -2,6 +2,7 @@ using Documenter, MonteCarlo
 
 makedocs(
     modules = [MonteCarlo],
+    format = :html,
     sitename = "MonteCarlo.jl",
     pages = [
         "Home" => "index.md",
@@ -31,9 +32,10 @@ makedocs(
 )
 
 deploydocs(
-    deps   = Deps.pip("mkdocs", "python-markdown-math"),
     repo   = "github.com/crstnbr/MonteCarlo.jl.git",
+    target = "build",
+    deps   = nothing,
+    make   = nothing,
     julia  = "release",
-    osname = "linux",
-    target = "build"
+    osname = "linux"
 )

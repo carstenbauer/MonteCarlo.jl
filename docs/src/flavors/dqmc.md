@@ -13,22 +13,17 @@ Mandatory keywords are:
 
 Allowed keywords are:
 
+* `delta_tau::Float64 = 0.1`: imaginary time step size
+* `safe_mult::Int = 10`: stabilize Green's function calculations every `safe_mult` step (How many slice matrices can be multiplied until singular value information is lost due to numerical unaccuracy?)
 * `sweeps`: number of measurement sweeps
 * `thermalization`: number of thermalization (warmup) sweeps
 * `seed`: initialize DQMC with custom seed
+* `all_checks::Bool = true`: turn off to suppress some numerical checks
+
 
 Afterwards, you can run the simulation by
 ```julia
 run!(dqmc)
-```
-
-## Exports
-
-```@autodocs
-Modules = [MonteCarlo]
-Private = false
-Order   = [:function, :type]
-Pages = ["DQMC.jl"]
 ```
 
 ## Checkerboard decomposition
@@ -37,7 +32,7 @@ Mention generic checkerboard defined in `flavors/DQMC/abstract.jl`. When is a la
 
 ## Technical details
 
-imaginary time slice matrices $ B_l = e^{-\Delta\tau T_{ij}/2} e^{-\Delta\tau V_{ij}(l)} e^{-\Delta\tau T_{ij}/2} $ and more importantly the equal-time Green's function $G = \left( 1 + B_M \cdots B_1 \right)^{-1}$
+imaginary time slice matrices $B_l = e^{-\Delta\tau T_{ij}/2} e^{-\Delta\tau V_{ij}(l)} e^{-\Delta\tau T_{ij}/2}$ and more importantly the equal-time Green's function $G = \left( 1 + B_M \cdots B_1 \right)^{-1}$
 
 ### Symmetric Suzuki-Trotter decomposition
 
@@ -49,7 +44,16 @@ TODO!
 
 TODO! Important!
 
-### Potential extensions
+## Exports
+
+```@autodocs
+Modules = [MonteCarlo]
+Private = false
+Order   = [:function, :type]
+Pages = ["DQMC.jl"]
+```
+
+## Potential extensions
 
 Pull requests are very much welcome!
 

@@ -7,7 +7,7 @@ The famous Hamiltonian of the Ising model is given by
 \mathcal{H} = -\sum_{\langle i,j \rangle} \sigma_i \sigma_j ,
 \end{align}
 
-where $ \langle i, j \rangle $ indicates that the sum has to be taken over nearest neighbors.
+where $\langle i, j \rangle$ indicates that the sum has to be taken over nearest neighbors.
 
 ## Creating an Ising model
 You can create an Ising model as follows,
@@ -44,9 +44,9 @@ Pages = ["IsingModel.jl"]
 
 The model can be solved exactly by transfer matrix method ([Onsager solution](https://en.wikipedia.org/wiki/Ising_model#Onsager's_exact_solution)). This gives the following results.
 
-Critical temperature: $ T_c = \frac{2}{\ln{1+\sqrt{2}}} $
+Critical temperature: $T_c = \frac{2}{\ln{1+\sqrt{2}}}$
 
-Magnetization (per site): $ m = \left(1-\left[\sinh 2\beta \right]^{-4}\right)^{\frac {1}{8}} $
+Magnetization (per site): $m = \left(1-\left[\sinh 2\beta \right]^{-4}\right)^{\frac {1}{8}}$
 
 ## Potential extensions
 

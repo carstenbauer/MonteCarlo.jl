@@ -2,7 +2,7 @@
 
 Any model that wants to be simulated by means of DQMC must implement the following interface. Below you find all semantic definitions and precise signatures of mandatory fields and mandatory and optional methods that any model should implement to work with the determinant Monte Carlo flavor [Determinant Quantum Monte Carlo (DQMC)](@ref).
 
-Example models: [Attractive Hubbard model](@ref)
+Example models: [Attractive Hubbard Model](@ref)
 
 ## Mandatory fields
 

@@ -1,0 +1,53 @@
+site_name:        MonteCarlo.jl
+repo_url:         https://github.com/crstnbr/MonteCarlo.jl
+site_description: Description...
+site_author:      crstnbr
+
+# theme: material
+
+theme:
+  name: material
+  language: 'en'
+  palette:
+    primary: 'red'
+    accent: 'red'
+  # font:
+  #   text: 'Helvetica'
+  #   code: 'Ubuntu Mono'
+
+extra_css:
+  - assets/Documenter.css
+
+extra_javascript:
+  - https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML
+  - assets/mathjaxhelper.js
+
+markdown_extensions:
+  - extra
+  - tables
+  - fenced_code
+  - mdx_math
+  - codehilite
+  - admonition
+  - pymdownx.arithmatex
+  - pymdownx.details
+
+docs_dir: 'build'
+
+pages:
+  - Home: index.md
+  - Manual:
+    - Getting started: manual/gettingstarted.md
+    - Examples: manual/examples.md
+  - Physical models:
+    - Ising Model: models/ising.md
+    - Attractive Hubbard Model: models/hubbardattractive.md
+  - Monte Carlo flavors:
+    - MC: flavors/mc.md
+    - DQMC: flavors/dqmc.md
+  - Lattices: lattices.md
+  - Customize: customize.md
+  - Interfaces:
+    - MC: interfaces/MC.md
+    - DQMC: interfaces/DQMC.md
+    - General: methods/general.md
