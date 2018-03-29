@@ -283,10 +283,8 @@ end
 Only reasonable immediately after calculate_greens()!
 """
 function calculate_logdet(mc::DQMC)
-  # TODO: How does this depend on model?
-  # if p.opdim == 1
-    # mc.s.log_det = real(log(complex(det(mc.s.U))) + sum(log.(mc.s.d)) + log(complex(det(mc.s.T))))
-  mc.s.log_det = real(logdet(mc.s.U) + sum(log.(mc.s.d)) + logdet(mc.s.T))
+  mc.s.log_det = real(log(complex(det(mc.s.U))) + sum(log.(mc.s.d)) + log(complex(det(mc.s.T))))
+  # mc.s.log_det = real(logdet(mc.s.U) + sum(log.(mc.s.d)) + logdet(mc.s.T))
 end
 
 # Green's function propagation

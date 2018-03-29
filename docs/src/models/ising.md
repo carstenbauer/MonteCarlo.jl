@@ -53,7 +53,7 @@ Critical temperature: $ T_c = \frac{2}{\ln{1+\sqrt{2}}} $
 
 Magnetization (per site): $ m = \left(1-\left[\sinh 2\beta \right]^{-4}\right)^{\frac {1}{8}} $
 
-### Potential extensions
+## Potential extensions
 
 Pull requests are very much welcome!
 

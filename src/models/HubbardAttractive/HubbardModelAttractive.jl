@@ -14,7 +14,7 @@ Create an attractive Hubbard model on `dims`-dimensional cubic lattice
 with linear system size `L`. Additional allowed `kwargs` are:
 
  * `mu::Float64=0.0`: chemical potential
- * `U::Float64=1.0`: interaction strength
+ * `lambda::Float64=1.0`: interaction strength
  * `t::Float64=1.0`: hopping energy
 """
 @with_kw_noshow mutable struct HubbardModelAttractive{C<:AbstractCubicLattice} <: Model
@@ -84,7 +84,7 @@ Returns the type of a (Hubbard-Stratonovich field) configuration of the attracti
 
 Returns the element type of the Green's function.
 """
-@inline greenseltype(::Type{DQMC}, m::HubbardModelAttractive) = Complex{Float64}
+@inline greenseltype(::Type{DQMC}, m::HubbardModelAttractive) = Float64
 
 """
     propose_local(m::HubbardModelAttractive, i::Int, conf::HubbardConf, E_boson::Float64) -> detratio, delta_E_boson, delta

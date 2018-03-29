@@ -16,11 +16,12 @@ makedocs(
             "Examples" => "manual/examples.md"
         ],
         "Physical models" => [
-            "Ising model" => "models/ising.md"
+            "Ising model" => "models/ising.md",
+            "Attractive Hubbard model" => "models/hubbardattractive.md"
         ],
         "Monte Carlo flavors" => [
-            "MC" => "flavors/mc.md"
-            # "DQMC" => "manual/flavors/dqmc.md"
+            "MC" => "flavors/mc.md",
+            "DQMC" => "flavors/dqmc.md"
         ],
         "Lattices" => "lattices.md",
         "Customize" => "customize.md",
@@ -28,7 +29,8 @@ makedocs(
             "General" => "methods/general.md"
         ],
         "Interfaces" => [
-            "MC" => "interfaces/MC.md"
+            "MC" => "interfaces/MC.md",
+            "DQMC" => "interfaces/DQMC.md"
         ]
     ]
 )
