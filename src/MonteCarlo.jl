@@ -8,17 +8,15 @@ include("abstract.jl")
 module Lattices
 	using LightXML
 	using Parameters
-	include("helpers.jl")
-	include("abstract.jl")
-
+	include("lattices/abstract.jl")
+	export Lattice
+	export AbstractCubicLattice
 	include("lattices/square.jl")
 	export SquareLattice
-
 	include("lattices/chain.jl")
 	export Chain
 	include("lattices/cubic.jl")
 	export CubicLattice
-
 	include("lattices/ALPS.jl")
 	export ALPSLattice
 end
@@ -43,14 +41,16 @@ module DQMCm
 	using MonteCarloObservable
 	using Parameters
 	using ..Lattices
+	using ..MonteCarlo: Model, MonteCarloFlavor
 	include("helpers.jl")
-	include("abstract.jl")
 
 	include("flavors/DQMC/DQMC.jl")
 
 	export reset!
 	export run!
 	export DQMC
+
+	export conftype
 end
 using .DQMCm
 
