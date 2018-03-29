@@ -410,13 +410,6 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#checkerboard-decomposition" title="Checkerboard decomposition" class="md-nav__link">
-    Checkerboard decomposition
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#technical-details" title="Technical details" class="md-nav__link">
     Technical details
   </a>
@@ -427,6 +420,13 @@
           <li class="md-nav__item">
   <a href="#symmetric-suzuki-trotter-decomposition" title="Symmetric Suzuki-Trotter decomposition" class="md-nav__link">
     Symmetric Suzuki-Trotter decomposition
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checkerboard-decomposition" title="Checkerboard decomposition" class="md-nav__link">
+    Checkerboard decomposition
   </a>
   
 </li>
@@ -578,13 +578,6 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#checkerboard-decomposition" title="Checkerboard decomposition" class="md-nav__link">
-    Checkerboard decomposition
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#technical-details" title="Technical details" class="md-nav__link">
     Technical details
   </a>
@@ -595,6 +588,13 @@
           <li class="md-nav__item">
   <a href="#symmetric-suzuki-trotter-decomposition" title="Symmetric Suzuki-Trotter decomposition" class="md-nav__link">
     Symmetric Suzuki-Trotter decomposition
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#checkerboard-decomposition" title="Checkerboard decomposition" class="md-nav__link">
+    Checkerboard decomposition
   </a>
   
 </li>
@@ -660,6 +660,7 @@
 <ul>
 <li><code>delta_tau::Float64 = 0.1</code>: imaginary time step size</li>
 <li><code>safe_mult::Int = 10</code>: stabilize Green's function calculations every <code>safe_mult</code> step (How many slice matrices can be multiplied until singular value information is lost due to numerical unaccuracy?)</li>
+<li><code>checkerboard::Float64 = false</code>: use <a href="./#Checkerboard-decomposition-1">Checkerboard decomposition</a> (faster)</li>
 <li><code>sweeps</code>: number of measurement sweeps</li>
 <li><code>thermalization</code>: number of thermalization (warmup) sweeps</li>
 <li><code>seed</code>: initialize DQMC with custom seed</li>
@@ -670,19 +671,63 @@
 </pre></div>
 
 
-<p><a id='Checkerboard-decomposition-1'></a></p>
-<h2 id="checkerboard-decomposition">Checkerboard decomposition</h2>
-<p>Mention generic checkerboard defined in <code>flavors/DQMC/abstract.jl</code>. When is a lattice compatible with the general decomposition? Manual implementation of <code>build_checkerboard</code>.</p>
 <p><a id='Technical-details-1'></a></p>
 <h2 id="technical-details">Technical details</h2>
-<p>imaginary time slice matrices <span><span class="MathJax_Preview">B_l = e^{-\Delta\tau T_{ij}/2} e^{-\Delta\tau V_{ij}(l)} e^{-\Delta\tau T_{ij}/2}</span><script type="math/tex">B_l = e^{-\Delta\tau T_{ij}/2} e^{-\Delta\tau V_{ij}(l)} e^{-\Delta\tau T_{ij}/2}</script></span> and more importantly the equal-time Green's function <span><span class="MathJax_Preview">G = \left( 1 + B_M \cdots B_1 \right)^{-1}</span><script type="math/tex">G = \left( 1 + B_M \cdots B_1 \right)^{-1}</script></span></p>
 <p><a id='Symmetric-Suzuki-Trotter-decomposition-1'></a></p>
 <h3 id="symmetric-suzuki-trotter-decomposition">Symmetric Suzuki-Trotter decomposition</h3>
 <p>We use the symmetric version of the Suzuki-Trotter decomposition, i.e.</p>
-<p>TODO!</p>
+<div>
+<div class="MathJax_Preview">\begin{align} e^{-\Delta\tau \sum_l T+V(l)} = \prod_j e^{-\Delta\tau T/2} e^{-\Delta\tau V} e^{-\Delta\tau T/2} + \mathcal{O}(\Delta\tau^2) \end{align}</div>
+<script type="math/tex; mode=display">\begin{align} e^{-\Delta\tau \sum_l T+V(l)} = \prod_j e^{-\Delta\tau T/2} e^{-\Delta\tau V} e^{-\Delta\tau T/2} + \mathcal{O}(\Delta\tau^2) \end{align}</script>
+</div>
+<p>where <span><span class="MathJax_Preview">T</span><script type="math/tex">T</script></span> is the hopping matrix and <span><span class="MathJax_Preview">V(l)</span><script type="math/tex">V(l)</script></span> is the interaction matrix with <span><span class="MathJax_Preview">l</span><script type="math/tex">l</script></span> an imaginary time slice index indicating an auxiliary field dependence.</p>
+<p>With the imaginary time slice matrices <span><span class="MathJax_Preview">B_l = e^{-\Delta\tau T/2} e^{-\Delta\tau V(l)} e^{-\Delta\tau T/2}</span><script type="math/tex">B_l = e^{-\Delta\tau T/2} e^{-\Delta\tau V(l)} e^{-\Delta\tau T/2}</script></span> the equal-time Green's function is <span><span class="MathJax_Preview">G = \left( 1 + B_M \cdots B_1 \right)^{-1}</span><script type="math/tex">G = \left( 1 + B_M \cdots B_1 \right)^{-1}</script></span>.</p>
+<p><a id='Checkerboard-decomposition-1'></a></p>
+<h3 id="checkerboard-decomposition">Checkerboard decomposition</h3>
+<p>We provide a general algorithm to construct the "checkerboard" split up of a generic <code>Lattice</code>. The only requirement is that the <code>Lattice</code> has the following two fields,</p>
+<ul>
+<li><code>n_bonds::Int</code>: total number of bonds (lattice graph edges)</li>
+<li><code>bonds::Matrix{Int}</code>: bond matrix of shape <code>(n_bonds, 3)</code>. Rows correspond to bonds and columns indicate source site, target site, and bond type in this order.</li>
+</ul>
+<p>Of course, one can also manually construct a (more efficient) checkerboard split up by overloading the following function for the specific <code>Lattice</code> subtype.</p>
+<p><a id='MonteCarlo.build_checkerboard-Tuple{MonteCarlo.Lattice}' href='#MonteCarlo.build_checkerboard-Tuple{MonteCarlo.Lattice}'>#</a>
+<strong><code>MonteCarlo.build_checkerboard</code></strong> &mdash; <em>Method</em>.</p>
+<p>build_checkerboard(l::Lattice) -&gt; checkerboard, groups, n_groups</p>
+<p>Generic checkerboard construction.</p>
+<p>The methods returns</p>
+<ul>
+<li><code>checkerboard::Matrix{Int}</code>: size <code>(3, n_bonds)</code> where               rows = <code>source site</code>, <code>target site</code>, <code>bondid</code> and cols               correspond to bonds. Sorted (along columns) in such a way               that <code>checkerboard[3, groups[i]]</code> are all the bond indices               corresponding to the i-th group.</li>
+<li><code>groups::Vector{UnitRange}</code>: ranges indicating which columns of <code>checkerboard</code>                              belong to which checkerboard group.</li>
+<li><code>n_groups::Int</code>: number of checkerboard groups.</li>
+</ul>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/e24abd817bc12b6b15e6628eddc49a8ff2efbe3a/src/flavors/DQMC/abstract.jl#L7-L21' class='documenter-source'>source</a><br></p>
 <p><a id='Effective-slice-matrices-and-Green's-function-1'></a></p>
 <h3 id="effective-slice-matrices-and-greens-function">Effective slice matrices and Green's function</h3>
-<p>TODO! Important!</p>
+<p>Combining the symmetric Suzuki-Trotter and checkerboard decomposition we can write (assuming two checkerboard groups <span><span class="MathJax_Preview">a</span><script type="math/tex">a</script></span> and <span><span class="MathJax_Preview">b</span><script type="math/tex">b</script></span>)</p>
+<div>
+<div class="MathJax_Preview">\begin{align} e^{-\Delta\tau \sum_l T+V(l)} &amp;= e^{\Delta\tau T_a/2} e^{\Delta\tau T_b/2} \\
+&amp;\times \left( \prod_j e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a} e^{-\Delta\tau T_b/2} e^{-\Delta\tau V} \right) e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a/2} + \mathcal{O}(\Delta\tau^2) \end{align}</div>
+<script type="math/tex; mode=display">\begin{align} e^{-\Delta\tau \sum_l T+V(l)} &= e^{\Delta\tau T_a/2} e^{\Delta\tau T_b/2} \\
+&\times \left( \prod_j e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a} e^{-\Delta\tau T_b/2} e^{-\Delta\tau V} \right) e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a/2} + \mathcal{O}(\Delta\tau^2) \end{align}</script>
+</div>
+<p>For performance resons we internally work with effective imaginary time slice matrices</p>
+<div>
+<div class="MathJax_Preview">
+B_l^{\text{eff}} = e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a} e^{-\Delta\tau T_b/2} e^{-\Delta\tau V}
+</div>
+<script type="math/tex; mode=display">
+B_l^{\text{eff}} = e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a} e^{-\Delta\tau T_b/2} e^{-\Delta\tau V}
+</script>
+</div>
+<p>instead of the original <span><span class="MathJax_Preview">B_l</span><script type="math/tex">B_l</script></span>s above.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Note that one consequence is that the field <code>dqmc.s.greens</code> isn't the actual Green's function but an effective one defined by <script type="math/tex; mode=display">\begin{align} G &= \left( 1 + B_M \cdots B_1 \right)^{-1} \\
+&= e^{\Delta\tau T_a/2} e^{\Delta\tau T_b/2} \left( 1 + B^{\text{eff}}_M \cdots B^{\text{eff}}_1 \right)^{-1} e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a/2} \\
+&= e^{\Delta\tau T_a/2} e^{\Delta\tau T_b/2} G^{\text{eff}} e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a/2} \end{align}</script>
+</p>
+<p>To obtain the actual equal-times Green's function, for example for measuring, use <code>greens(mc::DQMC)</code> which multiplies the missing hopping exponentials from left and right.</p>
+</div>
 <p><a id='Exports-1'></a></p>
 <h2 id="exports">Exports</h2>
 <p><a id='Potential-extensions-1'></a></p>
