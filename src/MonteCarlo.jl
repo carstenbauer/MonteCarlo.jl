@@ -27,6 +27,7 @@ export IsingModel
 export HubbardModelAttractive
 export MC
 export DQMC
+export greens
 export observables
 
 end # module

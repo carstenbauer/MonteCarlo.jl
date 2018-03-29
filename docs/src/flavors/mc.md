@@ -29,7 +29,6 @@ You can find example simulations of the 2D Ising model under [Getting started](@
 
 ## Exports
 
-#TODO REPLACE BY @DOCS AND SPLIT DQMC MC
 ```@autodocs
 Modules = [MonteCarlo]
 Private = false

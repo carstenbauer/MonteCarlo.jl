@@ -8,7 +8,7 @@ using Base.Test
     end
 
     @testset "Flavors" begin
-        # TODO include("flavortests_MC.jl")
+        # include("flavortests_MC.jl")
         include("flavortests_DQMC.jl")
     end
 

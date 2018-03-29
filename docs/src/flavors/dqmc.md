@@ -78,7 +78,7 @@ instead of the original $B_l$s above.
     &= e^{\Delta\tau T_a/2} e^{\Delta\tau T_b/2} G^{\text{eff}} e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a/2}
     \end{align}
 
-    To obtain the actual equal-times Green's function, for example for measuring, use `greens(mc::DQMC)` which multiplies the missing hopping exponentials from left and right.
+    To obtain the actual equal-times Green's function, for example for measuring, use `greens(dqmc::DQMC)` which multiplies the missing hopping exponentials from left and right.
 
 ## Exports
 
