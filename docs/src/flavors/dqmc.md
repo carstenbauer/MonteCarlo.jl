@@ -1,31 +1,26 @@
 # Determinant Quantum Monte Carlo (DQMC)
 
-This is plain simple Monte Carlo (MC). It can for example be used to simulate the Ising model (see [2D Ising model](@ref)).
+This is determinant quantum Monte Carlo (MC) also known auxiliary field quantum Monte Carlo. It can be used to simulate interacting fermion systems, here the auxiliary boson arises from a Hubbard Stratonovich transformation, or fermions which are naturally coupled to bosons. An example is the [Attractive Hubbard Model](@ref).
 
-You can initialize a Monte Carlo simulation of a given `model` simply through
+You can initialize a determinant quantum Monte Carlo simulation of a given `model` simply through
 ```julia
-mc = MC(model)
+dqmc = DQMC(model, beta=5.0)
 ```
+
+Mandatory keywords are:
+
+* `beta`: inverse temperature
 
 Allowed keywords are:
 
-* `beta`: inverse temperature
 * `sweeps`: number of measurement sweeps
 * `thermalization`: number of thermalization (warmup) sweeps
-* `global_moves`: wether global moves should be proposed
-* `global_rate`: frequency for proposing global moves
-* `seed`: initialize MC with custom seed
+* `seed`: initialize DQMC with custom seed
 
 Afterwards, you can run the simulation by
 ```julia
-run!(mc)
+run!(dqmc)
 ```
-
-Note that you can just do another `run!(mc, sweeps=1000)` to continue the simulation.
-
-## Examples
-
-You can find example simulations of the 2D Ising model under [Getting started](@ref Usage) and here: [2D Ising model](@ref).
 
 ## Exports
 
@@ -36,8 +31,26 @@ Order   = [:function, :type]
 Pages = ["DQMC.jl"]
 ```
 
+## Checkerboard decomposition
+
+Mention generic checkerboard defined in `flavors/DQMC/abstract.jl`. When is a lattice compatible with the general decomposition? Manual implementation of `build_checkerboard`.
+
+## Technical details
+
+imaginary time slice matrices $ B_l = e^{-\Delta\tau T_{ij}/2} e^{-\Delta\tau V_{ij}(l)} e^{-\Delta\tau T_{ij}/2} $ and more importantly the equal-time Green's function $G = \left( 1 + B_M \cdots B_1 \right)^{-1}$
+
+### Symmetric Suzuki-Trotter decomposition
+
+We use the symmetric version of the Suzuki-Trotter decomposition, i.e.
+
+TODO!
+
+### Effective slice matrices and Green's function
+
+TODO! Important!
+
 ### Potential extensions
 
 Pull requests are very much welcome!
 
- * Heat bath (instead of Metropolis) option
+ * todo

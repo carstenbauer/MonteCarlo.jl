@@ -95,7 +95,7 @@ function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.s
   U = ctranspose(U)
   d = 1./d
 
-  ldet = real(logdet(U) + sum(log.(d)) + logdet(T))
+  ldet = real(log(complex(det(U))) + sum(log.(d)) + log(complex(det(T))))
 
   return T * spdiagm(d) * U, ldet
 end

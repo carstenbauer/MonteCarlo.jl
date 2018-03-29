@@ -1,4 +1,4 @@
-# IsingModel
+# Ising Model
 
 ## Hamiltonian
 The famous Hamiltonian of the Ising model is given by
@@ -19,11 +19,6 @@ The following parameters can be set via keyword arguments:
 
 * `dims`: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)
 * `L`: linear system size
-
-!!! note
-
-    So far only `dims=2` is supported. Feel free to extend the model and create a pull request!
-
 
 
 ## Supported Monte Carlo flavors

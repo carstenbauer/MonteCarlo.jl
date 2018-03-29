@@ -24,7 +24,7 @@ with linear system size `L`. Additional allowed `kwargs` are:
 
     # user optional
     mu::Float64 = 0.0
-    U::Float64 = 1.0
+    U::Float64 = 1.0 # TODO: user shouldn't be able to set a negative value
     t::Float64 = 1.0
 
     # non-user fields
