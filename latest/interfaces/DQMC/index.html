@@ -1,0 +1,816 @@
+
+
+
+
+<!DOCTYPE html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <meta http-equiv="x-ua-compatible" content="ie=edge">
+      
+        <meta name="description" content="Classical and quantum Monte Carlo simulations in Julia">
+      
+      
+      
+        <meta name="author" content="Carsten Bauer">
+      
+      
+        <meta name="lang:clipboard.copy" content="Copy to clipboard">
+      
+        <meta name="lang:clipboard.copied" content="Copied to clipboard">
+      
+        <meta name="lang:search.language" content="en">
+      
+        <meta name="lang:search.pipeline.stopwords" content="True">
+      
+        <meta name="lang:search.pipeline.trimmer" content="True">
+      
+        <meta name="lang:search.result.none" content="No matching documents">
+      
+        <meta name="lang:search.result.one" content="1 matching document">
+      
+        <meta name="lang:search.result.other" content="# matching documents">
+      
+        <meta name="lang:search.tokenizer" content="[\s\-]+">
+      
+      <link rel="shortcut icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-0.17.3, mkdocs-material-2.7.1">
+    
+    
+      
+        <title>DQMC - MonteCarlo.jl</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/application.78aab2dc.css">
+      
+        <link rel="stylesheet" href="../../assets/stylesheets/application-palette.6079476c.css">
+      
+    
+    
+      <script src="../../assets/javascripts/modernizr.1aa3b519.js"></script>
+    
+    
+      <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
+      
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,400i,700|Roboto+Mono">
+        <style>body,input{font-family:"Roboto","Helvetica Neue",Helvetica,Arial,sans-serif}code,kbd,pre{font-family:"Roboto Mono","Courier New",Courier,monospace}</style>
+      
+      <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    
+    
+      <link rel="stylesheet" href="../../assets/Documenter.css">
+    
+    
+  </head>
+  
+    
+    
+    <body dir="ltr" data-md-color-primary="red" data-md-color-accent="red">
+  
+    <svg class="md-svg">
+      <defs>
+        
+        
+          <svg xmlns="http://www.w3.org/2000/svg" width="416" height="448"
+    viewBox="0 0 416 448" id="github">
+  <path fill="currentColor" d="M160 304q0 10-3.125 20.5t-10.75 19-18.125
+        8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19 18.125-8.5
+        18.125 8.5 10.75 19 3.125 20.5zM320 304q0 10-3.125 20.5t-10.75
+        19-18.125 8.5-18.125-8.5-10.75-19-3.125-20.5 3.125-20.5 10.75-19
+        18.125-8.5 18.125 8.5 10.75 19 3.125 20.5zM360
+        304q0-30-17.25-51t-46.75-21q-10.25 0-48.75 5.25-17.75 2.75-39.25
+        2.75t-39.25-2.75q-38-5.25-48.75-5.25-29.5 0-46.75 21t-17.25 51q0 22 8
+        38.375t20.25 25.75 30.5 15 35 7.375 37.25 1.75h42q20.5 0
+        37.25-1.75t35-7.375 30.5-15 20.25-25.75 8-38.375zM416 260q0 51.75-15.25
+        82.75-9.5 19.25-26.375 33.25t-35.25 21.5-42.5 11.875-42.875 5.5-41.75
+        1.125q-19.5 0-35.5-0.75t-36.875-3.125-38.125-7.5-34.25-12.875-30.25-20.25-21.5-28.75q-15.5-30.75-15.5-82.75
+        0-59.25 34-99-6.75-20.5-6.75-42.5 0-29 12.75-54.5 27 0 47.5 9.875t47.25
+        30.875q36.75-8.75 77.25-8.75 37 0 70 8 26.25-20.5
+        46.75-30.25t47.25-9.75q12.75 25.5 12.75 54.5 0 21.75-6.75 42 34 40 34
+        99.5z" />
+</svg>
+        
+      </defs>
+    </svg>
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="search" autocomplete="off">
+    <label class="md-overlay" data-md-component="overlay" for="drawer"></label>
+    
+      <a href="#interface-determinant-quantum-monte-carlo-dqmc" tabindex="1" class="md-skip">
+        Skip to content
+      </a>
+    
+    
+      <header class="md-header" data-md-component="header">
+  <nav class="md-header-nav md-grid">
+    <div class="md-flex">
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <a href="../.." title="MonteCarlo.jl" class="md-header-nav__button md-logo">
+          
+            <i class="md-icon"></i>
+          
+        </a>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        <label class="md-icon md-icon--menu md-header-nav__button" for="drawer"></label>
+      </div>
+      <div class="md-flex__cell md-flex__cell--stretch">
+        <div class="md-flex__ellipsis md-header-nav__title" data-md-component="title">
+          
+            
+              <span class="md-header-nav__topic">
+                MonteCarlo.jl
+              </span>
+              <span class="md-header-nav__topic">
+                DQMC
+              </span>
+            
+          
+        </div>
+      </div>
+      <div class="md-flex__cell md-flex__cell--shrink">
+        
+          
+            <label class="md-icon md-icon--search md-header-nav__button" for="search"></label>
+            
+<div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="query" data-md-state="active">
+      <label class="md-icon md-search__icon" for="search"></label>
+      <button type="reset" class="md-icon md-search__icon" data-md-component="reset" tabindex="-1">
+        &#xE5CD;
+      </button>
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="result">
+          <div class="md-search-result__meta">
+            Type to start searching
+          </div>
+          <ol class="md-search-result__list"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+          
+        
+      </div>
+      
+        <div class="md-flex__cell md-flex__cell--shrink">
+          <div class="md-header-nav__source">
+            
+
+
+  
+
+
+  <a href="https://github.com/crstnbr/MonteCarlo.jl/" title="Go to repository" class="md-source" data-md-source="github">
+    
+      <div class="md-source__icon">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <use xlink:href="#github" width="24" height="24"></use>
+        </svg>
+      </div>
+    
+    <div class="md-source__repository">
+      GitHub
+    </div>
+  </a>
+
+          </div>
+        </div>
+      
+    </div>
+  </nav>
+</header>
+    
+    <div class="md-container">
+      
+        
+      
+      
+      <main class="md-main">
+        <div class="md-main__inner md-grid" data-md-component="container">
+          
+            
+              <div class="md-sidebar md-sidebar--primary" data-md-component="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    <nav class="md-nav md-nav--primary" data-md-level="0">
+  <label class="md-nav__title md-nav__title--site" for="drawer">
+    <span class="md-nav__button md-logo">
+      
+        <i class="md-icon"></i>
+      
+    </span>
+    MonteCarlo.jl
+  </label>
+  
+    <div class="md-nav__source">
+      
+
+
+  
+
+
+  <a href="https://github.com/crstnbr/MonteCarlo.jl/" title="Go to repository" class="md-source" data-md-source="github">
+    
+      <div class="md-source__icon">
+        <svg viewBox="0 0 24 24" width="24" height="24">
+          <use xlink:href="#github" width="24" height="24"></use>
+        </svg>
+      </div>
+    
+    <div class="md-source__repository">
+      GitHub
+    </div>
+  </a>
+
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../.." title="Home" class="md-nav__link">
+      Home
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-2" type="checkbox" id="nav-2">
+    
+    <label class="md-nav__link" for="nav-2">
+      Manual
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-2">
+        Manual
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../manual/gettingstarted/" title="Getting started" class="md-nav__link">
+      Getting started
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../manual/examples/" title="Examples" class="md-nav__link">
+      Examples
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-3" type="checkbox" id="nav-3">
+    
+    <label class="md-nav__link" for="nav-3">
+      Physical models
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-3">
+        Physical models
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../models/ising/" title="Ising Model" class="md-nav__link">
+      Ising Model
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../models/hubbardattractive/" title="Attractive Hubbard Model" class="md-nav__link">
+      Attractive Hubbard Model
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
+    
+    <label class="md-nav__link" for="nav-4">
+      Monte Carlo flavors
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-4">
+        Monte Carlo flavors
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../flavors/mc/" title="MC" class="md-nav__link">
+      MC
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../flavors/dqmc/" title="DQMC" class="md-nav__link">
+      DQMC
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../lattices/" title="Lattices" class="md-nav__link">
+      Lattices
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+
+  <li class="md-nav__item">
+    <a href="../../customize/" title="Customize" class="md-nav__link">
+      Customize
+    </a>
+  </li>
+
+    
+      
+      
+      
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-7" type="checkbox" id="nav-7" checked>
+    
+    <label class="md-nav__link" for="nav-7">
+      Interfaces
+    </label>
+    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
+      <label class="md-nav__title" for="nav-7">
+        Interfaces
+      </label>
+      <ul class="md-nav__list" data-md-scrollfix>
+        
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../MC/" title="MC" class="md-nav__link">
+      MC
+    </a>
+  </li>
+
+        
+          
+          
+          
+
+  
+
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="toc">
+        DQMC
+      </label>
+    
+    <a href="./" title="DQMC" class="md-nav__link md-nav__link--active">
+      DQMC
+    </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#mandatory-fields" title="Mandatory fields" class="md-nav__link">
+    Mandatory fields
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#index-of-all-methods" title="Index of all methods" class="md-nav__link">
+    Index of all methods
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mandatory-methods" title="Mandatory methods" class="md-nav__link">
+    Mandatory methods
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-methods" title="Optional methods" class="md-nav__link">
+    Optional methods
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
+  </li>
+
+        
+          
+          
+          
+
+
+  <li class="md-nav__item">
+    <a href="../../methods/general/" title="General" class="md-nav__link">
+      General
+    </a>
+  </li>
+
+        
+      </ul>
+    </nav>
+  </li>
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#mandatory-fields" title="Mandatory fields" class="md-nav__link">
+    Mandatory fields
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#index-of-all-methods" title="Index of all methods" class="md-nav__link">
+    Index of all methods
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#mandatory-methods" title="Mandatory methods" class="md-nav__link">
+    Mandatory methods
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#optional-methods" title="Optional methods" class="md-nav__link">
+    Optional methods
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          <div class="md-content">
+            <article class="md-content__inner md-typeset">
+              
+                
+                  <a href="https://github.com/crstnbr/MonteCarlo.jl/edit/master/docs/interfaces/DQMC.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                
+                
+                <p><a id='Interface:-Determinant-Quantum-Monte-Carlo-(DQMC)-1'></a></p>
+<h1 id="interface-determinant-quantum-monte-carlo-dqmc">Interface: Determinant Quantum Monte Carlo (DQMC)</h1>
+<p>Any model that wants to be simulated by means of DQMC must implement the following interface. Below you find all semantic definitions and precise signatures of mandatory fields and mandatory and optional methods that any model should implement to work with the determinant Monte Carlo flavor <a href="../../flavors/dqmc/#Determinant-Quantum-Monte-Carlo-(DQMC)-1">Determinant Quantum Monte Carlo (DQMC)</a>.</p>
+<p>Example models: <a href="../../models/hubbardattractive/#Attractive-Hubbard-Model-1">Attractive Hubbard Model</a></p>
+<p><a id='Mandatory-fields-1'></a></p>
+<h2 id="mandatory-fields">Mandatory fields</h2>
+<ul>
+<li><code>l::Lattice</code>: any <a href="../../lattices/#Lattices-1"><code>Lattice</code></a></li>
+<li><code>flv::Int</code>: number of distinct fermion flavors (e.g. spins, bands, etc.). The Green's function will have shape <code>(flv*N, flv*N)</code>, where <code>N</code> is the number of sites. Note that different fermion flavors are often related by symmetry and it's advisable to use this symmetry to work with smaller Green's function matrices. Have a look at the <a href="../../models/hubbardattractive/#Attractive-Hubbard-Model-1">Attractive Hubbard Model</a> as an example where <code>flv=1</code> although we have spinful fermions.</li>
+</ul>
+<p><a id='Index-of-all-methods-1'></a></p>
+<h2 id="index-of-all-methods">Index of all methods</h2>
+<ul>
+<li><a href="./#Base.Random.rand-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}"><code>Base.Random.rand</code></a></li>
+<li><a href="./#MonteCarlo.accept_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Int64,Any,Any,Any,Any}"><code>MonteCarlo.accept_local</code></a></li>
+<li><a href="./#MonteCarlo.conftype-Tuple{Type{MonteCarlo.DQMC},MonteCarlo.Model}"><code>MonteCarlo.conftype</code></a></li>
+<li><a href="./#MonteCarlo.energy_boson-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Any}"><code>MonteCarlo.energy_boson</code></a></li>
+<li><a href="./#MonteCarlo.finish_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}"><code>MonteCarlo.finish_observables!</code></a></li>
+<li><a href="./#MonteCarlo.greenseltype-Tuple{Type{MonteCarlo.DQMC},MonteCarlo.Model}"><code>MonteCarlo.greenseltype</code></a></li>
+<li><a href="./#MonteCarlo.hopping_matrix-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}"><code>MonteCarlo.hopping_matrix</code></a></li>
+<li><a href="./#MonteCarlo.interaction_matrix_exp!"><code>MonteCarlo.interaction_matrix_exp!</code></a></li>
+<li><a href="./#MonteCarlo.measure_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}"><code>MonteCarlo.measure_observables!</code></a></li>
+<li><a href="./#MonteCarlo.prepare_observables-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}"><code>MonteCarlo.prepare_observables</code></a></li>
+<li><a href="./#MonteCarlo.propose_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Any,Float64}"><code>MonteCarlo.propose_local</code></a></li>
+</ul>
+<p><a id='Mandatory-methods-1'></a></p>
+<h2 id="mandatory-methods">Mandatory methods</h2>
+<p><a id='MonteCarlo.conftype-Tuple{Type{MonteCarlo.DQMC},MonteCarlo.Model}' href='#MonteCarlo.conftype-Tuple{Type{MonteCarlo.DQMC},MonteCarlo.Model}'>#</a>
+<strong><code>MonteCarlo.conftype</code></strong> &mdash; <em>Method</em>.</p>
+<div class="codehilite"><pre><span></span>conftype(::Type{DQMC}, m::Model)
+</pre></div>
+
+
+<p>Returns the type of a configuration.</p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC_mandatory.jl#L1-L5' class='documenter-source'>source</a><br></p>
+<p><a id='Base.Random.rand-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}' href='#Base.Random.rand-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}'>#</a>
+<strong><code>Base.Random.rand</code></strong> &mdash; <em>Method</em>.</p>
+<div class="codehilite"><pre><span></span>rand(mc::DQMC, m::Model)
+</pre></div>
+
+
+<p>Draw random configuration.</p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC_mandatory.jl#L9-L13' class='documenter-source'>source</a><br></p>
+<p><a id='MonteCarlo.hopping_matrix-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}' href='#MonteCarlo.hopping_matrix-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}'>#</a>
+<strong><code>MonteCarlo.hopping_matrix</code></strong> &mdash; <em>Method</em>.</p>
+<div class="codehilite"><pre><span></span>hopping_matrix(mc::DQMC, m::Model)
+</pre></div>
+
+
+<p>Calculates the hopping matrix $ T_{i\sigma, j\sigma '} $ where $ i, j $ are site indices and $ \sigma , \sigma ' $ are flavor indices (e.g. spin indices). The hopping matrix should also contain potential chemical potential terms on the diagonal.</p>
+<p>A matrix element is the hopping amplitude for a hopping process: $ j,\sigma ' \rightarrow i,\sigma $.</p>
+<p>Regarding the order of indices, if <code>T[i, σ, j, σ']</code> is your desired 4D hopping array, then <code>reshape(T, (n_sites * n_flavors, :))</code> is the hopping matrix.</p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC_mandatory.jl#L16-L27' class='documenter-source'>source</a><br></p>
+<p><a id='MonteCarlo.interaction_matrix_exp!' href='#MonteCarlo.interaction_matrix_exp!'>#</a>
+<strong><code>MonteCarlo.interaction_matrix_exp!</code></strong> &mdash; <em>Function</em>.</p>
+<div class="codehilite"><pre><span></span>interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.) -&gt; nothing
+</pre></div>
+
+
+<p>Calculate the interaction matrix exponential <code>expV = exp(- power * delta_tau * V(slice))</code> and store it in <code>result::Matrix</code>. Potential chemical potential terms should be part of the <code>hopping_matrix</code> and not the interaction.</p>
+<p>This is a performance critical method and one might consider efficient in-place (in <code>result</code>) construction.</p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC_mandatory.jl#L30-L38' class='documenter-source'>source</a><br></p>
+<p><a id='MonteCarlo.propose_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Any,Float64}' href='#MonteCarlo.propose_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Any,Float64}'>#</a>
+<strong><code>MonteCarlo.propose_local</code></strong> &mdash; <em>Method</em>.</p>
+<div class="codehilite"><pre><span></span><span class="nx">propose_local</span><span class="p">(</span><span class="nx">mc</span><span class="nl">::DQMC</span><span class="p">,</span> <span class="nx">m</span><span class="nl">::Model</span><span class="p">,</span> <span class="nx">i</span><span class="nl">::Int</span><span class="p">,</span> <span class="nx">conf</span><span class="p">,</span> <span class="nx">E_boson</span><span class="nl">::Float64</span><span class="p">)</span> <span class="o">-&gt; </span><span class="nx nx-Member">detratio</span><span class="p">,</span> <span class="nx">delta_E_boson</span><span class="p">,</span> <span class="nx">delta</span>
+</pre></div>
+
+
+<p>Propose a local move for lattice site <code>i</code> of current configuration <code>conf</code> with boson energy <code>E_boson</code>. Returns the Green's function determinant ratio, the boson energy difference <code>delta_E_boson = delta_E_boson_new - delta_E_boson</code>, and additional local move information <code>delta</code> (will be forwarded to <code>accept_local!</code>).</p>
+<p>See also <a href="../MC/#MonteCarlo.accept_local!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64,Any,Float64}"><code>accept_local!</code></a>.</p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC_mandatory.jl#L42-L52' class='documenter-source'>source</a><br></p>
+<p><a id='MonteCarlo.accept_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Int64,Any,Any,Any,Any}' href='#MonteCarlo.accept_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Int64,Any,Any,Any,Any}'>#</a>
+<strong><code>MonteCarlo.accept_local</code></strong> &mdash; <em>Method</em>.</p>
+<div class="codehilite"><pre><span></span><span class="nx">accept_local</span><span class="p">(</span><span class="nx">mc</span><span class="nl">::DQMC</span><span class="p">,</span> <span class="nx">m</span><span class="nl">::Model</span><span class="p">,</span> <span class="nx">i</span><span class="nl">::Int</span><span class="p">,</span> <span class="nx">slice</span><span class="nl">::Int</span><span class="p">,</span> <span class="nx">conf</span><span class="p">,</span> <span class="nx">delta</span><span class="p">,</span> <span class="nx">detratio</span><span class="p">,</span> <span class="nx">delta_E_boson</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Accept a local move for site <code>i</code> at imaginary time slice <code>slice</code> of current configuration <code>conf</code> with energy <code>E</code>. Arguments <code>delta</code>, <code>detratio</code> and <code>delta_E_boson</code> correspond to output of <code>propose_local()</code> for that local move.</p>
+<p>See also <a href="../MC/#MonteCarlo.propose_local-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64}"><code>propose_local</code></a>.</p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC_mandatory.jl#L55-L63' class='documenter-source'>source</a><br></p>
+<p><a id='Optional-methods-1'></a></p>
+<h2 id="optional-methods">Optional methods</h2>
+<p><a id='MonteCarlo.greenseltype-Tuple{Type{MonteCarlo.DQMC},MonteCarlo.Model}' href='#MonteCarlo.greenseltype-Tuple{Type{MonteCarlo.DQMC},MonteCarlo.Model}'>#</a>
+<strong><code>MonteCarlo.greenseltype</code></strong> &mdash; <em>Method</em>.</p>
+<div class="codehilite"><pre><span></span>greenseltype(::Type{DQMC}, m::Model)
+</pre></div>
+
+
+<p>Returns the type of the elements of the Green's function matrix. Defaults to <code>Complex128</code>.</p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC_optional.jl#L1-L5' class='documenter-source'>source</a><br></p>
+<p><a id='MonteCarlo.energy_boson-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Any}' href='#MonteCarlo.energy_boson-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Any}'>#</a>
+<strong><code>MonteCarlo.energy_boson</code></strong> &mdash; <em>Method</em>.</p>
+<div class="codehilite"><pre><span></span>energy(mc::DQMC, m::Model, conf)
+</pre></div>
+
+
+<p>Calculate bosonic part (non-Green's function determinant part) of energy for configuration <code>conf</code> for Model <code>m</code>.</p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC_optional.jl#L8-L12' class='documenter-source'>source</a><br></p>
+<p><a id='MonteCarlo.prepare_observables-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}' href='#MonteCarlo.prepare_observables-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}'>#</a>
+<strong><code>MonteCarlo.prepare_observables</code></strong> &mdash; <em>Method</em>.</p>
+<div class="codehilite"><pre><span></span>prepare_observables(mc::DQMC, m::Model) -&gt; Dict{String, Observable}
+</pre></div>
+
+
+<p>Initializes observables and returns a <code>Dict{String, Observable}</code>. In the latter, keys are abbreviations for the observables names and values are the observables themselves.</p>
+<p>See also <a href="../MC/#MonteCarlo.measure_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}"><code>measure_observables!</code></a> and <a href="../MC/#MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}"><code>finish_observables!</code></a>.</p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC_optional.jl#L15-L22' class='documenter-source'>source</a><br></p>
+<p><a id='MonteCarlo.measure_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}' href='#MonteCarlo.measure_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}'>#</a>
+<strong><code>MonteCarlo.measure_observables!</code></strong> &mdash; <em>Method</em>.</p>
+<div class="codehilite"><pre><span></span>measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)
+</pre></div>
+
+
+<p>Measures observables and updates corresponding <code>MonteCarloObservable.Observable</code> objects in <code>obs</code>.</p>
+<p>See also <a href="../MC/#MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}"><code>prepare_observables</code></a> and <a href="../MC/#MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}"><code>finish_observables!</code></a>.</p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC_optional.jl#L25-L31' class='documenter-source'>source</a><br></p>
+<p><a id='MonteCarlo.finish_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}' href='#MonteCarlo.finish_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}'>#</a>
+<strong><code>MonteCarlo.finish_observables!</code></strong> &mdash; <em>Method</em>.</p>
+<div class="codehilite"><pre><span></span>measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)
+</pre></div>
+
+
+<p>Measure observables and update corresponding <code>MonteCarloObservable.Observable</code> objects in <code>obs</code>.</p>
+<p>See also <a href="../MC/#MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}"><code>prepare_observables</code></a> and <a href="../MC/#MonteCarlo.measure_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}"><code>measure_observables!</code></a>.</p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC_optional.jl#L34-L40' class='documenter-source'>source</a><br></p>
+                
+                  
+                
+              
+              
+                
+
+
+              
+            </article>
+          </div>
+        </div>
+      </main>
+      
+        
+<footer class="md-footer">
+  
+    <div class="md-footer-nav">
+      <nav class="md-footer-nav__inner md-grid">
+        
+          <a href="../MC/" title="MC" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                MC
+              </span>
+            </div>
+          </a>
+        
+        
+          <a href="../../methods/general/" title="General" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Next
+                </span>
+                General
+              </span>
+            </div>
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-forward md-footer-nav__button"></i>
+            </div>
+          </a>
+        
+      </nav>
+    </div>
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-footer-copyright">
+        
+        powered by
+        <a href="http://www.mkdocs.org">MkDocs</a>
+        and
+        <a href="https://squidfunk.github.io/mkdocs-material/">
+          Material for MkDocs</a>
+      </div>
+      
+        
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    
+      <script src="../../assets/javascripts/application.8eb9be28.js"></script>
+      
+      <script>app.initialize({version:"0.17.3",url:{base:"../.."}})</script>
+      
+        <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
+      
+        <script src="../../assets/mathjaxhelper.js"></script>
+      
+    
+    
+      
+    
+  </body>
+</html>

@@ -35,22 +35,22 @@
       
         <meta name="lang:search.tokenizer" content="[\s\-]+">
       
-      <link rel="shortcut icon" href="./assets/images/favicon.png">
+      <link rel="shortcut icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-0.17.3, mkdocs-material-2.7.1">
     
     
       
-        <title>MonteCarlo.jl</title>
+        <title>DQMC - MonteCarlo.jl</title>
       
     
     
-      <link rel="stylesheet" href="./assets/stylesheets/application.78aab2dc.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/application.78aab2dc.css">
       
-        <link rel="stylesheet" href="./assets/stylesheets/application-palette.6079476c.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/application-palette.6079476c.css">
       
     
     
-      <script src="./assets/javascripts/modernizr.1aa3b519.js"></script>
+      <script src="../../assets/javascripts/modernizr.1aa3b519.js"></script>
     
     
       <link href="https://fonts.gstatic.com" rel="preconnect" crossorigin>
@@ -61,7 +61,7 @@
       <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
     
     
-      <link rel="stylesheet" href="./assets/Documenter.css">
+      <link rel="stylesheet" href="../../assets/Documenter.css">
     
     
   </head>
@@ -99,7 +99,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="drawer"></label>
     
-      <a href="#documentation" tabindex="1" class="md-skip">
+      <a href="#determinant-quantum-monte-carlo-dqmc" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -108,7 +108,7 @@
   <nav class="md-header-nav md-grid">
     <div class="md-flex">
       <div class="md-flex__cell md-flex__cell--shrink">
-        <a href="." title="MonteCarlo.jl" class="md-header-nav__button md-logo">
+        <a href="../.." title="MonteCarlo.jl" class="md-header-nav__button md-logo">
           
             <i class="md-icon"></i>
           
@@ -125,7 +125,7 @@
                 MonteCarlo.jl
               </span>
               <span class="md-header-nav__topic">
-                Home
+                DQMC
               </span>
             
           
@@ -240,49 +240,11 @@
       
       
 
-  
 
-
-  <li class="md-nav__item md-nav__item--active">
-    
-    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="toc">
-    
-      
-    
-    
-      <label class="md-nav__link md-nav__link--active" for="toc">
-        Home
-      </label>
-    
-    <a href="." title="Home" class="md-nav__link md-nav__link--active">
+  <li class="md-nav__item">
+    <a href="../.." title="Home" class="md-nav__link">
       Home
     </a>
-    
-      
-<nav class="md-nav md-nav--secondary">
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="toc">Table of contents</label>
-    <ul class="md-nav__list" data-md-scrollfix>
-      
-        <li class="md-nav__item">
-  <a href="#installation" title="Installation" class="md-nav__link">
-    Installation
-  </a>
-  
-</li>
-      
-      
-      
-      
-      
-    </ul>
-  
-</nav>
-    
   </li>
 
     
@@ -311,7 +273,7 @@
 
 
   <li class="md-nav__item">
-    <a href="manual/gettingstarted/" title="Getting started" class="md-nav__link">
+    <a href="../../manual/gettingstarted/" title="Getting started" class="md-nav__link">
       Getting started
     </a>
   </li>
@@ -323,7 +285,7 @@
 
 
   <li class="md-nav__item">
-    <a href="manual/examples/" title="Examples" class="md-nav__link">
+    <a href="../../manual/examples/" title="Examples" class="md-nav__link">
       Examples
     </a>
   </li>
@@ -359,7 +321,7 @@
 
 
   <li class="md-nav__item">
-    <a href="models/ising/" title="Ising Model" class="md-nav__link">
+    <a href="../../models/ising/" title="Ising Model" class="md-nav__link">
       Ising Model
     </a>
   </li>
@@ -371,7 +333,7 @@
 
 
   <li class="md-nav__item">
-    <a href="models/hubbardattractive/" title="Attractive Hubbard Model" class="md-nav__link">
+    <a href="../../models/hubbardattractive/" title="Attractive Hubbard Model" class="md-nav__link">
       Attractive Hubbard Model
     </a>
   </li>
@@ -386,10 +348,12 @@
       
       
 
+  
 
-  <li class="md-nav__item md-nav__item--nested">
+
+  <li class="md-nav__item md-nav__item--active md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4" checked>
     
     <label class="md-nav__link" for="nav-4">
       Monte Carlo flavors
@@ -407,7 +371,7 @@
 
 
   <li class="md-nav__item">
-    <a href="flavors/mc/" title="MC" class="md-nav__link">
+    <a href="../mc/" title="MC" class="md-nav__link">
       MC
     </a>
   </li>
@@ -417,11 +381,90 @@
           
           
 
+  
 
-  <li class="md-nav__item">
-    <a href="flavors/dqmc/" title="DQMC" class="md-nav__link">
+
+  <li class="md-nav__item md-nav__item--active">
+    
+    <input class="md-toggle md-nav__toggle" data-md-toggle="toc" type="checkbox" id="toc">
+    
+      
+    
+    
+      <label class="md-nav__link md-nav__link--active" for="toc">
+        DQMC
+      </label>
+    
+    <a href="./" title="DQMC" class="md-nav__link md-nav__link--active">
       DQMC
     </a>
+    
+      
+<nav class="md-nav md-nav--secondary">
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="toc">Table of contents</label>
+    <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#checkerboard-decomposition" title="Checkerboard decomposition" class="md-nav__link">
+    Checkerboard decomposition
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#technical-details" title="Technical details" class="md-nav__link">
+    Technical details
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#symmetric-suzuki-trotter-decomposition" title="Symmetric Suzuki-Trotter decomposition" class="md-nav__link">
+    Symmetric Suzuki-Trotter decomposition
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#effective-slice-matrices-and-greens-function" title="Effective slice matrices and Green's function" class="md-nav__link">
+    Effective slice matrices and Green's function
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exports" title="Exports" class="md-nav__link">
+    Exports
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#potential-extensions" title="Potential extensions" class="md-nav__link">
+    Potential extensions
+  </a>
+  
+</li>
+      
+      
+      
+      
+      
+    </ul>
+  
+</nav>
+    
   </li>
 
         
@@ -436,7 +479,7 @@
 
 
   <li class="md-nav__item">
-    <a href="lattices/" title="Lattices" class="md-nav__link">
+    <a href="../../lattices/" title="Lattices" class="md-nav__link">
       Lattices
     </a>
   </li>
@@ -448,7 +491,7 @@
 
 
   <li class="md-nav__item">
-    <a href="customize/" title="Customize" class="md-nav__link">
+    <a href="../../customize/" title="Customize" class="md-nav__link">
       Customize
     </a>
   </li>
@@ -479,7 +522,7 @@
 
 
   <li class="md-nav__item">
-    <a href="interfaces/MC/" title="MC" class="md-nav__link">
+    <a href="../../interfaces/MC/" title="MC" class="md-nav__link">
       MC
     </a>
   </li>
@@ -491,7 +534,7 @@
 
 
   <li class="md-nav__item">
-    <a href="interfaces/DQMC/" title="DQMC" class="md-nav__link">
+    <a href="../../interfaces/DQMC/" title="DQMC" class="md-nav__link">
       DQMC
     </a>
   </li>
@@ -503,7 +546,7 @@
 
 
   <li class="md-nav__item">
-    <a href="methods/general/" title="General" class="md-nav__link">
+    <a href="../../methods/general/" title="General" class="md-nav__link">
       General
     </a>
   </li>
@@ -535,8 +578,49 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#installation" title="Installation" class="md-nav__link">
-    Installation
+  <a href="#checkerboard-decomposition" title="Checkerboard decomposition" class="md-nav__link">
+    Checkerboard decomposition
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#technical-details" title="Technical details" class="md-nav__link">
+    Technical details
+  </a>
+  
+    <nav class="md-nav">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#symmetric-suzuki-trotter-decomposition" title="Symmetric Suzuki-Trotter decomposition" class="md-nav__link">
+    Symmetric Suzuki-Trotter decomposition
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#effective-slice-matrices-and-greens-function" title="Effective slice matrices and Green's function" class="md-nav__link">
+    Effective slice matrices and Green's function
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exports" title="Exports" class="md-nav__link">
+    Exports
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#potential-extensions" title="Potential extensions" class="md-nav__link">
+    Potential extensions
   </a>
   
 </li>
@@ -557,29 +641,56 @@
             <article class="md-content__inner md-typeset">
               
                 
-                  <a href="https://github.com/crstnbr/MonteCarlo.jl/edit/master/docs/index.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
+                  <a href="https://github.com/crstnbr/MonteCarlo.jl/edit/master/docs/flavors/dqmc.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <p><a id='Documentation-1'></a></p>
-<h1 id="documentation">Documentation</h1>
-<p>This is a package for numerically simulating physical systems in Julia. The purpose of this package is to supply efficient Julia implementations of Monte Carlo flavors for the study of physical models of spins, bosons and/or fermions. Examples that ship with the package are</p>
+                <p><a id='Determinant-Quantum-Monte-Carlo-(DQMC)-1'></a></p>
+<h1 id="determinant-quantum-monte-carlo-dqmc">Determinant Quantum Monte Carlo (DQMC)</h1>
+<p>This is determinant quantum Monte Carlo (MC) also known auxiliary field quantum Monte Carlo. It can be used to simulate interacting fermion systems, here the auxiliary boson arises from a Hubbard Stratonovich transformation, or fermions which are naturally coupled to bosons. An example is the <a href="../../models/hubbardattractive/#Attractive-Hubbard-Model-1">Attractive Hubbard Model</a>.</p>
+<p>You can initialize a determinant quantum Monte Carlo simulation of a given <code>model</code> simply through</p>
+<div class="codehilite"><pre><span></span><span class="n">dqmc</span> <span class="o">=</span> <span class="n">DQMC</span><span class="p">(</span><span class="n">model</span><span class="p">,</span> <span class="n">beta</span><span class="o">=</span><span class="mf">5.0</span><span class="p">)</span>
+</pre></div>
+
+
+<p>Mandatory keywords are:</p>
 <ul>
-<li>Ising spin model simulated by Monte Carlo</li>
-<li>Fermionic Hubbard model simulated by variants of determinant quantum Monte Carlo</li>
+<li><code>beta</code>: inverse temperature</li>
 </ul>
-<p><a id='Installation-1'></a></p>
-<h2 id="installation">Installation</h2>
-<p>To install the package execute the following command in the REPL:</p>
-<div class="codehilite"><pre><span></span><span class="n">Pkg</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="s">&quot;https://github.com/crstnbr/MonteCarlo.jl&quot;</span><span class="p">)</span>
+<p>Allowed keywords are:</p>
+<ul>
+<li><code>delta_tau::Float64 = 0.1</code>: imaginary time step size</li>
+<li><code>safe_mult::Int = 10</code>: stabilize Green's function calculations every <code>safe_mult</code> step (How many slice matrices can be multiplied until singular value information is lost due to numerical unaccuracy?)</li>
+<li><code>sweeps</code>: number of measurement sweeps</li>
+<li><code>thermalization</code>: number of thermalization (warmup) sweeps</li>
+<li><code>seed</code>: initialize DQMC with custom seed</li>
+<li><code>all_checks::Bool = true</code>: turn off to suppress some numerical checks</li>
+</ul>
+<p>Afterwards, you can run the simulation by</p>
+<div class="codehilite"><pre><span></span><span class="n">run!</span><span class="p">(</span><span class="n">dqmc</span><span class="p">)</span>
 </pre></div>
 
 
-<p>Afterwards, you can use <code>MonteCarlo.jl</code> like any other package installed with <code>Pkg.add()</code>:</p>
-<div class="codehilite"><pre><span></span><span class="k">using</span> <span class="n">MonteCarlo</span>
-</pre></div>
-
-
-<p>To obtain the latest version of the package just do <code>Pkg.update()</code> or specifically <code>Pkg.update("MonteCarlo")</code>.</p>
+<p><a id='Checkerboard-decomposition-1'></a></p>
+<h2 id="checkerboard-decomposition">Checkerboard decomposition</h2>
+<p>Mention generic checkerboard defined in <code>flavors/DQMC/abstract.jl</code>. When is a lattice compatible with the general decomposition? Manual implementation of <code>build_checkerboard</code>.</p>
+<p><a id='Technical-details-1'></a></p>
+<h2 id="technical-details">Technical details</h2>
+<p>imaginary time slice matrices <span><span class="MathJax_Preview">B_l = e^{-\Delta\tau T_{ij}/2} e^{-\Delta\tau V_{ij}(l)} e^{-\Delta\tau T_{ij}/2}</span><script type="math/tex">B_l = e^{-\Delta\tau T_{ij}/2} e^{-\Delta\tau V_{ij}(l)} e^{-\Delta\tau T_{ij}/2}</script></span> and more importantly the equal-time Green's function <span><span class="MathJax_Preview">G = \left( 1 + B_M \cdots B_1 \right)^{-1}</span><script type="math/tex">G = \left( 1 + B_M \cdots B_1 \right)^{-1}</script></span></p>
+<p><a id='Symmetric-Suzuki-Trotter-decomposition-1'></a></p>
+<h3 id="symmetric-suzuki-trotter-decomposition">Symmetric Suzuki-Trotter decomposition</h3>
+<p>We use the symmetric version of the Suzuki-Trotter decomposition, i.e.</p>
+<p>TODO!</p>
+<p><a id='Effective-slice-matrices-and-Green's-function-1'></a></p>
+<h3 id="effective-slice-matrices-and-greens-function">Effective slice matrices and Green's function</h3>
+<p>TODO! Important!</p>
+<p><a id='Exports-1'></a></p>
+<h2 id="exports">Exports</h2>
+<p><a id='Potential-extensions-1'></a></p>
+<h2 id="potential-extensions">Potential extensions</h2>
+<p>Pull requests are very much welcome!</p>
+<ul>
+<li>todo</li>
+</ul>
                 
                   
                 
@@ -600,14 +711,28 @@
     <div class="md-footer-nav">
       <nav class="md-footer-nav__inner md-grid">
         
+          <a href="../mc/" title="MC" class="md-flex md-footer-nav__link md-footer-nav__link--prev" rel="prev">
+            <div class="md-flex__cell md-flex__cell--shrink">
+              <i class="md-icon md-icon--arrow-back md-footer-nav__button"></i>
+            </div>
+            <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
+              <span class="md-flex__ellipsis">
+                <span class="md-footer-nav__direction">
+                  Previous
+                </span>
+                MC
+              </span>
+            </div>
+          </a>
         
-          <a href="manual/gettingstarted/" title="Getting started" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+        
+          <a href="../../lattices/" title="Lattices" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                Getting started
+                Lattices
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
@@ -637,13 +762,13 @@
       
     </div>
     
-      <script src="./assets/javascripts/application.8eb9be28.js"></script>
+      <script src="../../assets/javascripts/application.8eb9be28.js"></script>
       
-      <script>app.initialize({version:"0.17.3",url:{base:"."}})</script>
+      <script>app.initialize({version:"0.17.3",url:{base:"../.."}})</script>
       
         <script src="https://cdn.mathjax.org/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script>
       
-        <script src="./assets/mathjaxhelper.js"></script>
+        <script src="../../assets/mathjaxhelper.js"></script>
       
     
     
