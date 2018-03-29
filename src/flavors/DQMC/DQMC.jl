@@ -243,5 +243,37 @@ function sweep_spatial(mc::DQMC)
     nothing
 end
 
+"""
+    greens(mc::DQMC)
+
+Obtain the current equal-time Green's function.
+
+Internally, `mc.s.greens` is an effective Green's function. This method transforms 
+this effective one to the actual Green's function by multiplying hopping matrix 
+exponentials from left and right.
+"""
+function greens(mc::DQMC_CBFalse)
+    const eThalf = mc.s.hopping_matrix_exp
+    const eThalfinv = mc.s.hopping_matrix_exp_inv
+
+    greens = copy(mc.s.greens)
+    greens .= greens * eThalf
+    greens .= eThalfinv * greens
+    return greens
+end
+# TODO!
+# function greens(mc::DQMC_CBTrue)
+#     const chkr_hop_half = mc.s.chkr_hop_half
+#     const chkr_hop_half_inv = mc.s.chkr_hop_half_inv
+
+#     greens = copy(mc.s.greens)
+
+#     greens .= greens * chkr_hop_half[2]
+#     greens .= greens * chkr_hop_half[1]
+#     greens .= chkr_hop_half_inv[2] * greens
+#     greens .= chkr_hop_half_inv[1] * greens
+#     return greens
+# end
+
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")

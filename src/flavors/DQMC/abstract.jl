@@ -4,18 +4,10 @@ abstract type Checkerboard end
 struct CheckerboardTrue <: Checkerboard end
 struct CheckerboardFalse <: Checkerboard end
 
-# generic checkerboard decomposition
 """
   build_checkerboard(l::Lattice) -> checkerboard, groups, n_groups
 
-Generic checkerboard construction for checkerboard decomposition.
-Alternatively a lattice can implement it's own `build_checkerboard` method.
-
-To work with this generic algorithm a lattice must have the following fields:
-
-  * `n_bonds::Int`: number of bonds
-  * `bonds::Matrix{Int}`: matrix of size `(n_bonds, 3)` where the columns
-                          indicate `source site`, `target site`, `bondtype`.
+Generic checkerboard construction.
 
 The methods returns
   * `checkerboard::Matrix{Int}`: size `(3, n_bonds)` where
