@@ -97,9 +97,9 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "models/ising.html#IsingModel-1",
+    "location": "models/ising.html#Ising-Model-1",
     "page": "Ising model",
-    "title": "IsingModel",
+    "title": "Ising Model",
     "category": "section",
     "text": ""
 },
@@ -117,7 +117,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Ising model",
     "title": "Creating an Ising model",
     "category": "section",
-    "text": "You can create an Ising model as follows,model = IsingModel(; dims::Int=2, L::Int=8)The following parameters can be set via keyword arguments:dims: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL: linear system sizenote: Note\nSo far only dims=2 is supported. Feel free to extend the model and create a pull request!"
+    "text": "You can create an Ising model as follows,model = IsingModel(; dims::Int=2, L::Int=8)The following parameters can be set via keyword arguments:dims: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL: linear system size"
 },
 
 {
@@ -141,7 +141,7 @@ var documenterSearchIndex = {"docs": [
     "page": "Ising model",
     "title": "MonteCarlo.IsingModel",
     "category": "type",
-    "text": "Famous Ising model on a cubic lattice.\n\nIsingModel(; dims::Int=2, L::Int=8)\n\nCreate Ising model on dims-dimensional cubic lattice with linear system size L.\n\n\n\n"
+    "text": "Famous Ising model on a cubic lattice.\n\nIsingModel(; dims, L)\n\nCreate Ising model on dims-dimensional cubic lattice with linear system size L.\n\n\n\n"
 },
 
 {
@@ -185,6 +185,62 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "models/hubbardattractive.html#",
+    "page": "Attractive Hubbard model",
+    "title": "Attractive Hubbard model",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "models/hubbardattractive.html#Attractive-Hubbard-Model-1",
+    "page": "Attractive Hubbard model",
+    "title": "Attractive Hubbard Model",
+    "category": "section",
+    "text": ""
+},
+
+{
+    "location": "models/hubbardattractive.html#Hamiltonian-1",
+    "page": "Attractive Hubbard model",
+    "title": "Hamiltonian",
+    "category": "section",
+    "text": "The Hamiltonian of the attractive (negative U) Hubbard model reads\\begin{align} \\mathcal{H} = -t \\sum_{\\langle i,j \\rangle, \\sigma} \\left( c^\\dagger_{i\\sigma} c_{j\\sigma} + \\text{h.c.} \\right) - |U| \\sum_j \\left( n_{j\\uparrow} - \\frac{1}{2} \\right) \\left( n_{j\\downarrow} - \\frac{1}{2} \\right) - \\mu\\sum_j n_{j}, \\end{align}where sigma denotes spin, t is the hopping amplitude, U the on-site repulsive interaction strength, mu the chemical potential and $ \\langle i, j \\rangle $ indicates that the sum has to be taken over nearest neighbors. Note that (1) is written in particle-hole symmetric form such that mu = 0 corresponds to half-filling."
+},
+
+{
+    "location": "models/hubbardattractive.html#Constructor-1",
+    "page": "Attractive Hubbard model",
+    "title": "Constructor",
+    "category": "section",
+    "text": "You can create an attractive Hubbard model instance as follows,model = HubbardModelAttractive(dims=1, L=8)The following parameters can be set via keyword arguments:dims::Int: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)\nL::Int: linear system size\nt::Float64 = 1.0: hopping energy\nU::Float64 = 1.0: onsite interaction strength, \"Hubbard U\"\nmu::Float64 = 0.0: chemical potential"
+},
+
+{
+    "location": "models/hubbardattractive.html#Supported-Monte-Carlo-flavors-1",
+    "page": "Attractive Hubbard model",
+    "title": "Supported Monte Carlo flavors",
+    "category": "section",
+    "text": "Determinant Quantum Monte Carlo (DQMC), see details below"
+},
+
+{
+    "location": "models/hubbardattractive.html#DQMC-formulation-1",
+    "page": "Attractive Hubbard model",
+    "title": "DQMC formulation",
+    "category": "section",
+    "text": "We decouple the onsite electron-electron interaction by performing a Hirsch transformation, i.e. a discrete Hubbard-Stratonovich transformation in the density/charge channel,\\begin{align} e^{|U|\\Delta \\tau \\left( n_{i\\uparrow} - \\frac{1}{2} \\right) \\left(n_{i\\downarrow} - \\frac{1}{2} \\right)} = \\frac{1}{2} e^{-|U|\\Delta \\tau /4} \\sum_{s=\\pm 1} \\prod_{\\sigma=\\pm 1} e^{s\\lambda (n_{i\\sigma}-\\frac{1}{2})}. \\end{align}The interaction matrix of the model then reads\\begin{align} V_{ij}(l) &= \\delta_{ij} V_i(l), \\\\\nV_i(l) &= - \\frac{1}{\\Delta \\tau} \\lambda s_i(l). \\end{align}For completeness, the hopping matrix is \\begin{align} T_{ij} &= \\begin{cases} -t & \\text{if i and j are nearest neighbors,} \\\\\n-\\mu & \\text{if i == j,} \\\\\n0 & \\text{otherwise.} \\end{cases} \\end{align}As neither T nor V depend on spin, neither does the equal-times Green\'s function. We can therefore restrict our computations to one spin flavor (flv=1) and benefit from operating with smaller matrices."
+},
+
+{
+    "location": "models/hubbardattractive.html#Potential-extensions-1",
+    "page": "Attractive Hubbard model",
+    "title": "Potential extensions",
+    "category": "section",
+    "text": "Pull requests are very much welcome!Arbitrary lattices (so far only cubic lattices supported)"
+},
+
+{
     "location": "flavors/mc.html#",
     "page": "MC",
     "title": "MC",
@@ -209,11 +265,43 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "flavors/mc.html#MonteCarlo.run!-Tuple{MonteCarlo.DQMC}",
+    "page": "MC",
+    "title": "MonteCarlo.run!",
+    "category": "method",
+    "text": "run!(mc::DQMC[; verbose::Bool=true, sweeps::Int, thermalization::Int])\n\nRuns the given Monte Carlo simulation mc. Progress will be printed to STDOUT if verbose=true (default).\n\n\n\n"
+},
+
+{
     "location": "flavors/mc.html#MonteCarlo.run!-Tuple{MonteCarlo.MC}",
     "page": "MC",
     "title": "MonteCarlo.run!",
     "category": "method",
     "text": "run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])\n\nRuns the given Monte Carlo simulation mc. Progress will be printed to STDOUT if verbose=true (default).\n\n\n\n"
+},
+
+{
+    "location": "flavors/mc.html#MonteCarlo.DQMC",
+    "page": "MC",
+    "title": "MonteCarlo.DQMC",
+    "category": "type",
+    "text": "Determinant quantum Monte Carlo (DQMC) simulation\n\n\n\n"
+},
+
+{
+    "location": "flavors/mc.html#MonteCarlo.DQMC-Union{Tuple{M,Dict{String,Any}}, Tuple{M}} where M<:MonteCarlo.Model",
+    "page": "MC",
+    "title": "MonteCarlo.DQMC",
+    "category": "method",
+    "text": "DQMC(m::M; kwargs::Dict{String, Any})\n\nCreate a determinant quantum Monte Carlo simulation for model m with (keyword) parameters as specified in the dictionary kwargs.\n\n\n\n"
+},
+
+{
+    "location": "flavors/mc.html#MonteCarlo.DQMC-Union{Tuple{M}, Tuple{M}} where M<:MonteCarlo.Model",
+    "page": "MC",
+    "title": "MonteCarlo.DQMC",
+    "category": "method",
+    "text": "DQMC(m::M; kwargs...) where M<:Model\n\nCreate a determinant quantum Monte Carlo simulation for model m with keyword parameters kwargs.\n\n\n\n"
 },
 
 {
@@ -254,6 +342,70 @@ var documenterSearchIndex = {"docs": [
     "title": "Potential extensions",
     "category": "section",
     "text": "Pull requests are very much welcome!Heat bath (instead of Metropolis) option"
+},
+
+{
+    "location": "flavors/dqmc.html#",
+    "page": "DQMC",
+    "title": "DQMC",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "flavors/dqmc.html#Determinant-Quantum-Monte-Carlo-(DQMC)-1",
+    "page": "DQMC",
+    "title": "Determinant Quantum Monte Carlo (DQMC)",
+    "category": "section",
+    "text": "This is determinant quantum Monte Carlo (MC) also known auxiliary field quantum Monte Carlo. It can be used to simulate interacting fermion systems, here the auxiliary boson arises from a Hubbard Stratonovich transformation, or fermions which are naturally coupled to bosons. An example is the Attractive Hubbard Model.You can initialize a determinant quantum Monte Carlo simulation of a given model simply throughdqmc = DQMC(model, beta=5.0)Mandatory keywords are:beta: inverse temperatureAllowed keywords are:sweeps: number of measurement sweeps\nthermalization: number of thermalization (warmup) sweeps\nseed: initialize DQMC with custom seedAfterwards, you can run the simulation byrun!(dqmc)"
+},
+
+{
+    "location": "flavors/dqmc.html#Exports-1",
+    "page": "DQMC",
+    "title": "Exports",
+    "category": "section",
+    "text": "Modules = [MonteCarlo]\nPrivate = false\nOrder   = [:function, :type]\nPages = [\"DQMC.jl\"]"
+},
+
+{
+    "location": "flavors/dqmc.html#Checkerboard-decomposition-1",
+    "page": "DQMC",
+    "title": "Checkerboard decomposition",
+    "category": "section",
+    "text": "Mention generic checkerboard defined in flavors/DQMC/abstract.jl. When is a lattice compatible with the general decomposition? Manual implementation of build_checkerboard."
+},
+
+{
+    "location": "flavors/dqmc.html#Technical-details-1",
+    "page": "DQMC",
+    "title": "Technical details",
+    "category": "section",
+    "text": "imaginary time slice matrices $ B_l = e^{-\\Delta\\tau T_{ij}/2} e^{-\\Delta\\tau V_{ij}(l)} e^{-\\Delta\\tau T_{ij}/2} $ and more importantly the equal-time Green\'s function G = left( 1 + B_M cdots B_1 right)^-1"
+},
+
+{
+    "location": "flavors/dqmc.html#Symmetric-Suzuki-Trotter-decomposition-1",
+    "page": "DQMC",
+    "title": "Symmetric Suzuki-Trotter decomposition",
+    "category": "section",
+    "text": "We use the symmetric version of the Suzuki-Trotter decomposition, i.e.TODO!"
+},
+
+{
+    "location": "flavors/dqmc.html#Effective-slice-matrices-and-Green\'s-function-1",
+    "page": "DQMC",
+    "title": "Effective slice matrices and Green\'s function",
+    "category": "section",
+    "text": "TODO! Important!"
+},
+
+{
+    "location": "flavors/dqmc.html#Potential-extensions-1",
+    "page": "DQMC",
+    "title": "Potential extensions",
+    "category": "section",
+    "text": "Pull requests are very much welcome!todo"
 },
 
 {
@@ -413,7 +565,7 @@ var documenterSearchIndex = {"docs": [
     "page": "MC",
     "title": "Interface: Monte Carlo (MC)",
     "category": "section",
-    "text": "Any model that wants to be simulated by means of MC must implement the following interface. Below you find all semantic definitions and precise signatures of mandatory fields and mandatory and optional methods that any model should implement to work with the Monte Carlo flavor Monte Carlo (MC)."
+    "text": "Any model that wants to be simulated by means of MC must implement the following interface. Below you find all semantic definitions and precise signatures of mandatory fields and mandatory and optional methods that any model should implement to work with the Monte Carlo flavor Monte Carlo (MC).Example models: Ising Model"
 },
 
 {
@@ -433,27 +585,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "interfaces/MC.html#Base.Random.rand-Tuple{MonteCarlo.MC,MonteCarlo.Model}",
-    "page": "MC",
-    "title": "Base.Random.rand",
-    "category": "method",
-    "text": "rand(mc::MC, m::Model)\n\nDraw random configuration.\n\n\n\n"
-},
-
-{
-    "location": "interfaces/MC.html#MonteCarlo.accept_local!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64,Any,Float64}",
-    "page": "MC",
-    "title": "MonteCarlo.accept_local!",
-    "category": "method",
-    "text": "accept_local(mc::MC, m::Model, i::Int, conf, E::Float64, delta_i, delta_E::Float64)\n\nAccept a local move for site i of current configuration conf with energy E. Arguments delta_i and delta_E correspond to output of propose_local() for that local move.\n\nSee also propose_local.\n\n\n\n"
-},
-
-{
-    "location": "interfaces/MC.html#MonteCarlo.conftype-Tuple{MonteCarlo.Model}",
+    "location": "interfaces/MC.html#MonteCarlo.conftype-Tuple{Type{MonteCarlo.MC},MonteCarlo.Model}",
     "page": "MC",
     "title": "MonteCarlo.conftype",
     "category": "method",
-    "text": "conftype(m::Model)\n\nReturns the type of a configuration.\n\n\n\n"
+    "text": "conftype(::Type{MC}, m::Model)\n\nReturns the type of a configuration.\n\n\n\n"
 },
 
 {
@@ -465,6 +601,14 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "interfaces/MC.html#Base.Random.rand-Tuple{MonteCarlo.MC,MonteCarlo.Model}",
+    "page": "MC",
+    "title": "Base.Random.rand",
+    "category": "method",
+    "text": "rand(mc::MC, m::Model)\n\nDraw random configuration.\n\n\n\n"
+},
+
+{
     "location": "interfaces/MC.html#MonteCarlo.propose_local-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64}",
     "page": "MC",
     "title": "MonteCarlo.propose_local",
@@ -473,19 +617,19 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "interfaces/MC.html#MonteCarlo.accept_local!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64,Any,Float64}",
+    "page": "MC",
+    "title": "MonteCarlo.accept_local!",
+    "category": "method",
+    "text": "accept_local(mc::MC, m::Model, i::Int, conf, E::Float64, delta_i, delta_E::Float64)\n\nAccept a local move for site i of current configuration conf with energy E. Arguments delta_i and delta_E correspond to output of propose_local() for that local move.\n\nSee also propose_local.\n\n\n\n"
+},
+
+{
     "location": "interfaces/MC.html#Mandatory-methods-1",
     "page": "MC",
     "title": "Mandatory methods",
     "category": "section",
-    "text": "Modules = [MonteCarlo]\nOrder   = [:function]\nPages = [\"MC_mandatory.jl\"]"
-},
-
-{
-    "location": "interfaces/MC.html#MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}",
-    "page": "MC",
-    "title": "MonteCarlo.finish_observables!",
-    "category": "method",
-    "text": "measure_observables!(mc::MC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasure observables and update corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and measure_observables!.\n\n\n\n"
+    "text": "CurrentModule = MonteCarloconftype(::Type{MC}, m::Model)energy(mc::MC, m::Model, conf)rand(::MC, ::Model)propose_local(mc::MC, m::Model, i::Int, conf, E::Float64)accept_local!(mc::MC, m::Model, i::Int, conf, E::Float64, delta_i, delta_E::Float64)"
 },
 
 {
@@ -497,6 +641,14 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
+    "location": "interfaces/MC.html#MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}",
+    "page": "MC",
+    "title": "MonteCarlo.prepare_observables",
+    "category": "method",
+    "text": "prepare_observables(mc::MC, m::Model) -> Dict{String, Observable}\n\nInitializes observables and returns a Dict{String, Observable}. In the latter, keys are abbreviations for the observables names and values are the observables themselves.\n\nSee also measure_observables! and finish_observables!.\n\n\n\n"
+},
+
+{
     "location": "interfaces/MC.html#MonteCarlo.measure_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}",
     "page": "MC",
     "title": "MonteCarlo.measure_observables!",
@@ -505,11 +657,11 @@ var documenterSearchIndex = {"docs": [
 },
 
 {
-    "location": "interfaces/MC.html#MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}",
+    "location": "interfaces/MC.html#MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}",
     "page": "MC",
-    "title": "MonteCarlo.prepare_observables",
+    "title": "MonteCarlo.finish_observables!",
     "category": "method",
-    "text": "prepare_observables(m::Model) -> Dict{String, Observable}\n\nInitializes observables and returns a Dict{String, Observable}. In the latter, keys are abbreviations for the observables names and values are the observables themselves.\n\nSee also measure_observables! and finish_observables!.\n\n\n\n"
+    "text": "measure_observables!(mc::MC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasure observables and update corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and measure_observables!.\n\n\n\n"
 },
 
 {
@@ -517,7 +669,143 @@ var documenterSearchIndex = {"docs": [
     "page": "MC",
     "title": "Optional methods",
     "category": "section",
-    "text": "Modules = [MonteCarlo]\nOrder   = [:function]\nPages = [\"MC_optional.jl\"]"
+    "text": "global_move(mc::MC, m::Model, conf, E::Float64)prepare_observables(mc::MC, m::Model)measure_observables!(mc::MC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)finish_observables!(mc::MC, m::Model, obs::Dict{String,Observable})"
+},
+
+{
+    "location": "interfaces/DQMC.html#",
+    "page": "DQMC",
+    "title": "DQMC",
+    "category": "page",
+    "text": ""
+},
+
+{
+    "location": "interfaces/DQMC.html#Interface:-Determinant-Quantum-Monte-Carlo-(DQMC)-1",
+    "page": "DQMC",
+    "title": "Interface: Determinant Quantum Monte Carlo (DQMC)",
+    "category": "section",
+    "text": "Any model that wants to be simulated by means of DQMC must implement the following interface. Below you find all semantic definitions and precise signatures of mandatory fields and mandatory and optional methods that any model should implement to work with the determinant Monte Carlo flavor Determinant Quantum Monte Carlo (DQMC).Example models: Attractive Hubbard model"
+},
+
+{
+    "location": "interfaces/DQMC.html#Mandatory-fields-1",
+    "page": "DQMC",
+    "title": "Mandatory fields",
+    "category": "section",
+    "text": "l::Lattice: any Lattice\nflv::Int: number of distinct fermion flavors (e.g. spins, bands, etc.). The Green\'s function will have shape (flv*N, flv*N), where N is the number of sites. Note that different fermion flavors are often related by symmetry and it\'s advisable to use this symmetry to work with smaller Green\'s function matrices. Have a look at the Attractive Hubbard Model as an example where flv=1 although we have spinful fermions."
+},
+
+{
+    "location": "interfaces/DQMC.html#Index-of-all-methods-1",
+    "page": "DQMC",
+    "title": "Index of all methods",
+    "category": "section",
+    "text": "Pages = [\"DQMC.md\"]"
+},
+
+{
+    "location": "interfaces/DQMC.html#MonteCarlo.conftype-Tuple{Type{MonteCarlo.DQMC},MonteCarlo.Model}",
+    "page": "DQMC",
+    "title": "MonteCarlo.conftype",
+    "category": "method",
+    "text": "conftype(::Type{DQMC}, m::Model)\n\nReturns the type of a configuration.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/DQMC.html#Base.Random.rand-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}",
+    "page": "DQMC",
+    "title": "Base.Random.rand",
+    "category": "method",
+    "text": "rand(mc::DQMC, m::Model)\n\nDraw random configuration.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/DQMC.html#MonteCarlo.hopping_matrix-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}",
+    "page": "DQMC",
+    "title": "MonteCarlo.hopping_matrix",
+    "category": "method",
+    "text": "hopping_matrix(mc::DQMC, m::Model)\n\nCalculates the hopping matrix $ T_{i\\sigma, j\\sigma \'} $ where $ i, j $ are site indices and $ \\sigma , \\sigma \' $ are flavor indices (e.g. spin indices). The hopping matrix should also contain potential chemical potential terms on the diagonal.\n\nA matrix element is the hopping amplitude for a hopping process: $ j,\\sigma \' \\rightarrow i,\\sigma $.\n\nRegarding the order of indices, if T[i, σ, j, σ\'] is your desired 4D hopping array, then reshape(T, (n_sites * n_flavors, :)) is the hopping matrix.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/DQMC.html#MonteCarlo.interaction_matrix_exp!",
+    "page": "DQMC",
+    "title": "MonteCarlo.interaction_matrix_exp!",
+    "category": "function",
+    "text": "interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.) -> nothing\n\nCalculate the interaction matrix exponential expV = exp(- power * delta_tau * V(slice)) and store it in result::Matrix. Potential chemical potential terms should be part of the hopping_matrix and not the interaction.\n\nThis is a performance critical method and one might consider efficient in-place (in result) construction.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/DQMC.html#MonteCarlo.propose_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Any,Float64}",
+    "page": "DQMC",
+    "title": "MonteCarlo.propose_local",
+    "category": "method",
+    "text": "propose_local(mc::DQMC, m::Model, i::Int, conf, E_boson::Float64) -> detratio, delta_E_boson, delta\n\nPropose a local move for lattice site i of current configuration conf with boson energy E_boson. Returns the Green\'s function determinant ratio, the boson energy difference delta_E_boson = delta_E_boson_new - delta_E_boson, and additional local move information delta (will be forwarded to accept_local!).\n\nSee also accept_local!.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/DQMC.html#MonteCarlo.accept_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Int64,Any,Any,Any,Any}",
+    "page": "DQMC",
+    "title": "MonteCarlo.accept_local",
+    "category": "method",
+    "text": "accept_local(mc::DQMC, m::Model, i::Int, slice::Int, conf, delta, detratio, delta_E_boson)\n\nAccept a local move for site i at imaginary time slice slice of current configuration conf with energy E. Arguments delta, detratio and delta_E_boson correspond to output of propose_local() for that local move.\n\nSee also propose_local.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/DQMC.html#Mandatory-methods-1",
+    "page": "DQMC",
+    "title": "Mandatory methods",
+    "category": "section",
+    "text": "CurrentModule = MonteCarloconftype(::Type{DQMC}, m::Model)rand(::DQMC, ::Model)hopping_matrix(mc::DQMC, m::Model)interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.)propose_local(mc::DQMC, m::Model, i::Int, conf, E_boson::Float64)accept_local(mc::DQMC, m::Model, i::Int, slice::Int, conf, delta, detratio, delta_E_boson)"
+},
+
+{
+    "location": "interfaces/DQMC.html#MonteCarlo.greenseltype-Tuple{Type{MonteCarlo.DQMC},MonteCarlo.Model}",
+    "page": "DQMC",
+    "title": "MonteCarlo.greenseltype",
+    "category": "method",
+    "text": "greenseltype(::Type{DQMC}, m::Model)\n\nReturns the type of the elements of the Green\'s function matrix. Defaults to Complex128.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/DQMC.html#MonteCarlo.energy_boson-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Any}",
+    "page": "DQMC",
+    "title": "MonteCarlo.energy_boson",
+    "category": "method",
+    "text": "energy(mc::DQMC, m::Model, conf)\n\nCalculate bosonic part (non-Green\'s function determinant part) of energy for configuration conf for Model m.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/DQMC.html#MonteCarlo.prepare_observables-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}",
+    "page": "DQMC",
+    "title": "MonteCarlo.prepare_observables",
+    "category": "method",
+    "text": "prepare_observables(mc::DQMC, m::Model) -> Dict{String, Observable}\n\nInitializes observables and returns a Dict{String, Observable}. In the latter, keys are abbreviations for the observables names and values are the observables themselves.\n\nSee also measure_observables! and finish_observables!.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/DQMC.html#MonteCarlo.measure_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}",
+    "page": "DQMC",
+    "title": "MonteCarlo.measure_observables!",
+    "category": "method",
+    "text": "measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasures observables and updates corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and finish_observables!.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/DQMC.html#MonteCarlo.finish_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}",
+    "page": "DQMC",
+    "title": "MonteCarlo.finish_observables!",
+    "category": "method",
+    "text": "measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)\n\nMeasure observables and update corresponding MonteCarloObservable.Observable objects in obs.\n\nSee also prepare_observables and measure_observables!.\n\n\n\n"
+},
+
+{
+    "location": "interfaces/DQMC.html#Optional-methods-1",
+    "page": "DQMC",
+    "title": "Optional methods",
+    "category": "section",
+    "text": "greenseltype(::Type{DQMC}, m::Model)energy_boson(mc::DQMC, m::Model, conf)prepare_observables(mc::DQMC, m::Model)measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)finish_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable})"
 },
 
 ]}
