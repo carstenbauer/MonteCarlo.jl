@@ -612,7 +612,7 @@
 
 
 <p>Runs the given Monte Carlo simulation <code>mc</code>. Progress will be printed to <code>STDOUT</code> if <code>verbose=true</code> (default).</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC.jl#L126-L131' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7b504a4b54ca4799a78ecc1379360ceafa918c5e/src/flavors/DQMC/DQMC.jl#L126-L131' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.run!-Tuple{MonteCarlo.MC}' href='#MonteCarlo.run!-Tuple{MonteCarlo.MC}'>#</a>
 <strong><code>MonteCarlo.run!</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="nt">run</span><span class="o">!(</span><span class="nt">mc</span><span class="p">::</span><span class="nd">MC</span><span class="cp">[</span><span class="p">;</span> <span class="n">verbose</span><span class="nl">::Bool</span><span class="o">=</span><span class="kc">true</span><span class="p">,</span> <span class="nx">sweeps</span><span class="nl">::Int</span><span class="p">,</span> <span class="nx">thermalization</span><span class="nl">::Int</span><span class="cp">]</span><span class="o">)</span>
@@ -620,11 +620,11 @@
 
 
 <p>Runs the given Monte Carlo simulation <code>mc</code>. Progress will be printed to <code>STDOUT</code> if <code>verbose=true</code> (default).</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/MC/MC.jl#L92-L97' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7b504a4b54ca4799a78ecc1379360ceafa918c5e/src/flavors/MC/MC.jl#L92-L97' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.DQMC' href='#MonteCarlo.DQMC'>#</a>
 <strong><code>MonteCarlo.DQMC</code></strong> &mdash; <em>Type</em>.</p>
 <p>Determinant quantum Monte Carlo (DQMC) simulation</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC.jl#L35-L37' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7b504a4b54ca4799a78ecc1379360ceafa918c5e/src/flavors/DQMC/DQMC.jl#L35-L37' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.DQMC-Union{Tuple{M,Dict{String,Any}}, Tuple{M}} where M<:MonteCarlo.Model' href='#MonteCarlo.DQMC-Union{Tuple{M,Dict{String,Any}}, Tuple{M}} where M<:MonteCarlo.Model'>#</a>
 <strong><code>MonteCarlo.DQMC</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="nt">DQMC</span><span class="o">(</span><span class="nt">m</span><span class="p">::</span><span class="nd">M</span><span class="o">;</span> <span class="nt">kwargs</span><span class="p">::</span><span class="nd">Dict</span><span class="p">{</span><span class="err">String,</span> <span class="err">Any</span><span class="p">}</span><span class="o">)</span>
@@ -632,7 +632,7 @@
 
 
 <p>Create a determinant quantum Monte Carlo simulation for model <code>m</code> with (keyword) parameters as specified in the dictionary <code>kwargs</code>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC.jl#L82-L87' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7b504a4b54ca4799a78ecc1379360ceafa918c5e/src/flavors/DQMC/DQMC.jl#L82-L87' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.DQMC-Union{Tuple{M}, Tuple{M}} where M<:MonteCarlo.Model' href='#MonteCarlo.DQMC-Union{Tuple{M}, Tuple{M}} where M<:MonteCarlo.Model'>#</a>
 <strong><code>MonteCarlo.DQMC</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="nt">DQMC</span><span class="o">(</span><span class="nt">m</span><span class="p">::</span><span class="nd">M</span><span class="o">;</span> <span class="nt">kwargs</span><span class="o">...)</span> <span class="nt">where</span> <span class="nt">M</span><span class="o">&lt;</span><span class="p">:</span><span class="nd">Model</span>
@@ -640,11 +640,11 @@
 
 
 <p>Create a determinant quantum Monte Carlo simulation for model <code>m</code> with keyword parameters <code>kwargs</code>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/DQMC/DQMC.jl#L55-L59' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7b504a4b54ca4799a78ecc1379360ceafa918c5e/src/flavors/DQMC/DQMC.jl#L55-L59' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.MC' href='#MonteCarlo.MC'>#</a>
 <strong><code>MonteCarlo.MC</code></strong> &mdash; <em>Type</em>.</p>
 <p>Monte Carlo simulation</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/MC/MC.jl#L26-L28' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7b504a4b54ca4799a78ecc1379360ceafa918c5e/src/flavors/MC/MC.jl#L26-L28' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.MC-Union{Tuple{M,Union{Dict{String,Any}, Dict{Symbol,Any}}}, Tuple{M}} where M<:MonteCarlo.Model' href='#MonteCarlo.MC-Union{Tuple{M,Union{Dict{String,Any}, Dict{Symbol,Any}}}, Tuple{M}} where M<:MonteCarlo.Model'>#</a>
 <strong><code>MonteCarlo.MC</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="nt">MC</span><span class="o">(</span><span class="nt">m</span><span class="p">::</span><span class="nd">M</span><span class="o">;</span> <span class="nt">kwargs</span><span class="p">::</span><span class="nd">Dict</span><span class="p">{</span><span class="err">String,</span> <span class="err">Any</span><span class="p">}</span><span class="o">)</span>
@@ -652,7 +652,7 @@
 
 
 <p>Create a Monte Carlo simulation for model <code>m</code> with (keyword) parameters as specified in the dictionary <code>kwargs</code>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/MC/MC.jl#L54-L59' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7b504a4b54ca4799a78ecc1379360ceafa918c5e/src/flavors/MC/MC.jl#L54-L59' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.MC-Union{Tuple{M}, Tuple{M}} where M<:MonteCarlo.Model' href='#MonteCarlo.MC-Union{Tuple{M}, Tuple{M}} where M<:MonteCarlo.Model'>#</a>
 <strong><code>MonteCarlo.MC</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="nt">MC</span><span class="o">(</span><span class="nt">m</span><span class="p">::</span><span class="nd">M</span><span class="o">;</span> <span class="nt">kwargs</span><span class="o">...)</span> <span class="nt">where</span> <span class="nt">M</span><span class="o">&lt;</span><span class="p">:</span><span class="nd">Model</span>
@@ -660,7 +660,7 @@
 
 
 <p>Create a Monte Carlo simulation for model <code>m</code> with keyword parameters <code>kwargs</code>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/228f9e711284842498fdff2664c4af230934b130/src/flavors/MC/MC.jl#L41-L45' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7b504a4b54ca4799a78ecc1379360ceafa918c5e/src/flavors/MC/MC.jl#L41-L45' class='documenter-source'>source</a><br></p>
 <p><a id='Potential-extensions-1'></a></p>
 <h3 id="potential-extensions">Potential extensions</h3>
 <p>Pull requests are very much welcome!</p>
