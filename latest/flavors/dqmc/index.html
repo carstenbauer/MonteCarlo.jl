@@ -700,7 +700,7 @@
 <li><code>groups::Vector{UnitRange}</code>: ranges indicating which columns of <code>checkerboard</code>                              belong to which checkerboard group.</li>
 <li><code>n_groups::Int</code>: number of checkerboard groups.</li>
 </ul>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/e24abd817bc12b6b15e6628eddc49a8ff2efbe3a/src/flavors/DQMC/abstract.jl#L7-L21' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/e45af8fbef292a5938219e6df65168c98d57e1c0/src/flavors/DQMC/abstract.jl#L7-L21' class='documenter-source'>source</a><br></p>
 <p><a id='Effective-slice-matrices-and-Green's-function-1'></a></p>
 <h3 id="effective-slice-matrices-and-greens-function">Effective slice matrices and Green's function</h3>
 <p>Combining the symmetric Suzuki-Trotter and checkerboard decomposition we can write (assuming two checkerboard groups <span><span class="MathJax_Preview">a</span><script type="math/tex">a</script></span> and <span><span class="MathJax_Preview">b</span><script type="math/tex">b</script></span>)</p>
@@ -726,7 +726,7 @@ B_l^{\text{eff}} = e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a} e^{-\Delta\tau T_b/
 &= e^{\Delta\tau T_a/2} e^{\Delta\tau T_b/2} \left( 1 + B^{\text{eff}}_M \cdots B^{\text{eff}}_1 \right)^{-1} e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a/2} \\
 &= e^{\Delta\tau T_a/2} e^{\Delta\tau T_b/2} G^{\text{eff}} e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a/2} \end{align}</script>
 </p>
-<p>To obtain the actual equal-times Green's function, for example for measuring, use <code>greens(mc::DQMC)</code> which multiplies the missing hopping exponentials from left and right.</p>
+<p>To obtain the actual equal-times Green's function, for example for measuring, use <code>greens(dqmc::DQMC)</code> which multiplies the missing hopping exponentials from left and right.</p>
 </div>
 <p><a id='Exports-1'></a></p>
 <h2 id="exports">Exports</h2>
