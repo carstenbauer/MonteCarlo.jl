@@ -2,14 +2,14 @@
 language: julia
 os:
   - linux
-#  - osx
+ - osx
 julia:
   - release
   - nightly
 matrix:
   allow_failures:
     - julia: nightly
-#    - os: osx
+   - os: osx
 notifications:
   email: false
 # uncomment the following lines to override the default test script
