@@ -1,18 +1,58 @@
 module MonteCarlo
 using MonteCarloObservable
-using LightXML
 using Parameters
 
 include("helpers.jl")
 include("abstract.jl")
 
-include("flavors/MC/MC.jl")
-include("flavors/DQMC/DQMC.jl")
+module Lattices
+	using LightXML
+	using Parameters
+	include("helpers.jl")
+	include("abstract.jl")
 
-include("lattices/square.jl")
-include("lattices/chain.jl")
-include("lattices/cubic.jl")
-include("lattices/ALPS.jl")
+	include("lattices/square.jl")
+	export SquareLattice
+
+	include("lattices/chain.jl")
+	export Chain
+	include("lattices/cubic.jl")
+	export CubicLattice
+
+	include("lattices/ALPS.jl")
+	export ALPSLattice
+end
+using .Lattices
+
+module MCm
+	using MonteCarloObservable
+	using Parameters
+	using ..Lattices
+	include("helpers.jl")
+	include("abstract.jl")
+
+	include("flavors/MC/MC.jl")
+
+	export reset!
+	export run!
+	export MC
+end
+using .MCm
+
+module DQMCm
+	using MonteCarloObservable
+	using Parameters
+	using ..Lattices
+	include("helpers.jl")
+	include("abstract.jl")
+
+	include("flavors/DQMC/DQMC.jl")
+
+	export reset!
+	export run!
+	export DQMC
+end
+using .DQMCm
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
