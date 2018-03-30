@@ -1,9 +1,9 @@
 module MonteCarlo
-using MonteCarloObservable
+
+using Reexport
+@reexport using MonteCarloObservable
 using LightXML
 using Parameters
-
-const Int = Int64 # hack for win32
 
 include("helpers.jl")
 include("abstract.jl")
