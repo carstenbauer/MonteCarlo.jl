@@ -50,4 +50,4 @@ pages:
   - Interfaces:
     - MC: interfaces/MC.md
     - DQMC: interfaces/DQMC.md
-    - General: methods/general.md
+  - General exports: methods/general.md

@@ -20,7 +20,7 @@ Calculates the hopping matrix \$T_{i\\sigma, j\\sigma '}\$ where \$i, j\$ are si
 are flavor indices (e.g. spin indices). The hopping matrix should also contain
 potential chemical potential terms on the diagonal.
 
-A matrix element is the hopping amplitude for a hopping process: \$ j,\\sigma ' \\rightarrow i,\\sigma \$.
+A matrix element is the hopping amplitude for a hopping process: \$j,\\sigma ' \\rightarrow i,\\sigma\$.
 
 Regarding the order of indices, if `T[i, σ, j, σ']` is your desired 4D hopping array, then `reshape(T, (n_sites * n_flavors, :))`
 is the hopping matrix.
