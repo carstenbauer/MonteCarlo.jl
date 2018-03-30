@@ -520,20 +520,20 @@
   </li>
 
         
-          
-          
-          
+      </ul>
+    </nav>
+  </li>
+
+    
+      
+      
+      
 
 
   <li class="md-nav__item">
-    <a href="../../methods/general/" title="General" class="md-nav__link">
-      General
+    <a href="../../methods/general/" title="General exports" class="md-nav__link">
+      General exports
     </a>
-  </li>
-
-        
-      </ul>
-    </nav>
   </li>
 
     
@@ -612,7 +612,7 @@
 <h2 id="mandatory-fields">Mandatory fields</h2>
 <ul>
 <li><code>l::Lattice</code>: any <a href="../../lattices/#Lattices-1"><code>Lattice</code></a></li>
-<li><code>flv::Int</code>: number of distinct fermion flavors (e.g. spins, bands, etc.). The Green's function will have shape <code>(flv*N, flv*N)</code>, where <code>N</code> is the number of sites. Note that different fermion flavors are often related by symmetry and it's advisable to use this symmetry to work with smaller Green's function matrices. Have a look at the <a href="../../models/hubbardattractive/#Attractive-Hubbard-Model-1">Attractive Hubbard Model</a> as an example where <code>flv=1</code> although we have spinful fermions.</li>
+<li><code>flv::Int</code>: number of distinct fermion flavors (e.g. spins, bands, etc.). The Green's function will have shape <code>(flv*N, flv*N)</code>, where <code>N</code> is the number of sites. Note that different fermion flavors are often related by symmetry and it's advisable to use this symmetry to work with smaller Green's function matrices. Have a look at the <a href="../../models/hubbardattractive/#Attractive-Hubbard-Model-1">Attractive Hubbard Model</a> as an example where <code>flv=1</code> although it has spinful fermions.</li>
 </ul>
 <p><a id='Index-of-all-methods-1'></a></p>
 <h2 id="index-of-all-methods">Index of all methods</h2>
@@ -638,7 +638,7 @@
 
 
 <p>Returns the type of a configuration.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/55230336eb6db0424a9d1c73cf2f70e514774c16/src/flavors/DQMC/DQMC_mandatory.jl#L1-L5' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/DQMC/DQMC_mandatory.jl#L1-L5' class='documenter-source'>source</a><br></p>
 <p><a id='Base.Random.rand-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}' href='#Base.Random.rand-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}'>#</a>
 <strong><code>Base.Random.rand</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span>rand(mc::DQMC, m::Model)
@@ -646,7 +646,7 @@
 
 
 <p>Draw random configuration.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/55230336eb6db0424a9d1c73cf2f70e514774c16/src/flavors/DQMC/DQMC_mandatory.jl#L9-L13' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/DQMC/DQMC_mandatory.jl#L9-L13' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.hopping_matrix-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}' href='#MonteCarlo.hopping_matrix-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}'>#</a>
 <strong><code>MonteCarlo.hopping_matrix</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span>hopping_matrix(mc::DQMC, m::Model)
@@ -654,9 +654,9 @@
 
 
 <p>Calculates the hopping matrix <span><span class="MathJax_Preview">T_{i\sigma, j\sigma '}</span><script type="math/tex">T_{i\sigma, j\sigma '}</script></span> where <span><span class="MathJax_Preview">i, j</span><script type="math/tex">i, j</script></span> are site indices and <span><span class="MathJax_Preview">\sigma , \sigma '</span><script type="math/tex">\sigma , \sigma '</script></span> are flavor indices (e.g. spin indices). The hopping matrix should also contain potential chemical potential terms on the diagonal.</p>
-<p>A matrix element is the hopping amplitude for a hopping process: $ j,\sigma ' \rightarrow i,\sigma $.</p>
+<p>A matrix element is the hopping amplitude for a hopping process: <span><span class="MathJax_Preview">j,\sigma ' \rightarrow i,\sigma</span><script type="math/tex">j,\sigma ' \rightarrow i,\sigma</script></span>.</p>
 <p>Regarding the order of indices, if <code>T[i, σ, j, σ']</code> is your desired 4D hopping array, then <code>reshape(T, (n_sites * n_flavors, :))</code> is the hopping matrix.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/55230336eb6db0424a9d1c73cf2f70e514774c16/src/flavors/DQMC/DQMC_mandatory.jl#L16-L27' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/DQMC/DQMC_mandatory.jl#L16-L27' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.interaction_matrix_exp!' href='#MonteCarlo.interaction_matrix_exp!'>#</a>
 <strong><code>MonteCarlo.interaction_matrix_exp!</code></strong> &mdash; <em>Function</em>.</p>
 <div class="codehilite"><pre><span></span>interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.) -&gt; nothing
@@ -665,7 +665,7 @@
 
 <p>Calculate the interaction matrix exponential <code>expV = exp(- power * delta_tau * V(slice))</code> and store it in <code>result::Matrix</code>. Potential chemical potential terms should be part of the <code>hopping_matrix</code> and not the interaction.</p>
 <p>This is a performance critical method and one might consider efficient in-place (in <code>result</code>) construction.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/55230336eb6db0424a9d1c73cf2f70e514774c16/src/flavors/DQMC/DQMC_mandatory.jl#L30-L38' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/DQMC/DQMC_mandatory.jl#L30-L38' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.propose_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Any,Float64}' href='#MonteCarlo.propose_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Any,Float64}'>#</a>
 <strong><code>MonteCarlo.propose_local</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="nx">propose_local</span><span class="p">(</span><span class="nx">mc</span><span class="nl">::DQMC</span><span class="p">,</span> <span class="nx">m</span><span class="nl">::Model</span><span class="p">,</span> <span class="nx">i</span><span class="nl">::Int</span><span class="p">,</span> <span class="nx">conf</span><span class="p">,</span> <span class="nx">E_boson</span><span class="nl">::Float64</span><span class="p">)</span> <span class="o">-&gt; </span><span class="nx nx-Member">detratio</span><span class="p">,</span> <span class="nx">delta_E_boson</span><span class="p">,</span> <span class="nx">delta</span>
@@ -674,7 +674,7 @@
 
 <p>Propose a local move for lattice site <code>i</code> of current configuration <code>conf</code> with boson energy <code>E_boson</code>. Returns the Green's function determinant ratio, the boson energy difference <code>delta_E_boson = delta_E_boson_new - delta_E_boson</code>, and additional local move information <code>delta</code> (will be forwarded to <code>accept_local!</code>).</p>
 <p>See also <a href="../MC/#MonteCarlo.accept_local!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64,Any,Float64}"><code>accept_local!</code></a>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/55230336eb6db0424a9d1c73cf2f70e514774c16/src/flavors/DQMC/DQMC_mandatory.jl#L42-L52' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/DQMC/DQMC_mandatory.jl#L42-L52' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.accept_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Int64,Any,Any,Any,Any}' href='#MonteCarlo.accept_local-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Int64,Int64,Any,Any,Any,Any}'>#</a>
 <strong><code>MonteCarlo.accept_local</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="nx">accept_local</span><span class="p">(</span><span class="nx">mc</span><span class="nl">::DQMC</span><span class="p">,</span> <span class="nx">m</span><span class="nl">::Model</span><span class="p">,</span> <span class="nx">i</span><span class="nl">::Int</span><span class="p">,</span> <span class="nx">slice</span><span class="nl">::Int</span><span class="p">,</span> <span class="nx">conf</span><span class="p">,</span> <span class="nx">delta</span><span class="p">,</span> <span class="nx">detratio</span><span class="p">,</span> <span class="nx">delta_E_boson</span><span class="p">)</span>
@@ -683,7 +683,7 @@
 
 <p>Accept a local move for site <code>i</code> at imaginary time slice <code>slice</code> of current configuration <code>conf</code> with energy <code>E</code>. Arguments <code>delta</code>, <code>detratio</code> and <code>delta_E_boson</code> correspond to output of <code>propose_local()</code> for that local move.</p>
 <p>See also <a href="../MC/#MonteCarlo.propose_local-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64}"><code>propose_local</code></a>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/55230336eb6db0424a9d1c73cf2f70e514774c16/src/flavors/DQMC/DQMC_mandatory.jl#L55-L63' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/DQMC/DQMC_mandatory.jl#L55-L63' class='documenter-source'>source</a><br></p>
 <p><a id='Optional-methods-1'></a></p>
 <h2 id="optional-methods">Optional methods</h2>
 <p><a id='MonteCarlo.greenseltype-Tuple{Type{MonteCarlo.DQMC},MonteCarlo.Model}' href='#MonteCarlo.greenseltype-Tuple{Type{MonteCarlo.DQMC},MonteCarlo.Model}'>#</a>
@@ -693,7 +693,7 @@
 
 
 <p>Returns the type of the elements of the Green's function matrix. Defaults to <code>Complex128</code>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/55230336eb6db0424a9d1c73cf2f70e514774c16/src/flavors/DQMC/DQMC_optional.jl#L1-L5' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/DQMC/DQMC_optional.jl#L1-L5' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.energy_boson-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Any}' href='#MonteCarlo.energy_boson-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Any}'>#</a>
 <strong><code>MonteCarlo.energy_boson</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span>energy(mc::DQMC, m::Model, conf)
@@ -701,7 +701,7 @@
 
 
 <p>Calculate bosonic part (non-Green's function determinant part) of energy for configuration <code>conf</code> for Model <code>m</code>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/55230336eb6db0424a9d1c73cf2f70e514774c16/src/flavors/DQMC/DQMC_optional.jl#L8-L12' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/DQMC/DQMC_optional.jl#L8-L12' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.prepare_observables-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}' href='#MonteCarlo.prepare_observables-Tuple{MonteCarlo.DQMC,MonteCarlo.Model}'>#</a>
 <strong><code>MonteCarlo.prepare_observables</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span>prepare_observables(mc::DQMC, m::Model) -&gt; Dict{String, Observable}
@@ -710,7 +710,7 @@
 
 <p>Initializes observables and returns a <code>Dict{String, Observable}</code>. In the latter, keys are abbreviations for the observables names and values are the observables themselves.</p>
 <p>See also <a href="../MC/#MonteCarlo.measure_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}"><code>measure_observables!</code></a> and <a href="../MC/#MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}"><code>finish_observables!</code></a>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/55230336eb6db0424a9d1c73cf2f70e514774c16/src/flavors/DQMC/DQMC_optional.jl#L15-L22' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/DQMC/DQMC_optional.jl#L15-L22' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.measure_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any}' href='#MonteCarlo.measure_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any}'>#</a>
 <strong><code>MonteCarlo.measure_observables!</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span>measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf)
@@ -719,7 +719,7 @@
 
 <p>Measures observables and updates corresponding <code>MonteCarloObservable.Observable</code> objects in <code>obs</code>.</p>
 <p>See also <a href="../MC/#MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}"><code>prepare_observables</code></a> and <a href="../MC/#MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}"><code>finish_observables!</code></a>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/55230336eb6db0424a9d1c73cf2f70e514774c16/src/flavors/DQMC/DQMC_optional.jl#L25-L31' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/DQMC/DQMC_optional.jl#L25-L31' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.finish_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}' href='#MonteCarlo.finish_observables!-Tuple{MonteCarlo.DQMC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}'>#</a>
 <strong><code>MonteCarlo.finish_observables!</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span>finish_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable})
@@ -728,7 +728,7 @@
 
 <p>Finish measurements of observables.</p>
 <p>See also <a href="../MC/#MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}"><code>prepare_observables</code></a> and <a href="../MC/#MonteCarlo.measure_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}"><code>measure_observables!</code></a>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/55230336eb6db0424a9d1c73cf2f70e514774c16/src/flavors/DQMC/DQMC_optional.jl#L34-L40' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/DQMC/DQMC_optional.jl#L34-L40' class='documenter-source'>source</a><br></p>
                 
                   
                 
@@ -764,13 +764,13 @@
           </a>
         
         
-          <a href="../../methods/general/" title="General" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
+          <a href="../../methods/general/" title="General exports" class="md-flex md-footer-nav__link md-footer-nav__link--next" rel="next">
             <div class="md-flex__cell md-flex__cell--stretch md-footer-nav__title">
               <span class="md-flex__ellipsis">
                 <span class="md-footer-nav__direction">
                   Next
                 </span>
-                General
+                General exports
               </span>
             </div>
             <div class="md-flex__cell md-flex__cell--shrink">
