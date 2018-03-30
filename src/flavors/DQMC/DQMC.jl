@@ -26,8 +26,10 @@ Parameters of determinant quantum Monte Carlo (DQMC)
     safe_mult::Int = 10
 
     delta_tau::Float64 = 0.1
-    slices::Int = -1
     beta::Float64
+    slices::Int = beta / delta_tau
+    @assert isinteger(beta / delta_tau) "beta/delta_tau (= number of imaginary time slices) must be an integer
+                but is $(beta / delta_tau)."
 
     measure_every_nth::Int = 10
 end
@@ -65,13 +67,6 @@ function DQMC(m::M; seed::Int=-1, checkerboard::Bool=false, kwargs...) where M<:
     # default params
     # paramskwargs = filter(kw->kw[1] in fieldnames(DQMCParameters), kwargs)
     mc.p = DQMCParameters(; kwargs...)
-
-    try
-        mc.p.slices = mc.p.beta / mc.p.delta_tau
-    catch
-        error("beta/delta_tau (= number of imaginary time slices) must be an integer
-                but is $(mc.p.beta / mc.p.delta_tau).")
-    end
 
     mc.s = DQMCStack{geltype,Float64}()
 
@@ -268,10 +263,10 @@ function greens(mc::DQMC_CBTrue)
     greens = copy(mc.s.greens)
 
     @inbounds @views begin
-        for i in reverse(1:s.n_groups)
+        for i in reverse(1:mc.s.n_groups)
           greens .= greens * chkr_hop_half_minus[i]
         end
-        for i in reverse(1:s.n_groups)
+        for i in reverse(1:mc.s.n_groups)
           greens .= chkr_hop_half_plus[i] * greens
         end
     end
