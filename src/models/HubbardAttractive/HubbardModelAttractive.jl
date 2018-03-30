@@ -1,7 +1,5 @@
 const HubbardConf = Array{Int8, 2} # conf === hsfield === discrete Hubbard Stratonovich field (Hirsch field)
-const HubbardConfs = Array{Int8, 3}
 const HubbardDistribution = Int8[-1,1]
-const HubbardGreens = Complex{Float64}
 
 """
 Famous attractive (negative U) Hubbard model on a cubic lattice.
@@ -148,7 +146,7 @@ end
 """
 	hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
 
-Calculates the hopping matrix \$ T_{i, j} \$ where \$ i, j \$ are
+Calculates the hopping matrix \$T_{i, j}\$ where \$i, j\$ are
 site indices.
 
 Note that since we have a time reversal symmetry relating spin-up

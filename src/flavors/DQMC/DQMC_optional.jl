@@ -23,18 +23,18 @@ See also [`measure_observables!`](@ref) and [`finish_observables!`](@ref).
 prepare_observables(mc::DQMC, m::Model) = Dict{String, Observable}()
 
 """
-    measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)
+    measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf)
 
 Measures observables and updates corresponding `MonteCarloObservable.Observable` objects in `obs`.
 
 See also [`prepare_observables`](@ref) and [`finish_observables!`](@ref).
 """
-measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf, E::Float64) = nothing
+measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf) = nothing
 
 """
-    measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)
+    finish_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable})
 
-Measure observables and update corresponding `MonteCarloObservable.Observable` objects in `obs`.
+Finish measurements of observables.
 
 See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 """

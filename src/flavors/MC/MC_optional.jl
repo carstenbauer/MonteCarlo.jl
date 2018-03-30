@@ -26,9 +26,9 @@ See also [`prepare_observables`](@ref) and [`finish_observables!`](@ref).
 measure_observables!(mc::MC, m::Model, obs::Dict{String,Observable}, conf, E::Float64) = nothing
 
 """
-    measure_observables!(mc::MC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)
+    finish_observables!(mc::MC, m::Model, obs::Dict{String,Observable})
 
-Measure observables and update corresponding `MonteCarloObservable.Observable` objects in `obs`.
+Finish measurements of observables.
 
 See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 """

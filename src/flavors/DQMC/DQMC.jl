@@ -114,10 +114,10 @@ function init!(mc::DQMC; seed::Real=-1)
     mc.conf = rand(mc, mc.model)
     mc.energy_boson = energy_boson(mc, mc.model, mc.conf)
 
-    mc.obs = prepare_observables(mc, mc.model)
-
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc)
+
+    mc.obs = prepare_observables(mc, mc.model)
 
     mc.a = DQMCAnalysis()
     nothing
@@ -153,7 +153,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
             update(mc, i)
 
             if i > mc.p.thermalization && mc.s.current_slice == mc.p.slices && mc.s.direction == -1 && (i-1)%mc.p.measure_every_nth == 0 # measure criterium
-                measure_observables!(mc, mc.model, mc.obs, mc.conf, mc.energy_boson)
+                measure_observables!(mc, mc.model, mc.obs, mc.conf)
             end
         end
 
@@ -253,27 +253,30 @@ this effective one to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
 function greens(mc::DQMC_CBFalse)
-    const eThalf = mc.s.hopping_matrix_exp
-    const eThalfinv = mc.s.hopping_matrix_exp_inv
+    const eThalfminus = mc.s.hopping_matrix_exp
+    const eThalfplus = mc.s.hopping_matrix_exp_inv
 
     greens = copy(mc.s.greens)
-    greens .= greens * eThalf
-    greens .= eThalfinv * greens
+    greens .= greens * eThalfminus
+    greens .= eThalfplus * greens
     return greens
 end
-# TODO!
-# function greens(mc::DQMC_CBTrue)
-#     const chkr_hop_half = mc.s.chkr_hop_half
-#     const chkr_hop_half_inv = mc.s.chkr_hop_half_inv
+function greens(mc::DQMC_CBTrue)
+    const chkr_hop_half_minus = mc.s.chkr_hop_half
+    const chkr_hop_half_plus = mc.s.chkr_hop_half_inv
 
-#     greens = copy(mc.s.greens)
+    greens = copy(mc.s.greens)
 
-#     greens .= greens * chkr_hop_half[2]
-#     greens .= greens * chkr_hop_half[1]
-#     greens .= chkr_hop_half_inv[2] * greens
-#     greens .= chkr_hop_half_inv[1] * greens
-#     return greens
-# end
+    @inbounds @views begin
+        for i in reverse(1:s.n_groups)
+          greens .= greens * chkr_hop_half_minus[i]
+        end
+        for i in reverse(1:s.n_groups)
+          greens .= chkr_hop_half_plus[i] * greens
+        end
+    end
+    return greens
+end
 
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")

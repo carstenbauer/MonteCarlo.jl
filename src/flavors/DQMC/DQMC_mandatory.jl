@@ -16,7 +16,7 @@ rand(mc::DQMC, m::Model) = error("Model has no implementation of `rand(mc::DQMC,
 """
 	hopping_matrix(mc::DQMC, m::Model)
 
-Calculates the hopping matrix \$ T_{i\\sigma, j\\sigma '} \$ where \$ i, j \$ are site indices and \$ \\sigma , \\sigma ' \$
+Calculates the hopping matrix \$T_{i\\sigma, j\\sigma '}\$ where \$i, j\$ are site indices and \$\\sigma , \\sigma '\$
 are flavor indices (e.g. spin indices). The hopping matrix should also contain
 potential chemical potential terms on the diagonal.
 

@@ -60,7 +60,7 @@ prepare_observables(mc::DQMC, m::Model)
 ```
 
 ```@docs
-measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)
+measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf)
 ```
 
 ```@docs
