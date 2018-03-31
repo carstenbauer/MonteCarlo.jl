@@ -1,13 +1,25 @@
-# Documentation
+# Introduction
 
-This is a package for numerically simulating physical systems in Julia. The purpose of this package is to supply efficient Julia implementations of Monte Carlo flavors for the study of physical models of spins, bosons and/or fermions. Examples that ship with the package are
+**MonteCarlo.jl** is a Julia software library for the simulation of physical models by means of the Markov Chain Monte Carlo technique. The package implements classical and quantum Monte Carlo flavors which can be used to study spin systems, interacting fermions, and boson-fermion mixtures.
 
-* Ising spin model simulated by Monte Carlo
-* Fermionic Hubbard model simulated by variants of determinant quantum Monte Carlo
+### Included models:
+
+* Ising model
+* Attractive Hubbard model
+
+### Included Monte Carlo flavors
+
+* Classical Monte Carlo
+* Determinant Quantum Monte Carlo (also known as auxiliary field Monte Carlo)
+
+### Included lattices
+
+* Cubic lattices (chain, square, cube, ...)
+* Any ALPS lattice
 
 ## Installation
 
-To install the package execute the following command in the REPL:
+MonteCarlo.jl hasn't been released yet. To install the package execute the following command in the Julia REPL:
 ```julia
 Pkg.clone("https://github.com/crstnbr/MonteCarlo.jl")
 ```
