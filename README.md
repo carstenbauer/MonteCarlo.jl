@@ -1,4 +1,4 @@
-# MonteCarlo.jl
+![logo](https://github.com/crstnbr/MonteCarlo.jl/blob/master/docs/src/assets/logo.png)
 
 [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://crstnbr.github.io/MonteCarlo.jl/latest)
 [![travis][travis-img]](https://travis-ci.org/crstnbr/MonteCarlo.jl)
@@ -9,18 +9,18 @@
 [appveyor-img]: https://img.shields.io/appveyor/ci/crstnbr/montecarlo-jl/master.svg?label=Windows
 [codecov-img]: https://img.shields.io/codecov/c/github/crstnbr/MonteCarlo.jl/master.svg?label=codecov
 
-This is a package for numerically simulating physical systems in Julia. The purpose of this package is to supply efficient Julia implementations of Monte Carlo flavors for the study of physical models of spins, bosons and/or fermions. Examples that ship with the package are
 
-* Ising spin model simulated by Monte Carlo
-* Fermionic Hubbard model simulated by variants of determinant quantum Monte Carlo
+MonteCarlo.jl is a Julia software library for the simulation of physical models by means of the Markov Chain Monte Carlo technique. The package implements classical and quantum Monte Carlo flavors which can be used to study spin systems, interacting fermions, and boson-fermion mixtures.
+
+Look at the [documentation](https://crstnbr.github.io/MonteCarlo.jl/latest/) for more information.
+
+## Installation
 
 In Julia REPL:
 ```julia
 Pkg.clone("https://github.com/crstnbr/MonteCarlo.jl")
 using MonteCarlo
 ```
-
-Look at the [documentation](https://crstnbr.github.io/MonteCarlo.jl/latest/) for more information.
 
 ## Authors
 
