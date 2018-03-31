@@ -125,7 +125,7 @@
                 MonteCarlo.jl
               </span>
               <span class="md-header-nav__topic">
-                Home
+                Introduction
               </span>
             
           
@@ -251,11 +251,11 @@
     
     
       <label class="md-nav__link md-nav__link--active" for="toc">
-        Home
+        Introduction
       </label>
     
-    <a href="." title="Home" class="md-nav__link md-nav__link--active">
-      Home
+    <a href="." title="Introduction" class="md-nav__link md-nav__link--active">
+      Introduction
     </a>
     
       
@@ -289,13 +289,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#installation" title="Installation" class="md-nav__link">
-    Installation
-  </a>
-  
-</li>
-      
       
       
       
@@ -312,46 +305,22 @@
       
 
 
-  <li class="md-nav__item md-nav__item--nested">
-    
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-2" type="checkbox" id="nav-2">
-    
-    <label class="md-nav__link" for="nav-2">
-      Manual
-    </label>
-    <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
-      <label class="md-nav__title" for="nav-2">
-        Manual
-      </label>
-      <ul class="md-nav__list" data-md-scrollfix>
-        
-        
-          
-          
-          
-
-
   <li class="md-nav__item">
     <a href="manual/gettingstarted/" title="Getting started" class="md-nav__link">
       Getting started
     </a>
   </li>
 
-        
-          
-          
-          
+    
+      
+      
+      
 
 
   <li class="md-nav__item">
-    <a href="manual/examples/" title="Examples" class="md-nav__link">
-      Examples
+    <a href="manual/showcase/" title="Showcase" class="md-nav__link">
+      Showcase
     </a>
-  </li>
-
-        
-      </ul>
-    </nav>
   </li>
 
     
@@ -362,13 +331,13 @@
 
   <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-3" type="checkbox" id="nav-3">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
     
-    <label class="md-nav__link" for="nav-3">
+    <label class="md-nav__link" for="nav-4">
       Physical models
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
-      <label class="md-nav__title" for="nav-3">
+      <label class="md-nav__title" for="nav-4">
         Physical models
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
@@ -410,13 +379,13 @@
 
   <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-4" type="checkbox" id="nav-4">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-5" type="checkbox" id="nav-5">
     
-    <label class="md-nav__link" for="nav-4">
+    <label class="md-nav__link" for="nav-5">
       Monte Carlo flavors
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
-      <label class="md-nav__title" for="nav-4">
+      <label class="md-nav__title" for="nav-5">
         Monte Carlo flavors
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
@@ -482,13 +451,13 @@
 
   <li class="md-nav__item md-nav__item--nested">
     
-      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-7" type="checkbox" id="nav-7">
+      <input class="md-toggle md-nav__toggle" data-md-toggle="nav-8" type="checkbox" id="nav-8">
     
-    <label class="md-nav__link" for="nav-7">
+    <label class="md-nav__link" for="nav-8">
       Interfaces
     </label>
     <nav class="md-nav" data-md-component="collapsible" data-md-level="1">
-      <label class="md-nav__title" for="nav-7">
+      <label class="md-nav__title" for="nav-8">
         Interfaces
       </label>
       <ul class="md-nav__list" data-md-scrollfix>
@@ -576,13 +545,6 @@
   
 </li>
       
-        <li class="md-nav__item">
-  <a href="#installation" title="Installation" class="md-nav__link">
-    Installation
-  </a>
-  
-</li>
-      
       
       
       
@@ -624,19 +586,15 @@
 <li>Cubic lattices (chain, square, cube, ...)</li>
 <li>Any ALPS lattice</li>
 </ul>
-<p><a id='Installation-1'></a></p>
-<h2 id="installation">Installation</h2>
-<p>MonteCarlo.jl hasn't been released yet. To install the package execute the following command in the Julia REPL:</p>
-<div class="codehilite"><pre><span></span><span class="n">Pkg</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="s">&quot;https://github.com/crstnbr/MonteCarlo.jl&quot;</span><span class="p">)</span>
-</pre></div>
-
-
-<p>Afterwards, you can use <code>MonteCarlo.jl</code> like any other package installed with <code>Pkg.add()</code>:</p>
-<div class="codehilite"><pre><span></span><span class="k">using</span> <span class="n">MonteCarlo</span>
-</pre></div>
-
-
-<p>To obtain the latest version of the package just do <code>Pkg.update()</code> or specifically <code>Pkg.update("MonteCarlo")</code>.</p>
+<p>Have a look at the <a href="manual/showcase/#Showcase-1">Showcase</a> section to get some inspiration. </p>
+<p><a id='Study-your-own-model-1'></a></p>
+<h1 id="study-your-own-model">Study your own model</h1>
+<p>A major idea behind the design of the package is convenient customization. Users should be able to define their own custom physical models (or extend existing ones) and explore their physics through Monte Carlo simulations. We hope that <strong>MonteCarlo.jl</strong> allows the user to put his focus on his physical model rather than tedious implementations of Monte Carlo schemes.</p>
+<p>To that end, each (quantum) Monte Carlo flavor has a well-defined model interfaces, i.e. a precise specification of mandatory and optional fields and methods. An example can be found here: <a href="interfaces/MC/#Interface:-Monte-Carlo-(MC)-1">Interface: Monte Carlo (MC)</a>. Practically, it makes sense to start by taking a look at the implementation of one of the predefined models.</p>
+<p>If you implement a custom model that might be worth being added to the collection of supplied models, please consider creating a <a href="https://github.com/crstnbr/MonteCarlo.jl/pulls">pull request</a>!</p>
+<p><a id='GitHub-1'></a></p>
+<h1 id="github">GitHub</h1>
+<p><strong>MonteCarlo.jl</strong> is <a href="https://en.wikipedia.org/wiki/Open-source_software">open-source</a>. The source code can be found on <a href="https://github.com/crstnbr/MonteCarlo.jl">github</a>. Criticism and contributions are very much welcome - just <a href="https://github.com/crstnbr/MonteCarlo.jl/issues/new">open an issue</a>. For more details see the <a href="./Contribution Guide">Contribution Guide</a>.</p>
                 
                   
                 
