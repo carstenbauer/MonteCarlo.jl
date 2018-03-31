@@ -99,7 +99,7 @@
     <input class="md-toggle" data-md-toggle="search" type="checkbox" id="search" autocomplete="off">
     <label class="md-overlay" data-md-component="overlay" for="drawer"></label>
     
-      <a href="#documentation" tabindex="1" class="md-skip">
+      <a href="#introduction" tabindex="1" class="md-skip">
         Skip to content
       </a>
     
@@ -267,6 +267,27 @@
   
     <label class="md-nav__title" for="toc">Table of contents</label>
     <ul class="md-nav__list" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#included-models" title="Included models:" class="md-nav__link">
+    Included models:
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#included-monte-carlo-flavors" title="Included Monte Carlo flavors" class="md-nav__link">
+    Included Monte Carlo flavors
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#included-lattices" title="Included lattices" class="md-nav__link">
+    Included lattices
+  </a>
+  
+</li>
       
         <li class="md-nav__item">
   <a href="#installation" title="Installation" class="md-nav__link">
@@ -535,6 +556,27 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#included-models" title="Included models:" class="md-nav__link">
+    Included models:
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#included-monte-carlo-flavors" title="Included Monte Carlo flavors" class="md-nav__link">
+    Included Monte Carlo flavors
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#included-lattices" title="Included lattices" class="md-nav__link">
+    Included lattices
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#installation" title="Installation" class="md-nav__link">
     Installation
   </a>
@@ -560,16 +602,31 @@
                   <a href="https://github.com/crstnbr/MonteCarlo.jl/edit/master/docs/index.md" title="Edit this page" class="md-icon md-content__icon">&#xE3C9;</a>
                 
                 
-                <p><a id='Documentation-1'></a></p>
-<h1 id="documentation">Documentation</h1>
-<p>This is a package for numerically simulating physical systems in Julia. The purpose of this package is to supply efficient Julia implementations of Monte Carlo flavors for the study of physical models of spins, bosons and/or fermions. Examples that ship with the package are</p>
+                <p><img alt="logo" src="./assets/logo.png" /></p>
+<p><a id='Introduction-1'></a></p>
+<h1 id="introduction">Introduction</h1>
+<p><strong>MonteCarlo.jl</strong> is a Julia software library for the simulation of physical models by means of the Markov Chain Monte Carlo technique. The package implements classical and quantum Monte Carlo flavors which can be used to study spin systems, interacting fermions, and boson-fermion mixtures.</p>
+<p><a id='Included-models:-1'></a></p>
+<h3 id="included-models">Included models:</h3>
 <ul>
-<li>Ising spin model simulated by Monte Carlo</li>
-<li>Fermionic Hubbard model simulated by variants of determinant quantum Monte Carlo</li>
+<li>Ising model</li>
+<li>Attractive Hubbard model</li>
+</ul>
+<p><a id='Included-Monte-Carlo-flavors-1'></a></p>
+<h3 id="included-monte-carlo-flavors">Included Monte Carlo flavors</h3>
+<ul>
+<li>Classical Monte Carlo</li>
+<li>Determinant Quantum Monte Carlo (also known as auxiliary field Monte Carlo)</li>
+</ul>
+<p><a id='Included-lattices-1'></a></p>
+<h3 id="included-lattices">Included lattices</h3>
+<ul>
+<li>Cubic lattices (chain, square, cube, ...)</li>
+<li>Any ALPS lattice</li>
 </ul>
 <p><a id='Installation-1'></a></p>
 <h2 id="installation">Installation</h2>
-<p>To install the package execute the following command in the REPL:</p>
+<p>MonteCarlo.jl hasn't been released yet. To install the package execute the following command in the Julia REPL:</p>
 <div class="codehilite"><pre><span></span><span class="n">Pkg</span><span class="o">.</span><span class="n">clone</span><span class="p">(</span><span class="s">&quot;https://github.com/crstnbr/MonteCarlo.jl&quot;</span><span class="p">)</span>
 </pre></div>
 

@@ -2,17 +2,32 @@
     "docs": [
         {
             "location": "/", 
-            "text": "Documentation\n\n\nThis is a package for numerically simulating physical systems in Julia. The purpose of this package is to supply efficient Julia implementations of Monte Carlo flavors for the study of physical models of spins, bosons and/or fermions. Examples that ship with the package are\n\n\n\n\nIsing spin model simulated by Monte Carlo\n\n\nFermionic Hubbard model simulated by variants of determinant quantum Monte Carlo\n\n\n\n\n\n\nInstallation\n\n\nTo install the package execute the following command in the REPL:\n\n\nPkg\n.\nclone\n(\nhttps://github.com/crstnbr/MonteCarlo.jl\n)\n\n\n\n\n\n\nAfterwards, you can use \nMonteCarlo.jl\n like any other package installed with \nPkg.add()\n:\n\n\nusing\n \nMonteCarlo\n\n\n\n\n\n\nTo obtain the latest version of the package just do \nPkg.update()\n or specifically \nPkg.update(\"MonteCarlo\")\n.", 
+            "text": "Introduction\n\n\nMonteCarlo.jl\n is a Julia software library for the simulation of physical models by means of the Markov Chain Monte Carlo technique. The package implements classical and quantum Monte Carlo flavors which can be used to study spin systems, interacting fermions, and boson-fermion mixtures.\n\n\n\n\nIncluded models:\n\n\n\n\nIsing model\n\n\nAttractive Hubbard model\n\n\n\n\n\n\nIncluded Monte Carlo flavors\n\n\n\n\nClassical Monte Carlo\n\n\nDeterminant Quantum Monte Carlo (also known as auxiliary field Monte Carlo)\n\n\n\n\n\n\nIncluded lattices\n\n\n\n\nCubic lattices (chain, square, cube, ...)\n\n\nAny ALPS lattice\n\n\n\n\n\n\nInstallation\n\n\nMonteCarlo.jl hasn't been released yet. To install the package execute the following command in the Julia REPL:\n\n\nPkg\n.\nclone\n(\nhttps://github.com/crstnbr/MonteCarlo.jl\n)\n\n\n\n\n\n\nAfterwards, you can use \nMonteCarlo.jl\n like any other package installed with \nPkg.add()\n:\n\n\nusing\n \nMonteCarlo\n\n\n\n\n\n\nTo obtain the latest version of the package just do \nPkg.update()\n or specifically \nPkg.update(\"MonteCarlo\")\n.", 
             "title": "Home"
         }, 
         {
-            "location": "/#documentation", 
-            "text": "This is a package for numerically simulating physical systems in Julia. The purpose of this package is to supply efficient Julia implementations of Monte Carlo flavors for the study of physical models of spins, bosons and/or fermions. Examples that ship with the package are   Ising spin model simulated by Monte Carlo  Fermionic Hubbard model simulated by variants of determinant quantum Monte Carlo", 
-            "title": "Documentation"
+            "location": "/#introduction", 
+            "text": "MonteCarlo.jl  is a Julia software library for the simulation of physical models by means of the Markov Chain Monte Carlo technique. The package implements classical and quantum Monte Carlo flavors which can be used to study spin systems, interacting fermions, and boson-fermion mixtures.", 
+            "title": "Introduction"
+        }, 
+        {
+            "location": "/#included-models", 
+            "text": "Ising model  Attractive Hubbard model", 
+            "title": "Included models:"
+        }, 
+        {
+            "location": "/#included-monte-carlo-flavors", 
+            "text": "Classical Monte Carlo  Determinant Quantum Monte Carlo (also known as auxiliary field Monte Carlo)", 
+            "title": "Included Monte Carlo flavors"
+        }, 
+        {
+            "location": "/#included-lattices", 
+            "text": "Cubic lattices (chain, square, cube, ...)  Any ALPS lattice", 
+            "title": "Included lattices"
         }, 
         {
             "location": "/#installation", 
-            "text": "To install the package execute the following command in the REPL:  Pkg . clone ( https://github.com/crstnbr/MonteCarlo.jl )   Afterwards, you can use  MonteCarlo.jl  like any other package installed with  Pkg.add() :  using   MonteCarlo   To obtain the latest version of the package just do  Pkg.update()  or specifically  Pkg.update(\"MonteCarlo\") .", 
+            "text": "MonteCarlo.jl hasn't been released yet. To install the package execute the following command in the Julia REPL:  Pkg . clone ( https://github.com/crstnbr/MonteCarlo.jl )   Afterwards, you can use  MonteCarlo.jl  like any other package installed with  Pkg.add() :  using   MonteCarlo   To obtain the latest version of the package just do  Pkg.update()  or specifically  Pkg.update(\"MonteCarlo\") .", 
             "title": "Installation"
         }, 
         {

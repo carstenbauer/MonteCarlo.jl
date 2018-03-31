@@ -635,7 +635,7 @@
 
 
 <p>Returns the type of a configuration.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/MC/MC_mandatory.jl#L8-L12' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/249f94039fde45e880c8d0ab064cd293aea77b9f/src/flavors/MC/MC_mandatory.jl#L8-L12' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.energy-Tuple{MonteCarlo.MC,MonteCarlo.Model,Any}' href='#MonteCarlo.energy-Tuple{MonteCarlo.MC,MonteCarlo.Model,Any}'>#</a>
 <strong><code>MonteCarlo.energy</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span>energy(mc::MC, m::Model, conf)
@@ -643,7 +643,7 @@
 
 
 <p>Calculate energy of configuration <code>conf</code> for Model <code>m</code>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/MC/MC_mandatory.jl#L15-L19' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/249f94039fde45e880c8d0ab064cd293aea77b9f/src/flavors/MC/MC_mandatory.jl#L15-L19' class='documenter-source'>source</a><br></p>
 <p><a id='Base.Random.rand-Tuple{MonteCarlo.MC,MonteCarlo.Model}' href='#Base.Random.rand-Tuple{MonteCarlo.MC,MonteCarlo.Model}'>#</a>
 <strong><code>Base.Random.rand</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span>rand(mc::MC, m::Model)
@@ -651,7 +651,7 @@
 
 
 <p>Draw random configuration.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/MC/MC_mandatory.jl#L23-L27' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/249f94039fde45e880c8d0ab064cd293aea77b9f/src/flavors/MC/MC_mandatory.jl#L23-L27' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.propose_local-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64}' href='#MonteCarlo.propose_local-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64}'>#</a>
 <strong><code>MonteCarlo.propose_local</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="nx">propose_local</span><span class="p">(</span><span class="nx">mc</span><span class="nl">::MC</span><span class="p">,</span> <span class="nx">m</span><span class="nl">::Model</span><span class="p">,</span> <span class="nx">i</span><span class="nl">::Int</span><span class="p">,</span> <span class="nx">conf</span><span class="p">,</span> <span class="nx">E</span><span class="nl">::Float64</span><span class="p">)</span> <span class="o">-&gt; </span><span class="nx nx-Member">delta_E</span><span class="p">,</span> <span class="nx">delta_i</span>
@@ -660,7 +660,7 @@
 
 <p>Propose a local move for lattice site <code>i</code> of current configuration <code>conf</code> with energy <code>E</code>. Returns local move information <code>delta_i</code> (e.g. <code>new[i] - conf[i]</code>, will be forwarded to <code>accept_local!</code>) and energy difference <code>delta_E = E_new - E_old</code>.</p>
 <p>See also <a href="./#MonteCarlo.accept_local!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64,Any,Float64}"><code>accept_local!</code></a>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/MC/MC_mandatory.jl#L30-L39' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/249f94039fde45e880c8d0ab064cd293aea77b9f/src/flavors/MC/MC_mandatory.jl#L30-L39' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.accept_local!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64,Any,Float64}' href='#MonteCarlo.accept_local!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64,Any,Float64}'>#</a>
 <strong><code>MonteCarlo.accept_local!</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="nx">accept_local</span><span class="p">(</span><span class="nx">mc</span><span class="nl">::MC</span><span class="p">,</span> <span class="nx">m</span><span class="nl">::Model</span><span class="p">,</span> <span class="nx">i</span><span class="nl">::Int</span><span class="p">,</span> <span class="nx">conf</span><span class="p">,</span> <span class="nx">E</span><span class="nl">::Float64</span><span class="p">,</span> <span class="nx">delta_i</span><span class="p">,</span> <span class="nx">delta_E</span><span class="nl">::Float64</span><span class="p">)</span>
@@ -669,7 +669,7 @@
 
 <p>Accept a local move for site <code>i</code> of current configuration <code>conf</code> with energy <code>E</code>. Arguments <code>delta_i</code> and <code>delta_E</code> correspond to output of <code>propose_local()</code> for that local move.</p>
 <p>See also <a href="./#MonteCarlo.propose_local-Tuple{MonteCarlo.MC,MonteCarlo.Model,Int64,Any,Float64}"><code>propose_local</code></a>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/MC/MC_mandatory.jl#L42-L50' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/249f94039fde45e880c8d0ab064cd293aea77b9f/src/flavors/MC/MC_mandatory.jl#L42-L50' class='documenter-source'>source</a><br></p>
 <p><a id='Optional-methods-1'></a></p>
 <h2 id="optional-methods">Optional methods</h2>
 <p><a id='MonteCarlo.global_move-Tuple{MonteCarlo.MC,MonteCarlo.Model,Any,Float64}' href='#MonteCarlo.global_move-Tuple{MonteCarlo.MC,MonteCarlo.Model,Any,Float64}'>#</a>
@@ -679,7 +679,7 @@
 
 
 <p>Propose a global move for configuration <code>conf</code> with energy <code>E</code>. Returns wether the global move has been accepted or not.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/MC/MC_optional.jl#L1-L6' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/249f94039fde45e880c8d0ab064cd293aea77b9f/src/flavors/MC/MC_optional.jl#L1-L6' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}' href='#MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}'>#</a>
 <strong><code>MonteCarlo.prepare_observables</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span>prepare_observables(mc::MC, m::Model) -&gt; Dict{String, Observable}
@@ -688,7 +688,7 @@
 
 <p>Initializes observables and returns a <code>Dict{String, Observable}</code>. In the latter, keys are abbreviations for the observables names and values are the observables themselves.</p>
 <p>See also <a href="./#MonteCarlo.measure_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}"><code>measure_observables!</code></a> and <a href="./#MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}"><code>finish_observables!</code></a>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/MC/MC_optional.jl#L9-L16' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/249f94039fde45e880c8d0ab064cd293aea77b9f/src/flavors/MC/MC_optional.jl#L9-L16' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.measure_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}' href='#MonteCarlo.measure_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}'>#</a>
 <strong><code>MonteCarlo.measure_observables!</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span>measure_observables!(mc::MC, m::Model, obs::Dict{String,Observable}, conf, E::Float64)
@@ -697,7 +697,7 @@
 
 <p>Measures observables and updates corresponding <code>MonteCarloObservable.Observable</code> objects in <code>obs</code>.</p>
 <p>See also <a href="./#MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}"><code>prepare_observables</code></a> and <a href="./#MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}"><code>finish_observables!</code></a>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/MC/MC_optional.jl#L19-L25' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/249f94039fde45e880c8d0ab064cd293aea77b9f/src/flavors/MC/MC_optional.jl#L19-L25' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}' href='#MonteCarlo.finish_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable}}'>#</a>
 <strong><code>MonteCarlo.finish_observables!</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span>finish_observables!(mc::MC, m::Model, obs::Dict{String,Observable})
@@ -706,7 +706,7 @@
 
 <p>Finish measurements of observables.</p>
 <p>See also <a href="./#MonteCarlo.prepare_observables-Tuple{MonteCarlo.MC,MonteCarlo.Model}"><code>prepare_observables</code></a> and <a href="./#MonteCarlo.measure_observables!-Tuple{MonteCarlo.MC,MonteCarlo.Model,Dict{String,MonteCarloObservable.Observable},Any,Float64}"><code>measure_observables!</code></a>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/09390aae7d98b8d572591ad31c568f154eac4430/src/flavors/MC/MC_optional.jl#L28-L34' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/249f94039fde45e880c8d0ab064cd293aea77b9f/src/flavors/MC/MC_optional.jl#L28-L34' class='documenter-source'>source</a><br></p>
                 
                   
                 
