@@ -35,10 +35,9 @@ markdown_extensions:
 docs_dir: 'build'
 
 pages:
-  - Home: index.md
-  - Manual:
-    - Getting started: manual/gettingstarted.md
-    - Examples: manual/examples.md
+  - Introduction: index.md
+  - Getting started: manual/gettingstarted.md
+  - Showcase: manual/showcase.md
   - Physical models:
     - Ising Model: models/ising.md
     - Attractive Hubbard Model: models/hubbardattractive.md

@@ -1,4 +1,4 @@
-# Examples
+# Showcase
 
 ## 2D Ising model
 

@@ -1,13 +1,17 @@
-# Manual
+# Getting Started
 
-## Installation / Updating
+## Installation
 
-To install the package execute the following command in the REPL:
+**MonteCarlo.jl** hasn't yet been released. To clone the package execute the following command in the Julia REPL:
 ```julia
 Pkg.clone("https://github.com/crstnbr/MonteCarlo.jl")
 ```
 
-To obtain the latest version of the package just do `Pkg.update()` or specifically `Pkg.update("MonteCarlo")`.
+To update to the latest version of the package just do `Pkg.update()` or specifically `Pkg.update("MonteCarlo")`.
+
+!!! warning
+
+    The package is still in pre-alpha phase and shouldn't yet be used for production runs.
 
 ## Usage
 
@@ -36,9 +40,3 @@ plot(m)
 ```
 
 ![](../assets/ts_hist.png)
-
-## Create custom models
-
-Probably the most important idea underlying the package design is extensibility. Users should be able to define custom physical models and utilize already implemented Monte Carlo flavors to study them. To that end, all Monte Carlo flavors have rather well defined interfaces, that is specifications of mandatory and optional fields and methods, that the user must implement for any model that he wants to simulate. The definition of the interface for the above used Monte Carlo can for example be found here: [Interface: Monte Carlo (MC)](@ref). Practically, it is probably a good idea to start from a copy of one of the preimplemented models.
-
-We hope that MonteCarlo.jl allows the user to put his focus on the physical model rather than having to tediously implement general Monte Carlo schemes, often over and over again.
