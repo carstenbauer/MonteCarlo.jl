@@ -1,5 +1,6 @@
 site_name:        MonteCarlo.jl
 repo_url:         https://github.com/crstnbr/MonteCarlo.jl
+edit_uri:         edit/master/docs/src/
 site_description: Classical and quantum Monte Carlo simulations in Julia
 site_author:      Carsten Bauer
 
