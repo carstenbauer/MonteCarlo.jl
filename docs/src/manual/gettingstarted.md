@@ -19,7 +19,7 @@ This is a simple demontration of how to perform a Monte Carlo simulation of the 
 
 ```julia
 # load packages
-using MonteCarlo, MonteCarloObservable
+using MonteCarlo
 
 # load your model
 m = IsingModel(dims=2, L=8);
