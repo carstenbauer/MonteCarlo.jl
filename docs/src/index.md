@@ -21,7 +21,7 @@
 
 Have a look at the [Showcase](@ref) section to get some inspiration. 
 
-# Study your own model
+## Study your own model
 
 A major idea behind the design of the package is convenient customization. Users should be able to define their own custom physical models (or extend existing ones) and explore their physics through Monte Carlo simulations. We hope that **MonteCarlo.jl** allows the user to put his focus on his physical model rather than tedious implementations of Monte Carlo schemes.
 
@@ -29,7 +29,7 @@ To that end, each (quantum) Monte Carlo flavor has a well-defined model interfac
 
 If you implement a custom model that might be worth being added to the collection of supplied models, please consider creating a [pull request](https://github.com/crstnbr/MonteCarlo.jl/pulls)!
 
-# GitHub
+## GitHub
 
 **MonteCarlo.jl** is [open-source](https://en.wikipedia.org/wiki/Open-source_software). The source code can be found on [github](https://github.com/crstnbr/MonteCarlo.jl). Criticism and contributions are very much welcome - just [open an issue](https://github.com/crstnbr/MonteCarlo.jl/issues/new). For more details see the [Contribution Guide](Contribution Guide).
 
