@@ -4,6 +4,7 @@
 
 **MonteCarlo.jl** hasn't yet been released. To clone the package execute the following command in the Julia REPL:
 ```julia
+Pkg.clone("https://github.com/crstnbr/MonteCarloObservable.jl")
 Pkg.clone("https://github.com/crstnbr/MonteCarlo.jl")
 ```
 
