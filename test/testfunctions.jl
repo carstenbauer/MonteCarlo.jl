@@ -7,9 +7,9 @@ function calculate_slice_matrix_chain(mc::DQMC, start::Int, stop::Int, safe_mult
   @assert 0 < stop <= mc.p.slices
   @assert start <= stop
 
-  const flv = mc.model.flv
-  const N = mc.model.l.sites
-  const GreensType = geltype(mc)
+  flv = mc.model.flv
+  N = mc.model.l.sites
+  GreensType = geltype(mc)
 
   U = eye(GreensType, flv*N, flv*N)
   D = ones(Float64, flv*N)
@@ -39,9 +39,9 @@ function calculate_slice_matrix_chain_dagger(mc::DQMC, start::Int, stop::Int, sa
   @assert 0 < stop <= mc.p.slices
   @assert start <= stop
 
-  const flv = mc.model.flv
-  const N = mc.model.l.sites
-  const GreensType = geltype(mc)
+  flv = mc.model.flv
+  N = mc.model.l.sites
+  GreensType = geltype(mc)
 
   U = eye(GreensType, flv*N, flv*N)
   D = ones(Float64, flv*N)
@@ -67,9 +67,9 @@ end
 
 # Calculate G(slice) = [1+B(slice-1)...B(1)B(M) ... B(slice)]^(-1) and its singular values in a stable manner
 function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult)
-  const GreensType = geltype(mc)
-  const flv = mc.model.flv
-  const N = mc.model.l.sites
+  GreensType = geltype(mc)
+  flv = mc.model.flv
+  N = mc.model.l.sites
 
   # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
   Ur, Dr, Tr = calculate_slice_matrix_chain_dagger(mc,slice,mc.p.slices, safe_mult)
@@ -93,7 +93,7 @@ function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.s
   T = inv(t * T)
   U *= u
   U = ctranspose(U)
-  d = 1./d
+  d = 1. /d
 
   ldet = real(log(complex(det(U))) + sum(log.(d)) + log(complex(det(T))))
 

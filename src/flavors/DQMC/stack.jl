@@ -69,8 +69,10 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
 
 
   DQMCStack{GreensEltype, HoppingEltype}() where {GreensEltype<:Number, HoppingEltype<:Number} = begin
-    @assert isleaftype(GreensEltype);
-    @assert isleaftype(HoppingEltype);
+    # @assert isleaftype(GreensEltype);
+    # @assert isleaftype(HoppingEltype);
+    @assert isconcretetype(GreensEltype);
+    @assert isconcretetype(HoppingEltype);
     new()
   end
 end
@@ -83,10 +85,10 @@ heltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = heltype(S)
 
 # type initialization
 function initialize_stack(mc::DQMC)
-  const GreensEltype = geltype(mc)
-  const HoppingEltype = heltype(mc)
-  const N = mc.model.l.sites
-  const flv = mc.model.flv
+  GreensEltype = geltype(mc)
+  HoppingEltype = heltype(mc)
+  N = mc.model.l.sites
+  flv = mc.model.flv
 
   mc.s.eye_flv = eye(flv,flv)
   mc.s.eye_full = eye(flv*N,flv*N)
@@ -144,9 +146,9 @@ function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerbo
   nothing
 end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
-  const N = m.l.sites
-  const flv = m.flv
-  const dtau = mc.p.delta_tau
+  N = m.l.sites
+  flv = m.flv
+  dtau = mc.p.delta_tau
 
   T = hopping_matrix(mc, m)
   size(T) == (flv*N, flv*N) || error("Hopping matrix should have size "*
@@ -157,19 +159,19 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
 end
 
 # checkerboard
-rem_eff_zeros!(X::AbstractArray) = map!(e->abs.(e)<1e-15?zero(e):e,X,X)
+rem_eff_zeros!(X::AbstractArray) = map!(e -> abs.(e)<1e-15 ? zero(e) : e,X,X)
 function init_checkerboard_matrices(mc::DQMC, m::Model)
-  const s = mc.s
-  const l = m.l
-  const flv = m.flv
-  const H = heltype(mc)
-  const N = m.l.sites
-  const dtau = mc.p.delta_tau
-  const mu = m.mu
+  s = mc.s
+  l = m.l
+  flv = m.flv
+  H = heltype(mc)
+  N = m.l.sites
+  dtau = mc.p.delta_tau
+  mu = m.mu
 
   s.checkerboard, s.groups, s.n_groups = build_checkerboard(l)
-  const n_grps = s.n_groups
-  const cb = s.checkerboard
+  n_grps = s.n_groups
+  cb = s.checkerboard
 
   T = reshape(hopping_matrix(mc, m), (N, flv, N, flv))
 
@@ -275,7 +277,7 @@ function calculate_greens(mc::DQMC)
   mc.s.T = inv(mc.s.t * mc.s.T)
   mc.s.U *= mc.s.u
   mc.s.U = ctranspose(mc.s.U)
-  mc.s.d = 1./mc.s.d
+  mc.s.d = 1. /mc.s.d
 
   mc.s.greens = mc.s.T * spdiagm(mc.s.d) * mc.s.U
 end

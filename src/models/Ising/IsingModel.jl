@@ -51,7 +51,7 @@ Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 Calculate energy of Ising configuration `conf` for Ising model `m`.
 """
 function energy(mc::MC, m::IsingModel, conf::IsingConf)
-    const neigh = m.l.neighs
+  neigh = m.l.neighs
     E = 0.0
     for n in 1:m.dims
         @inbounds @simd for i in 1:m.l.sites
@@ -69,7 +69,7 @@ This method is a faster variant of the general method for the square lattice cas
 (It is roughly twice as fast in this case.)
 """
 function energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
-    const neigh = m.l.neighs
+  neigh = m.l.neighs
     E = 0.0
     @inbounds @simd for i in 1:m.l.sites
         E -= conf[i]*conf[neigh[1,i]] + conf[i]*conf[neigh[2,i]]
@@ -100,7 +100,7 @@ with energy `E`. Returns the local move `delta_i = new[i] - conf[i]` and energy 
 """
 @inline function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf, E::Float64)
     delta_E = 2. * conf[i] * sum(conf[m.l.neighs[:,i]])
-    return delta_E, conf[i]==1?-2:2
+    return delta_E, conf[i]==1 ? -2 : 2
 end
 
 """
@@ -122,9 +122,9 @@ Constructs a Wolff cluster spinflip for configuration `conf` with energy `E`.
 Returns wether a cluster spinflip has been performed (any spins have been flipped).
 """
 function global_move(mc::MC, m::IsingModel, conf::IsingConf, E::Float64)
-    const N = m.l.sites
-    const neighs = m.l.neighs
-    const beta = mc.p.beta
+  N = m.l.sites
+  neighs = m.l.neighs
+  beta = mc.p.beta
 
     cluster = Array{Int, 1}()
     tocheck = Array{Int, 1}()
@@ -187,7 +187,7 @@ Measures observables and updates corresponding `Observable` objects in `obs`.
 See also [`prepare_observables`](@ref) and [`finish_observables!`](@ref).
 """
 @inline function measure_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
-    const N = m.l.sites
+  N = m.l.sites
 
     add!(obs["confs"], conf)
 
@@ -215,17 +215,17 @@ Calculates magnetic susceptibility and specific heat and updates corresponding `
 See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 """
 @inline function finish_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable})
-    const N = m.l.sites
-    const beta = mc.p.beta
+  N = m.l.sites
+  beta = mc.p.beta
 
     # specific heat
-    const E = mean(obs["E"])
-    const E2 = mean(obs["E2"])
+  E = mean(obs["E"])
+  E2 = mean(obs["E2"])
     add!(obs["C"], beta*beta*(E2/N - E*E/N))
 
     # susceptibility
-    const M = mean(obs["M"])
-    const M2 = mean(obs["M2"])
+  M = mean(obs["M"])
+  M2 = mean(obs["M2"])
     add!(obs["χ"], beta*(M2/N - M*M/N))
 
     nothing

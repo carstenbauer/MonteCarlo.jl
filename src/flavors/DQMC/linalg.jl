@@ -20,7 +20,7 @@ function decompose_udt(A::AbstractMatrix{C}) where C<:Number
   @views p[p] = collect(1:length(p))
   # D = abs.(real(diag(triu(R))))
   D = abs.(real(diag(R)))
-  T = (spdiagm(1./D) * R)[:, p]
+  T = (spdiagm(1. /D) * R)[:, p]
   return Q, D, T
 end
 

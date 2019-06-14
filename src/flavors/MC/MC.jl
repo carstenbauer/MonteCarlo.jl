@@ -97,7 +97,7 @@ Progress will be printed to `STDOUT` if `verbose=true` (default).
 """
 function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
     @pack mc.p = sweeps, thermalization
-    const total_sweeps = mc.p.sweeps + mc.p.thermalization
+    total_sweeps = mc.p.sweeps + mc.p.thermalization
 
     sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/1000))
 
@@ -144,7 +144,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
 
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
-    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000./60.)
+    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
 
     nothing
 end
@@ -155,8 +155,8 @@ end
 Performs a sweep of local moves.
 """
 function sweep(mc::MC)
-    const N = mc.model.l.sites
-    const beta = mc.p.beta
+    N = mc.model.l.sites
+    beta = mc.p.beta
 
     @inbounds for i in eachindex(mc.conf)
         delta_E, delta_i = propose_local(mc, mc.model, i, mc.conf, mc.energy)

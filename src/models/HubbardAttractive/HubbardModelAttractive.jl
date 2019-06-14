@@ -62,7 +62,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 Calculate bosonic part of the energy for configuration `hsfield`.
 """
 @inline function energy_boson(m::HubbardModelAttractive, hsfield::HubbardConf)
-    const dtau = mc.p.delta_tau
+  dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
 end
@@ -96,8 +96,8 @@ Propose a local HS field flip at site `i` and imaginary time slice `slice` of cu
 """
 @inline function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, E_boson::Float64)
     # see for example dos Santos (2002)
-    const greens = mc.s.greens
-    const dtau = mc.p.delta_tau
+  greens = mc.s.greens
+  dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
 
     delta_E_boson = -2. * lambda * conf[i, slice]
@@ -115,13 +115,13 @@ Arguments `delta`, `detratio` and `delta_E_boson` correspond to output of `propo
 for that flip.
 """
 @inline function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, delta_E_boson::Float64)
-    const greens = mc.s.greens
-    const gamma = delta
+  greens = mc.s.greens
+  gamma = delta
 
     u = -greens[:, i]
     u[i] += 1.
     # OPT: speed check, maybe @views/@inbounds
-    greens .-= kron(u * 1./(1 + gamma * u[i]), transpose(gamma * greens[i, :]))
+    greens .-= kron(u * 1. /(1 + gamma * u[i]), transpose(gamma * greens[i, :]))
     conf[i, slice] .*= -1.
     nothing
 end
@@ -137,7 +137,7 @@ This is a performance critical method.
 """
 @inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
             result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
-    const dtau = mc.p.delta_tau
+  dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     result .= spdiagm(exp.(sign(power) * lambda * conf[:,slice]))
     nothing
@@ -157,8 +157,8 @@ This isn't a performance critical method as it is only used once before the
 actual simulation.
 """
 function hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
-  const N = m.l.sites
-  const neighs = m.l.neighs # row = up, right, down, left; col = siteidx
+  N = m.l.sites
+  neighs = m.l.neighs # row = up, right, down, left; col = siteidx
 
   T = diagm(fill(-m.mu, N))
 

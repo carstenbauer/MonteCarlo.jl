@@ -5,6 +5,9 @@ using Reexport
 using LightXML
 using Parameters
 
+using Printf
+using SparseArrays, LinearAlgebra
+
 include("helpers.jl")
 include("abstract.jl")
 

@@ -61,7 +61,7 @@ Create a determinant quantum Monte Carlo simulation for model `m` with keyword p
 """
 function DQMC(m::M; seed::Int=-1, checkerboard::Bool=false, kwargs...) where M<:Model
     geltype = greenseltype(DQMC, m)
-    mc = DQMC{M, checkerboard?CheckerboardTrue:CheckerboardFalse, conftype(DQMC, m), DQMCStack{geltype,Float64}}()
+    mc = DQMC{M, checkerboard ? CheckerboardTrue : CheckerboardFalse, conftype(DQMC, m), DQMCStack{geltype,Float64}}()
     mc.model = m
 
     # default params
@@ -127,7 +127,7 @@ Progress will be printed to `STDOUT` if `verbose=true` (default).
 function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
     mc.p.sweeps = sweeps
     mc.p.thermalization = thermalization
-    const total_sweeps = mc.p.sweeps + mc.p.thermalization
+    total_sweeps = mc.p.sweeps + mc.p.thermalization
 
     sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/10))
 
@@ -181,7 +181,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
 
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
-    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000./60.)
+    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
 
     nothing
 end
@@ -214,8 +214,8 @@ end
 Performs a sweep of local moves along spatial dimension at current imaginary time slice.
 """
 function sweep_spatial(mc::DQMC)
-    const N = mc.model.l.sites
-    const m = mc.model
+  N = mc.model.l.sites
+  m = mc.model
 
     @inbounds for i in 1:N
         detratio, delta_E_boson, delta = propose_local(mc, m, i, mc.s.current_slice, mc.conf, mc.energy_boson)
@@ -243,13 +243,13 @@ end
 
 Obtain the current equal-time Green's function.
 
-Internally, `mc.s.greens` is an effective Green's function. This method transforms 
-this effective one to the actual Green's function by multiplying hopping matrix 
+Internally, `mc.s.greens` is an effective Green's function. This method transforms
+this effective one to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
 function greens(mc::DQMC_CBFalse)
-    const eThalfminus = mc.s.hopping_matrix_exp
-    const eThalfplus = mc.s.hopping_matrix_exp_inv
+  eThalfminus = mc.s.hopping_matrix_exp
+  eThalfplus = mc.s.hopping_matrix_exp_inv
 
     greens = copy(mc.s.greens)
     greens .= greens * eThalfminus
@@ -257,8 +257,8 @@ function greens(mc::DQMC_CBFalse)
     return greens
 end
 function greens(mc::DQMC_CBTrue)
-    const chkr_hop_half_minus = mc.s.chkr_hop_half
-    const chkr_hop_half_plus = mc.s.chkr_hop_half_inv
+  chkr_hop_half_minus = mc.s.chkr_hop_half
+  chkr_hop_half_plus = mc.s.chkr_hop_half_inv
 
     greens = copy(mc.s.greens)
 
