@@ -139,7 +139,7 @@ This is a performance critical method.
             result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
   dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
-    result .= spdiagm(exp.(sign(power) * lambda * conf[:,slice]))
+    result .= spdiagm(0 => exp.(sign(power) * lambda * conf[:,slice]))
     nothing
 end
 
@@ -160,7 +160,7 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
   N = m.l.sites
   neighs = m.l.neighs # row = up, right, down, left; col = siteidx
 
-  T = diagm(fill(-m.mu, N))
+  T = diagm(0 => fill(-m.mu, N))
 
   # Nearest neighbor hoppings
   @inbounds @views begin

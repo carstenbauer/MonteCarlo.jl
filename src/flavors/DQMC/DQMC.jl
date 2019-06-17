@@ -92,7 +92,7 @@ Base.summary(mc::DQMC) = "DQMC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::DQMC)
     print(io, "Determinant quantum Monte Carlo simulation\n")
     print(io, "Model: ", mc.model, "\n")
-    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, 3)))")
+    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, sigdigits=3)))")
 end
 Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
 

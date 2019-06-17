@@ -90,8 +90,8 @@ function initialize_stack(mc::DQMC)
   N = mc.model.l.sites
   flv = mc.model.flv
 
-  mc.s.eye_flv = eye(flv,flv)
-  mc.s.eye_full = eye(flv*N,flv*N)
+  mc.s.eye_flv = Matrix{Float64}(I, flv,flv)
+  mc.s.eye_full = Matrix{Float64}(I, flv*N,flv*N)
   mc.s.ones_vec = ones(flv*N)
 
   mc.s.n_elements = convert(Int, mc.p.slices / mc.p.safe_mult) + 1
@@ -103,10 +103,10 @@ function initialize_stack(mc::DQMC)
   mc.s.greens = zeros(GreensEltype, flv*N, flv*N)
   mc.s.greens_temp = zeros(GreensEltype, flv*N, flv*N)
 
-  mc.s.Ul = eye(GreensEltype, flv*N, flv*N)
-  mc.s.Ur = eye(GreensEltype, flv*N, flv*N)
-  mc.s.Tl = eye(GreensEltype, flv*N, flv*N)
-  mc.s.Tr = eye(GreensEltype, flv*N, flv*N)
+  mc.s.Ul = Matrix{GreensEltype}(I, flv*N, flv*N)
+  mc.s.Ur = Matrix{GreensEltype}(I, flv*N, flv*N)
+  mc.s.Tl = Matrix{GreensEltype}(I, flv*N, flv*N)
+  mc.s.Tr = Matrix{GreensEltype}(I, flv*N, flv*N)
   mc.s.Dl = ones(Float64, flv*N)
   mc.s.Dr = ones(Float64, flv*N)
 
@@ -153,8 +153,8 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
   T = hopping_matrix(mc, m)
   size(T) == (flv*N, flv*N) || error("Hopping matrix should have size "*
                                 "$((flv*N, flv*N)) but has size $(size(T)) .")
-  mc.s.hopping_matrix_exp = expm(-0.5 * dtau * T)
-  mc.s.hopping_matrix_exp_inv = expm(0.5 * dtau * T)
+  mc.s.hopping_matrix_exp = exp(-0.5 * dtau * T)
+  mc.s.hopping_matrix_exp_inv = exp(0.5 * dtau * T)
   nothing
 end
 
@@ -190,10 +190,10 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
     end
 
     Tgg = reshape(Tg, (N*flv, N*flv))
-    s.chkr_hop_half[g] = sparse(rem_eff_zeros!(expm(-0.5 * dtau * Tgg)))
-    s.chkr_hop_half_inv[g] = sparse(rem_eff_zeros!(expm(0.5 * dtau * Tgg)))
-    s.chkr_hop[g] = sparse(rem_eff_zeros!(expm(- dtau * Tgg)))
-    s.chkr_hop_inv[g] = sparse(rem_eff_zeros!(expm(dtau * Tgg)))
+    s.chkr_hop_half[g] = sparse(rem_eff_zeros!(exp(-0.5 * dtau * Tgg)))
+    s.chkr_hop_half_inv[g] = sparse(rem_eff_zeros!(exp(0.5 * dtau * Tgg)))
+    s.chkr_hop[g] = sparse(rem_eff_zeros!(exp(- dtau * Tgg)))
+    s.chkr_hop_inv[g] = sparse(rem_eff_zeros!(exp(dtau * Tgg)))
   end
 
   s.chkr_hop_half_dagger = ctranspose.(s.chkr_hop_half)

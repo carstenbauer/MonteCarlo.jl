@@ -96,7 +96,7 @@ Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `STDOUT` if `verbose=true` (default).
 """
 function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
-    @pack mc.p = sweeps, thermalization
+    @pack! mc.p = sweeps, thermalization
     total_sweeps = mc.p.sweeps + mc.p.thermalization
 
     sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/1000))
