@@ -122,7 +122,7 @@ for that flip.
     u[i] += 1.
     # OPT: speed check, maybe @views/@inbounds
     greens .-= kron(u * 1. /(1 + gamma * u[i]), transpose(gamma * greens[i, :]))
-    conf[i, slice] .*= -1.
+    conf[i, slice] *= -1
     nothing
 end
 

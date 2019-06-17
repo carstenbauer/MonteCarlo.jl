@@ -140,7 +140,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
     build_stack(mc)
     propagate(mc)
 
-    tic()
+    _time = time()
     verbose && println("\n\nThermalization stage - ", thermalization)
     for i in 1:total_sweeps
         verbose && (i == mc.p.thermalization + 1) && println("\n\nMeasurement stage - ", mc.p.sweeps)
@@ -155,7 +155,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
         if mod(i, 10) == 0
             mc.a.acc_rate = mc.a.acc_rate / (10 * 2 * mc.p.slices)
             mc.a.acc_rate_global = mc.a.acc_rate_global / (10 / mc.p.global_rate)
-            add!(sweep_dur, toq()/10)
+            add!(sweep_dur, (time() - _time)/10)
             if verbose
                 println("\t", i)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur[end])
@@ -168,12 +168,11 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
 
             mc.a.acc_rate = 0.0
             mc.a.acc_rate_global = 0.0
-            flush(STDOUT)
-            tic()
+            flush(stdout)
+            _time = time()
         end
     end
     finish_observables!(mc, mc.model, mc.obs)
-    toq();
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global

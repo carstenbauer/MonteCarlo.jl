@@ -104,7 +104,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
-    tic()
+    _time = time()
     for i in 1:total_sweeps
         sweep(mc)
 
@@ -118,7 +118,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
         if mod(i, 1000) == 0
             mc.a.acc_rate = mc.a.acc_rate / 1000
             mc.a.acc_rate_global = mc.a.acc_rate_global / (1000 / mc.p.global_rate)
-            add!(sweep_dur, toq()/1000)
+            add!(sweep_dur, (time() - _time)/1000)
             if verbose
                 println("\t", i)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur[end])
@@ -132,11 +132,10 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
             mc.a.acc_rate = 0.0
             mc.a.acc_rate_global = 0.0
             flush(STDOUT)
-            tic()
+            _time = time()
         end
     end
     finish_observables!(mc, mc.model, mc.obs)
-    toq();
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global

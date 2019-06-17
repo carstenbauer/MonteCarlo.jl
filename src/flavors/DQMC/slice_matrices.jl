@@ -43,7 +43,7 @@ function multiply_slice_matrix_inv_left!(mc::DQMC_CBFalse, m::Model,
 end
 function multiply_daggered_slice_matrix_left!(mc::DQMC_CBFalse, m::Model,
 								slice::Int, M::AbstractMatrix)
-	M .= ctranspose(slice_matrix(mc, m, slice, 1.)) * M
+	M .= adjoint(slice_matrix(mc, m, slice, 1.)) * M
 	nothing
 end
 
@@ -148,7 +148,7 @@ function multiply_daggered_slice_matrix_left!(mc::DQMC_CBTrue, m::Model, slice::
   end
 
   interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, 1.)
-  # s.eV == ctranspose(s.eV) and s.chkr_mu == ctranspose(s.chkr_mu)
+  # s.eV == adjoint(s.eV) and s.chkr_mu == adjoint(s.chkr_mu)
   M[:] = s.chkr_mu * M
   M[:] = s.eV * M
   nothing

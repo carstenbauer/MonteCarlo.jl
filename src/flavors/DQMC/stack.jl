@@ -196,14 +196,14 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
     s.chkr_hop_inv[g] = sparse(rem_eff_zeros!(exp(dtau * Tgg)))
   end
 
-  s.chkr_hop_half_dagger = ctranspose.(s.chkr_hop_half)
-  s.chkr_hop_dagger = ctranspose.(s.chkr_hop)
+  s.chkr_hop_half_dagger = adjoint.(s.chkr_hop_half)
+  s.chkr_hop_dagger = adjoint.(s.chkr_hop)
 
   mus = diag(reshape(T, (N*flv, N*flv)))
-  s.chkr_mu_half = spdiagm(exp.(-0.5 * dtau * mus))
-  s.chkr_mu_half_inv = spdiagm(exp.(0.5 * dtau * mus))
-  s.chkr_mu = spdiagm(exp.(-dtau * mus))
-  s.chkr_mu_inv = spdiagm(exp.(dtau * mus))
+  s.chkr_mu_half = spdiagm(0 => exp.(-0.5 * dtau * mus))
+  s.chkr_mu_half_inv = spdiagm(0 => exp.(0.5 * dtau * mus))
+  s.chkr_mu = spdiagm(0 => exp.(-dtau * mus))
+  s.chkr_mu_inv = spdiagm(0 => exp.(dtau * mus))
 
   # hop_mat_exp_chkr = foldl(*,s.chkr_hop_half) * sqrt.(s.chkr_mu)
   # r = effreldiff(s.hopping_matrix_exp,hop_mat_exp_chkr)
@@ -241,7 +241,7 @@ function add_slice_sequence_left(mc::DQMC, idx::Int)
     multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
   end
 
-  mc.s.curr_U *= spdiagm(mc.s.d_stack[:, idx])
+  mc.s.curr_U *= spdiagm(0 => mc.s.d_stack[:, idx])
   mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], T = decompose_udt(mc.s.curr_U)
   mc.s.t_stack[:, :, idx + 1] =  T * mc.s.t_stack[:, :, idx]
 end
@@ -255,7 +255,7 @@ function add_slice_sequence_right(mc::DQMC, idx::Int)
     multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
   end
 
-  mc.s.curr_U *=  spdiagm(mc.s.d_stack[:, idx + 1])
+  mc.s.curr_U *=  spdiagm(0 => mc.s.d_stack[:, idx + 1])
   mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], T = decompose_udt(mc.s.curr_U)
   mc.s.t_stack[:, :, idx] = T * mc.s.t_stack[:, :, idx + 1]
 end
@@ -267,19 +267,19 @@ mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
 """
 function calculate_greens(mc::DQMC)
 
-  tmp = mc.s.Tl * ctranspose(mc.s.Tr)
-  mc.s.U, mc.s.D, mc.s.T = decompose_udt(spdiagm(mc.s.Dl) * tmp * spdiagm(mc.s.Dr))
+  tmp = mc.s.Tl * adjoint(mc.s.Tr)
+  mc.s.U, mc.s.D, mc.s.T = decompose_udt(spdiagm(0 => mc.s.Dl) * tmp * spdiagm(0 => mc.s.Dr))
   mc.s.U = mc.s.Ul * mc.s.U
-  mc.s.T *= ctranspose(mc.s.Ur)
+  mc.s.T *= adjoint(mc.s.Ur)
 
-  mc.s.u, mc.s.d, mc.s.t = decompose_udt(ctranspose(mc.s.U) * inv(mc.s.T) + spdiagm(mc.s.D))
+  mc.s.u, mc.s.d, mc.s.t = decompose_udt(adjoint(mc.s.U) * inv(mc.s.T) + spdiagm(0 => mc.s.D))
 
   mc.s.T = inv(mc.s.t * mc.s.T)
   mc.s.U *= mc.s.u
-  mc.s.U = ctranspose(mc.s.U)
-  mc.s.d = 1. /mc.s.d
+  mc.s.U = adjoint(mc.s.U)
+  mc.s.d = 1. ./ mc.s.d
 
-  mc.s.greens = mc.s.T * spdiagm(mc.s.d) * mc.s.U
+  mc.s.greens = mc.s.T * spdiagm(0 => mc.s.d) * mc.s.U
 end
 """
 Only reasonable immediately after calculate_greens()!
