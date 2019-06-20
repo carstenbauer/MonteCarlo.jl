@@ -19,7 +19,7 @@ Create a D-dimensional cubic lattice with linear dimension `L`.
 """
 function CubicLattice(D::Int, L::Int)
     sites = L^D
-    lattice = convert(Array, reshape(1:sites, (fill(L, D)...)))
+    lattice = convert(Array, reshape(1:sites, (fill(L, D)...,)))
 
     l = CubicLattice{Array{Int, D}}(L, D, sites, zeros(Int, 1,1), lattice)
     build_neighbortable!(l)
@@ -28,14 +28,14 @@ end
 
 function build_neighbortable!(l::CubicLattice{T}) where T
 
-    uprights = Vector{Vector{Int}}(l.D)
-    downlefts = Vector{Vector{Int}}(l.D)
+    uprights = Vector{Vector{Int}}(undef, l.D)
+    downlefts = Vector{Vector{Int}}(undef, l.D)
 
     for d in 1:l.D
         shift = zeros(Int, l.D); shift[d]=-1;
-        uprights[d] = circshift(l.lattice, (shift...))[:]
+        uprights[d] = circshift(l.lattice, (shift...,))[:]
         shift[d]=1;
-        downlefts[d] = circshift(l.lattice, (shift...))[:]
+        downlefts[d] = circshift(l.lattice, (shift...,))[:]
     end
 
     l.neighs = transpose(hcat(uprights..., downlefts...))

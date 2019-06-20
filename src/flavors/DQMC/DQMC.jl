@@ -101,10 +101,10 @@ Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
     init!(mc::DQMC[; seed::Real=-1])
 
 Initialize the determinant quantum Monte Carlo simulation `mc`.
-If `seed !=- 1` the random generator will be initialized with `srand(seed)`.
+If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
 function init!(mc::DQMC; seed::Real=-1)
-    seed == -1 || srand(seed)
+    seed == -1 || Random.seed!(seed)
 
     mc.conf = rand(mc, mc.model)
     mc.energy_boson = energy_boson(mc, mc.model, mc.conf)
@@ -122,7 +122,7 @@ end
     run!(mc::DQMC[; verbose::Bool=true, sweeps::Int, thermalization::Int])
 
 Runs the given Monte Carlo simulation `mc`.
-Progress will be printed to `STDOUT` if `verbose=true` (default).
+Progress will be printed to `stdout` if `verbose=true` (default).
 """
 function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
     mc.p.sweeps = sweeps

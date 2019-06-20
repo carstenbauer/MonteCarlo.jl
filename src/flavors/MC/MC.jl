@@ -57,8 +57,13 @@ end
 Create a Monte Carlo simulation for model `m` with (keyword) parameters
 as specified in the dictionary `kwargs`.
 """
-MC(m::M, kwargs::Union{Dict{String, Any}, Dict{Symbol, Any}}) where M<:Model =
-    MC(m; convert(Dict{Symbol, Any}, kwargs)...)
+function MC(m::M, kwargs::Dict{String, Any}) where M<:Model
+    symbol_dict = Dict([Symbol(k) => v for (k, v) in kwargs])
+    MC(m, symbol_dict...)
+end
+function MC(m::M, kwargs::Dict{Symbol, Any}) where M<:Model
+    MC(m; kwargs...)
+end
 
 # cosmetics
 import Base.summary
@@ -67,7 +72,7 @@ Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::MC)
     print(io, "Monte Carlo simulation\n")
     print(io, "Model: ", mc.model, "\n")
-    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, 3)))")
+    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, sigdigits=3)))")
 end
 Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 
@@ -75,10 +80,10 @@ Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
     init!(mc::MC[; seed::Real=-1])
 
 Initialize the Monte Carlo simulation `mc`.
-If `seed !=- 1` the random generator will be initialized with `srand(seed)`.
+If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
 function init!(mc::MC; seed::Real=-1)
-    seed == -1 || srand(seed)
+    seed == -1 || Random.seed!(seed)
 
     mc.conf = rand(mc, mc.model)
     mc.energy = energy(mc, mc.model, mc.conf)
@@ -93,7 +98,7 @@ end
     run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])
 
 Runs the given Monte Carlo simulation `mc`.
-Progress will be printed to `STDOUT` if `verbose=true` (default).
+Progress will be printed to `stdout` if `verbose=true` (default).
 """
 function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
     @pack! mc.p = sweeps, thermalization
@@ -131,7 +136,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
 
             mc.a.acc_rate = 0.0
             mc.a.acc_rate_global = 0.0
-            flush(STDOUT)
+            flush(stdout)
             _time = time()
         end
     end

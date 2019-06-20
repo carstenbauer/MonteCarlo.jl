@@ -33,8 +33,13 @@ end
 
 Create Ising model with (keyword) parameters as specified in `kwargs` dict.
 """
-IsingModel(kwargs::Union{Dict{String, Any}, Dict{Symbol, Any}}) =
-            IsingModel(; convert(Dict{Symbol,Any}, kwargs)...)
+function IsingModel(kwargs::Dict{String, Any})
+    symbol_dict = Dict([Symbol(k) => v for (k, v) in kwargs])
+    IsingModel(; symbol_dict...)
+end
+function IsingModel(kwargs::Dict{Symbol, Any})
+    IsingModel(; kwargs...)
+end
 
 # cosmetics
 import Base.summary

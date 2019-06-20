@@ -46,7 +46,10 @@ end
 
 Create an attractive Hubbard model with (keyword) parameters as specified in `kwargs` dict.
 """
-HubbardModelAttractive(kwargs::Dict{String, Any}) = HubbardModelAttractive(; convert(Dict{Symbol,Any}, kwargs)...)
+function HubbardModelAttractive(kwargs::Dict{String, Any})
+    symbol_dict = Dict([Symbol(k) => v for (k, v) in kwargs])
+    HubbardModelAttractive(; symbol_dict...)
+end
 
 # cosmetics
 import Base.summary

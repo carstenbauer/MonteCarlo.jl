@@ -175,10 +175,10 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
 
   T = reshape(hopping_matrix(mc, m), (N, flv, N, flv))
 
-  s.chkr_hop_half = Vector{SparseMatrixCSC{H, Int}}(n_grps)
-  s.chkr_hop_half_inv = Vector{SparseMatrixCSC{H, Int}}(n_grps)
-  s.chkr_hop = Vector{SparseMatrixCSC{H, Int}}(n_grps)
-  s.chkr_hop_inv = Vector{SparseMatrixCSC{H, Int}}(n_grps)
+  s.chkr_hop_half = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
+  s.chkr_hop_half_inv = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
+  s.chkr_hop = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
+  s.chkr_hop_inv = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
 
   for (g, gr) in enumerate(s.groups)
     Tg = zeros(H, N, flv, N, flv)

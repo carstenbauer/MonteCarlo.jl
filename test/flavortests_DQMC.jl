@@ -28,7 +28,7 @@
     MonteCarlo.init_hopping_matrices(mc, m)
     hop_mat_exp_chkr = foldl(*,mc.s.chkr_hop_half) * sqrt.(mc.s.chkr_mu)
     r = MonteCarlo.effreldiff(mc.s.hopping_matrix_exp,hop_mat_exp_chkr)
-    r[find(x->x==zero(x),hop_mat_exp_chkr)] = 0.
+    r[findall(x -> x==zero(x), hop_mat_exp_chkr)] .= 0.
     @test maximum(MonteCarlo.absdiff(mc.s.hopping_matrix_exp,hop_mat_exp_chkr)) <= mc.p.delta_tau
 
     # initial greens test

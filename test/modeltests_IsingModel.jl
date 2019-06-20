@@ -21,7 +21,7 @@
     @test MonteCarlo.energy(mc, m, conf) == 288.0
 
     # rand, conftype
-    srand(123)
+    Random.seed!(123)
     @test MonteCarlo.rand(mc, m) == Int8[-1 -1 1 -1 1 1 1 -1; -1 1 1 -1 -1 1 1 1; -1 1 1 1 1 1 -1 1; -1 1 1 1 -1 -1 1 1; 1 1 1 -1 1 -1 -1 -1; 1 -1 -1 -1 1 1 -1 1; -1 -1 1 1 1 1 -1 1; 1 -1 1 -1 -1 -1 1 1]
     @test MonteCarlo.conftype(MC, m) == Array{Int8, m.dims}
 

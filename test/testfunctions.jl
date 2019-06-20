@@ -1,7 +1,7 @@
+# Calculate Ul, Dl, Tl =B(stop) ... B(start)
 """
 Calculate effective(!) Green's function (direct, i.e. without stack) using QR DECOMPOSITION
 """
-# Calculate Ul, Dl, Tl =B(stop) ... B(start)
 function calculate_slice_matrix_chain(mc::DQMC, start::Int, stop::Int, safe_mult::Int=mc.p.safe_mult)
   @assert 0 < start <= mc.p.slices
   @assert 0 < stop <= mc.p.slices
@@ -11,17 +11,17 @@ function calculate_slice_matrix_chain(mc::DQMC, start::Int, stop::Int, safe_mult
   N = mc.model.l.sites
   GreensType = geltype(mc)
 
-  U = eye(GreensType, flv*N, flv*N)
+  U = Matrix{GreensType}(I, flv*N, flv*N)
   D = ones(Float64, flv*N)
-  T = eye(GreensType, flv*N, flv*N)
-  Tnew = eye(GreensType, flv*N, flv*N)
+  T = Matrix{GreensType}(I, flv*N, flv*N)
+  Tnew = Matrix{GreensType}(I, flv*N, flv*N)
 
   svs = zeros(flv*N,length(start:stop))
   svc = 1
   for k in start:stop
     if mod(k,safe_mult) == 0
       multiply_slice_matrix_left!(mc, mc.model, k, U)
-      U *= spdiagm(D)
+      U *= spdiagm(0 => D)
       U, D, Tnew = decompose_udt(U)
       T =  Tnew * T
       svs[:,svc] = log.(D)
@@ -43,17 +43,17 @@ function calculate_slice_matrix_chain_dagger(mc::DQMC, start::Int, stop::Int, sa
   N = mc.model.l.sites
   GreensType = geltype(mc)
 
-  U = eye(GreensType, flv*N, flv*N)
+  U = Matrix{GreensType}(I, flv*N, flv*N)
   D = ones(Float64, flv*N)
-  T = eye(GreensType, flv*N, flv*N)
-  Tnew = eye(GreensType, flv*N, flv*N)
+  T = Matrix{GreensType}(I, flv*N, flv*N)
+  Tnew = Matrix{GreensType}(I, flv*N, flv*N)
 
   svs = zeros(flv*N,length(start:stop))
   svc = 1
   for k in reverse(start:stop)
     if mod(k,safe_mult) == 0
       multiply_daggered_slice_matrix_left!(mc, mc.model, k, U)
-      U *= spdiagm(D)
+      U *= spdiagm(0 => D)
       U, D, Tnew = decompose_udt(U)
       T =  Tnew * T
       svs[:,svc] = log.(D)
