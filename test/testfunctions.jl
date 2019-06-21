@@ -83,19 +83,19 @@ function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.s
     Tl = eye(GreensType, flv * N)
   end
 
-  tmp = Tl * ctranspose(Tr)
-  U, D, T = decompose_udt(spdiagm(Dl) * tmp * spdiagm(Dr))
+  tmp = Tl * adjoint(Tr)
+  U, D, T = decompose_udt(Diagonal(Dl) * tmp * Diagonal(Dr))
   U = Ul * U
-  T *= ctranspose(Ur)
+  T *= adjoint(Ur)
 
-  u, d, t = decompose_udt(ctranspose(U) * inv(T) + spdiagm(D))
+  u, d, t = decompose_udt(adjoint(U) * inv(T) + Diagonal(D))
 
   T = inv(t * T)
   U *= u
-  U = ctranspose(U)
+  U = adjoint(U)
   d = 1. /d
 
   ldet = real(log(complex(det(U))) + sum(log.(d)) + log(complex(det(T))))
 
-  return T * spdiagm(d) * U, ldet
+  return T * Diagonal(d) * U, ldet
 end
