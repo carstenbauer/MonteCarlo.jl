@@ -16,12 +16,13 @@ end
 
 #### QR, i.e. UDT decomposition
 function decompose_udt(A::AbstractMatrix{C}) where C<:Number
-  Q, R, p = qr(A, Val(true))
+  F = qr(A, Val(true))
+  p = F.p
   @views p[p] = collect(1:length(p))
   # D = abs.(real(diag(triu(R))))
-  D = abs.(real(diag(R)))
-  T = (spdiagm(0 => 1. ./ D) * R)[:, p]
-  return Q, D, T
+  D = abs.(real(diag(F.R)))
+  T = (Diagonal(1. ./ D) * F.R)[:, p]
+  return Matrix(F.Q), D, T
 end
 
 
