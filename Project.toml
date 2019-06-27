@@ -1,0 +1,9 @@
+name = "MonteCarlo"
+uuid = "7ed9e010-db43-58a0-91f1-3971ebfac852"
+license = "MIT"
+
+[deps]
+LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179"
+MonteCarloObservable = "8a675f2c-1eea-59ef-99a5-5eebc71d1519"
+Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
