@@ -72,7 +72,13 @@ function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.s
   N = mc.model.l.sites
 
   # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
-  Ur, Dr, Tr = calculate_slice_matrix_chain_dagger(mc,slice,mc.p.slices, safe_mult)
+  if slice <= mc.p.slices
+    Ur, Dr, Tr = MonteCarlo.calculate_slice_matrix_chain_dagger(mc,slice,mc.p.slices, safe_mult)
+  else
+    Ur = Matrix{GreensType}(I, flv * N, flv * N)
+    Dr = ones(Float64, flv * N)
+    Tr = Matrix{GreensType}(I, flv * N, flv * N)
+  end
 
   # Calculate Ul,Dl,Tl=B(slice-1) ... B(1)
   if slice-1 >= 1
@@ -93,7 +99,7 @@ function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.s
   T = inv(t * T)
   U *= u
   U = adjoint(U)
-  d = 1. /d
+  d = 1. ./ d
 
   ldet = real(log(complex(det(U))) + sum(log.(d)) + log(complex(det(T))))
 
