@@ -22,7 +22,7 @@ using Random
             m = mc.obs["m"] # magnetization
 
             @test isapprox(0.398, round(mean(m), digits=3))
-            @test isapprox(0.014, round(std(m), digits=3))
+            @test isapprox(0.012, round(error(m), digits=3))
             @test typeof(observables(mc)) == Dict{String, String}
         end
     end
