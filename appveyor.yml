@@ -1,36 +1,18 @@
 environment:
   matrix:
-  # - JULIAVERSION: "julialang/bin/winnt/x86/0.6/julia-0.6-latest-win32.exe"
-  - julia_version: 1.0
+  - julia_version: 1
   - julia_version: 1.1
   - julia_version: nightly
-  # - JULIAVERSION: "julianightlies/bin/winnt/x86/julia-latest-win32.exe"
-  # - JULIAVERSION: "julianightlies/bin/winnt/x64/julia-latest-win64.exe"
-  # - PYTHON_VERSION: 2.7
-  #   MINICONDA: C:\Miniconda
-  # - PYTHON_VERSION: 3.4
-  #   MINICONDA: C:\Miniconda3
+
+platform:
+  - x64 # 64-bit
+#  - x86 # 32-bit
+
+# # Uncomment the following lines to allow failures on nightly julia
+# # (tests will run but not make your overall status red)
 matrix:
   allow_failures:
-    # - JULIAVERSION: "julianightlies/bin/winnt/x86/julia-latest-win32.exe"
-    - julia_version: nightly
-
-init:
-  - "ECHO %PYTHON_VERSION% %MINICONDA%"
-# Python deps
-  # - "set PATH=%MINICONDA%;%MINICONDA%\\Scripts;%PATH%"
-  # - conda config --set always_yes yes --set changeps1 no
-  # - conda update -q conda
-  # - conda info -a
-  # - "conda create -q -n test-environment python=%PYTHON_VERSION% numpy scipy nose"
-  # - activate test-environment
-  # - pip install coverage
-# Download most recent Julia Windows binary
-  - ps: (new-object net.webclient).DownloadFile(
-        $("http://s3.amazonaws.com/"+$env:JULIAVERSION),
-        "C:\projects\julia-binary.exe")
-# Run installer silently, output to C:\projects\julia
-  - C:\projects\julia-binary.exe /S /D=C:\projects\julia
+  - julia_version: nightly
 
 branches:
   only:
@@ -44,20 +26,18 @@ branches:
 #     on_build_status_changed: false
 
 install:
-  - C:\projects\julia\bin\julia -e "Pkg.add(\"HDF5\")"
-  - C:\projects\julia\bin\julia -e "Pkg.add(\"Parameters\")"
-  - C:\projects\julia\bin\julia -e "Pkg.add(\"LightXML\")"
-  - C:\projects\julia\bin\julia -e "Pkg.add(\"JLD\")"
-  - C:\projects\julia\bin\julia -e "Pkg.add(\"PyPlot\")"
-  - C:\projects\julia\bin\julia -e "using Conda; Conda.add(\"basemap\")"
-  - C:\projects\julia\bin\julia -e "Pkg.clone(\"https://github.com/crstnbr/ErrorAnalysis.jl\")"
-  - C:\projects\julia\bin\julia -e "Pkg.clone(\"https://github.com/crstnbr/MonteCarloObservable.jl\")"
+  - ps: iex ((new-object net.webclient).DownloadString("https://raw.githubusercontent.com/JuliaCI/Appveyor.jl/version-1/bin/install.ps1"))
 
 build_script:
-# Need to convert from shallow to complete for Pkg.clone to work
-  - IF EXIST .git\shallow (git fetch --unshallow)
-  - C:\projects\julia\bin\julia -e "versioninfo();
-      Pkg.clone(pwd(), \"MonteCarlo\"); Pkg.build(\"MonteCarlo\")"
+  - echo "%JL_BUILD_SCRIPT%"
+  - C:\julia\bin\julia -e "%JL_BUILD_SCRIPT%"
 
 test_script:
-  - C:\projects\julia\bin\julia -e "Pkg.test(\"MonteCarlo\")"
+  - echo "%JL_TEST_SCRIPT%"
+  - C:\julia\bin\julia -e "%JL_TEST_SCRIPT%"
+
+# # Uncomment to support code coverage upload. Should only be enabled for packages
+# # which would have coverage gaps without running on Windows
+# on_success:
+#   - echo "%JL_CODECOV_SCRIPT%"
+#   - C:\julia\bin\julia -e "%JL_CODECOV_SCRIPT%"
