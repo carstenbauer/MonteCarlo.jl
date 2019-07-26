@@ -61,7 +61,7 @@ Create a determinant quantum Monte Carlo simulation for model `m` with keyword p
 """
 function DQMC(m::M; seed::Int=-1, checkerboard::Bool=false, kwargs...) where M<:Model
     geltype = greenseltype(DQMC, m)
-    mc = DQMC{M, checkerboard?CheckerboardTrue:CheckerboardFalse, conftype(DQMC, m), DQMCStack{geltype,Float64}}()
+    mc = DQMC{M, checkerboard ? CheckerboardTrue : CheckerboardFalse, conftype(DQMC, m), DQMCStack{geltype,Float64}}()
     mc.model = m
 
     # default params
@@ -92,7 +92,7 @@ Base.summary(mc::DQMC) = "DQMC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::DQMC)
     print(io, "Determinant quantum Monte Carlo simulation\n")
     print(io, "Model: ", mc.model, "\n")
-    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, 3)))")
+    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, sigdigits=3)))")
 end
 Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
 
@@ -101,10 +101,10 @@ Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
     init!(mc::DQMC[; seed::Real=-1])
 
 Initialize the determinant quantum Monte Carlo simulation `mc`.
-If `seed !=- 1` the random generator will be initialized with `srand(seed)`.
+If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
 function init!(mc::DQMC; seed::Real=-1)
-    seed == -1 || srand(seed)
+    seed == -1 || Random.seed!(seed)
 
     mc.conf = rand(mc, mc.model)
     mc.energy_boson = energy_boson(mc, mc.model, mc.conf)
@@ -122,12 +122,12 @@ end
     run!(mc::DQMC[; verbose::Bool=true, sweeps::Int, thermalization::Int])
 
 Runs the given Monte Carlo simulation `mc`.
-Progress will be printed to `STDOUT` if `verbose=true` (default).
+Progress will be printed to `stdout` if `verbose=true` (default).
 """
 function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
     mc.p.sweeps = sweeps
     mc.p.thermalization = thermalization
-    const total_sweeps = mc.p.sweeps + mc.p.thermalization
+    total_sweeps = mc.p.sweeps + mc.p.thermalization
 
     sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/10))
 
@@ -140,7 +140,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
     build_stack(mc)
     propagate(mc)
 
-    tic()
+    _time = time()
     verbose && println("\n\nThermalization stage - ", thermalization)
     for i in 1:total_sweeps
         verbose && (i == mc.p.thermalization + 1) && println("\n\nMeasurement stage - ", mc.p.sweeps)
@@ -155,7 +155,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
         if mod(i, 10) == 0
             mc.a.acc_rate = mc.a.acc_rate / (10 * 2 * mc.p.slices)
             mc.a.acc_rate_global = mc.a.acc_rate_global / (10 / mc.p.global_rate)
-            add!(sweep_dur, toq()/10)
+            add!(sweep_dur, (time() - _time)/10)
             if verbose
                 println("\t", i)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur[end])
@@ -168,12 +168,11 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
 
             mc.a.acc_rate = 0.0
             mc.a.acc_rate_global = 0.0
-            flush(STDOUT)
-            tic()
+            flush(stdout)
+            _time = time()
         end
     end
     finish_observables!(mc, mc.model, mc.obs)
-    toq();
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
@@ -181,7 +180,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
 
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
-    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000./60.)
+    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
 
     nothing
 end
@@ -214,8 +213,8 @@ end
 Performs a sweep of local moves along spatial dimension at current imaginary time slice.
 """
 function sweep_spatial(mc::DQMC)
-    const N = mc.model.l.sites
-    const m = mc.model
+  N = mc.model.l.sites
+  m = mc.model
 
     @inbounds for i in 1:N
         detratio, delta_E_boson, delta = propose_local(mc, m, i, mc.s.current_slice, mc.conf, mc.energy_boson)
@@ -243,13 +242,13 @@ end
 
 Obtain the current equal-time Green's function.
 
-Internally, `mc.s.greens` is an effective Green's function. This method transforms 
-this effective one to the actual Green's function by multiplying hopping matrix 
+Internally, `mc.s.greens` is an effective Green's function. This method transforms
+this effective one to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
 function greens(mc::DQMC_CBFalse)
-    const eThalfminus = mc.s.hopping_matrix_exp
-    const eThalfplus = mc.s.hopping_matrix_exp_inv
+  eThalfminus = mc.s.hopping_matrix_exp
+  eThalfplus = mc.s.hopping_matrix_exp_inv
 
     greens = copy(mc.s.greens)
     greens .= greens * eThalfminus
@@ -257,8 +256,8 @@ function greens(mc::DQMC_CBFalse)
     return greens
 end
 function greens(mc::DQMC_CBTrue)
-    const chkr_hop_half_minus = mc.s.chkr_hop_half
-    const chkr_hop_half_plus = mc.s.chkr_hop_half_inv
+  chkr_hop_half_minus = mc.s.chkr_hop_half
+  chkr_hop_half_plus = mc.s.chkr_hop_half_inv
 
     greens = copy(mc.s.greens)
 

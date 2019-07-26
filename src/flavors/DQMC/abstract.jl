@@ -22,7 +22,7 @@ The methods returns
 function build_checkerboard(l::Lattice)
   # check if lattice is compatible with generic cb algorithm
   mandatory_fields = [:n_bonds, :bonds]
-  all(map(f->in(f, fieldnames(l)), mandatory_fields)) || error("Lattice $(typeof(l)) "*
+  all(map(f->in(f, fieldnames(typeof(l))), mandatory_fields)) || error("Lattice $(typeof(l)) "*
             "doesn't have all the necessary fields for generic checkerboard decomposition.")
 
   groups = UnitRange[]

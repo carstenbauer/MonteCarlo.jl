@@ -57,8 +57,13 @@ end
 Create a Monte Carlo simulation for model `m` with (keyword) parameters
 as specified in the dictionary `kwargs`.
 """
-MC(m::M, kwargs::Union{Dict{String, Any}, Dict{Symbol, Any}}) where M<:Model =
-    MC(m; convert(Dict{Symbol, Any}, kwargs)...)
+function MC(m::M, kwargs::Dict{String, Any}) where M<:Model
+    symbol_dict = Dict([Symbol(k) => v for (k, v) in kwargs])
+    MC(m, symbol_dict...)
+end
+function MC(m::M, kwargs::Dict{Symbol, Any}) where M<:Model
+    MC(m; kwargs...)
+end
 
 # cosmetics
 import Base.summary
@@ -67,7 +72,7 @@ Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::MC)
     print(io, "Monte Carlo simulation\n")
     print(io, "Model: ", mc.model, "\n")
-    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, 3)))")
+    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, sigdigits=3)))")
 end
 Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 
@@ -75,10 +80,10 @@ Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
     init!(mc::MC[; seed::Real=-1])
 
 Initialize the Monte Carlo simulation `mc`.
-If `seed !=- 1` the random generator will be initialized with `srand(seed)`.
+If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
 function init!(mc::MC; seed::Real=-1)
-    seed == -1 || srand(seed)
+    seed == -1 || Random.seed!(seed)
 
     mc.conf = rand(mc, mc.model)
     mc.energy = energy(mc, mc.model, mc.conf)
@@ -93,18 +98,18 @@ end
     run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])
 
 Runs the given Monte Carlo simulation `mc`.
-Progress will be printed to `STDOUT` if `verbose=true` (default).
+Progress will be printed to `stdout` if `verbose=true` (default).
 """
 function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
-    @pack mc.p = sweeps, thermalization
-    const total_sweeps = mc.p.sweeps + mc.p.thermalization
+    @pack! mc.p = sweeps, thermalization
+    total_sweeps = mc.p.sweeps + mc.p.thermalization
 
     sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/1000))
 
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
-    tic()
+    _time = time()
     for i in 1:total_sweeps
         sweep(mc)
 
@@ -118,7 +123,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
         if mod(i, 1000) == 0
             mc.a.acc_rate = mc.a.acc_rate / 1000
             mc.a.acc_rate_global = mc.a.acc_rate_global / (1000 / mc.p.global_rate)
-            add!(sweep_dur, toq()/1000)
+            add!(sweep_dur, (time() - _time)/1000)
             if verbose
                 println("\t", i)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur[end])
@@ -131,12 +136,11 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
 
             mc.a.acc_rate = 0.0
             mc.a.acc_rate_global = 0.0
-            flush(STDOUT)
-            tic()
+            flush(stdout)
+            _time = time()
         end
     end
     finish_observables!(mc, mc.model, mc.obs)
-    toq();
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
@@ -144,7 +148,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
 
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
-    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000./60.)
+    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
 
     nothing
 end
@@ -155,8 +159,8 @@ end
 Performs a sweep of local moves.
 """
 function sweep(mc::MC)
-    const N = mc.model.l.sites
-    const beta = mc.p.beta
+    N = mc.model.l.sites
+    beta = mc.p.beta
 
     @inbounds for i in eachindex(mc.conf)
         delta_E, delta_i = propose_local(mc, mc.model, i, mc.conf, mc.energy)

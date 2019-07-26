@@ -16,19 +16,20 @@ end
 
 #### QR, i.e. UDT decomposition
 function decompose_udt(A::AbstractMatrix{C}) where C<:Number
-  Q, R, p = qr(A, Val{true}; thin=false)
+  F = qr(A, Val(true))
+  p = F.p
   @views p[p] = collect(1:length(p))
   # D = abs.(real(diag(triu(R))))
-  D = abs.(real(diag(R)))
-  T = (spdiagm(1./D) * R)[:, p]
-  return Q, D, T
+  D = abs.(real(diag(F.R)))
+  T = (Diagonal(1. ./ D) * F.R)[:, p]
+  return Matrix(F.Q), D, T
 end
 
 
 #### Other
 function expm_diag!(A::Matrix{T}) where T<:Number
   F = eigfact!(A)
-  return F[:vectors] * spdiagm(exp(F[:values])) * ctranspose(F[:vectors])
+  return F[:vectors] * spdiagm(0 => exp(F[:values])) * ctranspose(F[:vectors])
 end
 
 function lu_det(M)

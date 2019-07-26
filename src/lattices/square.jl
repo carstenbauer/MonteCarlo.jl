@@ -53,7 +53,7 @@ function build_neighbortable!(l::SquareLattice)
     left = circshift(l.lattice,(0,1))
     l.neighs = vcat(up[:]',right[:]',down[:]',left[:]')
 
-    l.neighs_cartesian = Array{Int, 3}(4, l.L, l.L)
+    l.neighs_cartesian = Array{Int, 3}(undef, 4, l.L, l.L)
     l.neighs_cartesian[1,:,:] = up
     l.neighs_cartesian[2,:,:] = right
     l.neighs_cartesian[3,:,:] = down

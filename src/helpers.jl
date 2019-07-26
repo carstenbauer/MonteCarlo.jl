@@ -32,7 +32,7 @@ relative errors.
 """
 function effreldiff(A::AbstractArray{T}, B::AbstractArray{S}, threshold::Float64=1e-14) where T<:Number where S<:Number
   r = reldiff(A,B)
-  r[find(x->abs.(x)<threshold,absdiff(A,B))] = 0.
+  r[findall(x -> abs.(x)<threshold, absdiff(A,B))] .= 0.
   return r
 end
 

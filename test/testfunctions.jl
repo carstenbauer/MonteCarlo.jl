@@ -1,27 +1,27 @@
+# Calculate Ul, Dl, Tl =B(stop) ... B(start)
 """
 Calculate effective(!) Green's function (direct, i.e. without stack) using QR DECOMPOSITION
 """
-# Calculate Ul, Dl, Tl =B(stop) ... B(start)
 function calculate_slice_matrix_chain(mc::DQMC, start::Int, stop::Int, safe_mult::Int=mc.p.safe_mult)
   @assert 0 < start <= mc.p.slices
   @assert 0 < stop <= mc.p.slices
   @assert start <= stop
 
-  const flv = mc.model.flv
-  const N = mc.model.l.sites
-  const GreensType = geltype(mc)
+  flv = mc.model.flv
+  N = mc.model.l.sites
+  GreensType = geltype(mc)
 
-  U = eye(GreensType, flv*N, flv*N)
+  U = Matrix{GreensType}(I, flv*N, flv*N)
   D = ones(Float64, flv*N)
-  T = eye(GreensType, flv*N, flv*N)
-  Tnew = eye(GreensType, flv*N, flv*N)
+  T = Matrix{GreensType}(I, flv*N, flv*N)
+  Tnew = Matrix{GreensType}(I, flv*N, flv*N)
 
   svs = zeros(flv*N,length(start:stop))
   svc = 1
   for k in start:stop
     if mod(k,safe_mult) == 0
       multiply_slice_matrix_left!(mc, mc.model, k, U)
-      U *= spdiagm(D)
+      U *= spdiagm(0 => D)
       U, D, Tnew = decompose_udt(U)
       T =  Tnew * T
       svs[:,svc] = log.(D)
@@ -39,21 +39,21 @@ function calculate_slice_matrix_chain_dagger(mc::DQMC, start::Int, stop::Int, sa
   @assert 0 < stop <= mc.p.slices
   @assert start <= stop
 
-  const flv = mc.model.flv
-  const N = mc.model.l.sites
-  const GreensType = geltype(mc)
+  flv = mc.model.flv
+  N = mc.model.l.sites
+  GreensType = geltype(mc)
 
-  U = eye(GreensType, flv*N, flv*N)
+  U = Matrix{GreensType}(I, flv*N, flv*N)
   D = ones(Float64, flv*N)
-  T = eye(GreensType, flv*N, flv*N)
-  Tnew = eye(GreensType, flv*N, flv*N)
+  T = Matrix{GreensType}(I, flv*N, flv*N)
+  Tnew = Matrix{GreensType}(I, flv*N, flv*N)
 
   svs = zeros(flv*N,length(start:stop))
   svc = 1
   for k in reverse(start:stop)
     if mod(k,safe_mult) == 0
       multiply_daggered_slice_matrix_left!(mc, mc.model, k, U)
-      U *= spdiagm(D)
+      U *= spdiagm(0 => D)
       U, D, Tnew = decompose_udt(U)
       T =  Tnew * T
       svs[:,svc] = log.(D)
@@ -67,12 +67,18 @@ end
 
 # Calculate G(slice) = [1+B(slice-1)...B(1)B(M) ... B(slice)]^(-1) and its singular values in a stable manner
 function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult)
-  const GreensType = geltype(mc)
-  const flv = mc.model.flv
-  const N = mc.model.l.sites
+  GreensType = geltype(mc)
+  flv = mc.model.flv
+  N = mc.model.l.sites
 
   # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
-  Ur, Dr, Tr = calculate_slice_matrix_chain_dagger(mc,slice,mc.p.slices, safe_mult)
+  if slice <= mc.p.slices
+    Ur, Dr, Tr = MonteCarlo.calculate_slice_matrix_chain_dagger(mc,slice,mc.p.slices, safe_mult)
+  else
+    Ur = Matrix{GreensType}(I, flv * N, flv * N)
+    Dr = ones(Float64, flv * N)
+    Tr = Matrix{GreensType}(I, flv * N, flv * N)
+  end
 
   # Calculate Ul,Dl,Tl=B(slice-1) ... B(1)
   if slice-1 >= 1
@@ -83,19 +89,19 @@ function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.s
     Tl = eye(GreensType, flv * N)
   end
 
-  tmp = Tl * ctranspose(Tr)
-  U, D, T = decompose_udt(spdiagm(Dl) * tmp * spdiagm(Dr))
+  tmp = Tl * adjoint(Tr)
+  U, D, T = decompose_udt(Diagonal(Dl) * tmp * Diagonal(Dr))
   U = Ul * U
-  T *= ctranspose(Ur)
+  T *= adjoint(Ur)
 
-  u, d, t = decompose_udt(ctranspose(U) * inv(T) + spdiagm(D))
+  u, d, t = decompose_udt(adjoint(U) * inv(T) + Diagonal(D))
 
   T = inv(t * T)
   U *= u
-  U = ctranspose(U)
-  d = 1./d
+  U = adjoint(U)
+  d = 1. ./ d
 
   ldet = real(log(complex(det(U))) + sum(log.(d)) + log(complex(det(T))))
 
-  return T * spdiagm(d) * U, ldet
+  return T * Diagonal(d) * U, ldet
 end

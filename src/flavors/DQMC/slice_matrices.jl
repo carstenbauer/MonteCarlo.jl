@@ -9,9 +9,9 @@ Calculates `Beff(slice) = exp(−1/2∆tauT)exp(−1/2∆tauT)exp(−∆tauV(sli
 """
 function slice_matrix(mc::DQMC_CBFalse, m::Model, slice::Int,
 					power::Float64=1.)
-	const eT = mc.s.hopping_matrix_exp
-	const eTinv = mc.s.hopping_matrix_exp_inv
-	const eV = mc.s.eV
+	eT = mc.s.hopping_matrix_exp
+	eTinv = mc.s.hopping_matrix_exp_inv
+	eV = mc.s.eV
 
 	interaction_matrix_exp!(mc, m, eV, mc.conf, slice, power)
 
@@ -43,7 +43,7 @@ function multiply_slice_matrix_inv_left!(mc::DQMC_CBFalse, m::Model,
 end
 function multiply_daggered_slice_matrix_left!(mc::DQMC_CBFalse, m::Model,
 								slice::Int, M::AbstractMatrix)
-	M .= ctranspose(slice_matrix(mc, m, slice, 1.)) * M
+	M .= adjoint(slice_matrix(mc, m, slice, 1.)) * M
 	nothing
 end
 
@@ -63,7 +63,7 @@ function slice_matrix(mc::DQMC_CBTrue, m::Model, slice::Int,
 end
 function multiply_slice_matrix_left!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
-  const s = mc.s
+  s = mc.s
   interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, 1.)
 
   M[:] = s.eV * M
@@ -82,7 +82,7 @@ function multiply_slice_matrix_left!(mc::DQMC_CBTrue, m::Model, slice::Int,
 end
 function multiply_slice_matrix_right!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
-  const s = mc.s
+  s = mc.s
   @inbounds @views begin
     for i in reverse(2:s.n_groups)
       M[:] = M * s.chkr_hop_half[i]
@@ -100,7 +100,7 @@ function multiply_slice_matrix_right!(mc::DQMC_CBTrue, m::Model, slice::Int,
 end
 function multiply_slice_matrix_inv_left!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
-  const s = mc.s
+  s = mc.s
   @inbounds @views begin
     for i in reverse(2:s.n_groups)
       M[:] = s.chkr_hop_half_inv[i] * M
@@ -118,7 +118,7 @@ function multiply_slice_matrix_inv_left!(mc::DQMC_CBTrue, m::Model, slice::Int,
 end
 function multiply_slice_matrix_inv_right!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
-  const s = mc.s
+  s = mc.s
   interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, -1.)
   M[:] = M * s.eV
   M[:] = M * s.chkr_mu_inv
@@ -136,7 +136,7 @@ function multiply_slice_matrix_inv_right!(mc::DQMC_CBTrue, m::Model, slice::Int,
 end
 function multiply_daggered_slice_matrix_left!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
-  const s = mc.s
+  s = mc.s
   @inbounds @views begin
     for i in reverse(2:s.n_groups)
       M[:] = s.chkr_hop_half_dagger[i] * M
@@ -148,7 +148,7 @@ function multiply_daggered_slice_matrix_left!(mc::DQMC_CBTrue, m::Model, slice::
   end
 
   interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, 1.)
-  # s.eV == ctranspose(s.eV) and s.chkr_mu == ctranspose(s.chkr_mu)
+  # s.eV == adjoint(s.eV) and s.chkr_mu == adjoint(s.chkr_mu)
   M[:] = s.chkr_mu * M
   M[:] = s.eV * M
   nothing
