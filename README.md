@@ -4,6 +4,7 @@
 [![travis][travis-img]](https://travis-ci.org/crstnbr/MonteCarlo.jl)
 [![appveyor][appveyor-img]](https://ci.appveyor.com/project/crstnbr/montecarlo-jl/branch/master)
 [![codecov][codecov-img]](http://codecov.io/github/crstnbr/MonteCarlo.jl?branch=master)
+![](https://img.shields.io/badge/lifecycle-dormant-orange.svg)
 
 [travis-img]: https://img.shields.io/travis/crstnbr/MonteCarlo.jl/master.svg?label=Linux+/+macOS
 [appveyor-img]: https://img.shields.io/appveyor/ci/crstnbr/montecarlo-jl/master.svg?label=Windows
