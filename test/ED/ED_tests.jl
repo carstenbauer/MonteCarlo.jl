@@ -1,4 +1,4 @@
-include("ED_Hubbard_like.jl")
+include("ED.jl")
 
 @testset "ED checks" begin
     void = state_from_integer(0, 1, 2)

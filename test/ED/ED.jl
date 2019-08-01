@@ -43,11 +43,7 @@ function annihilate(state, site, substate)
 end
 
 
-"""
-    HamiltonMatrix(model)
 
-With H = -t ... +U ... -μ ...
-"""
 function HamiltonMatrix(model::HubbardModelAttractive)
     lattice = model.l
     t = model.t
