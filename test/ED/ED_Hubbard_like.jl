@@ -44,11 +44,16 @@ end
 
 
 """
-    HamiltonMatrix(lattice; t=1.0, U=1.0, μ=0.0)
+    HamiltonMatrix(model)
 
 With H = -t ... +U ... -μ ...
 """
-function HamiltonMatrix(lattice; t=1.0, U=1.0, mu=0.0)
+function HamiltonMatrix(model::HubbardModelAttractive)
+    lattice = model.l
+    t = model.t
+    U = model.U
+    mu = model.mu
+
     H = zeros(Float64, 4^lattice.sites, 4^lattice.sites)
 
     # -t ∑_ijσ c_iσ^† c_jσ

@@ -47,19 +47,22 @@ include("ED_Hubbard_like.jl")
     @test _sign == -1.0 &&  s == up
 
     # check Greens consistency
-    l = MonteCarlo.SquareLattice(2)
-    H = HamiltonMatrix(l, t = rand(), U = rand(), mu = rand())
+    model = HubbardModelAttractive(
+        L = 2, dims = 2,
+        U = rand(), mu = rand(), t = rand()
+    )
+    H = HamiltonMatrix(model)
     for substate1 in 1:2, substate2 in 1:2
-        for site1 in 1:l.sites, site2 in 1:l.sites
+        for site1 in 1:model.l.sites, site2 in 1:model.l.sites
             G = expectation_value(
                 Greens(site1, site2, substate1, substate2),
                 H,
-                N_sites = l.sites,
+                N_sites = model.l.sites,
             )
             G_perm = expectation_value(
                 Greens_permuted(site1, site2, substate1, substate2),
                 H,
-                N_sites = l.sites,
+                N_sites = model.l.sites,
             )
             @test G ≈ G_perm
         end
@@ -75,7 +78,6 @@ end
         mu = 1.0,
         t = 1.0
     )
-    lattice = model.l
 
     @info "Running DQMC β=1.0, 100k + 100k sweeps, ≈1min"
     dqmc = DQMC(model, beta=1.0)
@@ -83,8 +85,8 @@ end
     G_DQMC = mean(dqmc.obs["greens"])
 
     @info "Running ED"
-    H = HamiltonMatrix(lattice, t = model.t, U = model.U, mu = model.mu)
-    G_ED = calculate_Greens_matrix(H, lattice, beta=1.0)
+    H = HamiltonMatrix(model)
+    G_ED = calculate_Greens_matrix(H, model.l, beta=1.0)
 
     # G_DQMC is smaller because it doesn't differentiate between spin up/down
     for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
