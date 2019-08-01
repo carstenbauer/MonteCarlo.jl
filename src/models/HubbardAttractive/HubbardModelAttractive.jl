@@ -15,7 +15,7 @@ with linear system size `L`. Additional allowed `kwargs` are:
  * `U::Float64=1.0`: onsite interaction strength, "Hubbard U"
  * `t::Float64=1.0`: hopping energy
 """
-@with_kw_noshow struct HubbardModelAttractive{C<:AbstractCubicLattice} <: Model
+@with_kw_noshow struct HubbardModelAttractive{LT<:AbstractLattice} <: Model
     # user mandatory
     dims::Int
     L::Int
@@ -27,7 +27,7 @@ with linear system size `L`. Additional allowed `kwargs` are:
     t::Float64 = 1.0
 
     # non-user fields
-    l::C = choose_lattice(HubbardModelAttractive, dims, L)
+    l::LT = choose_lattice(HubbardModelAttractive, dims, L)
     neighs::Matrix{Int} = neighbors_lookup_table(l)
     flv::Int = 1
 end
@@ -56,9 +56,8 @@ HubbardModelAttractive(params::NamedTuple) = HubbardModelAttractive(; params...)
 import Base.summary
 import Base.show
 Base.summary(model::HubbardModelAttractive) = "$(model.dims)D attractive Hubbard model"
-Base.show(io::IO, model::HubbardModelAttractive) = print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(model.l.sites) sites)")
+Base.show(io::IO, model::HubbardModelAttractive) = print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(length(model.l)) sites)")
 Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io, model)
-
 
 
 
@@ -82,7 +81,7 @@ Hubbard model in the DQMC simulation.
 This isn't a performance critical method as it is only used once before the
 actual simulation.
 """
-function hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
+function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:AbstractCubicLattice}
     N = nsites(m)
     neighs = m.neighs # row = up, right, down, left; col = siteidx
 
@@ -90,12 +89,27 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
 
     # Nearest neighbor hoppings
     @inbounds @views begin
-      for src in 1:N
-        for nb in 1:size(neighs,1)
-          trg = neighs[nb,src]
-          T[trg,src] += -m.t
+        for src in 1:N
+            for nb in 1:size(neighs,1)
+                trg = neighs[nb,src]
+                T[trg,src] += -m.t
+            end
         end
-      end
+    end
+
+    return T
+end
+
+function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{LT}) where {LT <: AbstractLattice}
+    N = nsites(m)
+
+    T = diagm(0 => fill(-m.mu, N))
+
+    # Nearest neighbor hoppings
+    @inbounds @views begin
+        for (src, trg) in neighbors(l, Val(false))
+            T[src, trg] += -m.t
+        end
     end
 
     return T
@@ -145,19 +159,17 @@ end
 
 
 
-
 # implement DQMC interface: optional
 """
 Green's function is real for the attractive Hubbard model.
 """
 @inline greenseltype(::Type{DQMC}, m::HubbardModelAttractive) = Float64
 
-
 """
 Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
 """
 @inline function energy_boson(m::HubbardModelAttractive, hsfield::HubbardConf)
-  dtau = mc.p.delta_tau
+    dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
 end

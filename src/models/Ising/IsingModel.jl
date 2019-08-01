@@ -14,7 +14,7 @@ Famous Ising model on a cubic lattice.
 Create Ising model on `dims`-dimensional cubic lattice
 with linear system size `L`.
 """
-@with_kw_noshow struct IsingModel{C<:AbstractCubicLattice} <: Model # noshow because we override it below
+@with_kw_noshow struct IsingModel{C<:AbstractLattice} <: Model # noshow because we override it below
     L::Int
     dims::Int
     l::C = choose_lattice(IsingModel, dims, L)
@@ -57,11 +57,12 @@ Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 @inline nsites(m::IsingModel) = nsites(m.l)
 
 
+
 # implement `MC` interface
 Base.rand(::Type{MC}, m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m))...)
 
 @propagate_inbounds function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf)
-    delta_E = 2. * conf[i] * sum(conf[m.neighs[:,i]])
+    delta_E = 2. * conf[i] * sum(conf[neighbors(m.l, i)])
     return delta_E, nothing
 end
 
@@ -100,7 +101,7 @@ function global_move(mc::MC, m::IsingModel, conf::IsingConf)
 
     while !isempty(tocheck)
         cur = pop!(tocheck)
-        @inbounds for n in neighs[:,cur]
+        @inbounds for n in neighbors(l, cur)
 
             @inbounds if conf[cur] == conf[n] && !(n in cluster) && rand() < (1 - exp(- 2.0 * beta))
                 push!(tocheck, n)
@@ -145,13 +146,12 @@ Calculate energy of Ising configuration `conf` for Ising model `m`.
 """
 function energy(mc::MC, m::IsingModel, conf::IsingConf)
     E = 0.0
-    for n in 1:ndims(m)
-        @inbounds @simd for i in 1:nsites(m)
-            E -= conf[i]*conf[m.neighs[n,i]]
-        end
+    @inbounds for (source, target) in neighbors(m.l, Val(true))
+        E -= conf[source] * conf[target]
     end
     return E
 end
+
 
 """
     energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)

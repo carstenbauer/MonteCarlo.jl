@@ -1,7 +1,7 @@
 """
 Generic ALPS lattice parsed from XML file.
 """
-struct ALPSLattice <: Lattice
+struct ALPSLattice <: AbstractLattice
     sites::Int # n_sites
     dim::Int
     neighs::Matrix{Int} # row = neighbors; col = siteidx (assumption: const. coordination nr.)
