@@ -194,20 +194,20 @@ See also [`prepare_observables`](@ref) and [`finish_observables!`](@ref).
 @inline function measure_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf, E::Float64)
   N = m.l.sites
 
-    add!(obs["confs"], conf)
+    push!(obs["confs"], conf)
 
     # energie
     E2 = E^2
-    add!(obs["E"], E)
-    add!(obs["E2"], E2)
-    add!(obs["e"], E/N)
+    push!(obs["E"], E)
+    push!(obs["E2"], E2)
+    push!(obs["e"], E/N)
 
     # magnetization
     M::Float64 = abs(sum(conf))
     M2 = M^2
-    add!(obs["M"], M)
-    add!(obs["M2"], M2)
-    add!(obs["m"], M/N)
+    push!(obs["M"], M)
+    push!(obs["M2"], M2)
+    push!(obs["m"], M/N)
 
     nothing
 end
@@ -226,12 +226,12 @@ See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
     # specific heat
   E = mean(obs["E"])
   E2 = mean(obs["E2"])
-    add!(obs["C"], beta*beta*(E2/N - E*E/N))
+    push!(obs["C"], beta*beta*(E2/N - E*E/N))
 
     # susceptibility
   M = mean(obs["M"])
   M2 = mean(obs["M2"])
-    add!(obs["χ"], beta*(M2/N - M*M/N))
+    push!(obs["χ"], beta*(M2/N - M*M/N))
 
     nothing
 end
