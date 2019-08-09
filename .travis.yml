@@ -7,10 +7,10 @@ julia:
   - nightly
 
 
-# before_install:
+before_install:
 #   - sudo apt-get -qq update
 #   - sudo apt-get install -y hdf5-tools python-numpy python-scipy python-matplotlib
-  # - julia -e 'Pkg.add("HDF5"); Pkg.add("Parameters"); Pkg.add("LightXML"); Pkg.add("JLD"); Pkg.add("PyPlot"); Pkg.clone("https://github.com/crstnbr/ErrorAnalysis.jl"); Pkg.clone("https://github.com/crstnbr/MonteCarloObservable.jl");'
+  - julia -e 'using Pkg; Pkg.clone("https://github.com/crstnbr/StableDQMC.jl.git")'
 
 addons:
   apt:
