@@ -26,4 +26,8 @@ using Random
             @test typeof(observables(mc)) == Dict{String, String}
         end
     end
+
+    @testset "Exact Diagonalization" begin
+        include("ED/ED_tests.jl")
+    end
 end
