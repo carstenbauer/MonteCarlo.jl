@@ -2,6 +2,7 @@ module MonteCarlo
 
 using Reexport
 @reexport using MonteCarloObservable
+using StableDQMC
 using LightXML
 using Parameters
 

@@ -50,7 +50,6 @@ mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any, Stack<:AbstractDQ
     DQMC{M, CB, ConfType, Stack}() where {M<:Model, CB<:Checkerboard, ConfType<:Any, Stack<:AbstractDQMCStack} = new()
 end
 
-include("linalg.jl")
 include("stack.jl")
 include("slice_matrices.jl")
 

@@ -1,3 +1,5 @@
+include("linalg/old_linalg.jl")
+
 # Calculate Ul, Dl, Tl =B(stop) ... B(start)
 """
 Calculate effective(!) Green's function (direct, i.e. without stack) using QR DECOMPOSITION
