@@ -44,27 +44,37 @@ function slice_matrix!(mc::DQMC_CBFalse, m::Model, slice::Int,
 end
 function multiply_slice_matrix_left!(mc::DQMC_CBFalse, m::Model,
 								slice::Int, M::AbstractMatrix)
-	M .= slice_matrix(mc, m, slice, 1.) * M
+	slice_matrix!(mc, m, slice, 1.0, mc.s.U)
+	mul!(mc.s.tmp, mc.s.U, M)
+	M .= mc.s.tmp
 	nothing
 end
 function multiply_slice_matrix_right!(mc::DQMC_CBFalse, m::Model,
 								slice::Int, M::AbstractMatrix)
-	M .= M * slice_matrix(mc, m, slice, 1.)
+	slice_matrix!(mc, m, slice, 1.0, mc.s.U)
+	mul!(mc.s.tmp, M, mc.s.U)
+	M .= mc.s.tmp
 	nothing
 end
 function multiply_slice_matrix_inv_right!(mc::DQMC_CBFalse, m::Model,
 								slice::Int, M::AbstractMatrix)
-	M .= M * slice_matrix(mc, m, slice, -1.)
+	slice_matrix!(mc, m, slice, -1.0, mc.s.U)
+	mul!(mc.s.tmp, M, mc.s.U)
+	M .= mc.s.tmp
 	nothing
 end
 function multiply_slice_matrix_inv_left!(mc::DQMC_CBFalse, m::Model,
 								slice::Int, M::AbstractMatrix)
-	M .= slice_matrix(mc, m, slice, -1.) * M
+	slice_matrix!(mc, m, slice, -1.0, mc.s.U)
+	mul!(mc.s.tmp, mc.s.U, M)
+	M .= mc.s.tmp
 	nothing
 end
 function multiply_daggered_slice_matrix_left!(mc::DQMC_CBFalse, m::Model,
 								slice::Int, M::AbstractMatrix)
-	M .= adjoint(slice_matrix(mc, m, slice, 1.)) * M
+	slice_matrix!(mc, m, slice, 1.0, mc.s.U)
+	mul!(mc.s.tmp, adjoint(mc.s.U), M)
+	M .= mc.s.tmp
 	nothing
 end
 
