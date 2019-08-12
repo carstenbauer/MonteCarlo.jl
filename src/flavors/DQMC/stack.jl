@@ -23,7 +23,7 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
   U::Matrix{GreensEltype}
   D::Vector{Float64}
   T::Matrix{GreensEltype}
-  udt_tmp::Matrix{GreensEltype}
+  tmp::Matrix{GreensEltype}
 
   ranges::Array{UnitRange, 1}
   n_elements::Int
@@ -111,7 +111,7 @@ function initialize_stack(mc::DQMC)
   mc.s.U = zeros(GreensEltype, flv*N, flv*N)
   mc.s.D = zeros(Float64, flv*N)
   mc.s.T = zeros(GreensEltype, flv*N, flv*N)
-  mc.s.udt_tmp = zeros(GreensEltype, flv*N, flv*N)
+  mc.s.tmp = zeros(GreensEltype, flv*N, flv*N)
 
 
   # # Global update backup
@@ -267,11 +267,11 @@ function calculate_greens(mc::DQMC)
     mc.s.U, mc.s.D, mc.s.T = udt_inv_one_plus(
         UDT(mc.s.Ul, mc.s.Dl, mc.s.Tl),
         UDT(mc.s.Ur, mc.s.Dr, mc.s.Tr),
-        tmp = mc.s.U, tmp2 = mc.s.T, tmp3 = mc.s.udt_tmp,
+        tmp = mc.s.U, tmp2 = mc.s.T, tmp3 = mc.s.tmp,
         internaluse = true
     )
-    mul!(mc.s.udt_tmp, mc.s.U, Diagonal(mc.s.D))
-    mul!(mc.s.greens, mc.s.udt_tmp, mc.s.T)
+    mul!(mc.s.tmp, mc.s.U, Diagonal(mc.s.D))
+    mul!(mc.s.greens, mc.s.tmp, mc.s.T)
     mc.s.greens
 end
 
