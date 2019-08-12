@@ -84,13 +84,23 @@ const DQMC_CBTrue = DQMC{M, CheckerboardTrue} where M
 
 function slice_matrix(mc::DQMC_CBTrue, m::Model, slice::Int,
 					power::Float64=1.)
-  M = eye(heltype(mc), m.flv*m.l.sites)
-  if power > 0
-    multiply_slice_matrix_left!(mc, m, slice, M)
-  else
-    multiply_slice_matrix_inv_left!(mc, m, slice, M)
-  end
-  return M
+    M = Matrix{heltype(mc)}(I, m.flv*m.l.sites, m.flv*m.l.sites)
+  	if power > 0
+    	multiply_slice_matrix_left!(mc, m, slice, M)
+  	else
+    	multiply_slice_matrix_inv_left!(mc, m, slice, M)
+  	end
+  	return M
+end
+function slice_matrix!(mc::DQMC_CBTrue, m::Model, slice::Int,
+					power::Float64=1., M = mc.s.U)
+	copyto!(M, I)
+  	if power > 0
+    	multiply_slice_matrix_left!(mc, m, slice, M)
+  	else
+    	multiply_slice_matrix_inv_left!(mc, m, slice, M)
+  	end
+  	return M
 end
 function multiply_slice_matrix_left!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
