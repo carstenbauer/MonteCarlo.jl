@@ -21,11 +21,11 @@ Measures observables and updates corresponding `Observable` objects in `obs`.
 
 See also [`prepare_observables`](@ref) and [`finish_observables!`](@ref).
 """
-@noinline function measure_observables!(mc::DQMC, m::HubbardModelAttractive, 
+@noinline function measure_observables!(mc::DQMC, m::HubbardModelAttractive,
 							obs::Dict{String,Observable}, conf::HubbardConf)
-    add!(obs["confs"], mc.conf)
-    add!(obs["greens"], greens(mc))
-    add!(obs["Eboson"], mc.energy_boson)
+    push!(obs["confs"], mc.conf)
+    push!(obs["greens"], greens(mc))
+    push!(obs["Eboson"], mc.energy_boson)
     nothing
 end
 
@@ -36,7 +36,7 @@ Finish measurements of observables.
 
 See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 """
-@inline function finish_observables!(mc::DQMC, m::HubbardModelAttractive, 
+@inline function finish_observables!(mc::DQMC, m::HubbardModelAttractive,
 							obs::Dict{String,Observable})
     nothing
 end

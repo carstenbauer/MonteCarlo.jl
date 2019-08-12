@@ -155,7 +155,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizat
         if mod(i, 10) == 0
             mc.a.acc_rate = mc.a.acc_rate / (10 * 2 * mc.p.slices)
             mc.a.acc_rate_global = mc.a.acc_rate_global / (10 / mc.p.global_rate)
-            add!(sweep_dur, (time() - _time)/10)
+            push!(sweep_dur, (time() - _time)/10)
             if verbose
                 println("\t", i)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur[end])

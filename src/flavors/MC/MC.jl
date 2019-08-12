@@ -123,7 +123,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
         if mod(i, 1000) == 0
             mc.a.acc_rate = mc.a.acc_rate / 1000
             mc.a.acc_rate_global = mc.a.acc_rate_global / (1000 / mc.p.global_rate)
-            add!(sweep_dur, (time() - _time)/1000)
+            push!(sweep_dur, (time() - _time)/1000)
             if verbose
                 println("\t", i)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur[end])
