@@ -21,6 +21,27 @@ function slice_matrix(mc::DQMC_CBFalse, m::Model, slice::Int,
 		return eV * eTinv * eTinv
 	end
 end
+
+
+function slice_matrix!(mc::DQMC_CBFalse, m::Model, slice::Int,
+					power::Float64=1., result = mc.s.U)
+	eT = mc.s.hopping_matrix_exp
+	eTinv = mc.s.hopping_matrix_exp_inv
+	eV = mc.s.eV
+
+	interaction_matrix_exp!(mc, m, eV, mc.conf, slice, power)
+
+	if power > 0
+		# eT * (eT * eV)
+		mul!(mc.s.tmp, eT, eV)
+		mul!(result, eT, mc.s.tmp)
+	else
+		# ev * (eTinv * eTinv)
+		mul!(mc.s.tmp, eTinv, eTinv)
+		mul!(result, eV, mc.s.tmp)
+	end
+	return result
+end
 function multiply_slice_matrix_left!(mc::DQMC_CBFalse, m::Model,
 								slice::Int, M::AbstractMatrix)
 	M .= slice_matrix(mc, m, slice, 1.) * M
