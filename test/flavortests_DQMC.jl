@@ -50,4 +50,6 @@
     greens, = MonteCarlo.calculate_greens_and_logdet(mc, mc.s.current_slice-10)
     @test maximum(MonteCarlo.absdiff(greens, mc.s.greens)) < 1e-9
 
+
+    include("slice_matrices.jl")
 end
