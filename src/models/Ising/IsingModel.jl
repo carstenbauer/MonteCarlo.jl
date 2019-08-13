@@ -51,6 +51,14 @@ Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 
 # methods for using it with Monte Carlo flavor MC (Monte Carlo)
 """
+    nsites(m::IsingModel)
+
+Number of sites of the given Ising model.
+Propagates `nsites` to the underlying `Lattice`.
+"""
+@inline nsites(m::IsingModel) = nsites(m.l)
+
+"""
     energy(mc::MC, m::IsingModel, conf::IsingConf)
 
 Calculate energy of Ising configuration `conf` for Ising model `m`.

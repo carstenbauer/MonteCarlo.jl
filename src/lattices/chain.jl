@@ -42,3 +42,5 @@ function build_neighbortable!(l::Chain)
     left = circshift(c,1)
     l.neighs = vcat(right[:]',left[:]')
 end
+
+@inline nsites(c::Chain) = c.sites

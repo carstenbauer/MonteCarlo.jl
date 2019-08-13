@@ -41,3 +41,5 @@ function build_neighbortable!(l::CubicLattice{T}) where T
     l.neighs = transpose(hcat(uprights..., downlefts...))
     nothing
 end
+
+@inline nsites(c::CubicLattice) = c.sites

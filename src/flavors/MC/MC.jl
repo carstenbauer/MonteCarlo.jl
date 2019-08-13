@@ -155,7 +155,7 @@ end
 Performs a sweep of local moves.
 """
 function sweep(mc::MC)
-    N = mc.model.l.sites
+    N = nsites(mc.model)
     beta = mc.p.beta
 
     @inbounds for i in eachindex(mc.conf)

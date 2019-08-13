@@ -1,10 +1,10 @@
-# fields
-#= A model that wants to use MC must have fields:
+"""
+    nsites(m::Model)
 
-    - `l::Lattice`: any [`Lattice`](@ref)
-=#
+Number of lattice sites of the given model.
+"""
+nsites(m::Model) = error("Model has no implementation of `nsites(m::Model)`!")
 
-# methods
 """
     conftype(::Type{MC}, m::Model)
 

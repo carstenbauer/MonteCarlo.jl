@@ -59,3 +59,5 @@ function build_neighbortable!(l::SquareLattice)
     l.neighs_cartesian[3,:,:] = down
     l.neighs_cartesian[4,:,:] = left
 end
+
+@inline nsites(s::SquareLattice) = s.sites

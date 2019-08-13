@@ -85,3 +85,6 @@ function parse_alpslattice_xml(filename::String, l::ALPSLattice)
 
   l.n_neighs = count(x->x==1, l.bonds[:, 1]) + count(x->x==1, l.bonds[:, 2]) # neighbors of site 1
 end
+
+
+@inline nsites(l::ALPSLattice) = l.sites
