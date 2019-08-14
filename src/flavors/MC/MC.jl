@@ -52,18 +52,14 @@ function MC(m::M; seed::Int=-1, kwargs...) where M<:Model
 end
 
 """
-    MC(m::M; kwargs::Dict{String, Any})
+    MC(m::M, params::Dict)
+    MC(m::M, params::NamedTuple)
 
 Create a Monte Carlo simulation for model `m` with (keyword) parameters
-as specified in the dictionary `kwargs`.
+as specified in the dictionary/named tuple `params`.
 """
-function MC(m::M, kwargs::Dict{String, Any}) where M<:Model
-    symbol_dict = Dict([Symbol(k) => v for (k, v) in kwargs])
-    MC(m, symbol_dict...)
-end
-function MC(m::M, kwargs::Dict{Symbol, Any}) where M<:Model
-    MC(m; kwargs...)
-end
+MC(m::Model, params::Dict{Symbol, T}) where T = MC(m; params...)
+MC(m::Model, params::NamedTuple) = MC(m; params...)
 
 # cosmetics
 import Base.summary
