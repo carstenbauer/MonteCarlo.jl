@@ -73,15 +73,16 @@ function DQMC(m::M; seed::Int=-1, checkerboard::Bool=false, kwargs...) where M<:
     return mc
 end
 
-"""
-    DQMC(m::M; kwargs::Dict{String, Any})
 
-Create a determinant quantum Monte Carlo simulation for model `m` with (keyword) parameters
-as specified in the dictionary `kwargs`.
 """
-function DQMC(m::M, kwargs::Dict{String, Any}) where M<:Model
-    DQMC(m; convert(Dict{Symbol, Any}, kwargs)...)
-end
+    DQMC(m::M, params::Dict)
+    DQMC(m::M, params::NamedTuple)
+
+Create a determinant quantum Monte Carlo simulation for model `m` with
+(keyword) parameters as specified in the dictionary/named tuple `params`.
+"""
+DQMC(m::Model, params::Dict{Symbol, T}) where T = DQMC(m; params...)
+DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
 
 
 # cosmetics
