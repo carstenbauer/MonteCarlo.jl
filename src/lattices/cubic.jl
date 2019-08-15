@@ -27,11 +27,11 @@ function CubicLattice(D::Int, L::Int)
 
     bonds = Matrix{Int}(undef, n_bonds, 3)
     bondid = 1
-    for src in l.lattice
-        for trg in l.neighs[1:D, src]
-            l.bonds[bondid, 1] = src
-            l.bonds[bondid, 2] = trg
-            l.bonds[bondid, 3] = 0
+    for src in lattice
+        for trg in neighs[1:D, src]
+            bonds[bondid, 1] = src
+            bonds[bondid, 2] = trg
+            bonds[bondid, 3] = 0
             bondid += 1
         end
     end

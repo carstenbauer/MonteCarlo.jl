@@ -11,7 +11,6 @@ before_install:
 #   - sudo apt-get -qq update
 #   - sudo apt-get install -y hdf5-tools python-numpy python-scipy python-matplotlib
   - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/crstnbr/StableDQMC.jl.git"))'
-  - julia -e 'using Pkg; Pkg.add(PackageSpec(url="https://github.com/janattig/LatPhysBase.jl.git"))'
 
 addons:
   apt:

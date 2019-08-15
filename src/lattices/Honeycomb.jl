@@ -111,3 +111,5 @@ function build_NNneighbortable!(l::HoneycombLattice)
     l.NNNs_cartesian[5,:,:] = downleft
     l.NNNs_cartesian[6,:,:] = upleft
 end
+
+@inline nsites(l::HoneycombLattice) = l.sites

@@ -3,8 +3,6 @@ module MonteCarlo
 using Reexport
 @reexport using MonteCarloObservable
 using StableDQMC, LightXML, Parameters, Requires
-import LatPhysBase
-import LatPhysBase.numSites
 
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
 

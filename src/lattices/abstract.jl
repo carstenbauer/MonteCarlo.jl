@@ -11,7 +11,7 @@ abstract type AbstractLattice end
 Number of lattice sites.
 """
 @inline nsites(l::AbstractLattice) = error("Lattice $(typeof(l)) doesn't implement `nsites`.")
-@inline length(l::AbstractLattice) = nsites(l)
+@inline Base.length(l::AbstractLattice) = nsites(l)
 
 # Typically, you also want to implement
 
