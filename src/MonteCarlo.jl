@@ -13,7 +13,6 @@ using Random
 include("helpers.jl")
 include("abstract.jl")
 include("Measurements.jl")
-export Measurement
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")
@@ -35,6 +34,5 @@ export HubbardModelAttractive
 export MC
 export DQMC
 export greens
-export observables
 
 end # module

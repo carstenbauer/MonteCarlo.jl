@@ -235,3 +235,5 @@ See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
 
     nothing
 end
+
+include("measurements.jl")

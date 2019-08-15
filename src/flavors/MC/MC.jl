@@ -31,7 +31,7 @@ mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     conf::C
     energy::Float64
 
-    obs::Dict{String, Observable}
+    measurements::Dict{Symbol, AbstractMeasurement}
     p::MCParameters
     a::MCAnalysis
 
@@ -47,6 +47,7 @@ function MC(m::M; seed::Int=-1, kwargs...) where M<:Model
     mc = MC{M, conftype(MC, m)}()
     mc.model = m
     mc.p = MCParameters(; kwargs...) # forward kwargs to MCParameters
+    mc.measurements = Dict{Symbol, AbstractMeasurement}()
     init!(mc, seed=seed)
     return mc
 end
@@ -82,13 +83,17 @@ Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 Initialize the Monte Carlo simulation `mc`.
 If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
-function init!(mc::MC; seed::Real=-1)
+function init!(mc::MC; seed::Real=-1, measurements = default_measurements(mc))
     seed == -1 || Random.seed!(seed)
 
     mc.conf = rand(mc, mc.model)
     mc.energy = energy(mc, mc.model, mc.conf)
 
-    mc.obs = prepare_observables(mc, mc.model)
+    if isempty(measurements)
+        @warn "No measurements have been set!"
+    else
+        push!(mc.measurements, measurements...)
+    end
 
     mc.a = MCAnalysis()
     nothing
@@ -118,7 +123,11 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
             mc.a.acc_global += global_move(mc, mc.model, mc.conf, mc.energy)
         end
 
-        (i > mc.p.thermalization) && measure_observables!(mc, mc.model, mc.obs, mc.conf, mc.energy)
+        # TODO
+        # remove this?
+        (i == mc.p.thermalization) && prepare!(mc.measurements, mc, mc.model)
+
+        (i > mc.p.thermalization) && measure!(mc.measurements, mc, mc.model)
 
         if mod(i, 1000) == 0
             mc.a.acc_rate = mc.a.acc_rate / 1000
@@ -140,7 +149,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
             _time = time()
         end
     end
-    finish_observables!(mc, mc.model, mc.obs)
+    finish!(mc.measurements, mc, mc.model)
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
