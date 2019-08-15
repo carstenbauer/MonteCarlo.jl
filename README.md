@@ -19,10 +19,8 @@ Look at the [documentation](https://crstnbr.github.io/MonteCarlo.jl/latest/) for
 
 In Julia REPL:
 ```julia
-Pkg.clone("https://github.com/crstnbr/StableDQMC.jl.git")
-Pkg.clone("https://github.com/crstnbr/MonteCarloObservable.jl")
-Pkg.clone("https://github.com/crstnbr/MonteCarlo.jl")
-using MonteCarlo
+] add https://github.com/crstnbr/StableDQMC.jl
+] add https://github.com/crstnbr/MonteCarlo.jl
 ```
 
 ## Authors
