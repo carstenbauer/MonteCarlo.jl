@@ -15,7 +15,7 @@ with linear system size `L`. Additional allowed `kwargs` are:
  * `U::Float64=1.0`: onsite interaction strength, "Hubbard U"
  * `t::Float64=1.0`: hopping energy
 """
-@with_kw_noshow mutable struct HubbardModelAttractive{C<:AbstractCubicLattice} <: Model
+@with_kw_noshow struct HubbardModelAttractive{C<:AbstractCubicLattice} <: Model
     # user mandatory
     dims::Int
     L::Int

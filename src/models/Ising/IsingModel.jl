@@ -14,7 +14,7 @@ Famous Ising model on a cubic lattice.
 Create Ising model on `dims`-dimensional cubic lattice
 with linear system size `L`.
 """
-@with_kw_noshow mutable struct IsingModel{C<:AbstractCubicLattice} <: Model # noshow because we override it below
+@with_kw_noshow struct IsingModel{C<:AbstractCubicLattice} <: Model # noshow because we override it below
     L::Int
     dims::Int
     l::C = choose_lattice(IsingModel, dims, L)
