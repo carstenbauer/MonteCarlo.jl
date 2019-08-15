@@ -26,7 +26,6 @@ This package is currently undergoing a noticable transformation and the document
 
 In Julia REPL:
 ```julia
-] add https://github.com/crstnbr/StableDQMC.jl
 ] add https://github.com/crstnbr/MonteCarlo.jl
 ```
 
