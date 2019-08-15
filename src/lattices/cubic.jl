@@ -43,3 +43,4 @@ function build_neighbortable!(l::CubicLattice{T}) where T
 end
 
 @inline nsites(c::CubicLattice) = c.sites
+@inline neighbors_lookup_table(c::CubicLattice) = c.neighs

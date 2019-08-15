@@ -1,17 +1,10 @@
 """
-    conftype(::Type{DQMC}, m::Model)
-
-Returns the type of a configuration.
-"""
-conftype(::Type{DQMC}, m::Model) = error("Model has no implementation of `conftype(::Type{DQMC}, m::Model)`!")
-
-import Base.rand
-"""
-    rand(mc::DQMC, m::Model)
+    rand(::Type{DQMC}, m::Model, nslices::Int)
 
 Draw random configuration.
 """
-rand(mc::DQMC, m::Model) = error("Model has no implementation of `rand(mc::DQMC, m::Model)`!")
+Base.rand(::Type{DQMC}, m::Model, nslices::Int) = error("Model $(typeof(m)) doesn't implement `rand(::Type{DQMC}, m::Model, nslices::Int)`!")
+
 
 """
 	hopping_matrix(mc::DQMC, m::Model)
@@ -26,6 +19,7 @@ Regarding the order of indices, if `T[i, σ, j, σ']` is your desired 4D hopping
 is the hopping matrix.
 """
 hopping_matrix(mc::DQMC, m::Model) = error("Model has no implementation of `hopping_matrix(mc::DQMC, m::Model)`.")
+
 
 """
     interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.) -> nothing

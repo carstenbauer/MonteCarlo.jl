@@ -1,18 +1,9 @@
 """
-    nsites(m::Model)
-
-Number of lattice sites of the given model.
-"""
-nsites(m::Model) = error("Model has no implementation of `nsites(m::Model)`!")
-
-
-"""
-    rand(m::Model)
+    rand(::Type{MC}, m::Model)
 
 Draw random configuration.
 """
-Base.rand(m::Model) = error("Model has no implementation of `rand(m::Model)`!")
-
+Base.rand(::Type{MC}, m::Model) = error("Model $(typeof(m)) doesn't implement `rand(::Type{MC}, m::Model)`!")
 
 """
     propose_local(mc::MC, m::Model, i::Int, conf) -> delta_E, delta_i

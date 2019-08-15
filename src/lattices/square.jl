@@ -61,3 +61,4 @@ function build_neighbortable!(l::SquareLattice)
 end
 
 @inline nsites(s::SquareLattice) = s.sites
+@inline neighbors_lookup_table(s::SquareLattice) = s.neighs

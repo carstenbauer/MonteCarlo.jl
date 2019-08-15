@@ -18,6 +18,7 @@ with linear system size `L`.
     L::Int
     dims::Int
     l::C = choose_lattice(IsingModel, dims, L)
+    neighs::Matrix{Int} = neighbors_lookup_table(l)
 end
 
 function choose_lattice(::Type{IsingModel}, dims::Int, L::Int)
@@ -55,13 +56,15 @@ Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 
 
 
-
-# mandatory methods for Monte Carlo flavor `MC`
+# implement `Model` interface
 @inline nsites(m::IsingModel) = nsites(m.l)
-Base.rand(m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m))...)
+
+
+# implement `MC` interface
+Base.rand(::Type{MC}, m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m))...)
 
 @propagate_inbounds function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf)
-    delta_E = 2. * conf[i] * sum(conf[m.l.neighs[:,i]])
+    delta_E = 2. * conf[i] * sum(conf[m.neighs[:,i]])
     return delta_E, nothing
 end
 
@@ -72,7 +75,7 @@ end
 
 # optimized for 2D case
 @propagate_inbounds function propose_local(mc::MC, m::IsingModel{SquareLattice}, i::Int, conf::IsingConf)
-    neighs = m.l.neighs
+    neighs = m.neighs
     @inbounds delta_E = 2. * conf[i] * (conf[neighs[1, i]] + conf[neighs[2, i]] +
                               + conf[neighs[3, i]] + conf[neighs[4, i]])
     return delta_E, nothing
@@ -87,9 +90,9 @@ Constructs a Wolff cluster spinflip for configuration `conf`.
 Returns wether a cluster spinflip has been performed (any spins have been flipped).
 """
 function global_move(mc::MC, m::IsingModel, conf::IsingConf)
-  N = nsites(m)
-  neighs = m.l.neighs
-  beta = mc.p.beta
+    N = nsites(m)
+    neighs = m.neighs
+    beta = mc.p.beta
 
     cluster = Array{Int, 1}()
     tocheck = Array{Int, 1}()
@@ -144,12 +147,10 @@ end
 Calculate energy of Ising configuration `conf` for Ising model `m`.
 """
 function energy(mc::MC, m::IsingModel, conf::IsingConf)
-    neigh = m.l.neighs
     E = 0.0
     for n in 1:ndims(m)
         @inbounds @simd for i in 1:nsites(m)
-            E -= conf[i]*conf[neigh[n,i]]
-            @show E
+            E -= conf[i]*conf[m.neighs[n,i]]
         end
     end
     return E
@@ -163,10 +164,10 @@ This method is a faster variant of the general method for the
 square lattice case. (It is roughly twice as fast in this case.)
 """
 function energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
-    neigh = m.l.neighs
+    neighs = m.neighs
     E = 0.0
     @inbounds @simd for i in 1:nsites(m)
-        E -= conf[i]*conf[neigh[1,i]] + conf[i]*conf[neigh[2,i]]
+        E -= conf[i]*conf[neighs[1,i]] + conf[i]*conf[neighs[2,i]]
     end
     return E
 end

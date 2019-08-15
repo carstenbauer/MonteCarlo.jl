@@ -44,3 +44,4 @@ function build_neighbortable!(l::Chain)
 end
 
 @inline nsites(c::Chain) = c.sites
+@inline neighbors_lookup_table(c::Chain) = c.neighs

@@ -1,33 +1,50 @@
 # abstract monte carlo flavor definition
 """
 Abstract definition of a Monte Carlo flavor.
-
-A concrete monte carlo flavor must implement the following methods:
-
-    - `init!(mc)`: initialize the simulation without overriding parameters (will also automatically be available as `reset!`)
-    - `run!(mc)`: run the simulation
 """
 abstract type MonteCarloFlavor end
 
+# MonteCarloFlavor interface: mandatory
 """
-    reset!(mc::MonteCarloFlavor)
+    init!(mc)
 
-Resets the Monte Carlo simulation `mc`.
-Previously set parameters will be retained.
+Initialize the Monte Carlo simulation. Has an alias function `reset!`.
 """
-reset!(mc::MonteCarloFlavor) = init!(mc) # convenience mapping
+init!(mc::MonteCarloFlavor) = error("MonteCarloFlavor $(typeof(mc)) doesn't implement `init!`!")
+
+"""
+    run!(mc)
+
+Run the Monte Carlo Simulation.
+"""
+run!(mc::MonteCarloFlavor) = error("MonteCarloFlavor $(typeof(mc)) doesn't implement `run!`!")
+
+
+
+
 
 
 # abstract lattice definition
 """
 Abstract definition of a lattice.
-Necessary fields depend on Monte Carlo flavor.
-However, any concrete Lattice type should have at least the following fields:
-
-    - `sites`: number of lattice sites
-    - `neighs::Matrix{Int}`: neighbor matrix (row = neighbors, col = siteidx)
 """
 abstract type Lattice end
+
+
+# Lattice interface: mandatory
+# TODO: This needs to be updated. There must be a general way to access sites and bonds.
+"""
+    nsites(l::Lattice)
+
+Number of lattice sites.
+"""
+nsites(l::Lattice) = error("Lattice $(typeof(l)) doesn't implement `nsites`.")
+
+# Typically, you also want to implement
+
+#     - `neighbors_lookup_table(lattice)`: return a neighbors matrix where
+#                                         row = neighbors and col = siteidx.
+
 
 """
 Abstract cubic lattice.
@@ -39,11 +56,29 @@ Abstract cubic lattice.
 abstract type AbstractCubicLattice <: Lattice end
 
 
+
+
+
+
+
 # abstract model definition
 """
 Abstract model.
 """
 abstract type Model end
+
+
+# Model interface: mandatory
+"""
+    nsites(m::Model)
+
+Number of lattice sites of the given model.
+"""
+nsites(m::Model) = error("Model $(typeof(m)) doesn't implement `nsites`!")
+
+
+
+
 
 
 # general functions
@@ -66,3 +101,12 @@ function observables(mc::MonteCarloFlavor)
 	end
 	return obs
 end
+
+
+"""
+    reset!(mc::MonteCarloFlavor)
+
+Resets the Monte Carlo simulation `mc`.
+Previously set parameters will be retained.
+"""
+reset!(mc::MonteCarloFlavor) = init!(mc) # convenience mapping

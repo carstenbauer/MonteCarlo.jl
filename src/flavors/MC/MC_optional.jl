@@ -1,12 +1,4 @@
 """
-    rand(::Type{<:MonteCarloFlavor}, m::Model)
-
-Draw random configuration of the model `m` for a given `MonteCarloFlavor`.
-Calls `rand(m::Model)` as a fallback.
-"""
-Base.rand(::Type{M}, m::Model) where M<:MonteCarloFlavor = rand(m)
-
-"""
     global_move(mc::MC, m::Model, conf) -> accepted::Bool
 
 Propose a global move for configuration `conf`.

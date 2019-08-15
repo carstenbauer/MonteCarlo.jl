@@ -88,3 +88,4 @@ end
 
 
 @inline nsites(l::ALPSLattice) = l.sites
+@inline neighbors_lookup_table(l::ALPSLattice) = l.neighs
