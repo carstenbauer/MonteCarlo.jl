@@ -21,11 +21,11 @@ function CubicLattice(D::Int, L::Int)
     sites = L^D
     lattice = convert(Array, reshape(1:sites, (fill(L, D)...,)))
 
-    neighs = build_neighbortable(lattice, D)
+    neighs = build_neighbortable(CubicLattice, lattice, D)
     return CubicLattice(L,D,sites,Matrix(neighs),lattice)
 end
 
-function build_neighbortable(lattice, D)
+function build_neighbortable(::Type{CubicLattice}, lattice, D)
     uprights = Vector{Vector{Int}}(undef, D)
     downlefts = Vector{Vector{Int}}(undef, D)
 

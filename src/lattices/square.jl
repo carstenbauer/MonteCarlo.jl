@@ -23,7 +23,7 @@ Create a square lattice with linear dimension `L`.
 function SquareLattice(L::Int)
     sites = L^2
     lattice = convert(Array, reshape(1:L^2, (L, L)))
-    neighs, neighs_cartesian = build_neighbortable(lattice, L)
+    neighs, neighs_cartesian = build_neighbortable(SquareLattice, lattice, L)
 
     # for generic checkerboard decomposition
     n_bonds = 2*sites
@@ -42,7 +42,7 @@ function SquareLattice(L::Int)
     return SquareLattice(L, sites, neighs, neighs_cartesian, lattice, n_bonds, bonds)
 end
 
-function build_neighbortable(lattice, L)
+function build_neighbortable(::Type{SquareLattice}, lattice, L)
     up = circshift(lattice,(-1,0))
     right = circshift(lattice,(0,-1))
     down = circshift(lattice,(1,0))

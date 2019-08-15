@@ -17,7 +17,7 @@ end
 Create a chain with `nsites`.
 """
 function Chain(nsites::Int)
-    neighs = build_neighbortable(nsites)
+    neighs = build_neighbortable(Chain, nsites)
 
     # for generic checkerboard decomposition
     n_bonds = nsites
@@ -32,7 +32,7 @@ function Chain(nsites::Int)
     return Chain(nsites, neighs, n_bonds, bonds)
 end
 
-function build_neighbortable(nsites::Int)
+function build_neighbortable(::Type{Chain}, nsites::Int)
     c = 1:nsites
     right = circshift(c,-1)
     left = circshift(c,1)
