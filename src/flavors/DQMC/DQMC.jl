@@ -15,7 +15,7 @@ end
 """
 Parameters of determinant quantum Monte Carlo (DQMC)
 """
-@with_kw mutable struct DQMCParameters
+@with_kw struct DQMCParameters
     global_moves::Bool = false
     global_rate::Int = 5
     thermalization::Int = 100 # number of thermalization sweeps
@@ -137,9 +137,7 @@ Progress will be printed to `stdout` if `verbose=true` (default).
 """
 function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
         thermalization=mc.p.thermalization)
-    mc.p.sweeps = sweeps
-    mc.p.thermalization = thermalization
-    total_sweeps = mc.p.sweeps + mc.p.thermalization
+    total_sweeps = sweeps + thermalization
 
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
@@ -153,12 +151,12 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
     _time = time()
     verbose && println("\n\nThermalization stage - ", thermalization)
     for i in 1:total_sweeps
-        verbose && (i == mc.p.thermalization + 1) &&
-            println("\n\nMeasurement stage - ", mc.p.sweeps)
+        verbose && (i == thermalization + 1) &&
+            println("\n\nMeasurement stage - ", sweeps)
         for u in 1:2 * nslices(mc)
             update(mc, i)
 
-            if i > mc.p.thermalization && current_slice(mc) == nslices(mc) &&
+            if i > thermalization && current_slice(mc) == nslices(mc) &&
                     mc.s.direction == -1 && (i-1)%mc.p.measure_every_nth == 0
                 measure_observables!(mc, mc.model, mc.obs, mc.conf)
             end

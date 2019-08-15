@@ -13,7 +13,7 @@ end
 """
 Parameters of Monte Carlo
 """
-@with_kw mutable struct MCParameters
+@with_kw struct MCParameters
     global_moves::Bool = false
     global_rate::Int = 5
     thermalization::Int = 0 # number of thermalization sweeps
@@ -68,8 +68,6 @@ MC(m::Model, params::NamedTuple) = MC(m; params...)
 @inline conf(mc::MC) = mc.conf
 
 # cosmetics
-import Base.summary
-import Base.show
 Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::MC)
     print(io, "Monte Carlo simulation\n")
@@ -105,8 +103,7 @@ Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `stdout` if `verbose=true` (default).
 """
 function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
-    @pack! mc.p = sweeps, thermalization
-    total_sweeps = mc.p.sweeps + mc.p.thermalization
+    total_sweeps = sweeps + thermalization
 
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
@@ -120,7 +117,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
             mc.a.acc_global += global_move(mc, mc.model, conf(mc))
         end
 
-        if i > mc.p.thermalization && iszero(mod(i, mc.p.measure_rate))
+        if i > thermalization && iszero(mod(i, mc.p.measure_rate))
             measure_observables!(mc, mc.model, mc.obs, conf(mc))
         end
 
