@@ -1,7 +1,7 @@
 """
 Two dimensional square lattice.
 """
-mutable struct SquareLattice <: AbstractCubicLattice
+struct SquareLattice <: AbstractCubicLattice
     L::Int
     sites::Int
     neighs::Matrix{Int} # row = up, right, down, left; col = siteidx
@@ -12,52 +12,49 @@ mutable struct SquareLattice <: AbstractCubicLattice
     # OPT: implement Assaad's two-group square lattice version
     n_bonds::Int
     bonds::Matrix{Int} # src, trg, type
-
-    SquareLattice() = new()
 end
 
 # constructors
 """
-    SquareLattice(L)
+    SquareLattice(L::Int)
 
 Create a square lattice with linear dimension `L`.
 """
 function SquareLattice(L::Int)
-    l = SquareLattice()
-    l.L = L
-    l.sites = l.L^2
-    l.lattice = convert(Array, reshape(1:l.L^2, (l.L, l.L)))
-    build_neighbortable!(l)
+    sites = L^2
+    lattice = convert(Array, reshape(1:L^2, (L, L)))
+    neighs, neighs_cartesian = build_neighbortable(lattice, L)
 
     # for generic checkerboard decomposition
-    l.n_bonds = 2*l.sites
-    l.bonds = zeros(l.n_bonds, 3)
+    n_bonds = 2*sites
+    bonds = zeros(n_bonds, 3)
     bondid = 1
-    for src in l.lattice
-        nup = l.neighs[1, src]
-        l.bonds[bondid,:] .= [src,nup,0]
+    for src in lattice
+        nup = neighs[1, src]
+        bonds[bondid,:] .= [src,nup,0]
         bondid += 1
 
-        nright = l.neighs[2, src]
-        l.bonds[bondid,:] .= [src,nright,0]
+        nright = neighs[2, src]
+        bonds[bondid,:] .= [src,nright,0]
         bondid += 1
     end
 
-    return l
+    return SquareLattice(L, sites, neighs, neighs_cartesian, lattice, n_bonds, bonds)
 end
 
-function build_neighbortable!(l::SquareLattice)
-    up = circshift(l.lattice,(-1,0))
-    right = circshift(l.lattice,(0,-1))
-    down = circshift(l.lattice,(1,0))
-    left = circshift(l.lattice,(0,1))
-    l.neighs = vcat(up[:]',right[:]',down[:]',left[:]')
+function build_neighbortable(lattice, L)
+    up = circshift(lattice,(-1,0))
+    right = circshift(lattice,(0,-1))
+    down = circshift(lattice,(1,0))
+    left = circshift(lattice,(0,1))
+    neighs = vcat(up[:]',right[:]',down[:]',left[:]')
 
-    l.neighs_cartesian = Array{Int, 3}(undef, 4, l.L, l.L)
-    l.neighs_cartesian[1,:,:] = up
-    l.neighs_cartesian[2,:,:] = right
-    l.neighs_cartesian[3,:,:] = down
-    l.neighs_cartesian[4,:,:] = left
+    neighs_cartesian = Array{Int, 3}(undef, 4, L, L)
+    neighs_cartesian[1,:,:] = up
+    neighs_cartesian[2,:,:] = right
+    neighs_cartesian[3,:,:] = down
+    neighs_cartesian[4,:,:] = left
+    return neighs, neighs_cartesian
 end
 
 @inline nsites(s::SquareLattice) = s.sites
