@@ -63,7 +63,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 
 
 # implement `Model` interface
-@inline nsites(m::HubbardModelAttractive) = nsites(m.l)
+@inline nsites(m::HubbardModelAttractive) = length(m.l)
 
 
 # implement `DQMC` interface: mandatory

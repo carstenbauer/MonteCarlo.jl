@@ -6,18 +6,18 @@ abstract type AbstractLattice end
 # AbstractLattice interface: mandatory
 # TODO: This needs to be updated. There must be a general way to access sites and bonds.
 """
-    nsites(l::AbstractLattice)
+    length(l::AbstractLattice)
 
 Number of lattice sites.
 """
-@inline nsites(l::AbstractLattice) = error("Lattice $(typeof(l)) doesn't implement `nsites`.")
-@inline Base.length(l::AbstractLattice) = nsites(l)
+@inline Base.length(l::AbstractLattice) = error("Lattice $(typeof(l)) doesn't implement `length`.")
 
-# Typically, you also want to implement
 
-#     - `neighbors_lookup_table(lattice)`: return a neighbors matrix where
-#                                         row = neighbors and col = siteidx.
 
+
+
+
+# AbstractLattice interface: optional
 """
     neighbors(l::AbstractLattice, drop_repeats::Val{true})
     neighbors(l::AbstractLattice, drop_repeats::Val{false})
@@ -47,6 +47,12 @@ Returns a list of site indices neighboring the specified `site_index`.
 @inline function neighbors(l::AbstractLattice, site_index::Integer)
     l.neighs[:, site_index]
 end
+
+
+# Typically, you also want to implement
+
+#     - `neighbors_lookup_table(lattice)`: return a neighbors matrix where
+#                                         row = neighbors and col = siteidx.
 
 
 

@@ -39,5 +39,5 @@ function build_neighbortable(::Type{Chain}, nsites::Int)
     return vcat(right[:]',left[:]')
 end
 
-@inline nsites(c::Chain) = c.sites
+@inline Base.length(c::Chain) = c.sites
 @inline neighbors_lookup_table(c::Chain) = c.neighs

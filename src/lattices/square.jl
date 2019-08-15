@@ -57,5 +57,5 @@ function build_neighbortable(::Type{SquareLattice}, lattice, L)
     return neighs, neighs_cartesian
 end
 
-@inline nsites(s::SquareLattice) = s.sites
+@inline Base.length(s::SquareLattice) = s.sites
 @inline neighbors_lookup_table(s::SquareLattice) = s.neighs

@@ -54,7 +54,7 @@ Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 
 
 # implement `Model` interface
-@inline nsites(m::IsingModel) = nsites(m.l)
+@inline nsites(m::IsingModel) = length(m.l)
 
 
 

@@ -7,14 +7,15 @@ using StableDQMC, LightXML, Parameters, Requires
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
 
 include("helpers.jl")
-include("abstract.jl")
-
+include("flavors/abstract.jl")
+include("models/abstract.jl")
 include("lattices/abstract.jl")
+
 include("lattices/square.jl")
 include("lattices/chain.jl")
 include("lattices/cubic.jl")
+include("lattices/honeycomb.jl")
 include("lattices/ALPS.jl")
-include("lattices/Honeycomb.jl")
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")

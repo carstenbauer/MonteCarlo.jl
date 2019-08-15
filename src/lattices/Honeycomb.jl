@@ -31,7 +31,7 @@ function HoneycombLattice(L::Int, include_NNN=false)
     lattice = convert(Array, reshape(1:(2*L)^2, (2*L, 2*L)))
     neighs, neighs_cartesian = build_neighbortable(HoneycombLattice, lattice, L)
     if include_NNN
-        NNNs, NNNs_cartesian = build_NNneighbortable(HoneycombLattice, lattice, l)
+        NNNs, NNNs_cartesian = build_NNneighbortable(HoneycombLattice, lattice, L)
     else
         NNNs = zeros(Int, 0,0)
         NNNs_cartesian = zeros(Int, 0,0,0)
@@ -116,4 +116,4 @@ function build_NNneighbortable(::Type{HoneycombLattice}, lattice, L)
     return NNNs, NNNs_cartesian
 end
 
-@inline nsites(l::HoneycombLattice) = l.sites
+@inline Base.length(l::HoneycombLattice) = l.sites

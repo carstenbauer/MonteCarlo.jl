@@ -53,5 +53,5 @@ function build_neighbortable(::Type{CubicLattice}, lattice, D)
     return transpose(hcat(uprights..., downlefts...))
 end
 
-@inline nsites(c::CubicLattice) = c.sites
+@inline Base.length(c::CubicLattice) = c.sites
 @inline neighbors_lookup_table(c::CubicLattice) = c.neighs
