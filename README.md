@@ -15,6 +15,13 @@ MonteCarlo.jl is a Julia software library for the simulation of physical models 
 
 Look at the [documentation](https://crstnbr.github.io/MonteCarlo.jl/latest/) for more information.
 
+---
+**NOTICE**
+
+This package is currently undergoing a noticable transformation and the documentation is out of date. We hope to be able to update it soon.
+
+---
+
 ## Installation
 
 In Julia REPL:
