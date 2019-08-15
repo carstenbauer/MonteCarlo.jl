@@ -1,7 +1,7 @@
 """
 D-dimensional cubic lattice.
 """
-mutable struct CubicLattice{T<:AbstractArray{Int}} <: AbstractCubicLattice
+struct CubicLattice{T<:AbstractArray{Int}} <: AbstractCubicLattice
     L::Int
     D::Int
     sites::Int
@@ -21,25 +21,22 @@ function CubicLattice(D::Int, L::Int)
     sites = L^D
     lattice = convert(Array, reshape(1:sites, (fill(L, D)...,)))
 
-    l = CubicLattice{Array{Int, D}}(L, D, sites, zeros(Int, 1,1), lattice)
-    build_neighbortable!(l)
-    return l
+    neighs = build_neighbortable(CubicLattice, lattice, D)
+    return CubicLattice(L,D,sites,Matrix(neighs),lattice)
 end
 
-function build_neighbortable!(l::CubicLattice{T}) where T
+function build_neighbortable(::Type{CubicLattice}, lattice, D)
+    uprights = Vector{Vector{Int}}(undef, D)
+    downlefts = Vector{Vector{Int}}(undef, D)
 
-    uprights = Vector{Vector{Int}}(undef, l.D)
-    downlefts = Vector{Vector{Int}}(undef, l.D)
-
-    for d in 1:l.D
-        shift = zeros(Int, l.D); shift[d]=-1;
-        uprights[d] = circshift(l.lattice, (shift...,))[:]
+    for d in 1:D
+        shift = zeros(Int, D); shift[d]=-1;
+        uprights[d] = circshift(lattice, (shift...,))[:]
         shift[d]=1;
-        downlefts[d] = circshift(l.lattice, (shift...,))[:]
+        downlefts[d] = circshift(lattice, (shift...,))[:]
     end
 
-    l.neighs = transpose(hcat(uprights..., downlefts...))
-    nothing
+    return transpose(hcat(uprights..., downlefts...))
 end
 
 @inline nsites(c::CubicLattice) = c.sites
