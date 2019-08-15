@@ -25,7 +25,7 @@ See also [`prepare_observables`](@ref) and [`finish_observables!`](@ref).
 							obs::Dict{String,Observable}, conf::HubbardConf)
     push!(obs["confs"], mc.conf)
     push!(obs["greens"], greens(mc))
-    push!(obs["Eboson"], mc.energy_boson)
+    push!(obs["Eboson"], energy_boson(mc, m, conf))
     nothing
 end
 

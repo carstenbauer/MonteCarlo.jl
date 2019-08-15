@@ -12,7 +12,7 @@
     @test m.L == 10 && m.dims == 1
     @test MonteCarlo.nsites(m) == 10
     @test ndims(m) == 1
-    d = Dict{String,Any}(Pair{String,Any}("dims", 3),Pair{String,Any}("L", 3))
+    d = Dict(:dims=>3, :L=>3)
     m = IsingModel(d)
     @test typeof(m) == MonteCarlo.IsingModel{MonteCarlo.CubicLattice{Array{Int64,3}}}
     @test m.L == 3 && m.dims == 3
