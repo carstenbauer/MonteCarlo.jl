@@ -47,7 +47,13 @@ function MC(m::M; seed::Int=-1, kwargs...) where M<:Model
     conf = rand(MC, m)
     mc = MC{M, typeof(conf)}()
     mc.model = m
-    mc.p = MCParameters(; kwargs...) # forward kwargs to MCParameters
+
+    kwdict = Dict(kwargs)
+    if :T in keys(kwargs)
+        kwdict[:beta] = 1/kwargs[:T]
+        delete!(kwdict, :T)
+    end
+    mc.p = MCParameters(; kwdict...)
     init!(mc, seed=seed, conf=conf)
     return mc
 end
@@ -74,7 +80,7 @@ Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::MC)
     print(io, "Monte Carlo simulation\n")
     print(io, "Model: ", mc.model, "\n")
-    print(io, "Beta: ", beta(mc), " (T ≈ $(round(1/beta(mc), sigdigits=3)))")
+    print(io, "Beta: ", round(beta(mc), sigdigits=3), " (T ≈ $(round(1/beta(mc), sigdigits=3)))")
 end
 Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 
