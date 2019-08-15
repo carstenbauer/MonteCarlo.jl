@@ -48,7 +48,10 @@ IsingModel(params::NamedTuple) = IsingModel(; params...)
 import Base.summary
 import Base.show
 Base.summary(model::IsingModel) = "$(model.dims)D-Ising model"
-Base.show(io::IO, model::IsingModel) = print(io, "$(model.dims)D-Ising model, L=$(model.L) ($(model.l.sites) sites)")
+Base.show(io::IO, model::IsingModel{LT}) where LT<:AbstractCubicLattice =
+    print(io, "$(model.dims)D-Ising model, L=$(model.L) ($(model.l.sites) sites)")
+Base.show(io::IO, model::IsingModel{LT}) where LT<:AbstractLattice =
+    print(io, "Ising model on $(replace(string(LT), "MonteCarlo."=>"")), L=$(model.L) ($(model.l.sites) sites)")
 Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 
 
