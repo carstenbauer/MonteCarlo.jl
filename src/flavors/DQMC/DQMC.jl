@@ -41,7 +41,6 @@ mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any,
         Stack<:AbstractDQMCStack} <: MonteCarloFlavor
     model::M
     conf::ConfType
-    energy_boson::Float64
     s::Stack
 
     p::DQMCParameters
@@ -120,7 +119,6 @@ function init!(mc::DQMC; seed::Real=-1, conf=rand(DQMC,model(mc),nslices(mc)))
     seed == -1 || Random.seed!(seed)
 
     mc.conf = conf
-    mc.energy_boson = energy_boson(mc, mc.model, mc.conf)
 
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc)
@@ -212,7 +210,7 @@ function update(mc::DQMC, i::Int)
     # if mc.p.global_moves && (current_slice(mc) == mc.p.slices &&
     #        mc.s.direction == -1 && iszero(mod(i, mc.p.global_rate)))
     #     mc.a.prop_global += 1
-    #     b = global_move(mc, mc.model, mc.conf, mc.energy_boson) # not yet in DQMC_optional, i.e. unsupported
+    #     b = global_move(mc, mc.model, mc.conf) # not yet in DQMC_optional, i.e. unsupported
     #     mc.a.acc_global += b
     # end
 
@@ -233,8 +231,7 @@ function sweep_spatial(mc::DQMC)
     N = nsites(m)
 
     @inbounds for i in 1:N
-        detratio, ΔE_boson, Δ = propose_local(mc, m, i, current_slice(mc),
-            conf(mc), mc.energy_boson)
+        detratio, ΔE_boson, Δ = propose_local(mc, m, i, current_slice(mc), conf(mc))
         mc.a.prop_local += 1
 
         if abs(imag(detratio)) > 1e-6
@@ -250,7 +247,6 @@ function sweep_spatial(mc::DQMC)
                 ΔE_boson)
             mc.a.acc_rate += 1/N
             mc.a.acc_local += 1
-            mc.energy_boson += ΔE_boson
         end
     end
     nothing

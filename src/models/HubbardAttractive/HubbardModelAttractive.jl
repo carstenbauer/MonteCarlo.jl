@@ -117,7 +117,7 @@ This is a performance critical method.
 end
 
 
-@inline function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, E_boson::Float64)
+@inline function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf)
     # see for example dos Santos (2002)
     greens = mc.s.greens
     dtau = mc.p.delta_tau
