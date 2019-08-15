@@ -1,9 +1,9 @@
 """
     greenseltype(::Type{DQMC}, m::Model)
 
-Returns the type of the elements of the Green's function matrix. Defaults to `Complex128`.
+Returns the type of the elements of the Green's function matrix. Defaults to `ComplexF64`.
 """
-greenseltype(::Type{DQMC}, m::Model) = Complex128
+greenseltype(::Type{DQMC}, m::Model) = ComplexF64
 
 """
     energy(mc::DQMC, m::Model, conf)
