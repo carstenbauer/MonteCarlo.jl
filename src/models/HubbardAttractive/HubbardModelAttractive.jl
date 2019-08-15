@@ -42,14 +42,14 @@ function choose_lattice(::Type{HubbardModelAttractive}, dims::Int, L::Int)
 end
 
 """
-    HubbardModelAttractive(kwargs::Dict{String, Any})
+    HubbardModelAttractive(params::Dict)
+    HubbardModelAttractive(params::NamedTuple)
 
-Create an attractive Hubbard model with (keyword) parameters as specified in `kwargs` dict.
+Create an attractive Hubbard model with (keyword) parameters as specified in the
+dictionary/named tuple `params`.
 """
-function HubbardModelAttractive(kwargs::Dict{String, Any})
-    symbol_dict = Dict([Symbol(k) => v for (k, v) in kwargs])
-    HubbardModelAttractive(; symbol_dict...)
-end
+HubbardModelAttractive(params::Dict{Symbol, T}) where T = HubbardModelAttractive(; params...)
+HubbardModelAttractive(params::NamedTuple) = HubbardModelAttractive(; params...)
 
 # cosmetics
 import Base.summary

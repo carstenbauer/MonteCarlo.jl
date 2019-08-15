@@ -29,17 +29,14 @@ function choose_lattice(::Type{IsingModel}, dims::Int, L::Int)
 end
 
 """
-    IsingModel(kwargs::Dict{String, Any})
+    IsingModel(params::Dict)
+    IsingModel(params::NamedTuple)
 
-Create Ising model with (keyword) parameters as specified in `kwargs` dict.
+Create an Ising model with (keyword) parameters as specified in the
+dictionary/named tuple `params`.
 """
-function IsingModel(kwargs::Dict{String, Any})
-    symbol_dict = Dict([Symbol(k) => v for (k, v) in kwargs])
-    IsingModel(; symbol_dict...)
-end
-function IsingModel(kwargs::Dict{Symbol, Any})
-    IsingModel(; kwargs...)
-end
+IsingModel(params::Dict{Symbol, T}) where T = IsingModel(; params...)
+IsingModel(params::NamedTuple) = IsingModel(; params...)
 
 # cosmetics
 import Base.summary
