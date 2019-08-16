@@ -21,10 +21,10 @@ function LatPhysLattice(lattice::LatPhysBase.AbstractLattice)
 end
 
 @inline Base.length(l::LatPhysLattice) = LatPhysBase.numSites(l.lattice)
-@inline function neighbors(l::LatPhysLattice, drop_repeats::Val{false})
+@inline function neighbors(l::LatPhysLattice, directed::Val{true})
     ((LatPhysBase.from(b), LatPhysBase.to(b)) for b in LatPhysBase.bonds(l))
 end
-@inline function neighbors(l::LatPhysLattice, drop_repeats::Val{true})
+@inline function neighbors(l::LatPhysLattice, directed::Val{false})
     (
         (LatPhysBase.from(b), LatPhysBase.to(b))
         for b in LatPhysBase.bonds(l)
@@ -34,6 +34,3 @@ end
 @inline function neighbors(l::LatPhysLattice, site_index::Integer)
     l.neighs[:, site_index]
 end
-
-
-@inline nsites(l::LatPhysLattice) = length(l)

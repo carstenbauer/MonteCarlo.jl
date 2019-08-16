@@ -10,7 +10,7 @@ for (d, lattype) in enumerate((
             l = constructor(L)
             @test length(l) == L^d
 
-            bonds = collect(MonteCarlo.neighbors(l, Val(false)))
+            bonds = collect(MonteCarlo.neighbors(l, Val(true)))
             @test length(bonds) == 2*d*L^d
             @test allunique(bonds)
             for i in 0:length(l)-1
@@ -20,9 +20,9 @@ for (d, lattype) in enumerate((
                 @test allunique(x[2] for x in bonds[2d*i .+ (1:2d)])
             end
 
-            reduced_bonds = collect(MonteCarlo.neighbors(l, Val(true)))
+            reduced_bonds = collect(MonteCarlo.neighbors(l, Val(false)))
             @test length(reduced_bonds) == d*L^d
-            # If drop_repeats is true, only one of (i, j) and (j, i)
+            # If directed is false, only one of (i, j) and (j, i)
             # should be kept.
             mirrored_bonds = [[trg, src] for (src, trg) in reduced_bonds]
             all_bonds = vcat(reduced_bonds, mirrored_bonds)
@@ -36,7 +36,7 @@ end
         l = MonteCarlo.HoneycombLattice(L)
         @test length(l) == (2L)^2
 
-        bonds = collect(MonteCarlo.neighbors(l, Val(false)))
+        bonds = collect(MonteCarlo.neighbors(l, Val(true)))
         @test length(bonds) == 3 * (2L)^2
         @test allunique(bonds)
         for i in 0:length(l)-1
@@ -46,9 +46,9 @@ end
             @test allunique(x[2] for x in bonds[3i .+ (1:3)])
         end
 
-        reduced_bonds = collect(MonteCarlo.neighbors(l, Val(true)))
+        reduced_bonds = collect(MonteCarlo.neighbors(l, Val(false)))
         @test length(reduced_bonds) == round(Int64, 1.5 * (2L)^2)
-        # If drop_repeats is true, only one of (i, j) and (j, i)
+        # If directed is false, only one of (i, j) and (j, i)
         # should be kept.
         mirrored_bonds = [[trg, src] for (src, trg) in reduced_bonds]
         all_bonds = vcat(reduced_bonds, mirrored_bonds)

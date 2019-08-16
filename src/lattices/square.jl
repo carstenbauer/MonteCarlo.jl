@@ -1,7 +1,7 @@
 """
 Two dimensional square lattice.
 """
-struct SquareLattice <: AbstractCubicLattice
+struct SquareLattice <: AbstractLattice
     L::Int
     sites::Int
     neighs::Matrix{Int} # row = up, right, down, left; col = siteidx
@@ -57,5 +57,12 @@ function build_neighbortable(::Type{SquareLattice}, lattice, L)
     return neighs, neighs_cartesian
 end
 
+# Implement AbstractLattice interface: mandatory
 @inline Base.length(s::SquareLattice) = s.sites
-@inline neighbors_lookup_table(s::SquareLattice) = s.neighs
+
+# Implement AbstractLattice interface: optional
+@inline neighbors_lookup_table(s::SquareLattice) = copy(s.neighs)
+
+# HasNeighborsTable and HasBondsTable traits
+has_neighbors_table(::SquareLattice) = HasNeighborsTable()
+has_bonds_table(::SquareLattice) = HasBondsTable()

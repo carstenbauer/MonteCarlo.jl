@@ -116,4 +116,12 @@ function build_NNneighbortable(::Type{HoneycombLattice}, lattice, L)
     return NNNs, NNNs_cartesian
 end
 
+# Implement AbstractLattice interface: mandatory
 @inline Base.length(l::HoneycombLattice) = l.sites
+
+# Implement AbstractLattice interface: optional
+@inline neighbors_lookup_table(l::HoneycombLattice) = copy(l.neighs)
+
+# HasNeighborsTable and HasBondsTable traits
+has_neighbors_table(::HoneycombLattice) = HasNeighborsTable()
+has_bonds_table(::HoneycombLattice) = HasBondsTable()

@@ -81,7 +81,7 @@ Hubbard model in the DQMC simulation.
 This isn't a performance critical method as it is only used once before the
 actual simulation.
 """
-function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:AbstractCubicLattice}
+function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:AbstractLattice}
     N = nsites(m)
     neighs = m.neighs # row = up, right, down, left; col = siteidx
 
@@ -100,20 +100,20 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:Abstra
     return T
 end
 
-function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{LT}) where {LT <: AbstractLattice}
-    N = nsites(m)
+# function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{LT}) where {LT <: AbstractLattice}
+#     N = nsites(m)
 
-    T = diagm(0 => fill(-m.mu, N))
+#     T = diagm(0 => fill(-m.mu, N))
 
-    # Nearest neighbor hoppings
-    @inbounds @views begin
-        for (src, trg) in neighbors(l, Val(false))
-            T[src, trg] += -m.t
-        end
-    end
+#     # Nearest neighbor hoppings
+#     @inbounds @views begin
+#         for (src, trg) in neighbors(l)
+#             T[src, trg] += -m.t
+#         end
+#     end
 
-    return T
-end
+#     return T
+# end
 
 
 """

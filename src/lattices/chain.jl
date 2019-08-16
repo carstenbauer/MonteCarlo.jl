@@ -1,7 +1,7 @@
 """
 One dimensional chain.
 """
-struct Chain <: AbstractCubicLattice
+struct Chain <: AbstractLattice
     sites::Int
     neighs::Matrix{Int} # row = right, left; col = siteidx
 
@@ -14,7 +14,7 @@ end
 """
     Chain(nsites::Int)
 
-Create a chain with `nsites`.
+Create a chain with `nsites` (and periodic boundary conditions).
 """
 function Chain(nsites::Int)
     neighs = build_neighbortable(Chain, nsites)
@@ -39,5 +39,12 @@ function build_neighbortable(::Type{Chain}, nsites::Int)
     return vcat(right[:]',left[:]')
 end
 
+# Implement AbstractLattice interface: mandatory
 @inline Base.length(c::Chain) = c.sites
-@inline neighbors_lookup_table(c::Chain) = c.neighs
+
+# Implement AbstractLattice interface: optional
+@inline neighbors_lookup_table(c::Chain) = copy(c.neighs)
+
+# HasNeighborsTable and HasBondsTable traits
+has_neighbors_table(::Chain) = HasNeighborsTable()
+has_bonds_table(::Chain) = HasBondsTable()

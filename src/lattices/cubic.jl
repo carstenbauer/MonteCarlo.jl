@@ -1,7 +1,7 @@
 """
 D-dimensional cubic lattice.
 """
-struct CubicLattice{T<:AbstractArray{Int}} <: AbstractCubicLattice
+struct CubicLattice{T<:AbstractArray{Int}} <: AbstractLattice
     L::Int
     dim::Int
     sites::Int
@@ -53,5 +53,13 @@ function build_neighbortable(::Type{CubicLattice}, lattice, D)
     return transpose(hcat(uprights..., downlefts...))
 end
 
+
+# Implement AbstractLattice interface: mandatory
 @inline Base.length(c::CubicLattice) = c.sites
-@inline neighbors_lookup_table(c::CubicLattice) = c.neighs
+
+# Implement AbstractLattice interface: optional
+@inline neighbors_lookup_table(c::CubicLattice) = copy(c.neighs)
+
+# HasNeighborsTable and HasBondsTable traits
+has_neighbors_table(::CubicLattice) = HasNeighborsTable()
+has_bonds_table(::CubicLattice) = HasBondsTable()
