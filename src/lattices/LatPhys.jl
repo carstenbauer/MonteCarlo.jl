@@ -34,3 +34,5 @@ end
 @inline function neighbors(l::LatPhysLattice, site_index::Integer)
     l.neighs[:, site_index]
 end
+
+@inline neighbors_lookup_table(l::LatPhysLattice) = copy(l.neighs)
