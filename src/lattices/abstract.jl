@@ -19,22 +19,22 @@ Number of lattice sites.
 
 # AbstractLattice interface: optional
 """
-    neighbors(l::AbstractLattice, drop_repeats::Val{true})
-    neighbors(l::AbstractLattice, drop_repeats::Val{false})
+    neighbors(l::AbstractLattice, directed::Val{true})
+    neighbors(l::AbstractLattice, directed::Val{false})
 
 Returns an iterator over bonds, given as tuples (source index, target index). If
-`drop_repeats = Val(false)` bonds are assumed to be directed, i.e. both
-`(1, 2)` and `(2, 1)` are included. If `drop_repeats = Val(true)` bonds are
+`directed = Val(false)` bonds are assumed to be directed, i.e. both
+`(1, 2)` and `(2, 1)` are included. If `directed = Val(true)` bonds are
 assumed to be undirected, i.e. `(1, 2)` and `(2, 1)` are assumed to be
-equivalent and only one of them will be counted.
+equivalent and only one of them will be included.
 """
-@inline function neighbors(l::AbstractLattice, drop_repeats::Val{false})
+@inline function neighbors(l::AbstractLattice, directed::Val{false})
     (
         [source, target] for source in 1:length(l)
             for target in l.neighs[:, source]
     )
 end
-@inline function neighbors(l::AbstractLattice, drop_repeats::Val{true})
+@inline function neighbors(l::AbstractLattice, directed::Val{true})
     (
         l.bonds[i, 1:2] for i in 1:size(l.bonds, 1)
     )
