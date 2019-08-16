@@ -65,7 +65,11 @@ Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 Base.rand(::Type{MC}, m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m))...)
 
 @propagate_inbounds function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf)
-    delta_E = 2. * conf[i] * sum(conf[neighbors(m.l, i)])
+    field = 0.0
+    @inbounds for nb in 1:size(m.neighs, 1)
+        field += conf[m.neighs[nb, i]]
+    end
+    delta_E = 2. * conf[i] * field
     return delta_E, nothing
 end
 
@@ -104,7 +108,8 @@ function global_move(mc::MC, m::IsingModel, conf::IsingConf)
 
     while !isempty(tocheck)
         cur = pop!(tocheck)
-        @inbounds for n in neighbors(l, cur)
+        @inbounds for ni in 1:size(neighs, 1)
+            n = neighs[ni,cur]
 
             @inbounds if conf[cur] == conf[n] && !(n in cluster) && rand() < (1 - exp(- 2.0 * beta))
                 push!(tocheck, n)
@@ -149,8 +154,10 @@ Calculate energy of Ising configuration `conf` for Ising model `m`.
 """
 function energy(mc::MC, m::IsingModel, conf::IsingConf)
     E = 0.0
-    @inbounds for (source, target) in neighbors(m.l)
-        E -= conf[source] * conf[target]
+    for n in 1:ndims(m)
+        @inbounds @simd for i in 1:nsites(m)
+            E -= conf[i]*conf[m.neighs[n,i]]
+        end
     end
     return E
 end

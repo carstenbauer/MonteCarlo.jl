@@ -100,21 +100,6 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:Abstra
     return T
 end
 
-# function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{LT}) where {LT <: AbstractLattice}
-#     N = nsites(m)
-
-#     T = diagm(0 => fill(-m.mu, N))
-
-#     # Nearest neighbor hoppings
-#     @inbounds @views begin
-#         for (src, trg) in neighbors(l)
-#             T[src, trg] += -m.t
-#         end
-#     end
-
-#     return T
-# end
-
 
 """
 Calculate the interaction matrix exponential `expV = exp(- power * delta_tau * V(slice))`
