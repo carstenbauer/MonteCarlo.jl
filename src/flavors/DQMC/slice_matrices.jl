@@ -132,19 +132,19 @@ function multiply_slice_matrix_right!(mc::DQMC_CBTrue, m::Model, slice::Int,
     s = mc.s
   	@inbounds begin
     	for i in reverse(2:s.n_groups)
-			mul!(s.tmp, M, s.chkr_hop_half[i])
+			right_mul!(s.tmp, M, s.chkr_hop_half[i])
 			M .= s.tmp
     	end
-		mul!(s.tmp, M, s.chkr_hop[1])
+		right_mul!(s.tmp, M, s.chkr_hop[1])
 		M .= s.tmp
     	for i in 2:s.n_groups
-			mul!(s.tmp, M, s.chkr_hop_half[i])
+			right_mul!(s.tmp, M, s.chkr_hop_half[i])
 			M .= s.tmp
     	end
   	end
 
   	interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, 1.)
-	mul!(s.tmp, M, s.chkr_mu)
+	right_mul!(s.tmp, M, s.chkr_mu)
 	M .= s.tmp
 	mul!(s.tmp, M, s.eV)
 	M .= s.tmp
@@ -179,19 +179,19 @@ function multiply_slice_matrix_inv_right!(mc::DQMC_CBTrue, m::Model, slice::Int,
   	interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, -1.)
 	mul!(s.tmp, M, s.eV)
 	M .= s.tmp
-	mul!(s.tmp, M, s.chkr_mu_inv)
+	right_mul!(s.tmp, M, s.chkr_mu_inv)
 	M .= s.tmp
 
 
   	@inbounds begin
     	for i in reverse(2:s.n_groups)
-			mul!(s.tmp, M, s.chkr_hop_half_inv[i])
+			right_mul!(s.tmp, M, s.chkr_hop_half_inv[i])
 			M .= s.tmp
     	end
-		mul!(s.tmp, M, s.chkr_hop_inv[1])
+		right_mul!(s.tmp, M, s.chkr_hop_inv[1])
 		M .= s.tmp
     	for i in 2:s.n_groups
-			mul!(s.tmp, M, s.chkr_hop_half_inv[i])
+			right_mul!(s.tmp, M, s.chkr_hop_half_inv[i])
 			M .= s.tmp
     	end
   	end
