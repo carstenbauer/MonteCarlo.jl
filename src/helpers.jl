@@ -68,10 +68,10 @@ end
 
 
 # NOTE
-# vurrenlty julia/sparearrays does not implement this function (type signature)
+# Currenlty julia/sparearrays does not implement this function (type signature)
 # once it does this can be removed/depracted in favor of mul!
 # see also: test/slice_matrices.jl
-function right_mul!(C::StridedMatrix, X::StridedMatrix, A::SparseMatrixCSC)
+function SparseArrays.mul!(C::StridedMatrix, X::StridedMatrix, A::SparseMatrixCSC)
     mX, nX = size(X)
     nX == A.m || throw(DimensionMismatch())
     fill!(C, zero(eltype(C)))
