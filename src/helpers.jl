@@ -71,6 +71,15 @@ end
 # Currenlty julia/sparearrays does not implement this function (type signature)
 # once it does this can be removed/depracted in favor of mul!
 # see also: test/slice_matrices.jl
+occursin(
+    "SparseArrays",
+    string(which(mul!, (Matrix, Matrix, SparseMatrixCSC)).file)
+) && @warn(
+    "A Method `mul!(::Matrix, ::Matrix, ::SparseMatrixCSC)` now exists in " *
+    "`SparseArrays`. The method defined in `helpers.jl` is likely to be  " *
+    "unnecessary now."
+)
+
 function SparseArrays.mul!(C::StridedMatrix, X::StridedMatrix, A::SparseMatrixCSC)
     mX, nX = size(X)
     nX == A.m || throw(DimensionMismatch())
