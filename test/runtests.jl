@@ -23,8 +23,12 @@ using Random
             m = mc.measurements[:Magn].m
 
             @test isapprox(0.398, round(mean(m), digits=3))
-            @test isapprox(0.012, round(error(m), digits=3))
-            # @test typeof(observables(mc)) == Dict{String, String}
+            @test isapprox(0.013, round(std_error(m), digits=3))
+            #@test typeof(observables(mc)) == Dict{String, String}
         end
+    end
+
+    @testset "Exact Diagonalization" begin
+        include("ED/ED_tests.jl")
     end
 end

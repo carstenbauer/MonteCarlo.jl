@@ -4,7 +4,7 @@
 [![travis][travis-img]](https://travis-ci.org/crstnbr/MonteCarlo.jl)
 [![appveyor][appveyor-img]](https://ci.appveyor.com/project/crstnbr/montecarlo-jl/branch/master)
 [![codecov][codecov-img]](http://codecov.io/github/crstnbr/MonteCarlo.jl?branch=master)
-![](https://img.shields.io/badge/lifecycle-dormant-orange.svg)
+![](https://img.shields.io/badge/lifecycle-experimental-orange.svg)
 
 [travis-img]: https://img.shields.io/travis/crstnbr/MonteCarlo.jl/master.svg?label=Linux+/+macOS
 [appveyor-img]: https://img.shields.io/appveyor/ci/crstnbr/montecarlo-jl/master.svg?label=Windows
@@ -15,13 +15,18 @@ MonteCarlo.jl is a Julia software library for the simulation of physical models 
 
 Look at the [documentation](https://crstnbr.github.io/MonteCarlo.jl/latest/) for more information.
 
+---
+**NOTICE**
+
+This package is currently undergoing a noticable transformation and the documentation is out of date. We hope to be able to update it soon.
+
+---
+
 ## Installation
 
 In Julia REPL:
 ```julia
-Pkg.clone("https://github.com/crstnbr/MonteCarloObservable.jl")
-Pkg.clone("https://github.com/crstnbr/MonteCarlo.jl")
-using MonteCarlo
+] add https://github.com/crstnbr/MonteCarlo.jl
 ```
 
 ## Authors

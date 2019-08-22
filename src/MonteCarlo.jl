@@ -2,13 +2,9 @@ module MonteCarlo
 
 using Reexport
 @reexport using MonteCarloObservable
-using LightXML
-using Parameters
+using StableDQMC, LightXML, Parameters
 
-using Printf
-using SparseArrays, LinearAlgebra
-using Dates
-using Random
+using Printf, SparseArrays, LinearAlgebra, Dates, Random
 
 include("helpers.jl")
 include("abstract.jl")

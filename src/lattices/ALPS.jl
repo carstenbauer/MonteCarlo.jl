@@ -1,7 +1,7 @@
 """
 Generic ALPS lattice parsed from XML file.
 """
-mutable struct ALPSLattice <: Lattice
+struct ALPSLattice <: Lattice
     sites::Int # n_sites
     dim::Int
     neighs::Matrix{Int} # row = neighbors; col = siteidx (assumption: const. coordination nr.)
@@ -11,34 +11,31 @@ mutable struct ALPSLattice <: Lattice
     # for generic checkerboard support
     n_bonds::Int
     bonds::Matrix{Int} # src, trg, type
-
-    ALPSLattice() = new()
 end
 
 # constructors
 function ALPSLattice(xmlfile::String)
-    l = ALPSLattice()
-    parse_alpslattice_xml(xmlfile, l)
-    build_neighbortable!(l)
-    return l
+    sites, dim, n_neighs, bond_vecs, n_bonds, bonds = parse_alpslattice_xml(xmlfile, l)
+    neighs = build_neighbortable(ALPSLattice, n_neighs, sites, n_bonds, bonds)
+    return ALPSLattice(sites, dim, neighs, n_neighs, bond_vecs, n_bonds, bonds)
 end
 
-function build_neighbortable!(l::ALPSLattice)
-    l.neighs = zeros(Int, l.n_neighs, l.sites)
+function build_neighbortable(::Type{ALPSLattice}, n_neighs, sites, n_bonds, bonds)
+    neighs = zeros(Int, n_neighs, sites)
 
     # we store src->trg before trg->src
     try
-        nc = fill(1, l.sites)
-        for b in 1:l.n_bonds
-            src = l.bonds[b,1]
-            trg = l.bonds[b,2]
-            l.neighs[nc[src], src] = trg
+        nc = fill(1, sites)
+        for b in 1:n_bonds
+            src = bonds[b,1]
+            trg = bonds[b,2]
+            neighs[nc[src], src] = trg
             nc[src]+=1
         end
-        for b in 1:l.n_bonds
-            src = l.bonds[b,1]
-            trg = l.bonds[b,2]
-            l.neighs[nc[trg], trg] = src
+        for b in 1:n_bonds
+            src = bonds[b,1]
+            trg = bonds[b,2]
+            neighs[nc[trg], trg] = src
             nc[trg]+=1
         end
     catch e
@@ -48,24 +45,24 @@ function build_neighbortable!(l::ALPSLattice)
             throw(e)
         end
     end
-    nothing
+    return neighs
 end
 
-function parse_alpslattice_xml(filename::String, l::ALPSLattice)
+function parse_alpslattice_xml(filename::String)
   xdoc = parse_file(filename)
   graph = LightXML.root(xdoc)
-  l.sites = 1
+  sites = 1
 
-  l.sites = parse(Int, attribute(graph, "vertices"; required=true))
-  l.dim = parse(Int, attribute(graph, "dimension"; required=true))
+  sites = parse(Int, attribute(graph, "vertices"; required=true))
+  dim = parse(Int, attribute(graph, "dimension"; required=true))
 
   edges = get_elements_by_tagname(graph, "EDGE")
-  l.n_bonds = length(edges)
+  n_bonds = length(edges)
 
   # bonds & bond vectors
-  l.bonds = zeros(l.n_bonds, 3)
-  l.bond_vecs = zeros(l.n_bonds, l.dim)
-  v = Vector{Float64}(l.dim)
+  bonds = zeros(n_bonds, 3)
+  bond_vecs = zeros(n_bonds, dim)
+  v = Vector{Float64}(dim)
   for (i, edge) in enumerate(edges)
     src = 0
     trg = 0
@@ -77,11 +74,17 @@ function parse_alpslattice_xml(filename::String, l::ALPSLattice)
 
     if id != i error("Edges in lattice file must be sorted from 1 to N!") end
 
-    l.bonds[i, 1] = src
-    l.bonds[i, 2] = trg
-    l.bonds[i, 3] = typ
-    l.bond_vecs[i, :] = v
+    bonds[i, 1] = src
+    bonds[i, 2] = trg
+    bonds[i, 3] = typ
+    bond_vecs[i, :] = v
+
   end
 
-  l.n_neighs = count(x->x==1, l.bonds[:, 1]) + count(x->x==1, l.bonds[:, 2]) # neighbors of site 1
+  n_neighs = count(x->x==1, bonds[:, 1]) + count(x->x==1, bonds[:, 2]) # neighbors of site 1
+  return sites, dim, n_neighs, bond_vecs, n_bonds, bonds
 end
+
+
+@inline nsites(l::ALPSLattice) = l.sites
+@inline neighbors_lookup_table(l::ALPSLattice) = l.neighs

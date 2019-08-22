@@ -1,44 +1,43 @@
 """
 One dimensional chain.
 """
-mutable struct Chain <: AbstractCubicLattice
+struct Chain <: AbstractCubicLattice
     sites::Int
     neighs::Matrix{Int} # row = right, left; col = siteidx
 
     # for generic checkerboard decomposition
     n_bonds::Int
     bonds::Matrix{Int} # src, trg, type
-
-    Chain() = new()
 end
 
 # constructors
 """
-    Chain(n::Int)
+    Chain(nsites::Int)
 
-Create a chain with `n` sites.
+Create a chain with `nsites`.
 """
-function Chain(n::Int)
-    l = Chain()
-    l.sites = n
-    build_neighbortable!(l)
+function Chain(nsites::Int)
+    neighs = build_neighbortable(Chain, nsites)
 
     # for generic checkerboard decomposition
-    l.n_bonds = l.sites
-    l.bonds = zeros(l.n_bonds, 3)
+    n_bonds = nsites
+    bonds = zeros(n_bonds, 3)
     bondid = 1
-    for src in 1:l.sites
-        nright = l.neighs[1, src]
-        l.bonds[bondid,:] .= [src,nright,0]
+    for src in 1:nsites
+        nright = neighs[1, src]
+        bonds[bondid,:] .= [src,nright,0]
         bondid += 1
     end
 
-    return l
+    return Chain(nsites, neighs, n_bonds, bonds)
 end
 
-function build_neighbortable!(l::Chain)
-    c = 1:l.sites
+function build_neighbortable(::Type{Chain}, nsites::Int)
+    c = 1:nsites
     right = circshift(c,-1)
     left = circshift(c,1)
-    l.neighs = vcat(right[:]',left[:]')
+    return vcat(right[:]',left[:]')
 end
+
+@inline nsites(c::Chain) = c.sites
+@inline neighbors_lookup_table(c::Chain) = c.neighs

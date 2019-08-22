@@ -23,9 +23,7 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
   U::Matrix{GreensEltype}
   D::Vector{Float64}
   T::Matrix{GreensEltype}
-  u::Matrix{GreensEltype}
-  d::Vector{Float64}
-  t::Matrix{GreensEltype}
+  tmp::Matrix{GreensEltype}
 
   ranges::Array{UnitRange, 1}
   n_elements::Int
@@ -113,9 +111,8 @@ function initialize_stack(mc::DQMC)
   mc.s.U = zeros(GreensEltype, flv*N, flv*N)
   mc.s.D = zeros(Float64, flv*N)
   mc.s.T = zeros(GreensEltype, flv*N, flv*N)
-  mc.s.u = zeros(GreensEltype, flv*N, flv*N)
-  mc.s.d = zeros(Float64, flv*N)
-  mc.s.t = zeros(GreensEltype, flv*N, flv*N)
+  mc.s.tmp = zeros(GreensEltype, flv*N, flv*N)
+
 
   # # Global update backup
   # mc.s.gb_u_stack = zero(mc.s.u_stack)
@@ -242,7 +239,7 @@ function add_slice_sequence_left(mc::DQMC, idx::Int)
   end
 
   mc.s.curr_U *= spdiagm(0 => mc.s.d_stack[:, idx])
-  mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], T = decompose_udt(mc.s.curr_U)
+  mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], T = udt(mc.s.curr_U)
   mc.s.t_stack[:, :, idx + 1] =  T * mc.s.t_stack[:, :, idx]
 end
 """
@@ -256,7 +253,7 @@ function add_slice_sequence_right(mc::DQMC, idx::Int)
   end
 
   mc.s.curr_U *=  spdiagm(0 => mc.s.d_stack[:, idx + 1])
-  mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], T = decompose_udt(mc.s.curr_U)
+  mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], T = udt(mc.s.curr_U)
   mc.s.t_stack[:, :, idx] = T * mc.s.t_stack[:, :, idx + 1]
 end
 
@@ -266,27 +263,28 @@ Calculates G(slice) using mc.s.Ur,mc.s.Dr,mc.s.Tr=B(slice)' ... B(M)' and
 mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
 """
 function calculate_greens(mc::DQMC)
-
-  tmp = mc.s.Tl * adjoint(mc.s.Tr)
-  mc.s.U, mc.s.D, mc.s.T = decompose_udt(spdiagm(0 => mc.s.Dl) * tmp * spdiagm(0 => mc.s.Dr))
-  mc.s.U = mc.s.Ul * mc.s.U
-  mc.s.T *= adjoint(mc.s.Ur)
-
-  mc.s.u, mc.s.d, mc.s.t = decompose_udt(adjoint(mc.s.U) * inv(mc.s.T) + spdiagm(0 => mc.s.D))
-
-  mc.s.T = inv(mc.s.t * mc.s.T)
-  mc.s.U *= mc.s.u
-  mc.s.U = adjoint(mc.s.U)
-  mc.s.d = 1. ./ mc.s.d
-
-  mc.s.greens = mc.s.T * spdiagm(0 => mc.s.d) * mc.s.U
+    # U, D, T = udt(mc.s.greens) after this
+    mc.s.U, mc.s.D, mc.s.T = udt_inv_one_plus(
+        UDT(mc.s.Ul, mc.s.Dl, mc.s.Tl),
+        UDT(mc.s.Ur, mc.s.Dr, mc.s.Tr),
+        tmp = mc.s.U, tmp2 = mc.s.T, tmp3 = mc.s.tmp,
+        internaluse = true
+    )
+    mul!(mc.s.tmp, mc.s.U, Diagonal(mc.s.D))
+    mul!(mc.s.greens, mc.s.tmp, mc.s.T)
+    mc.s.greens
 end
+
 """
 Only reasonable immediately after calculate_greens()!
 """
 function calculate_logdet(mc::DQMC)
-  mc.s.log_det = real(log(complex(det(mc.s.U))) + sum(log.(mc.s.d)) + log(complex(det(mc.s.T))))
-  # mc.s.log_det = real(logdet(mc.s.U) + sum(log.(mc.s.d)) + logdet(mc.s.T))
+    mc.s.log_det = real(
+        log(complex(det(mc.s.U))) +
+        sum(log.(mc.s.D)) +
+        log(complex(det(mc.s.T)))
+    )
+  # mc.s.log_det = real(logdet(mc.s.U) + sum(log.(mc.s.D)) + logdet(mc.s.T))
 end
 
 # Green's function propagation

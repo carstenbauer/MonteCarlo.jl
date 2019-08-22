@@ -8,17 +8,18 @@ Analysis data of Monte Carlo simulation
     acc_rate_global::Float64 = 0.
     prop_global::Int = 0
     acc_global::Int = 0
-    sweep_dur::Float64 = 0.
 end
 
 """
 Parameters of Monte Carlo
 """
-@with_kw mutable struct MCParameters
+@with_kw struct MCParameters
     global_moves::Bool = false
     global_rate::Int = 5
     thermalization::Int = 0 # number of thermalization sweeps
     sweeps::Int = 1000 # number of sweeps (after thermalization)
+    measure_rate::Int = 1 # measure at every nth sweep (after thermalization)
+    print_rate::Int = 1000
 
     beta::Float64
 end
@@ -29,7 +30,6 @@ Monte Carlo simulation
 mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     model::M
     conf::C
-    energy::Float64
 
     measurements::Dict{Symbol, AbstractMeasurement}
     p::MCParameters
@@ -44,60 +44,67 @@ end
 Create a Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
 function MC(m::M; seed::Int=-1, kwargs...) where M<:Model
-    mc = MC{M, conftype(MC, m)}()
+    conf = rand(MC, m)
+    mc = MC{M, typeof(conf)}()
     mc.model = m
-    mc.p = MCParameters(; kwargs...) # forward kwargs to MCParameters
+    kwdict = Dict(kwargs)
+    if :T in keys(kwargs)
+        kwdict[:beta] = 1/kwargs[:T]
+        delete!(kwdict, :T)
+    end
+    mc.p = MCParameters(; kwdict...)
     mc.measurements = Dict{Symbol, AbstractMeasurement}()
-    init!(mc, seed=seed)
+    init!(mc, seed=seed, conf=conf)
     return mc
 end
 
 """
-    MC(m::M; kwargs::Dict{String, Any})
+    MC(m::M, params::Dict)
+    MC(m::M, params::NamedTuple)
 
 Create a Monte Carlo simulation for model `m` with (keyword) parameters
-as specified in the dictionary `kwargs`.
+as specified in the dictionary/named tuple `params`.
 """
-function MC(m::M, kwargs::Dict{String, Any}) where M<:Model
-    symbol_dict = Dict([Symbol(k) => v for (k, v) in kwargs])
-    MC(m, symbol_dict...)
-end
-function MC(m::M, kwargs::Dict{Symbol, Any}) where M<:Model
-    MC(m; kwargs...)
-end
+MC(m::Model, params::Dict{Symbol, T}) where T = MC(m; params...)
+MC(m::Model, params::NamedTuple) = MC(m; params...)
+
+# convenience
+@inline beta(mc::MC) = mc.p.beta
+@inline model(mc::MC) = mc.model
+@inline conf(mc::MC) = mc.conf
 
 # cosmetics
-import Base.summary
-import Base.show
 Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::MC)
     print(io, "Monte Carlo simulation\n")
     print(io, "Model: ", mc.model, "\n")
-    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, sigdigits=3)))")
+    print(io, "Beta: ", round(beta(mc), sigdigits=3), " (T ≈ $(round(1/beta(mc), sigdigits=3)))")
 end
 Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 
+
+
+
+
+# implement MonteCarloFlavor interface
 """
     init!(mc::MC[; seed::Real=-1])
 
 Initialize the Monte Carlo simulation `mc`.
 If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
-function init!(mc::MC; seed::Real=-1, measurements = default_measurements(mc))
+function init!(mc::MC; seed::Real=-1, conf=rand(MC, mc.model), measurements=default_measurements(mc))
     seed == -1 || Random.seed!(seed)
-
-    mc.conf = rand(mc, mc.model)
-    mc.energy = energy(mc, mc.model, mc.conf)
-
+    mc.conf = conf
     if isempty(measurements)
         @warn "No measurements have been set!"
     else
         push!(mc.measurements, measurements...)
     end
-
     mc.a = MCAnalysis()
     nothing
 end
+
 
 """
     run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])
@@ -106,10 +113,7 @@ Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `stdout` if `verbose=true` (default).
 """
 function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
-    @pack! mc.p = sweeps, thermalization
-    total_sweeps = mc.p.sweeps + mc.p.thermalization
-
-    sweep_dur = Observable(Float64, "Sweep duration"; alloc=ceil(Int, total_sweeps/1000))
+    total_sweeps = sweeps + thermalization
 
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
@@ -120,22 +124,25 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
 
         if mc.p.global_moves && mod(i, mc.p.global_rate) == 0
             mc.a.prop_global += 1
-            mc.a.acc_global += global_move(mc, mc.model, mc.conf, mc.energy)
+            mc.a.acc_global += global_move(mc, mc.model, conf(mc))
         end
 
         # TODO
         # remove this?
         (i == mc.p.thermalization) && prepare!(mc.measurements, mc, mc.model)
+    
+        if i > thermalization && iszero(mod(i, mc.p.measure_rate))
+            measure!(mc.measurements, mc, mc.model)
+        end
 
-        (i > mc.p.thermalization) && measure!(mc.measurements, mc, mc.model)
-
-        if mod(i, 1000) == 0
-            mc.a.acc_rate = mc.a.acc_rate / 1000
-            mc.a.acc_rate_global = mc.a.acc_rate_global / (1000 / mc.p.global_rate)
-            add!(sweep_dur, (time() - _time)/1000)
+        print_rate = mc.p.print_rate
+        if print_rate != 0 && iszero(mod(i, print_rate))
+            mc.a.acc_rate /= print_rate
+            mc.a.acc_rate_global /= print_rate / mc.p.global_rate
+            sweep_dur = (time() - _time)/print_rate
             if verbose
                 println("\t", i)
-                @printf("\t\tsweep dur: %.3fs\n", sweep_dur[end])
+                @printf("\t\tsweep dur: %.3fs\n", sweep_dur)
                 @printf("\t\tacc rate (local) : %.1f%%\n", mc.a.acc_rate*100)
                 if mc.p.global_moves
                   @printf("\t\tacc rate (global): %.1f%%\n", mc.a.acc_rate_global*100)
@@ -153,7 +160,6 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
-    mc.a.sweep_dur = mean(sweep_dur)
 
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
@@ -167,19 +173,18 @@ end
 
 Performs a sweep of local moves.
 """
-function sweep(mc::MC)
-    N = mc.model.l.sites
-    beta = mc.p.beta
-
-    @inbounds for i in eachindex(mc.conf)
-        delta_E, delta_i = propose_local(mc, mc.model, i, mc.conf, mc.energy)
+@inline function sweep(mc::MC)
+    c = conf(mc)
+    m = model(mc)
+    β = beta(mc)
+    @inbounds for i in eachindex(c)
+        ΔE, Δsite = propose_local(mc, m, i, c)
         mc.a.prop_local += 1
         # Metropolis
-        if delta_E <= 0 || rand() < exp(- beta*delta_E)
-            accept_local!(mc, mc.model, i, mc.conf, mc.energy, delta_i, delta_E)
-            mc.a.acc_rate += 1/N
+        if ΔE <= 0 || rand() < exp(- β*ΔE)
+            accept_local!(mc, m, i, c, Δsite, ΔE)
+            mc.a.acc_rate += 1/nsites(m)
             mc.a.acc_local += 1
-            mc.energy += delta_E
         end
     end
 

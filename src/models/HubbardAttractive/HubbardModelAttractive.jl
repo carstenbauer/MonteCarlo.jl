@@ -15,7 +15,7 @@ with linear system size `L`. Additional allowed `kwargs` are:
  * `U::Float64=1.0`: onsite interaction strength, "Hubbard U"
  * `t::Float64=1.0`: hopping energy
 """
-@with_kw_noshow mutable struct HubbardModelAttractive{C<:AbstractCubicLattice} <: Model
+@with_kw_noshow struct HubbardModelAttractive{C<:AbstractCubicLattice} <: Model
     # user mandatory
     dims::Int
     L::Int
@@ -28,6 +28,7 @@ with linear system size `L`. Additional allowed `kwargs` are:
 
     # non-user fields
     l::C = choose_lattice(HubbardModelAttractive, dims, L)
+    neighs::Matrix{Int} = neighbors_lookup_table(l)
     flv::Int = 1
 end
 
@@ -42,14 +43,14 @@ function choose_lattice(::Type{HubbardModelAttractive}, dims::Int, L::Int)
 end
 
 """
-    HubbardModelAttractive(kwargs::Dict{String, Any})
+    HubbardModelAttractive(params::Dict)
+    HubbardModelAttractive(params::NamedTuple)
 
-Create an attractive Hubbard model with (keyword) parameters as specified in `kwargs` dict.
+Create an attractive Hubbard model with (keyword) parameters as specified in the
+dictionary/named tuple `params`.
 """
-function HubbardModelAttractive(kwargs::Dict{String, Any})
-    symbol_dict = Dict([Symbol(k) => v for (k, v) in kwargs])
-    HubbardModelAttractive(; symbol_dict...)
-end
+HubbardModelAttractive(params::Dict{Symbol, T}) where T = HubbardModelAttractive(; params...)
+HubbardModelAttractive(params::NamedTuple) = HubbardModelAttractive(; params...)
 
 # cosmetics
 import Base.summary
@@ -58,97 +59,19 @@ Base.summary(model::HubbardModelAttractive) = "$(model.dims)D attractive Hubbard
 Base.show(io::IO, model::HubbardModelAttractive) = print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(model.l.sites) sites)")
 Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io, model)
 
-# methods
-"""
-    energy(m::HubbardModelAttractive, hsfield::HubbardConf)
 
-Calculate bosonic part of the energy for configuration `hsfield`.
-"""
-@inline function energy_boson(m::HubbardModelAttractive, hsfield::HubbardConf)
-  dtau = mc.p.delta_tau
-    lambda = acosh(exp(m.U * dtau/2))
-    return lambda * sum(hsfield)
-end
 
-import Base.rand
-"""
-    rand(mc::DQMC, m::HubbardModelAttractive)
 
-Draw random HS field configuration.
-"""
-@inline rand(mc::DQMC, m::HubbardModelAttractive) = rand(HubbardDistribution, m.l.sites, mc.p.slices)
 
-"""
-    conftype(::Type{DQMC}, m::HubbardModelAttractive)
+# implement `Model` interface
+@inline nsites(m::HubbardModelAttractive) = nsites(m.l)
 
-Returns the type of a (Hubbard-Stratonovich field) configuration of the attractive Hubbard model.
-"""
-@inline conftype(::Type{DQMC}, m::HubbardModelAttractive) = HubbardConf
 
-"""
-    greenseltype(::Type{DQMC}, m::HubbardModelAttractive)
-
-Returns the element type of the Green's function.
-"""
-@inline greenseltype(::Type{DQMC}, m::HubbardModelAttractive) = Float64
-
-"""
-    propose_local(m::HubbardModelAttractive, i::Int, conf::HubbardConf, E_boson::Float64) -> detratio, delta_E_boson, delta
-
-Propose a local HS field flip at site `i` and imaginary time slice `slice` of current configuration `conf`.
-"""
-@inline function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, E_boson::Float64)
-    # see for example dos Santos (2002)
-  greens = mc.s.greens
-  dtau = mc.p.delta_tau
-    lambda = acosh(exp(m.U * dtau/2))
-
-    delta_E_boson = -2. * lambda * conf[i, slice]
-    gamma = exp(delta_E_boson) - 1
-    detratio = (1 + gamma * (1 - greens[i,i]))^2 # squared because of two spin sectors.
-
-    return detratio, delta_E_boson, gamma
-end
-
-"""
-    accept_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf, delta, detratio, delta_E_boson)
-
-Accept a local HS field flip at site `i` and imaginary time slice `slice` of current configuration `conf`.
-Arguments `delta`, `detratio` and `delta_E_boson` correspond to output of `propose_local()`
-for that flip.
-"""
-@inline function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, delta_E_boson::Float64)
-  greens = mc.s.greens
-  gamma = delta
-
-    u = -greens[:, i]
-    u[i] += 1.
-    # OPT: speed check, maybe @views/@inbounds
-    greens .-= kron(u * 1. /(1 + gamma * u[i]), transpose(gamma * greens[i, :]))
-    conf[i, slice] *= -1
-    nothing
-end
+# implement `DQMC` interface: mandatory
+@inline Base.rand(::Type{DQMC}, m::HubbardModelAttractive, nslices::Int) = rand(HubbardDistribution, nsites(m), nslices)
 
 
 """
-    interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive, result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.) -> nothing
-
-Calculate the interaction matrix exponential `expV = exp(- power * delta_tau * V(slice))`
-and store it in `result::Matrix`.
-
-This is a performance critical method.
-"""
-@inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
-            result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
-  dtau = mc.p.delta_tau
-    lambda = acosh(exp(m.U * dtau/2))
-    result .= spdiagm(0 => exp.(sign(power) * lambda * conf[:,slice]))
-    nothing
-end
-
-"""
-	hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
-
 Calculates the hopping matrix \$T_{i, j}\$ where \$i, j\$ are
 site indices.
 
@@ -160,22 +83,83 @@ This isn't a performance critical method as it is only used once before the
 actual simulation.
 """
 function hopping_matrix(mc::DQMC, m::HubbardModelAttractive)
-  N = m.l.sites
-  neighs = m.l.neighs # row = up, right, down, left; col = siteidx
+    N = nsites(m)
+    neighs = m.neighs # row = up, right, down, left; col = siteidx
 
-  T = diagm(0 => fill(-m.mu, N))
+    T = diagm(0 => fill(-m.mu, N))
 
-  # Nearest neighbor hoppings
-  @inbounds @views begin
-    for src in 1:N
-      for nb in 1:size(neighs,1)
-        trg = neighs[nb,src]
-        T[trg,src] += -m.t
+    # Nearest neighbor hoppings
+    @inbounds @views begin
+      for src in 1:N
+        for nb in 1:size(neighs,1)
+          trg = neighs[nb,src]
+          T[trg,src] += -m.t
+        end
       end
     end
-  end
 
-  return T
+    return T
+end
+
+
+"""
+Calculate the interaction matrix exponential `expV = exp(- power * delta_tau * V(slice))`
+and store it in `result::Matrix`.
+
+This is a performance critical method.
+"""
+@inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
+            result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
+    dtau = mc.p.delta_tau
+    lambda = acosh(exp(m.U * dtau/2))
+    result .= spdiagm(0 => exp.(sign(power) * lambda * conf[:,slice]))
+    nothing
+end
+
+
+@inline function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf)
+    # see for example dos Santos (2002)
+    greens = mc.s.greens
+    dtau = mc.p.delta_tau
+    lambda = acosh(exp(m.U * dtau/2))
+
+    ΔE_boson = -2. * lambda * conf[i, slice]
+    γ = exp(ΔE_boson) - 1
+    detratio = (1 + γ * (1 - greens[i,i]))^2 # squared because of two spin sectors.
+
+    return detratio, ΔE_boson, γ
+end
+
+@inline function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, ΔE_boson::Float64)
+    greens = mc.s.greens
+    γ = delta
+
+    u = -greens[:, i]
+    u[i] += 1.
+    # TODO: OPT: speed check, maybe @views/@inbounds
+    greens .-= kron(u * 1. /(1 + γ * u[i]), transpose(γ * greens[i, :]))
+    conf[i, slice] *= -1
+    nothing
+end
+
+
+
+
+
+# implement DQMC interface: optional
+"""
+Green's function is real for the attractive Hubbard model.
+"""
+@inline greenseltype(::Type{DQMC}, m::HubbardModelAttractive) = Float64
+
+
+"""
+Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
+"""
+@inline function energy_boson(m::HubbardModelAttractive, hsfield::HubbardConf)
+  dtau = mc.p.delta_tau
+    lambda = acosh(exp(m.U * dtau/2))
+    return lambda * sum(hsfield)
 end
 
 include("observables.jl")
