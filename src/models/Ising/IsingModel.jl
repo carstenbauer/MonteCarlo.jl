@@ -19,6 +19,7 @@ with linear system size `L`.
     dims::Int
     l::C = choose_lattice(IsingModel, dims, L)
     neighs::Matrix{Int} = neighbors_lookup_table(l)
+    energy::Ref{Float64} = Ref(0.0)
 end
 
 function choose_lattice(::Type{IsingModel}, dims::Int, L::Int)
@@ -66,6 +67,7 @@ Base.rand(::Type{MC}, m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m
 end
 
 @propagate_inbounds function accept_local!(mc::MC, m::IsingModel, i::Int, conf::IsingConf, delta_i, delta_E::Float64)
+    m.energy[] += delta_E
     conf[i] *= -1
     nothing
 end
@@ -113,6 +115,7 @@ function global_move(mc::MC, m::IsingModel, conf::IsingConf)
     for spin in cluster
         conf[spin] *= -1
     end
+    model.energy[] = energy(mc, m, conf)
 
     return length(cluster)>1
 end

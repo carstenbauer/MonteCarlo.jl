@@ -8,7 +8,7 @@ finish!(::IsingMeasurement, mc::MC, model::IsingModel) = nothing
 struct IsingConfiguration <: IsingMeasurement
     obs::Observable
     IsingConfiguration(mc::MC, model::IsingModel) = new(
-        Observable(conftype(MC, model), "Configurations")
+        Observable(IsingConf{ndims(model)}, "Configurations")
     )
 end
 measure!(m::IsingConfiguration, mc::MC, model::IsingModel) = push!(m.obs, mc.conf); nothing
@@ -32,9 +32,9 @@ struct IsingEnergy <: IsingMeasurement
 end
 
 function measure!(m::IsingEnergy, mc::MC, model::IsingModel)
-    push!(m.E, mc.energy)
-    push!(m.E2, mc.energy^2)
-    push!(m.e, mc.energy * m.invN)
+    push!(m.E, model.energy[])
+    push!(m.E2, model.energy[]^2)
+    push!(m.e, model.energy[] * m.invN)
     nothing
 end
 
