@@ -13,7 +13,7 @@ Number of lattice sites.
 @inline Base.length(l::AbstractLattice) = error("Lattice $(typeof(l)) doesn't implement `length`.")
 
 """
-    neighbors(l::AbstractLattice[, directed=Val{true}])
+    neighbors(l::AbstractLattice[, directed=Val(false)])
 
 Returns an iterator over bonds, given as tuples (source index, target index). If
 `directed = Val(true)` bonds are assumed to be directed, i.e. both
