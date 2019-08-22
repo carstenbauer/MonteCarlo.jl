@@ -154,6 +154,16 @@ Calculate energy of Ising configuration `conf` for Ising model `m`.
 """
 function energy(mc::MC, m::IsingModel, conf::IsingConf)
     E = 0.0
+    for (src, trg) in neighbors(m.l, Val(false))
+        E -= conf[src]*conf[trg]
+    end
+    return E
+end
+
+function energy(mc::MC, m::IsingModel{LT}, conf::IsingConf) where {
+        LT <: Union{Chain, SquareLattice, CubicLattice}
+    }
+    E = 0.0
     for n in 1:ndims(m)
         @inbounds @simd for i in 1:nsites(m)
             E -= conf[i]*conf[m.neighs[n,i]]
