@@ -1,6 +1,6 @@
 The MonteCarlo.jl package is licensed under the MIT "Expat" License:
 
-> Copyright (c) 2017: Carsten Bauer.
+> Copyright (c) 2019: Carsten Bauer.
 >
 >
 > Permission is hereby granted, free of charge, to any person obtaining a copy
