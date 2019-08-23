@@ -39,6 +39,8 @@ mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     MC{M,C}() where {M,C} = new()
 end
 
+configuration(mc::MC) = mc.conf
+
 """
     MC(m::M; kwargs...) where M<:Model
 

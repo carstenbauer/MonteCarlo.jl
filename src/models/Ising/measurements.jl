@@ -11,7 +11,10 @@ struct IsingConfiguration <: IsingMeasurement
         Observable(IsingConf{ndims(model)}, "Configurations")
     )
 end
-measure!(m::IsingConfiguration, mc::MC, model::IsingModel) = push!(m.obs, mc.conf); nothing
+function measure!(m::IsingConfiguration, mc::MC, model::IsingModel)
+    push!(m.obs, configuration(mc))
+    nothing
+end
 
 
 
