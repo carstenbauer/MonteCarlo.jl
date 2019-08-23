@@ -31,6 +31,7 @@ mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     model::M
     conf::C
 
+    thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
     p::MCParameters
     a::MCAnalysis
@@ -43,7 +44,13 @@ end
 
 Create a Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
-function MC(m::M; seed::Int=-1, kwargs...) where M<:Model
+function MC(m::M;
+        seed::Int=-1,
+        thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
+        measurements = :default,
+        kwargs...
+    ) where M<:Model
+
     conf = rand(MC, m)
     mc = MC{M, typeof(conf)}()
     mc.model = m
@@ -53,7 +60,20 @@ function MC(m::M; seed::Int=-1, kwargs...) where M<:Model
         delete!(kwdict, :T)
     end
     mc.p = MCParameters(; kwdict...)
-    mc.measurements = Dict{Symbol, AbstractMeasurement}()
+
+    mc.thermalization_measurements = thermalization_measurements
+    if measurements isa Dict{Symbol, AbstractMeasurement}
+        mc.measurements = measurements
+    elseif measurements == :default
+        mc.measurements = default_measurements(mc, m)
+    else
+        @warn(
+            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}, but are " *
+            "$(typeof(measurements)). No measurements have been set."
+        )
+        mc.measurements = Dict{Symbol, AbstractMeasurement}()
+    end
+
     init!(mc, seed=seed, conf=conf)
     return mc
 end
@@ -93,14 +113,9 @@ Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 Initialize the Monte Carlo simulation `mc`.
 If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
-function init!(mc::MC; seed::Real=-1, conf=rand(MC, mc.model), measurements=default_measurements(mc))
+function init!(mc::MC; seed::Real=-1, conf=rand(MC, mc.model))
     seed == -1 || Random.seed!(seed)
     mc.conf = conf
-    if isempty(measurements)
-        @warn "No measurements have been set!"
-    else
-        push!(mc.measurements, measurements...)
-    end
     mc.a = MCAnalysis()
     nothing
 end
@@ -113,12 +128,19 @@ Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `stdout` if `verbose=true` (default).
 """
 function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
+    do_th_measurements = !isempty(mc.thermalization_measurements)
+    do_me_measurements = !isempty(mc.measurements)
+    !do_me_measurements && @warn(
+        "There are no measurements set up for this simulation!"
+    )
+
     total_sweeps = sweeps + thermalization
 
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
     _time = time()
+    do_th_measurements && prepare!(mc.thermalization_measurements, mc, mc.model)
     for i in 1:total_sweeps
         sweep(mc)
 
@@ -127,13 +149,18 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
             mc.a.acc_global += global_move(mc, mc.model, conf(mc))
         end
 
-        # TODO
-        # remove this?
-        (i == mc.p.thermalization) && prepare!(mc.measurements, mc, mc.model)
-    
-        if i > thermalization && iszero(mod(i, mc.p.measure_rate))
+        if (i == mc.p.thermalization+1)
+            do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
+            do_me_measurements && prepare!(mc.measurements, mc, mc.model)
+        end
+
+        if do_me_measurements && i > thermalization && iszero(mod(i, mc.p.measure_rate))
             measure!(mc.measurements, mc, mc.model)
         end
+        if do_th_measurements && i <= thermalization && iszero(mod(i, mc.p.measure_rate))
+            measure!(mc.thermalization_measurements, mc, mc.model)
+        end
+
 
         print_rate = mc.p.print_rate
         if print_rate != 0 && iszero(mod(i, print_rate))
@@ -156,7 +183,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
             _time = time()
         end
     end
-    finish!(mc.measurements, mc, mc.model)
+    do_me_measurements && finish!(mc.measurements, mc, mc.model)
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
