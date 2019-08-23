@@ -80,10 +80,10 @@ end
 
 
 
-function default_measurements(mc::MC{IsingModel{L}, C}) where {L, C}
+function default_measurements(mc::MC, model::IsingModel)
     Dict(
-        :conf => IsingConfiguration(mc, mc.model),
-        :Magn => IsingMagnetization(mc, mc.model),
-        :Energy => IsingEnergy(mc, mc.model)
+        :conf => IsingConfiguration(mc, model),
+        :Magn => IsingMagnetization(mc, model),
+        :Energy => IsingEnergy(mc, model)
     )
 end

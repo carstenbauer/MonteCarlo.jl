@@ -44,4 +44,4 @@ for function_name in (:prepare!, :measure!, :finish!)
     end
 end
 
-default_measurements(mc) = Dict{Symbol, AbstractMeasurement}()
+default_measurements(mc, model) = Dict{Symbol, AbstractMeasurement}()
