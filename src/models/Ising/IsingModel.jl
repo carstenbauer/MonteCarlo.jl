@@ -121,25 +121,6 @@ function global_move(mc::MC, m::IsingModel, conf::IsingConf)
 end
 
 
-@inline function prepare_observables(mc::MC, m::IsingModel)
-    obs = Dict{String,Observable}()
-    obs["confs"] = Observable(typeof(mc.conf), "Configurations")
-
-    obs["E"] = Observable(Float64, "Total energy")
-    obs["E2"] = Observable(Float64, "Total energy squared")
-    obs["e"] = Observable(Float64, "Energy (per site)")
-
-    obs["M"] = Observable(Float64, "Total magnetization")
-    obs["M2"] = Observable(Float64, "Total magnetization squared")
-    obs["m"] = Observable(Float64, "Magnetization (per site)")
-
-    obs["χ"] = Observable(Float64, "Susceptibility")
-
-    obs["C"] = Observable(Float64, "Specific Heat")
-
-    return obs
-end
-
 
 """
     energy(mc::MC, m::IsingModel, conf::IsingConf)
@@ -172,48 +153,5 @@ function energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
     return E
 end
 
-
-@inline function measure_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf)
-    N = nsites(m)
-    push!(obs["confs"], conf)
-
-    # energie
-    E = energy(mc, m, conf)
-    E2 = E^2
-    push!(obs["E"], E)
-    push!(obs["E2"], E2)
-    push!(obs["e"], E/N)
-
-    # magnetization
-    M::Float64 = abs(sum(conf))
-    M2 = M^2
-    push!(obs["M"], M)
-    push!(obs["M2"], M2)
-    push!(obs["m"], M/N)
-    nothing
-end
-
-"""
-    measure_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable}, conf::IsingConf)
-
-Calculates magnetic susceptibility and specific heat and updates corresponding `Observable` objects in `obs`.
-
-See also [`prepare_observables`](@ref) and [`measure_observables!`](@ref).
-"""
-@inline function finish_observables!(mc::MC, m::IsingModel, obs::Dict{String,Observable})
-    N = nsites(m)
-    beta = mc.p.beta
-
-    # specific heat
-    E = mean(obs["E"])
-    E2 = mean(obs["E2"])
-    push!(obs["C"], beta*beta*(E2/N - E*E/N))
-
-    # susceptibility
-    M = mean(obs["M"])
-    M2 = mean(obs["M2"])
-    push!(obs["χ"], beta*(M2/N - M*M/N))
-    nothing
-end
 
 include("measurements.jl")

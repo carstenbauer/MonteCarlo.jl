@@ -36,10 +36,4 @@
     @test MonteCarlo.accept_local!(mc, m, 13, conff, 2, 1352.0) == nothing
     conff[13] *= -1
     @test conf == conff
-
-    # observables
-    obs = MonteCarlo.prepare_observables(mc, m);
-    @test typeof(obs) == Dict{String,MonteCarloObservable.Observable}
-    @test MonteCarlo.measure_observables!(mc, m, obs, conf) == nothing
-    @test MonteCarlo.finish_observables!(mc, m, obs) == nothing
 end

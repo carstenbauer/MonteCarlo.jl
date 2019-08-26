@@ -162,5 +162,4 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
     return lambda * sum(hsfield)
 end
 
-include("observables.jl")
 include("measurements.jl")
