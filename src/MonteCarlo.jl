@@ -2,6 +2,7 @@ module MonteCarlo
 
 using Reexport
 @reexport using MonteCarloObservable
+import MonteCarloObservable.AbstractObservable
 using StableDQMC, LightXML, Parameters
 
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
