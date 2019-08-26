@@ -4,20 +4,6 @@ prepare!(::IsingMeasurement, mc::MC, model::IsingModel) = nothing
 finish!(::IsingMeasurement, mc::MC, model::IsingModel) = nothing
 
 
-
-struct IsingConfiguration <: IsingMeasurement
-    obs::Observable
-    IsingConfiguration(mc::MC, model::IsingModel) = new(
-        Observable(IsingConf{ndims(model)}, "Configurations")
-    )
-end
-function measure!(m::IsingConfiguration, mc::MC, model::IsingModel)
-    push!(m.obs, configuration(mc))
-    nothing
-end
-
-
-
 struct IsingEnergy <: IsingMeasurement
     invN::Float64
     E::Observable
@@ -85,7 +71,7 @@ end
 
 function default_measurements(mc::MC, model::IsingModel)
     Dict(
-        :conf => IsingConfiguration(mc, model),
+        :conf => ConfigurationMeasurement(mc, model),
         :Magn => IsingMagnetization(mc, model),
         :Energy => IsingEnergy(mc, model)
     )

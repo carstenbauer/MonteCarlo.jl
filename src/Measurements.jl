@@ -44,6 +44,32 @@ an empty dictionary will be returned.
 """
 default_measurements(mc, model) = Dict{Symbol, AbstractMeasurement}()
 
+################################################################################
+# mc based, default measurements
+
+"""
+    ConfigurationMeasurement(mc, model, rate=1)
+
+Measures configurations of the given Monte Carlo flavour and model. The rate of
+measurements can be reduced with `rate`. (e.g. `rate=10` means 1 measurement per
+10 sweeps)
+"""
+struct ConfigurationMeasurement{ConfType} <: AbstractMeasurement
+    obs::Observable{ConfType}
+    rate::Int64
+    ConfigurationMeasurement(mc, model, rate=1) = new(
+        Observable(typeof(mc.conf), "Configurations"), rate
+    )
+end
+prepare!(::ConfigurationMeasurement, mc, model) = nothing
+function measure!(m::ConfigurationMeasurement, mc::MC, model::IsingModel, i::Int64)
+    (i % m.rate == 0) && push!(m.obs, conf(mc))
+    nothing
+end
+finish!(::ConfigurationMeasurement, mc, model) = nothing
+
+
+################################################################################
 
 # called by simulation:
 for function_name in (:prepare!, :measure!, :finish!)
