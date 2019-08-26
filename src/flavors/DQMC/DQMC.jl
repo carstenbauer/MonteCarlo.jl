@@ -184,7 +184,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
             # checked first.
             if current_slice(mc) == nslices(mc) && i <= thermalization && mc.s.direction == -1 &&
                     iszero(mod(i, mc.p.measure_rate)) && do_th_measurements
-                measure!(mc.thermalization_measurements, mc, mc.model)
+                measure!(mc.thermalization_measurements, mc, mc.model, i)
             end
             if (i == thermalization+1)
                 do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
@@ -192,7 +192,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
             end
             if current_slice(mc) == nslices(mc) && mc.s.direction == -1 && i > thermalization &&
                     iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
-                measure!(mc.measurements, mc, mc.model)
+                measure!(mc.measurements, mc, mc.model, i)
             end
 
         end

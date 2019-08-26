@@ -154,14 +154,14 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
         # For optimal performance whatever is most likely to fail should be
         # checked first.
         if i <= thermalization && iszero(mod(i, mc.p.measure_rate)) && do_th_measurements
-            measure!(mc.thermalization_measurements, mc, mc.model)
+            measure!(mc.thermalization_measurements, mc, mc.model, i)
         end
         if (i == thermalization+1)
             do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
             do_me_measurements && prepare!(mc.measurements, mc, mc.model)
         end
         if i > thermalization && iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
-            measure!(mc.measurements, mc, mc.model)
+            measure!(mc.measurements, mc, mc.model, i)
         end
 
 
