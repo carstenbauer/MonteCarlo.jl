@@ -68,10 +68,9 @@ function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
 end
 finish!(::ConfigurationMeasurement, mc, model) = nothing
 
-
 ################################################################################
+# called by simulation
 
-# called by simulation:
 for function_name in (:prepare!, :finish!)
     @eval begin
         function $(function_name)(
@@ -93,5 +92,41 @@ function measure!(
     for (k, m) in measurements
         measure!(m, mc, model, sweep_index)
     end
+    nothing
+end
+
+################################################################################
+# other convenience functions
+
+# printing
+function Base.show(io::IO, m::AbstractMeasurement)
+    #  no parametrization -v    v- no MonteCarlo.
+    typename = typeof(m).name.name
+    fnames = fieldnames(typeof(m))
+    observables = [s for s in fnames if getfield(m, s) isa AbstractObservable]
+    other = [s for s in fnames if !(getfield(m, s) isa AbstractObservable)]
+    println(io, typename)
+    for obs_fieldname in observables
+        o = getfield(m, obs_fieldname)
+        oname = MonteCarloObservable.name(o)
+        otypename = typeof(o).name.name
+        println(io, "\t", obs_fieldname, "::", otypename, "\t → \"", oname, "\"")
+    end
+    for fieldname in other
+        println(io, "\t", fieldname, "::", typeof(getfield(m, fieldname)))
+    end
+    nothing
+end
+
+function Base.show(io::IO, ::MIME"text/plain", m::AbstractMeasurement)
+    #small
+    #  no parametrization -v    v- no MonteCarlo.
+    typename = typeof(m).name.name
+    fnames = fieldnames(typeof(m))
+    temp = [s for s in fnames if getfield(m, s) isa AbstractObservable]
+    observable_names = map(temp) do obs_fieldname
+        MonteCarloObservable.name(getfield(m, obs_fieldname))
+    end
+    print(io, typename, " (\"", join(observable_names, "\", \""), "\")")
     nothing
 end
