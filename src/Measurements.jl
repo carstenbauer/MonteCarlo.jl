@@ -54,15 +54,15 @@ Measures configurations of the given Monte Carlo flavour and model. The rate of
 measurements can be reduced with `rate`. (e.g. `rate=10` means 1 measurement per
 10 sweeps)
 """
-struct ConfigurationMeasurement{ConfType} <: AbstractMeasurement
-    obs::Observable{ConfType}
+struct ConfigurationMeasurement <: AbstractMeasurement
+    obs::Observable
     rate::Int64
     ConfigurationMeasurement(mc, model, rate=1) = new(
         Observable(typeof(mc.conf), "Configurations"), rate
     )
 end
 prepare!(::ConfigurationMeasurement, mc, model) = nothing
-function measure!(m::ConfigurationMeasurement, mc::MC, model::IsingModel, i::Int64)
+function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
     (i % m.rate == 0) && push!(m.obs, conf(mc))
     nothing
 end
@@ -72,7 +72,7 @@ finish!(::ConfigurationMeasurement, mc, model) = nothing
 ################################################################################
 
 # called by simulation:
-for function_name in (:prepare!, :measure!, :finish!)
+for function_name in (:prepare!, :finish!)
     @eval begin
         function $(function_name)(
                 measurements::Dict{Symbol, AbstractMeasurement},
@@ -84,4 +84,14 @@ for function_name in (:prepare!, :measure!, :finish!)
             nothing
         end
     end
+end
+
+function measure!(
+        measurements::Dict{Symbol, AbstractMeasurement},
+        mc, model, sweep_index::Int64
+    )
+    for (k, m) in measurements
+        measure!(m, mc, model, sweep_index)
+    end
+    nothing
 end

@@ -31,7 +31,7 @@ Parameters of determinant quantum Monte Carlo (DQMC)
         (= number of imaginary time slices) must be an integer but is",
         beta / delta_tau, ".")
 
-    measure_every_nth::Int = 10
+    measure_rate::Int = 10
 end
 
 """
@@ -45,8 +45,8 @@ mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any,
 
     p::DQMCParameters
     a::DQMCAnalysis
-    thermalization_measurements::Dict{Symbol, Observable}
-    measurements::Dict{Symbol, Observable}
+    thermalization_measurements::Dict{Symbol, AbstractMeasurement}
+    measurements::Dict{Symbol, AbstractMeasurement}
 
     DQMC{M, CB, ConfType, Stack}() where {M<:Model, CB<:Checkerboard,
         ConfType<:Any, Stack<:AbstractDQMCStack} = new()

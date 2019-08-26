@@ -1,30 +1,30 @@
-abstract type HubbardMeasurements end
+abstract type HubbardMeasurement <: AbstractMeasurement end
 
-prepare!(::IsingMeasurement, mc::MC, model::IsingModel) = nothing
-finish!(::IsingMeasurement, mc::MC, model::IsingModel) = nothing
+prepare!(::HubbardMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing
+finish!(::HubbardMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing
 
-struct GreensMeasurement{OT <: AbstractObservable} <: HubbardMeasurements
+struct GreensMeasurement{OT <: AbstractObservable} <: HubbardMeasurement
     obs::OT
-    function GreensMeasurement()
-        o = Observable(typeof(mc.s.greens), "Equal-times Green's function")
-        new{typeof(o)}(o)
-    end
+end
+function GreensMeasurement(mc::DQMC, model::HubbardModelAttractive)
+    o = Observable(typeof(mc.s.greens), "Equal-times Green's function")
+    GreensMeasurement{typeof(o)}(o)
 end
 
 function measure!(m::GreensMeasurement, mc::DQMC, model::HubbardModelAttractive, i::Int64)
     push!(m.obs, greens(mc))
 end
 
-struct BosonEnergyMeasurement{OT <: AbstractObservable} <: HubbardMeasurements
+struct BosonEnergyMeasurement{OT <: AbstractObservable} <: HubbardMeasurement
     obs::OT
-    function BosonEnergyMeasurement()
-        o = Observable(typeof(mc.s.greens), "Bosonic Energy")
-        new{typeof(o)}(o)
-    end
+end
+function BosonEnergyMeasurement(mc::DQMC, model::HubbardModelAttractive)
+    o = Observable(Float64, "Bosonic Energy")
+    BosonEnergyMeasurement{typeof(o)}(o)
 end
 
 function measure!(m::BosonEnergyMeasurement, mc::DQMC, model::HubbardModelAttractive, i::Int64)
-    push!(m.obs, energy_boson(mc, m, conf))
+    push!(m.obs, energy_boson(mc, model, conf(mc)))
 end
 
 
@@ -32,6 +32,6 @@ function default_measurements(mc::DQMC, model::HubbardModelAttractive)
     Dict(
         :conf => ConfigurationMeasurement(mc, model),
         :Greens => GreensMeasurement(mc, model),
-        :Boson_Energy => BosonMeasurement(mc, model)
+        :Boson_Energy => BosonEnergyMeasurement(mc, model)
     )
 end

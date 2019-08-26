@@ -156,10 +156,11 @@ Green's function is real for the attractive Hubbard model.
 """
 Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
 """
-@inline function energy_boson(m::HubbardModelAttractive, hsfield::HubbardConf)
-  dtau = mc.p.delta_tau
+@inline function energy_boson(mc::DQMC, m::HubbardModelAttractive, hsfield::HubbardConf)
+    dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
 end
 
 include("observables.jl")
+include("measurements.jl")
