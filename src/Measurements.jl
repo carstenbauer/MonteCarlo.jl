@@ -130,3 +130,47 @@ function Base.show(io::IO, ::MIME"text/plain", m::AbstractMeasurement)
     print(io, typename, " (\"", join(observable_names, "\", \""), "\")")
     nothing
 end
+
+
+"""
+    measurements(mc)
+
+Returns a nested dictionary of all measurements used in a given Monte Carlo
+simulation `mc`. The thermalization stage is accessed by `:TH`, the measurement
+stage by `:ME`.
+"""
+function measurements(mc)
+    return Dict(
+        :TH => mc.thermalization_measurements,
+        :ME => mc.measurements
+    )
+end
+
+
+"""
+    observables(mc)
+
+Returns a nested dictionary of all observables used in a given Monte Carlo
+simulation `mc`. The result `obs` is indexed as `obs[stage][measurement][name]`,
+where `stage` is `:TH` (thermalization stage) or `:ME` (measurement stage),
+`measurement::Symbol` is the name of the measurement and `name::String` is the
+name of the observable.
+"""
+function observables(mc)
+    th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+        k => let
+            fns = fieldnames(typeof(mc))
+            os = [getfield(mc, fn) for fn in fns if getfield(mc, fn) isa AbstractObservable]
+            Dict{String, AbstractObservable}(MonteCarloObservable.name(o) => o for o in os)
+        end for (k, m) in mc.thermalization_measurements
+    )
+    me_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+        k => let
+            fns = fieldnames(typeof(m))
+            os = [getfield(m, fn) for fn in fns if getfield(m, fn) isa AbstractObservable]
+            Dict{String, AbstractObservable}(MonteCarloObservable.name(o) => o for o in os)
+        end for (k, m) in mc.measurements
+    )
+
+    return Dict(:TH => th_obs, :ME => me_obs)
+end
