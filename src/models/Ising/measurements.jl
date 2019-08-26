@@ -20,7 +20,7 @@ struct IsingEnergyMeasurement <: IsingMeasurement
     )
 end
 
-function measure!(m::IsingEnergyMeasurement, mc::MC, model::IsingModel)
+function measure!(m::IsingEnergyMeasurement, mc::MC, model::IsingModel, i::Int64)
     push!(m.E, model.energy[])
     push!(m.E2, model.energy[]^2)
     push!(m.e, model.energy[] * m.invN)
@@ -52,7 +52,7 @@ struct IsingMagnetizationMeasurement <: IsingMeasurement
     )
 end
 
-function measure!(m::IsingMagnetizationMeasurement, mc::MC, model::IsingModel)
+function measure!(m::IsingMagnetizationMeasurement, mc::MC, model::IsingModel, i::Int64)
     M = abs(sum(mc.conf))
     push!(m.M, M)
     push!(m.M2, M^2)
