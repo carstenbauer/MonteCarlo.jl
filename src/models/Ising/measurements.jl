@@ -4,14 +4,14 @@ prepare!(::IsingMeasurement, mc::MC, model::IsingModel) = nothing
 finish!(::IsingMeasurement, mc::MC, model::IsingModel) = nothing
 
 
-struct IsingEnergy <: IsingMeasurement
+struct IsingEnergyMeasurement <: IsingMeasurement
     invN::Float64
     E::Observable
     E2::Observable
     e::Observable
     C::Observable
 
-    IsingEnergy(mc::MC, model::IsingModel) = new(
+    IsingEnergyMeasurement(mc::MC, model::IsingModel) = new(
         1.0 / model.l.sites,
         Observable(Float64, "Total energy"),
         Observable(Float64, "Total energy squared"),
@@ -20,14 +20,14 @@ struct IsingEnergy <: IsingMeasurement
     )
 end
 
-function measure!(m::IsingEnergy, mc::MC, model::IsingModel)
+function measure!(m::IsingEnergyMeasurement, mc::MC, model::IsingModel)
     push!(m.E, model.energy[])
     push!(m.E2, model.energy[]^2)
     push!(m.e, model.energy[] * m.invN)
     nothing
 end
 
-function finish!(m::IsingEnergy, mc::MC, model::IsingModel)
+function finish!(m::IsingEnergyMeasurement, mc::MC, model::IsingModel)
     E = mean(m.E)
     E2 = mean(m.E2)
     push!(m.C, mc.p.beta^2 * m.invN * (E2 - E^2))
@@ -36,14 +36,14 @@ end
 
 
 
-struct IsingMagnetization <: IsingMeasurement
+struct IsingMagnetizationMeasurement <: IsingMeasurement
     invN::Float64
     M::Observable
     M2::Observable
     m::Observable
     chi::Observable
 
-    IsingMagnetization(mc::MC, model::IsingModel) = new(
+    IsingMagnetizationMeasurement(mc::MC, model::IsingModel) = new(
         1.0 / model.l.sites,
         Observable(Float64, "Total magnetization"),
         Observable(Float64, "Total magnetization squared"),
@@ -52,7 +52,7 @@ struct IsingMagnetization <: IsingMeasurement
     )
 end
 
-function measure!(m::IsingMagnetization, mc::MC, model::IsingModel)
+function measure!(m::IsingMagnetizationMeasurement, mc::MC, model::IsingModel)
     M = abs(sum(mc.conf))
     push!(m.M, M)
     push!(m.M2, M^2)
@@ -60,7 +60,7 @@ function measure!(m::IsingMagnetization, mc::MC, model::IsingModel)
     nothing
 end
 
-function finish!(m::IsingMagnetization, mc::MC, model::IsingModel)
+function finish!(m::IsingMagnetizationMeasurement, mc::MC, model::IsingModel)
     M = mean(m.M)
     M2 = mean(m.M2)
     push!(m.chi, mc.p.beta * m.invN * (M2 - M^2))
@@ -72,7 +72,7 @@ end
 function default_measurements(mc::MC, model::IsingModel)
     Dict(
         :conf => ConfigurationMeasurement(mc, model),
-        :Magn => IsingMagnetization(mc, model),
-        :Energy => IsingEnergy(mc, model)
+        :Magn => IsingMagnetizationMeasurement(mc, model),
+        :Energy => IsingEnergyMeasurement(mc, model)
     )
 end
