@@ -128,13 +128,14 @@ end
 Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `stdout` if `verbose=true` (default).
 """
-function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
+function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
+        thermalization=mc.p.thermalization)
+
     do_th_measurements = !isempty(mc.thermalization_measurements)
     do_me_measurements = !isempty(mc.measurements)
     !do_me_measurements && @warn(
         "There are no measurements set up for this simulation!"
     )
-
     total_sweeps = sweeps + thermalization
 
     start_time = now()
@@ -150,16 +151,17 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
             mc.a.acc_global += global_move(mc, mc.model, conf(mc))
         end
 
-        if (i == mc.p.thermalization+1)
+        # For optimal performance whatever is most likely to fail should be
+        # checked first.
+        if i <= thermalization && iszero(mod(i, mc.p.measure_rate)) && do_th_measurements
+            measure!(mc.thermalization_measurements, mc, mc.model)
+        end
+        if (i == thermalization+1)
             do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
             do_me_measurements && prepare!(mc.measurements, mc, mc.model)
         end
-
-        if do_me_measurements && i > thermalization && iszero(mod(i, mc.p.measure_rate))
+        if i > thermalization && iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
             measure!(mc.measurements, mc, mc.model)
-        end
-        if do_th_measurements && i <= thermalization && iszero(mod(i, mc.p.measure_rate))
-            measure!(mc.thermalization_measurements, mc, mc.model)
         end
 
 
