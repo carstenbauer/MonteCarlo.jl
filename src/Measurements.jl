@@ -32,7 +32,6 @@ function finish!(m::AbstractMeasurement, mc, model)
 end
 
 ################################################################################
-
 # A new model may implement the following for convenience
 
 """
@@ -173,4 +172,40 @@ function observables(mc)
     )
 
     return Dict(:TH => th_obs, :ME => me_obs)
+end
+
+
+
+"""
+    push!(mc, tag::Symbol, MT::Type{AbstractMeasurement}, stage=:ME)
+
+Adds a new pair `tag => MT(mc, model)`, where `MT` is a type
+`<: AbstractMeasurement`, to either the thermalization or measurement `stage`
+(`:TH` or `:ME`) of the simulation `mc`.
+
+See also: [`unsafe_push!`](@ref)
+"""
+function Base.push!(mc, tag::Symbol, MT::Type{<:AbstractMeasurement}, stage=:ME)
+    unsafe_push!(mc, tag, MT(mc, mc.model), stage)
+end
+
+"""
+    unsafe_push!(mc, tag::Symbol, m::AbstractMeasurement, stage=:ME)
+
+Adds a pair `tag => m` to either the thermalization or measurement stage (`:TH`
+or `:ME`) of the given simulation `mc`.
+
+Note that this function is unsafe as it does not test whether `m` is a valid
+measurement for the given simulation.
+
+See also: [`MonteCarlo.push!`](@ref)
+"""
+function unsafe_push!(mc, tag::Symbol, m::AbstractMeasurement, stage=:ME)
+    if stage in (:ME, :me, :Measurement, :measurement)
+        push!(mc.measurements, tag => m)
+    elseif stage in (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
+        push!(mc.thermalization_measurements, tag => m)
+    else
+        throw(ErrorException("`stage = $stage` is not valid."))
+    end
 end
