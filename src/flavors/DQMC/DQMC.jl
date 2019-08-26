@@ -80,20 +80,11 @@ function DQMC(m::M;
     mc.p = p
     mc.s = DQMCStack{geltype,Float64}()
 
-    mc.thermalization_measurements = thermalization_measurements
-    if measurements isa Dict{Symbol, AbstractMeasurement}
-        mc.measurements = measurements
-    elseif measurements == :default
-        mc.measurements = default_measurements(mc, m)
-    else
-        @warn(
-            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}, but are " *
-            "$(typeof(measurements)). No measurements have been set."
-        )
-        mc.measurements = Dict{Symbol, AbstractMeasurement}()
-    end
-
-    init!(mc, seed=seed, conf=conf)
+    init!(
+        mc, seed = seed, conf = conf,
+        thermalization_measurements = thermalization_measurements,
+        measurements = measurements
+    )
     return mc
 end
 
@@ -135,7 +126,12 @@ Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
 Initialize the determinant quantum Monte Carlo simulation `mc`.
 If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
-function init!(mc::DQMC; seed::Real=-1, conf=rand(DQMC,model(mc),nslices(mc)))
+function init!(mc::DQMC;
+        seed::Real = -1,
+        conf = rand(DQMC,model(mc),nslices(mc)),
+        thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
+        measurements = :default
+    )
     seed == -1 || Random.seed!(seed)
 
     mc.conf = conf
@@ -144,6 +140,20 @@ function init!(mc::DQMC; seed::Real=-1, conf=rand(DQMC,model(mc),nslices(mc)))
     initialize_stack(mc)
 
     mc.a = DQMCAnalysis()
+
+    mc.thermalization_measurements = thermalization_measurements
+    if measurements isa Dict{Symbol, AbstractMeasurement}
+        mc.measurements = measurements
+    elseif measurements == :default
+        mc.measurements = default_measurements(mc, mc.model)
+    else
+        @warn(
+            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}, but is " *
+            "$(typeof(measurements)). No measurements have been set."
+        )
+        mc.measurements = Dict{Symbol, AbstractMeasurement}()
+    end
+
     nothing
 end
 

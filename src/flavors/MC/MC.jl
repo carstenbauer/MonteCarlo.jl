@@ -62,20 +62,11 @@ function MC(m::M;
     end
     mc.p = MCParameters(; kwdict...)
 
-    mc.thermalization_measurements = thermalization_measurements
-    if measurements isa Dict{Symbol, AbstractMeasurement}
-        mc.measurements = measurements
-    elseif measurements == :default
-        mc.measurements = default_measurements(mc, m)
-    else
-        @warn(
-            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}, but are " *
-            "$(typeof(measurements)). No measurements have been set."
-        )
-        mc.measurements = Dict{Symbol, AbstractMeasurement}()
-    end
-
-    init!(mc, seed=seed, conf=conf)
+    init!(
+        mc, seed = seed, conf = conf,
+        thermalization_measurements = thermalization_measurements,
+        measurements = measurements
+    )
     return mc
 end
 
@@ -114,10 +105,29 @@ Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 Initialize the Monte Carlo simulation `mc`.
 If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
-function init!(mc::MC; seed::Real=-1, conf=rand(MC, mc.model))
+function init!(mc::MC;
+        seed::Real=-1,
+        conf=rand(MC, mc.model),
+        thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
+        measurements = :default
+    )
     seed == -1 || Random.seed!(seed)
     mc.conf = conf
     mc.a = MCAnalysis()
+
+    mc.thermalization_measurements = thermalization_measurements
+    if measurements isa Dict{Symbol, AbstractMeasurement}
+        mc.measurements = measurements
+    elseif measurements == :default
+        mc.measurements = default_measurements(mc, mc.model)
+    else
+        @warn(
+            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}, but are " *
+            "$(typeof(measurements)). No measurements have been set."
+        )
+        mc.measurements = Dict{Symbol, AbstractMeasurement}()
+    end
+
     nothing
 end
 
