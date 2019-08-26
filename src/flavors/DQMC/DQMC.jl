@@ -45,7 +45,8 @@ mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any,
 
     p::DQMCParameters
     a::DQMCAnalysis
-    obs::Dict{String, Observable}
+    thermalization_measurements::Dict{Symbol, Observable}
+    measurements::Dict{Symbol, Observable}
 
     DQMC{M, CB, ConfType, Stack}() where {M<:Model, CB<:Checkerboard,
         ConfType<:Any, Stack<:AbstractDQMCStack} = new()
@@ -60,7 +61,13 @@ include("slice_matrices.jl")
 Create a determinant quantum Monte Carlo simulation for model `m` with
 keyword parameters `kwargs`.
 """
-function DQMC(m::M; seed::Int=-1, checkerboard::Bool=false, kwargs...) where M<:Model
+function DQMC(m::M;
+        seed::Int=-1,
+        checkerboard::Bool=false,
+        thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
+        measurements = :default,
+        kwargs...
+    ) where M<:Model
     # default params
     # paramskwargs = filter(kw->kw[1] in fieldnames(DQMCParameters), kwargs)
     p = DQMCParameters(; kwargs...)
@@ -72,6 +79,19 @@ function DQMC(m::M; seed::Int=-1, checkerboard::Bool=false, kwargs...) where M<:
     mc.model = m
     mc.p = p
     mc.s = DQMCStack{geltype,Float64}()
+
+    mc.thermalization_measurements = thermalization_measurements
+    if measurements isa Dict{Symbol, AbstractMeasurement}
+        mc.measurements = measurements
+    elseif measurements == :default
+        mc.measurements = default_measurements(mc, m)
+    else
+        @warn(
+            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}, but are " *
+            "$(typeof(measurements)). No measurements have been set."
+        )
+        mc.measurements = Dict{Symbol, AbstractMeasurement}()
+    end
 
     init!(mc, seed=seed, conf=conf)
     return mc
@@ -123,8 +143,6 @@ function init!(mc::DQMC; seed::Real=-1, conf=rand(DQMC,model(mc),nslices(mc)))
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc)
 
-    mc.obs = prepare_observables(mc, mc.model)
-
     mc.a = DQMCAnalysis()
     nothing
 end
@@ -137,6 +155,12 @@ Progress will be printed to `stdout` if `verbose=true` (default).
 """
 function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
         thermalization=mc.p.thermalization)
+
+    do_th_measurements = !isempty(mc.thermalization_measurements)
+    do_me_measurements = !isempty(mc.measurements)
+    !do_me_measurements && @warn(
+        "There are no measurements set up for this simulation!"
+    )
     total_sweeps = sweeps + thermalization
 
     start_time = now()
@@ -150,16 +174,27 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
 
     _time = time()
     verbose && println("\n\nThermalization stage - ", thermalization)
+    do_th_measurements && prepare!(mc.thermalization_measurements, mc, mc.model)
     for i in 1:total_sweeps
-        verbose && (i == thermalization + 1) &&
-            println("\n\nMeasurement stage - ", sweeps)
+        verbose && (i == thermalization + 1) &&println("\n\nMeasurement stage - ", sweeps)
         for u in 1:2 * nslices(mc)
             update(mc, i)
 
-            if i > thermalization && current_slice(mc) == nslices(mc) &&
-                    mc.s.direction == -1 && (i-1)%mc.p.measure_every_nth == 0
-                measure_observables!(mc, mc.model, mc.obs, mc.conf)
+            # For optimal performance whatever is most likely to fail should be
+            # checked first.
+            if current_slice(mc) == nslices(mc) && i <= thermalization && mc.s.direction == -1 &&
+                    iszero(mod(i, mc.p.measure_rate)) && do_th_measurements
+                measure!(mc.thermalization_measurements, mc, mc.model)
             end
+            if (i == thermalization+1)
+                do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
+                do_me_measurements && prepare!(mc.measurements, mc, mc.model)
+            end
+            if current_slice(mc) == nslices(mc) && mc.s.direction == -1 && i > thermalization &&
+                    iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
+                measure!(mc.measurements, mc, mc.model)
+            end
+
         end
 
         if mod(i, 10) == 0
@@ -172,7 +207,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
                 @printf("\t\tacc rate (local) : %.1f%%\n", mc.a.acc_rate*100)
                 if mc.p.global_moves
                   @printf("\t\tacc rate (global): %.1f%%\n", mc.a.acc_rate_global*100)
-                  @printf("\t\tacc rate (global, overall): %.1f%%\n", 
+                  @printf("\t\tacc rate (global, overall): %.1f%%\n",
                     mc.a.acc_global/mc.a.prop_global*100)
                 end
             end
@@ -183,7 +218,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
             _time = time()
         end
     end
-    finish_observables!(mc, mc.model, mc.obs)
+    do_me_measurements && finish!(mc.measurements, mc, mc.model)
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
