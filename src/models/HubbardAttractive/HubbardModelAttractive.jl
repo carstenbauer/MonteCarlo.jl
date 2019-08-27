@@ -161,5 +161,3 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
 end
-
-include("measurements.jl")

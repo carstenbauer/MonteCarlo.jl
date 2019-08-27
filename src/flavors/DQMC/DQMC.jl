@@ -332,3 +332,4 @@ end
 
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")
+include("measurements.jl")

@@ -6,7 +6,6 @@ let
     IsingEnergyMeasurement = MonteCarlo.IsingEnergyMeasurement
     IsingMagnetizationMeasurement = MonteCarlo.IsingMagnetizationMeasurement
 
-    HubbardMeasurement = MonteCarlo.HubbardMeasurement
     GreensMeasurement = MonteCarlo.GreensMeasurement
     BosonEnergyMeasurement = MonteCarlo.BosonEnergyMeasurement
 
@@ -17,9 +16,8 @@ let
         @test IsingMagnetizationMeasurement <: IsingMeasurement
         @test IsingMeasurement <: AbstractMeasurement
 
-        @test GreensMeasurement <: HubbardMeasurement
-        @test BosonEnergyMeasurement <: HubbardMeasurement
-        @test HubbardMeasurement <: AbstractMeasurement
+        @test GreensMeasurement <: AbstractMeasurement
+        @test BosonEnergyMeasurement <: AbstractMeasurement
     end
 
     @testset "Interface" begin
