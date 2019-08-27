@@ -90,7 +90,10 @@ Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::MC)
     print(io, "Monte Carlo simulation\n")
     print(io, "Model: ", mc.model, "\n")
-    print(io, "Beta: ", round(beta(mc), sigdigits=3), " (T ≈ $(round(1/beta(mc), sigdigits=3)))")
+    print(io, "Beta: ", round(beta(mc), sigdigits=3), " (T ≈ $(round(1/beta(mc), sigdigits=3)))\n")
+    N_th_meas = length(mc.thermalization_measurements)
+    N_me_meas = length(mc.measurements)
+    print(io, "Measurements: ", N_th_meas + N_me_meas, " ($N_th_meas + $N_me_meas)")
 end
 Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 
