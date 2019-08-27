@@ -23,6 +23,9 @@ finish!(::GreensMeasurement, mc::DQMC, model) = nothing
     BosonEnergyMeasurement(mc::DQMC, model)
 
 Measures the bosnic energy of the given DQMC simulation and model.
+
+Note that this measurement requires `energy_boson(mc, model, conf)` to be
+implemented for the specific `model`.
 """
 struct BosonEnergyMeasurement{OT <: AbstractObservable} <: AbstractMeasurement
     obs::OT
