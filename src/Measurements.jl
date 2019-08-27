@@ -209,3 +209,45 @@ function unsafe_push!(mc::MonteCarloFlavor, tag::Symbol, m::AbstractMeasurement,
         throw(ErrorException("`stage = $stage` is not valid."))
     end
 end
+
+
+"""
+    delete!(mc, key[, stage=:MC])
+    delete!(mc, MT::Type{<:AbstractMeasurement}[, stage=:MC])
+
+Deletes a measurement from the given Monte Carlo simulation by key or by type.
+When deleting by type, multiple measurements can be targeted using inheritance.
+For example, `delete!(mc, IsingMeasurement)` wil delete all
+`IsingEnergyMeasurement` and `IsingMagnmetizationMeasurement` objects.
+"""
+function Base.delete!(mc::MonteCarloFlavor, key::Symbol, stage=:ME)
+    if stage in (:ME, :me, :Measurement, :measurement)
+        delete!(mc.measurements, key)
+    elseif stage in (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
+        delete!(mc.thermalization_measurements, key)
+    else
+        throw(ErrorException("`stage = $stage` is not valid."))
+    end
+end
+
+function Base.delete!(mc::MonteCarloFlavor, MT::Type{<: AbstractMeasurement}, stage=:ME)
+    if stage in (:ME, :me, :Measurement, :measurement)
+        ks = collect(keys(mc.measurements))
+        for k in ks
+            if typeof(mc.measurements[k]) <: MT
+                delete!(mc.measurements, k)
+            end
+        end
+        mc.measurements
+    elseif stage in (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
+        ks = collect(keys(mc.thermalization_measurements))
+        for k in ks
+            if typeof(mc.thermalization_measurements[k]) <: MT
+                delete!(mc.thermalization_measurements, k)
+            end
+        end
+        mc.thermalization_measurements
+    else
+        throw(ErrorException("`stage = $stage` is not valid."))
+    end
+end
