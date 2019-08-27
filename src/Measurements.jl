@@ -138,7 +138,7 @@ Returns a nested dictionary of all measurements used in a given Monte Carlo
 simulation `mc`. The thermalization stage is accessed by `:TH`, the measurement
 stage by `:ME`.
 """
-function measurements(mc)
+function measurements(mc::MonteCarloFlavor)
     return Dict(
         :TH => mc.thermalization_measurements,
         :ME => mc.measurements
@@ -155,7 +155,7 @@ where `stage` is `:TH` (thermalization stage) or `:ME` (measurement stage),
 `measurement::Symbol` is the name of the measurement and `name::String` is the
 name of the observable.
 """
-function observables(mc)
+function observables(mc::MonteCarloFlavor)
     th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
         k => let
             fns = fieldnames(typeof(mc))
@@ -177,7 +177,7 @@ end
 
 
 """
-    push!(mc, tag::Symbol, MT::Type{AbstractMeasurement}, stage=:ME)
+    push!(mc, tag::Symbol, MT::Type{<:AbstractMeasurement}[, stage=:ME])
 
 Adds a new pair `tag => MT(mc, model)`, where `MT` is a type
 `<: AbstractMeasurement`, to either the thermalization or measurement `stage`
@@ -185,12 +185,12 @@ Adds a new pair `tag => MT(mc, model)`, where `MT` is a type
 
 See also: [`unsafe_push!`](@ref)
 """
-function Base.push!(mc, tag::Symbol, MT::Type{<:AbstractMeasurement}, stage=:ME)
+function Base.push!(mc::MonteCarloFlavor, tag::Symbol, MT::Type{<:AbstractMeasurement}, stage=:ME)
     unsafe_push!(mc, tag, MT(mc, mc.model), stage)
 end
 
 """
-    unsafe_push!(mc, tag::Symbol, m::AbstractMeasurement, stage=:ME)
+    unsafe_push!(mc, tag::Symbol, m::AbstractMeasurement[, stage=:ME])
 
 Adds a pair `tag => m` to either the thermalization or measurement stage (`:TH`
 or `:ME`) of the given simulation `mc`.
@@ -200,7 +200,7 @@ measurement for the given simulation.
 
 See also: [`MonteCarlo.push!`](@ref)
 """
-function unsafe_push!(mc, tag::Symbol, m::AbstractMeasurement, stage=:ME)
+function unsafe_push!(mc::MonteCarloFlavor, tag::Symbol, m::AbstractMeasurement, stage=:ME)
     if stage in (:ME, :me, :Measurement, :measurement)
         push!(mc.measurements, tag => m)
     elseif stage in (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
