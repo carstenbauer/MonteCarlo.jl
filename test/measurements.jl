@@ -22,6 +22,20 @@ let
         @test HubbardMeasurement <: AbstractMeasurement
     end
 
+    @testset "Interface" begin
+        struct DummyMeasurement <: AbstractMeasurement end
+        struct DummyModel <: MonteCarlo.Model end
+        m = DummyMeasurement()
+        dummy_model = DummyModel()
+        model = IsingModel(dims=2, L=2)
+        mc = MC(model, beta=1.0)
+
+        @test_throws MethodError MonteCarlo.prepare!(m, mc, model)
+        @test_throws MethodError MonteCarlo.measure!(m, mc, model, 1)
+        @test_throws MethodError MonteCarlo.finish!(m, mc, model)
+        @test MonteCarlo.default_measurements(mc, dummy_model) == Dict{Symbol, AbstractMeasurement}()
+    end
+
     @testset "Checking defaults" begin
         model = IsingModel(dims=2, L=2)
         mc = MC(model, beta=1.0)
@@ -95,9 +109,13 @@ let
         @test length(mc.measurements) == 3
         delete!(mc, AbstractMeasurement)
         @test isempty(mc.measurements)
-        # TODO doesn"t work?
+
         @test_throws ErrorException push!(mc, :conf => Int64)
         @test_throws MethodError MonteCarlo.unsafe_push!(mc, :conf => 1.0)
+        @test_throws ErrorException push!(mc, :conf => ConfigurationMeasurement, :bad_stage)
+        @test_throws ErrorException MonteCarlo.unsafe_push!(mc, :conf => ConfigurationMeasurement(mc, model), :bad_stage)
+        @test_throws ErrorException delete!(mc, :conf, :bad_stage)
+        @test_throws ErrorException delete!(mc, ConfigurationMeasurement, :bad_stage)
 
         push!(mc, :conf => ConfigurationMeasurement)
         @test haskey(mc.measurements, :conf) && mc.measurements[:conf] isa ConfigurationMeasurement
@@ -114,6 +132,11 @@ let
         @test haskey(mc.thermalization_measurements, :conf) &&
             mc.thermalization_measurements[:conf] isa ConfigurationMeasurement
         delete!(mc, :conf, :TH)
+
+        MonteCarlo.unsafe_push!(mc, :conf => ConfigurationMeasurement(mc, model), :TH)
+        @test haskey(mc.thermalization_measurements, :conf) &&
+            mc.thermalization_measurements[:conf] isa ConfigurationMeasurement
+        delete!(mc, ConfigurationMeasurement, :TH)
         @test !haskey(mc.thermalization_measurements, :TH)
     end
 end
