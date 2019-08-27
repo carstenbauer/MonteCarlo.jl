@@ -177,7 +177,7 @@ end
 
 
 """
-    push!(mc, tag::Symbol, MT::Type{<:AbstractMeasurement}[, stage=:ME])
+    push!(mc, tag::Symbol => MT::Type{<:AbstractMeasurement}[, stage=:ME])
 
 Adds a new pair `tag => MT(mc, model)`, where `MT` is a type
 `<: AbstractMeasurement`, to either the thermalization or measurement `stage`
@@ -185,12 +185,14 @@ Adds a new pair `tag => MT(mc, model)`, where `MT` is a type
 
 See also: [`unsafe_push!`](@ref)
 """
-function Base.push!(mc::MonteCarloFlavor, tag::Symbol, MT::Type{<:AbstractMeasurement}, stage=:ME)
-    unsafe_push!(mc, tag, MT(mc, mc.model), stage)
+function Base.push!(mc::MonteCarloFlavor, p::Pair{Symbol, DataType}, stage=:ME)
+    tag, MT = p
+    @assert MT <: AbstractMeasurement
+    unsafe_push!(mc, tag => MT(mc, mc.model), stage)
 end
 
 """
-    unsafe_push!(mc, tag::Symbol, m::AbstractMeasurement[, stage=:ME])
+    unsafe_push!(mc, tag::Symbol => m::AbstractMeasurement[, stage=:ME])
 
 Adds a pair `tag => m` to either the thermalization or measurement stage (`:TH`
 or `:ME`) of the given simulation `mc`.
@@ -200,11 +202,11 @@ measurement for the given simulation.
 
 See also: [`MonteCarlo.push!`](@ref)
 """
-function unsafe_push!(mc::MonteCarloFlavor, tag::Symbol, m::AbstractMeasurement, stage=:ME)
+function unsafe_push!(mc::MonteCarloFlavor, p::Pair{Symbol, <:AbstractMeasurement}, stage=:ME)
     if stage in (:ME, :me, :Measurement, :measurement)
-        push!(mc.measurements, tag => m)
+        push!(mc.measurements, p)
     elseif stage in (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
-        push!(mc.thermalization_measurements, tag => m)
+        push!(mc.thermalization_measurements, p)
     else
         throw(ErrorException("`stage = $stage` is not valid."))
     end
