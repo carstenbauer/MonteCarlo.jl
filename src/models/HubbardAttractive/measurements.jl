@@ -3,6 +3,12 @@ abstract type HubbardMeasurement <: AbstractMeasurement end
 prepare!(::HubbardMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing
 finish!(::HubbardMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing
 
+
+"""
+    GreensMeasurement(mc::DQMC, model)
+
+Measures the equal time Greens function of the given DQMC simulation and model.
+"""
 struct GreensMeasurement{OT <: AbstractObservable} <: HubbardMeasurement
     obs::OT
 end
@@ -15,6 +21,11 @@ function measure!(m::GreensMeasurement, mc::DQMC, model::HubbardModelAttractive,
     push!(m.obs, greens(mc))
 end
 
+"""
+    BosonEnergyMeasurement(mc::DQMC, model)
+
+Measures the bosnic energy of the given DQMC simulation and model.
+"""
 struct BosonEnergyMeasurement{OT <: AbstractObservable} <: HubbardMeasurement
     obs::OT
 end

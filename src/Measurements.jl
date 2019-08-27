@@ -47,7 +47,7 @@ default_measurements(mc, model) = Dict{Symbol, AbstractMeasurement}()
 # mc based, default measurements
 
 """
-    ConfigurationMeasurement(mc, model, rate=1)
+    ConfigurationMeasurement(mc, model[, rate=1])
 
 Measures configurations of the given Monte Carlo flavour and model. The rate of
 measurements can be reduced with `rate`. (e.g. `rate=10` means 1 measurement per

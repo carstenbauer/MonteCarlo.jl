@@ -3,7 +3,15 @@ abstract type IsingMeasurement <: AbstractMeasurement end
 prepare!(::IsingMeasurement, mc::MC, model::IsingModel) = nothing
 finish!(::IsingMeasurement, mc::MC, model::IsingModel) = nothing
 
+"""
+    IsingEnergyMeasurement(mc::MC, model::IsingModel, rate=1)
 
+Measures observables related to the energy of the IsingModel. This includes
+- `E`: the total energy
+- `E2`: the squared energy
+- `e`: the energy per spin
+- `C`: the specific heat
+"""
 struct IsingEnergyMeasurement <: IsingMeasurement
     invN::Float64
     E::Observable
@@ -35,7 +43,16 @@ function finish!(m::IsingEnergyMeasurement, mc::MC, model::IsingModel)
 end
 
 
+"""
+    IsingMagnetizationMeasurement(mc::MC, model::IsingModel, rate=1)
 
+Measures observables related to the magnetization of the IsingModel. This
+includes
+- `M`: the total magnetization
+- `M2`: the squared magnetization
+- `m`: the magnetization per spin
+- `chi`: the magentic susceptibility
+"""
 struct IsingMagnetizationMeasurement <: IsingMeasurement
     invN::Float64
     M::Observable
