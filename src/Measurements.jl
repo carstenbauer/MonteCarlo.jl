@@ -187,7 +187,11 @@ See also: [`unsafe_push!`](@ref)
 """
 function Base.push!(mc::MonteCarloFlavor, p::Pair{Symbol, DataType}, stage=:ME)
     tag, MT = p
-    @assert MT <: AbstractMeasurement
+    p[2] <: AbstractMeasurement || throw(ErrorException(
+        "The given `tag => MT` pair should be of type " *
+        "`Pair{Symbol, Type(<: AbstractMeasurement)}`, but is " *
+        "`Pair{Symbol, Type{$(p[2])}}`."
+    ))
     unsafe_push!(mc, tag => MT(mc, mc.model), stage)
 end
 

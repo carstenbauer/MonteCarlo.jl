@@ -13,6 +13,10 @@ using Random
         include("flavortests_DQMC.jl")
     end
 
+    @testset "Measurements" begin
+        include("measurements.jl")
+    end
+
     @testset "Examples" begin
         @testset "Ising Model + MC" begin
             Random.seed!(123)

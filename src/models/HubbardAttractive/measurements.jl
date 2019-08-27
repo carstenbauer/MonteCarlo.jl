@@ -32,6 +32,6 @@ function default_measurements(mc::DQMC, model::HubbardModelAttractive)
     Dict(
         :conf => ConfigurationMeasurement(mc, model),
         :Greens => GreensMeasurement(mc, model),
-        :Boson_Energy => BosonEnergyMeasurement(mc, model)
+        :BosonEnergy => BosonEnergyMeasurement(mc, model)
     )
 end
