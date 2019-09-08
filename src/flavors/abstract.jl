@@ -24,63 +24,6 @@ run!(mc::MonteCarloFlavor) = error("MonteCarloFlavor $(typeof(mc)) doesn't imple
 
 
 
-# abstract lattice definition
-"""
-Abstract definition of a lattice.
-"""
-abstract type Lattice end
-
-
-# Lattice interface: mandatory
-# TODO: This needs to be updated. There must be a general way to access sites and bonds.
-"""
-    nsites(l::Lattice)
-
-Number of lattice sites.
-"""
-nsites(l::Lattice) = error("Lattice $(typeof(l)) doesn't implement `nsites`.")
-
-# Typically, you also want to implement
-
-#     - `neighbors_lookup_table(lattice)`: return a neighbors matrix where
-#                                         row = neighbors and col = siteidx.
-
-
-"""
-Abstract cubic lattice.
-
-- 1D -> Chain
-- 2D -> SquareLattice
-- ND -> NCubeLattice
-"""
-abstract type AbstractCubicLattice <: Lattice end
-
-
-
-
-
-
-
-# abstract model definition
-"""
-Abstract model.
-"""
-abstract type Model end
-
-
-# Model interface: mandatory
-"""
-    nsites(m::Model)
-
-Number of lattice sites of the given model.
-"""
-nsites(m::Model) = error("Model $(typeof(m)) doesn't implement `nsites`!")
-
-
-
-
-
-
 # general functions
 """
 	observables(mc::MonteCarloFlavor)

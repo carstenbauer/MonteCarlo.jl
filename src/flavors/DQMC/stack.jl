@@ -85,7 +85,7 @@ heltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = heltype(S)
 function initialize_stack(mc::DQMC)
   GreensEltype = geltype(mc)
   HoppingEltype = heltype(mc)
-  N = mc.model.l.sites
+  N = length(mc.model.l)
   flv = mc.model.flv
 
   mc.s.eye_flv = Matrix{Float64}(I, flv,flv)
@@ -143,7 +143,7 @@ function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerbo
   nothing
 end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
-  N = m.l.sites
+  N = length(m.l)
   flv = m.flv
   dtau = mc.p.delta_tau
 
@@ -162,7 +162,7 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
   l = m.l
   flv = m.flv
   H = heltype(mc)
-  N = m.l.sites
+  N = length(l)
   dtau = mc.p.delta_tau
   mu = m.mu
 

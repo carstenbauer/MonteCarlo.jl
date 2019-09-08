@@ -1,7 +1,7 @@
 """
 Generic ALPS lattice parsed from XML file.
 """
-struct ALPSLattice <: Lattice
+struct ALPSLattice <: AbstractLattice
     sites::Int # n_sites
     dim::Int
     neighs::Matrix{Int} # row = neighbors; col = siteidx (assumption: const. coordination nr.)
@@ -85,6 +85,12 @@ function parse_alpslattice_xml(filename::String)
   return sites, dim, n_neighs, bond_vecs, n_bonds, bonds
 end
 
+# Implement AbstractLattice interface: mandatory
+@inline Base.length(l::ALPSLattice) = l.sites
 
-@inline nsites(l::ALPSLattice) = l.sites
-@inline neighbors_lookup_table(l::ALPSLattice) = l.neighs
+# Implement AbstractLattice interface: optional
+@inline neighbors_lookup_table(l::ALPSLattice) = copy(l.neighs)
+
+# HasNeighborsTable and HasBondsTable traits
+has_neighbors_table(::ALPSLattice) = HasNeighborsTable()
+has_bonds_table(::ALPSLattice) = HasBondsTable()
