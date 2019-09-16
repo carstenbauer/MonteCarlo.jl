@@ -3,6 +3,10 @@ using Test
 using Random
 
 @testset "All Tests" begin
+    @testset "Lattices" begin
+        include("lattices.jl")
+    end
+
     @testset "Models" begin
         include("modeltests_IsingModel.jl")
         include("modeltests_HubbardModelAttractive.jl")
