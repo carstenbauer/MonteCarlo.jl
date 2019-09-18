@@ -14,6 +14,7 @@ include("lattices/abstract.jl")
 
 include("helpers.jl")
 include("Measurements.jl")
+export measurements, observables, save_measurements!
 
 include("lattices/square.jl")
 include("lattices/chain.jl")

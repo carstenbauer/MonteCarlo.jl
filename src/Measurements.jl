@@ -31,8 +31,10 @@ function finish!(m::AbstractMeasurement, mc, model)
     throw(MethodError(finish!, (m, mc, model)))
 end
 
+
 ################################################################################
 # A new model may implement the following for convenience
+
 
 """
     default_measurements(mc, model)
@@ -72,6 +74,7 @@ end
 ################################################################################
 # mc based, default measurements
 
+
 """
     ConfigurationMeasurement(mc, model[, rate=1])
 
@@ -93,8 +96,10 @@ function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
 end
 finish!(::ConfigurationMeasurement, mc, model) = nothing
 
+
 ################################################################################
 # called by simulation
+
 
 for function_name in (:prepare!, :finish!)
     @eval begin
@@ -120,8 +125,10 @@ function measure!(
     nothing
 end
 
+
 ################################################################################
 # other convenience functions
+
 
 # printing
 function Base.show(io::IO, m::AbstractMeasurement)
@@ -152,7 +159,7 @@ function Base.show(io::IO, ::MIME"text/plain", m::AbstractMeasurement)
     observable_names = map(temp) do obs_fieldname
         MonteCarloObservable.name(getfield(m, obs_fieldname))
     end
-    print(io, typename, " (\"", join(observable_names, "\", \""), "\")")
+    print(io, typename, "(\"", join(observable_names, "\", \""), "\")")
     nothing
 end
 
@@ -209,6 +216,12 @@ Adds a new pair `tag => MT(mc, model)`, where `MT` is a type
 `<: AbstractMeasurement`, to either the thermalization or measurement `stage`
 (`:TH` or `:ME`) of the simulation `mc`.
 
+Examples:
+```
+push!(mc, :conf => ConfigurationMeasurement)
+push!(mc, :conf => ConfigurationMeasurement, stage=:ME)
+```
+
 See also: [`unsafe_push!`](@ref)
 """
 function Base.push!(mc::MonteCarloFlavor, p::Pair{Symbol, DataType}, stage=:ME)
@@ -229,6 +242,12 @@ or `:ME`) of the given simulation `mc`.
 
 Note that this function is unsafe as it does not test whether `m` is a valid
 measurement for the given simulation.
+
+Examples:
+```
+push!(mc, :conf => ConfigurationMeasurement(mc, model))
+push!(mc, :conf => ConfigurationMeasurement(mc, model), stage=:ME)
+```
 
 See also: [`MonteCarlo.push!`](@ref)
 """
@@ -251,6 +270,13 @@ Deletes a measurement from the given Monte Carlo simulation by key or by type.
 When deleting by type, multiple measurements can be targeted using inheritance.
 For example, `delete!(mc, IsingMeasurement)` wil delete all
 `IsingEnergyMeasurement` and `IsingMagnmetizationMeasurement` objects.
+
+Examples:
+```
+delete!(mc, :conf)
+delete!(mc, ConfigurationMeasurement)
+delete!(mc, ConfigurationMeasurement, stage=:ME)
+```
 """
 function Base.delete!(mc::MonteCarloFlavor, key::Symbol, stage=:ME)
     if stage in (:ME, :me, :Measurement, :measurement)
