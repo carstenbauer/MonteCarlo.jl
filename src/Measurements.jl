@@ -43,6 +43,32 @@ an empty dictionary will be returned.
 """
 default_measurements(mc, model) = Dict{Symbol, AbstractMeasurement}()
 
+
+"""
+    save!(measurement, filename, entryname)
+
+Saves a measurement to a jld-file `filename` in group `entryname`.
+
+The default implementation searches the measurement for observables and saves
+those using
+`MonteCarloObservable.saveobs(obs, filename, entryname * "/" * obs.group)`.
+The `entryname` passed to this function is equivalent to the structure given by
+`measurements()`, e.g. `ME/config/` if `measurements(mc)[:ME][:config]` carries
+a measurement.
+
+See also [`save_measurements!`](@ref)
+"""
+function save!(m::AbstractMeasurement, filename::String, entryname::String)
+    for fieldname in fieldnames(typeof(m))
+        maybe_obs = getfield(m, fieldname)
+        if maybe_obs isa AbstractObservable
+            saveobs(maybe_obs, filename, entryname * "/" * maybe_obs.group)
+        end
+    end
+    nothing
+end
+
+
 ################################################################################
 # mc based, default measurements
 
@@ -256,4 +282,65 @@ function Base.delete!(mc::MonteCarloFlavor, MT::Type{<: AbstractMeasurement}, st
     else
         throw(ErrorException("`stage = $stage` is not valid."))
     end
+end
+
+
+"""
+    save_measurements!(mc, filename[; force_overwrite=false, allow_rename=true])
+
+Saves all measurements to `filename`.
+
+If `force_overwrite = true` the file will
+be overwritten if it already exists. If `allow_rename = true` random characters
+will be added to the filename until it becomes unique.
+"""
+function save_measurements!(
+        mc::MonteCarloFlavor, filename::String;
+        force_overwrite = false, allow_rename = true
+    )
+    isfile(filename) && !force_overwrite && !allow_rename && throw(ErrorException(
+        "Cannot save because \"$filename\" already exists. Consider setting " *
+        "`allow_reanme = true` to adjust the filename or `force_overwrite = true`" *
+        " to overwrite the file."
+    ))
+    if isfile(filename) && !force_overwrite && allow_rename
+        while isfile(filename)
+            # those map to 0-9, A-Z, a-z
+            x = rand([(48:57)..., (65:90)..., (97:122)...])
+            s = string(Char(x))
+            filename = filename[1:end-4] * s * ".jld"
+        end
+    end
+
+    measurement_dict = measurements(mc)
+    for (k0, v0) in measurement_dict # :TH or :ME
+        for (k1, meas) in v0 # Measurement name
+            entryname = "Measurements/$k0/$k1"
+            save!(meas, filename, entryname)
+        end
+    end
+end
+
+
+
+"""
+    load_measurements(filename)
+
+Loads recorded measurements for a given `filename`. The output is formated like
+`observables(mc)`
+
+See also [`observables`](@ref)
+"""
+function load_measurements(filename::String)
+    input = load(filename)
+    output = Dict{Symbol, Dict{Symbol, Dict{String, AbstractObservable}}}()
+    for (k1, v1) in input["Measurements"]
+        # k1 = TH or ME
+        push!(output, Symbol(k1) => Dict{Symbol, Dict{String, AbstractObservable}}())
+        for (k2, v2) in v1
+            # k2 is the key for Measurement
+            push!(output[Symbol(k1)], Symbol(k2) => v2)
+        end
+    end
+    output
 end
