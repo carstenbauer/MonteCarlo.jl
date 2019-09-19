@@ -1,7 +1,5 @@
 abstract type IsingMeasurement <: AbstractMeasurement end
 
-prepare!(::IsingMeasurement, mc::MC, model::IsingModel) = nothing
-finish!(::IsingMeasurement, mc::MC, model::IsingModel) = nothing
 
 """
     IsingEnergyMeasurement(mc::MC, model::IsingModel, rate=1)

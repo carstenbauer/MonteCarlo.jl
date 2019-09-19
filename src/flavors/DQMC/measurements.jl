@@ -15,12 +15,9 @@ function GreensMeasurement(mc::DQMC, model)
     )
     GreensMeasurement{typeof(o)}(o)
 end
-
-prepare!(::GreensMeasurement, mc::DQMC, model) = nothing
 function measure!(m::GreensMeasurement, mc::DQMC, model, i::Int64)
     push!(m.obs, greens(mc))
 end
-finish!(::GreensMeasurement, mc::DQMC, model) = nothing
 
 
 
@@ -39,11 +36,9 @@ function BosonEnergyMeasurement(mc::DQMC, model)
     o = LightObservable(Float64, name="Bosonic Energy", alloc=1_000_000)
     BosonEnergyMeasurement{typeof(o)}(o)
 end
-prepare!(::BosonEnergyMeasurement, mc::DQMC, model) = nothing
 function measure!(m::BosonEnergyMeasurement, mc::DQMC, model, i::Int64)
     push!(m.obs, energy_boson(mc, model, conf(mc)))
 end
-finish!(::BosonEnergyMeasurement, mc::DQMC, model) = nothing
 
 
 function default_measurements(mc::DQMC, model)

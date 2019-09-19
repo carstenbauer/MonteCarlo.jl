@@ -27,9 +27,9 @@ end
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=1.0)
 
-    @test_throws MethodError MonteCarlo.prepare!(m, mc, model)
+    @test nothing == MonteCarlo.prepare!(m, mc, model)
     @test_throws MethodError MonteCarlo.measure!(m, mc, model, 1)
-    @test_throws MethodError MonteCarlo.finish!(m, mc, model)
+    @test nothing == MonteCarlo.finish!(m, mc, model)
     @test MonteCarlo.default_measurements(mc, dummy_model) == Dict{Symbol, AbstractMeasurement}()
 end
 
