@@ -191,8 +191,8 @@ name of the observable.
 function observables(mc::MonteCarloFlavor)
     th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
         k => let
-            fns = fieldnames(typeof(mc))
-            os = [getfield(mc, fn) for fn in fns if getfield(mc, fn) isa AbstractObservable]
+            fns = fieldnames(typeof(m))
+            os = [getfield(m, fn) for fn in fns if getfield(m, fn) isa AbstractObservable]
             Dict{String, AbstractObservable}(MonteCarloObservable.name(o) => o for o in os)
         end for (k, m) in mc.thermalization_measurements
     )

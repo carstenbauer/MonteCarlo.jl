@@ -136,3 +136,16 @@ end
     delete!(mc, ConfigurationMeasurement, :TH)
     @test !haskey(mc.thermalization_measurements, :TH)
 end
+
+@testset "Saving and Loading" begin
+    model = IsingModel(dims=2, L=2)
+    mc = MC(model, beta=1.0)
+    run!(mc, thermalization=10, sweeps=10, verbose=false)
+    push!(mc, :conf => ConfigurationMeasurement, :TH)
+
+    obs = observables(mc)
+    save_measurements!(mc, "test.jld")
+    _obs = load_measurements("test.jld")
+    @test obs == _obs
+    rm("test.jld", force_overwrite=true)
+end
