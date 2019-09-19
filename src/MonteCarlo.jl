@@ -4,6 +4,7 @@ using Reexport
 @reexport using MonteCarloObservable
 import MonteCarloObservable.AbstractObservable
 using StableDQMC, LightXML, Parameters, Requires
+using JLD
 
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
 
@@ -14,7 +15,7 @@ include("lattices/abstract.jl")
 
 include("helpers.jl")
 include("Measurements.jl")
-export measurements, observables, save_measurements!
+export measurements, observables, save_measurements!, load_measurements
 
 include("lattices/square.jl")
 include("lattices/chain.jl")
