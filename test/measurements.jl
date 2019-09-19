@@ -144,8 +144,8 @@ end
     push!(mc, :conf => ConfigurationMeasurement, :TH)
 
     obs = observables(mc)
-    save_measurements!(mc, "test.jld")
+    save_measurements!(mc, "test.jld", force_overwrite=true)
     _obs = load_measurements("test.jld")
     @test obs == _obs
-    rm("test.jld", force_overwrite=true)
+    rm("test.jld")
 end
