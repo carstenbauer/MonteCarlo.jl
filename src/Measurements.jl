@@ -37,25 +37,37 @@ finish!(m::AbstractMeasurement, mc, model) = nothing
 
 
 """
+    observables(measurement)
+
+Returns a dictionary of observables.
+
+The default implementation searches for all fields `<: AbstractObservable` and
+builds a dictionary pairs `name(obs) => obs`.
+"""
+function observables(m::AbstractMeasurement)
+    fns = fieldnames(typeof(m))
+    os = [getfield(m, fn) for fn in fns if getfield(m, fn) isa AbstractObservable]
+    Dict{String, AbstractObservable}(MonteCarloObservable.name(o) => o for o in os)
+end
+
+
+"""
     save!(measurement, filename, entryname)
 
 Saves a measurement to a jld-file `filename` in group `entryname`.
 
-The default implementation searches the measurement for observables and saves
-those using
+The default implementation uses `observables(measurement)` to find observables
+and saves them using
 `MonteCarloObservable.saveobs(obs, filename, entryname * "/" * obs.group)`.
 The `entryname` passed to this function is equivalent to the structure given by
 `measurements()`, e.g. `ME/config/` if `measurements(mc)[:ME][:config]` carries
 a measurement.
 
-See also [`save_measurements!`](@ref)
+See also [`save_measurements!`](@ref), [`observables`](@ref)
 """
 function save!(m::AbstractMeasurement, filename::String, entryname::String)
-    for fieldname in fieldnames(typeof(m))
-        maybe_obs = getfield(m, fieldname)
-        if maybe_obs isa AbstractObservable
-            saveobs(maybe_obs, filename, entryname * "/" * maybe_obs.group)
-        end
+    for (k, obs) in observables(m)
+        saveobs(obs, filename, entryname * "/" * obs.group)
     end
     nothing
 end
@@ -93,12 +105,10 @@ struct ConfigurationMeasurement <: AbstractMeasurement
         Observable(typeof(mc.conf), "Configurations"), rate
     )
 end
-prepare!(::ConfigurationMeasurement, mc, model) = nothing
 function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
     (i % m.rate == 0) && push!(m.obs, conf(mc))
     nothing
 end
-finish!(::ConfigurationMeasurement, mc, model) = nothing
 
 
 ################################################################################
@@ -184,7 +194,7 @@ end
 
 
 """
-    observables(mc)
+    observables(mc::MonteCarloFlavor)
 
 Returns a nested dictionary of all observables used in a given Monte Carlo
 simulation `mc`. The result `obs` is indexed as `obs[stage][measurement][name]`,
@@ -194,23 +204,14 @@ name of the observable.
 """
 function observables(mc::MonteCarloFlavor)
     th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
-        k => let
-            fns = fieldnames(typeof(m))
-            os = [getfield(m, fn) for fn in fns if getfield(m, fn) isa AbstractObservable]
-            Dict{String, AbstractObservable}(MonteCarloObservable.name(o) => o for o in os)
-        end for (k, m) in mc.thermalization_measurements
+        k => observables(m) for (k, m) in mc.thermalization_measurements
     )
     me_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
-        k => let
-            fns = fieldnames(typeof(m))
-            os = [getfield(m, fn) for fn in fns if getfield(m, fn) isa AbstractObservable]
-            Dict{String, AbstractObservable}(MonteCarloObservable.name(o) => o for o in os)
-        end for (k, m) in mc.measurements
+        k => observables(m) for (k, m) in mc.measurements
     )
 
     return Dict(:TH => th_obs, :ME => me_obs)
 end
-
 
 
 """
