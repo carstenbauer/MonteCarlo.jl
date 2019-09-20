@@ -39,9 +39,25 @@ end
 
     defaults = MonteCarlo.default_measurements(mc, model)
     @test !isempty(defaults)
+
     @test haskey(defaults, :conf) && defaults[:conf] isa ConfigurationMeasurement
+    obs = observables(defaults[:conf])
+    @test haskey(obs, "Configurations") && obs["Configurations"] isa AbstractObservable
+
     @test haskey(defaults, :Magn) && defaults[:Magn] isa IsingMagnetizationMeasurement
+    obs = observables(defaults[:Magn])
+    @test haskey(obs, "Magnetization per site") && obs["Magnetization per site"] isa AbstractObservable
+    @test haskey(obs, "Magnetic susceptibility") && obs["Magnetic susceptibility"] isa AbstractObservable
+    @test haskey(obs, "Total magnetization") && obs["Total magnetization"] isa AbstractObservable
+    @test haskey(obs, "Total magnetization squared") && obs["Total magnetization squared"] isa AbstractObservable
+
     @test haskey(defaults, :Energy) && defaults[:Energy] isa IsingEnergyMeasurement
+    obs = observables(defaults[:Energy])
+    @test haskey(obs, "Energy per site") && obs["Energy per site"] isa AbstractObservable
+    @test haskey(obs, "Specific heat") && obs["Specific heat"] isa AbstractObservable
+    @test haskey(obs, "Total energy") && obs["Total energy"] isa AbstractObservable
+    @test haskey(obs, "Total energy squared") && obs["Total energy squared"] isa AbstractObservable
+
 
     @test isempty(mc.thermalization_measurements)
     @test !isempty(mc.measurements)
@@ -55,8 +71,14 @@ end
     defaults = MonteCarlo.default_measurements(mc, model)
     @test !isempty(defaults)
     @test haskey(defaults, :conf) && defaults[:conf] isa ConfigurationMeasurement
+
     @test haskey(defaults, :Greens) && defaults[:Greens] isa GreensMeasurement
+    obs = observables(defaults[:Greens])
+    @test haskey(obs, "Equal-times Green's function") && obs["Equal-times Green's function"] isa AbstractObservable
+
     @test haskey(defaults, :BosonEnergy) && defaults[:BosonEnergy] isa BosonEnergyMeasurement
+    obs = observables(defaults[:BosonEnergy])
+    @test haskey(obs, "Bosonic Energy") && obs["Bosonic Energy"] isa AbstractObservable
 
     @test isempty(mc.thermalization_measurements)
     @test !isempty(mc.measurements)
