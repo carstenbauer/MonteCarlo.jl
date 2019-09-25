@@ -229,7 +229,7 @@ push!(mc, :conf => ConfigurationMeasurement, stage=:ME)
 
 See also: [`unsafe_push!`](@ref)
 """
-function Base.push!(mc::MonteCarloFlavor, p::Pair{Symbol, DataType}, stage=:ME)
+function Base.push!(mc::MonteCarloFlavor, p::Pair{Symbol, T}, stage=:ME) where T
     tag, MT = p
     p[2] <: AbstractMeasurement || throw(ErrorException(
         "The given `tag => MT` pair should be of type " *
