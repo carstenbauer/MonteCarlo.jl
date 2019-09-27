@@ -16,42 +16,46 @@ For lattice models, we define a Model to be a Hamiltonian on a lattice. Therefor
 
     We will generally use the terminology Hamiltonian, energy and so on. However, this doesn't restrict you from defining your model as an Lagrangian with an action in any way as this just corresponds to a one-to-one mapping of interpretations.
 
-### Lattice requirements
+### Model Requirements
 
-The Hamiltonian of your model might impose some requirements on the `Lattice` object that you use as it must provide you with enough lattice information.
+A model must meat a few requirements given by the Monte Carlo flavor used. `MC` requires the following:
 
-It might be educating to look at the structure of the simple `SquareLattice` struct.
+* A method `nsites(m::MyModel)` which returns the number of sites in the underlying lattice.
+* A method `rand(::Type{MC}, m::MyModel)` which returns a new random configuration.
+* A method `propose_local(mc::MC, m::MyModel, i::Int, conf)` which proposes a local update to a given configuration `conf` at site `i`. This method must return `(ΔE, x)`, i.e. the energy difference and "something" else. This "something" may include additional information useful to you during the update or simply be `nothing`.
+* A method `accept_local(mc::MC, m::MyModel, i::Int, conf, x, ΔE)` which finalizes a local update. This includes updating the configuration `conf`. The inputs `x` and `ΔE` correspond to the outputs of `propose_local()`.
 
-```julia
-mutable struct SquareLattice <: AbstractCubicLattice
-   L::Int
-   sites::Int
-   neighs::Matrix{Int} # row = up, right, down, left; col = siteidx
-   neighs_cartesian::Array{Int, 3} # row (1) = up, right, down, left; cols (2,3) = cartesian siteidx
-   sql::Matrix{Int}
-   SquareLattice() = new()
-end
-```
+And `dqmc` requires:
 
-It only provides access to next nearest neighbors through the arrays `neighs` and `neighs_cartesian`. If your model's Hamiltonian requires higher order neighbor information, because of, let's say, a next next nearest neighbor hopping term, the `SquareLattice` doesn't suffice. You could either extend this Lattice or implement a `NNSquareLattice` for example.
+* A method `nsites(m::MyModel)` which returns the number of sites in the underlying lattice.
+* * A method `rand(::Type{DQMC}, m::MyModel, nslices::Int)` which returns a new random configuration.
+* A method `propose_local(mc::DQMC, m::MyModel, i::Int, conf)` which proposes a local update to a given configuration `conf` at site `i` and the current time slice. This method must return `(detratio, ΔE_Boson, x)`, i.e. the determinant ratio corresponding to the fermion weight of the update, the boson energy difference giving the bosonic part and "something" else. This "something" may include additional information useful to you during the update or simply be `nothing`.
+* A method `accept_local(mc::DQMC, m::MyModel, i::Int, conf, x, detratio, ΔE_Boson)` which finalizes a local update. This includes updating the configuration `conf` and the Greens function `mc.s.greens`. The inputs `x`, `detratio` and `ΔE_Boson` correspond to the outputs of `propose_local()`.
+* A method `hopping_matrix(mc::DQMC, m::MyModel)` which returns the hopping matrix of the model (including chemical potential).
+* A method `interaction_matrix_exp!(mc::DQMC, m::MyModel, result::Matrix, conf, slice::Int, power::Float64=1.0)` which calculates the exponentiated interaction matrix and saves it to `result`. The chemical potential must not be included here.
+
+For either Monte Carlo flavor `propose_local` and `accept_local` are performance critical. `interaction_matrix_exp!` is also performance critical, however only required for `DQMC`.
+
 
 ## Custom lattices
 
-As described in [Custom models](@ref) a lattice is considered to be part of a model. Hence, most of the requirements for fields of a `Lattice` subtype come from potential models (see [Lattice requirements](@ref)). Below you'll find information on which fields are mandatory from a Monte Carlo flavor point of view.
+As described in [Custom models](@ref) a lattice is considered to be part of a model. Hence, most of the requirements of a `Lattice` subtype come from potential models (see [General remarks on lattice model](@ref)). Below you'll find information on the requirements given by the Monte Carlo flavor as well as the implemented models.
 
-### Mandatory fields
+### Lattice requirements
 
-Any concrete lattice type, let's call it `MyLattice` in the following, must be a subtype of the abstract type `MonteCarlo.Lattice`. To work with a Monte Carlo flavor, it **must** internally have at least have the following field,
+Any concrete lattice type, let's call it `MyLattice` in the following, must be a subtype of the abstract type `MonteCarlo.AbstractLattice`. Formally, there are no required methods or fields by the **Monte Carlo flavor**. However, since both flavors require `nsites(model)`, some field or method returning the number of sites of a lattice should exist.
 
- * `sites`: number of lattice sites.
+For a lattice to work with the implemented **models**, it must
 
-However, as already mentioned above depending on the physical model of interest it will typically also have (at least) something like
+* implement a method `length(l::MyLattice)` giving the number of lattice sites.
+* implement a method `neighbors_lookup_table(l::MyLattice)` returning the neighours lookup table
+* either implement methods `_neighbors(::Nothing, l::MyLattice, directed::Val{true})` and `_neighbors(::Nothing, l::MyLattice, site_index::Integer)` or include a field `mylattice.neighs` which carries a neighbors lookup table and implement `has_neighbors_table(::MyLattice) = HasNeighborsTable()`.
 
- * `neighs`: next nearest neighbors,
 
- as most Hamiltonian will need next nearest neighbor information.
+The generic checkerboard decomposition `build_checkerboard()` further requires the lattice to
 
-The only reason why such a field isn't generally mandatory is that the Monte Carlo routine doesn't care about the lattice much. Neighbor information is usually only used in the energy (difference) calculation of a particular configuration like done in [`energy`](@ref MonteCarlo.energy) or [`propose_local`](@ref MonteCarlo.propose_local) which both belong to a `Model`.
+ * either implement a method `_neighbors(::Nothing, l::MyLattice, directed::Val{false})` or include a field `mylattice.bonds` which carries a bonds table and implement `has_bonds_table(::MyLattice) = HasBondsTable()`. The bonds table is a `Matrix{Int}` of size `(nbonds, 3)`, where `bonds[i, 1]` is the source site index, `bonds[i, 2]` the target site index and `bonds[i, 3]` an integer specifying the type of the i-th bond.
+
 
 ## Custom Monte Carlo flavors
 
