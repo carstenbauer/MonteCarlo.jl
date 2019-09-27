@@ -35,17 +35,71 @@ run!(dqmc)
 
 We use the symmetric version of the Suzuki-Trotter decomposition, i.e.
 
-\begin{align}
-e^{-\Delta\tau \sum_l T+V(l)} = \prod_j e^{-\Delta\tau T/2} e^{-\Delta\tau V} e^{-\Delta\tau T/2} + \mathcal{O}(\Delta\tau^2)
-\end{align}
+\begin{equation}
+  e^{-\Delta\tau \sum_l T+V(l)} = \prod_l e^{-\Delta\tau T/2} e^{-\Delta\tau V(l)} e^{-\Delta\tau T/2} + \mathcal{O}(\Delta\tau^3)
+\end{equation}
 
-where $T$ is the hopping matrix and $V(l)$ is the interaction matrix with $l$ an imaginary time slice index indicating an auxiliary field dependence.
+where $T$ is the hopping matrix and $V(l)$ is the interaction matrix with $l$ an imaginary time slice index indicating an auxiliary field dependence. One can verify this equality by expanding the exponentials. We define the factors in the product as slice matrices
 
-With the imaginary time slice matrices $B_l = e^{-\Delta\tau T/2} e^{-\Delta\tau V(l)} e^{-\Delta\tau T/2}$ the equal-time Green's function is $G = \left( 1 + B_M \cdots B_1 \right)^{-1}$.
+\begin{equation}
+  B_l = e^{-\Delta\tau T/2} e^{-\Delta\tau V(l)} e^{-\Delta\tau T/2}
+\end{equation}
+
+The equal-time Greens function is given by
+
+\begin{equation}
+  G(l=1) = \langle c_{i\sigma}c_{j\sigma}^\dagger \rangle
+  = \left( 1 + B_M \cdots B_1 \right)^{-1}
+\end{equation}
+
+!!! warning
+
+    For performance reasons, the greens function `mc.s.greens` and the slice matrices used at runtime are not as defined above. This has some implications for the Monte Carlo update, noted below.
+
+    The greens function returned by `greens(dqmc)` follows the definition from above and should be used when measuring observables.
+
+
+### Monte Carlo update
+
+
+After some transformations, the partition function takes the form $Z = \sum_C w_C$ with $w_C = \det \left[1 + B_M \cdots B_1\right]$. To performs a Monte Carlo update we need to determine a weight $R = \frac{w_{C^\prime}}{w_C}$.
+
+To do this efficiently we need to introduce an effective Greens function $G_{eff} = e^{\Delta\tau T/2} G e^{-\Delta\tau t/2}$. The propagators for it are given by
+
+\begin{equation}
+  B_l = e^{-\Delta\tau T/2} e^{-\Delta\tau T/2} e^{-\Delta\tau V(l)}
+\end{equation}
+
+An update to the auxillary field causes a change in the interaction matrix $V(l) \to V^\prime(l)$. We can express this change on the slice matrix level by **defining**
+\begin{equation}
+  V^\prime(l) \equiv V(l) [I + \Delta(i, l)]
+\end{equation},
+
+which gives $B^\prime_l = B_l [I + \Delta(i, l)]$. We can now write the Monte Carlo weight $R$ as
+
+\begin{equation}
+  R = \frac{w_{C^\prime}}{w_C} = \frac{\det \left[1 + B_M \cdots B_{l} [I + \Delta(i, l)] B_{l-1} \cdots B_1\right]}{\det \left[1 + B_M \cdots B_1\right]}
+\end{equation}
+
+Using $\det A / \det B = \det AB^{-1}$ and $\det(I + AB) = \det(I + BA)$ we eventually get
+
+\begin{equation}
+  R = \det\left[I + \Delta(i, l) B_{l-1} \cdots B_1 (I + B_M \cdots B_1)^{-1} B_M \cdots B_{l} \right]
+\end{equation}
+
+This can be written in terms of the effective equal time Greens function using $A(I + BA)^-1 B = I - (I + AB)^{-1}$, resulting in
+
+\begin{equation}
+  R = \det\left[I + \Delta(i, l) (I - G_{eff}(l)) \right]
+\end{equation}
+
+
+For further details on DQMC, see for example:
+* [Introduction to quantum Monte Carlo simulations for fermionic systems, dos Santos](https://dx.doi.org/10.1590/S0103-97332003000100003)
+* [Quantum Monte Carlo Methods](https://www.cambridge.org/de/academic/subjects/physics/condensed-matter-physics-nanoscience-and-mesoscopic-physics/quantum-monte-carlo-methods-algorithms-lattice-models?format=HB&isbn=9781107006423)
+
 
 ### Checkerboard decomposition
-
-We provide a general algorithm to construct the "checkerboard" split up of a generic `Lattice`. The only requirement is that the `Lattice` has the following two fields,
 
 We provide a general algorithm to construct the "checkerboard" split up of a generic `AbstractLattice`. The only requirement is that the `AbstractLattice` implements a method `_neighbors(::Nothing, l::MyLattice, directed::Val{false})` or includes a field `bonds` and implements the trait `has_bonds_table(::MyLattice) = HasBondsTable()`. Either should give access to a bond matrix of size `(nbonds, 3)`, where each row contains a bond with a source site index, a target site index and a bond type (integer).
 
