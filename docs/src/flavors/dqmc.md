@@ -47,13 +47,12 @@ With the imaginary time slice matrices $B_l = e^{-\Delta\tau T/2} e^{-\Delta\tau
 
 We provide a general algorithm to construct the "checkerboard" split up of a generic `Lattice`. The only requirement is that the `Lattice` has the following two fields,
 
-* `n_bonds::Int`: total number of bonds (lattice graph edges)
-* `bonds::Matrix{Int}`: bond matrix of shape `(n_bonds, 3)`. Rows correspond to bonds and columns indicate source site, target site, and bond type in this order.
+We provide a general algorithm to construct the "checkerboard" split up of a generic `AbstractLattice`. The only requirement is that the `AbstractLattice` implements a method `_neighbors(::Nothing, l::MyLattice, directed::Val{false})` or includes a field `bonds` and implements the trait `has_bonds_table(::MyLattice) = HasBondsTable()`. Either should give access to a bond matrix of size `(nbonds, 3)`, where each row contains a bond with a source site index, a target site index and a bond type (integer).
 
-Of course, one can also manually construct a (more efficient) checkerboard split up by overloading the following function for the specific `Lattice` subtype.
+Of course, one can also manually construct a (more efficient) checkerboard split up by overloading the following function for the specific `AbstractLattice` subtype.
 
 ```@docs
-MonteCarlo.build_checkerboard(l::MonteCarlo.Lattice)
+MonteCarlo.build_checkerboard(l::MonteCarlo.AbstractLattice)
 ```
 
 ### Effective slice matrices and Green's function
