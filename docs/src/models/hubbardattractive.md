@@ -15,10 +15,13 @@ You can create an attractive Hubbard model instance as follows,
 model = HubbardModelAttractive(dims=1, L=8)
 ```
 
-The following parameters can be set via keyword arguments:
+Mandatory keywords are:
 
 * `dims::Int`: dimensionality of the lattice (i.e. 1 = chain, 2 = square lattice, etc.)
 * `L::Int`: linear system size
+
+Optional kerwords are:
+
 * `t::Float64 = 1.0`: hopping energy
 * `U::Float64 = 1.0`: onsite interaction strength, "Hubbard $U$"
 * `mu::Float64 = 0.0`: chemical potential

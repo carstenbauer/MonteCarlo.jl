@@ -15,10 +15,13 @@ You can create an Ising model as follows,
 model = IsingModel(dims=2, L=8)
 ```
 
-The following parameters can be set via keyword arguments:
+Mandatory keywords are:
 
 * `dims::Int`: dimensionality of the lattice
 * `L::Int`: linear system size
+
+Optional keywords are:
+
 * `l<:AbstractLattice`: any lattice (if none is given a cubic lattice is generated based on L and dims, i.e. dims = 1 gives a chain, dims = 2 gives a  square lattice, etc.)
 
 ## Supported Monte Carlo flavors

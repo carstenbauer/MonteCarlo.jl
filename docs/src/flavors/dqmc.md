@@ -11,7 +11,7 @@ Mandatory keywords are:
 
 * `beta`: inverse temperature
 
-Allowed keywords are:
+Optional keywords are:
 
 * `delta_tau::Float64 = 0.1`: imaginary time step size
 * `safe_mult::Int = 10`: stabilize Green's function calculations every `safe_mult` step (How many slice matrices can be multiplied until singular value information is lost due to numerical unaccuracy?)
@@ -20,6 +20,8 @@ Allowed keywords are:
 * `thermalization`: number of thermalization (warmup) sweeps
 * `seed`: initialize DQMC with custom seed
 * `all_checks::Bool = true`: turn off to suppress some numerical checks
+* `measure_rate`: rate at which measurements are taken
+* `print_rate`: rate at which prints happen for `verbose=true`
 
 
 Afterwards, you can run the simulation by
