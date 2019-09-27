@@ -66,12 +66,13 @@ function DQMC(m::M; seed::Int=-1, checkerboard::Bool=false, kwargs...) where M<:
     p = DQMCParameters(; kwargs...)
 
     geltype = greenseltype(DQMC, m)
+    heltype = hoppingeltype(DQMC, m)
     conf = rand(DQMC, m, p.slices)
     mc = DQMC{M, checkerboard ? CheckerboardTrue : CheckerboardFalse,
-        typeof(conf), DQMCStack{geltype,Float64}}()
+        typeof(conf), DQMCStack{geltype, heltype}}()
     mc.model = m
     mc.p = p
-    mc.s = DQMCStack{geltype,Float64}()
+    mc.s = DQMCStack{geltype, heltype}()
 
     init!(mc, seed=seed, conf=conf)
     return mc
@@ -172,7 +173,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
                 @printf("\t\tacc rate (local) : %.1f%%\n", mc.a.acc_rate*100)
                 if mc.p.global_moves
                   @printf("\t\tacc rate (global): %.1f%%\n", mc.a.acc_rate_global*100)
-                  @printf("\t\tacc rate (global, overall): %.1f%%\n", 
+                  @printf("\t\tacc rate (global, overall): %.1f%%\n",
                     mc.a.acc_global/mc.a.prop_global*100)
                 end
             end
