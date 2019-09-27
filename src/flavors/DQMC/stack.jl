@@ -238,9 +238,9 @@ function add_slice_sequence_left(mc::DQMC, idx::Int)
     multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
   end
 
-  mc.s.curr_U *= spdiagm(0 => mc.s.d_stack[:, idx])
-  mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], T = udt(mc.s.curr_U)
-  mc.s.t_stack[:, :, idx + 1] =  T * mc.s.t_stack[:, :, idx]
+  @views rmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx]))
+  mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], T = udt!(mc.s.curr_U)
+  @views mul!(mc.s.t_stack[:, :, idx + 1],  T, mc.s.t_stack[:, :, idx])
 end
 """
 Updates stack[idx] based on stack[idx+1]
@@ -252,9 +252,9 @@ function add_slice_sequence_right(mc::DQMC, idx::Int)
     multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
   end
 
-  mc.s.curr_U *=  spdiagm(0 => mc.s.d_stack[:, idx + 1])
-  mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], T = udt(mc.s.curr_U)
-  mc.s.t_stack[:, :, idx] = T * mc.s.t_stack[:, :, idx + 1]
+  @views rmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx + 1]))
+  mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], T = udt!(mc.s.curr_U)
+  @views mul!(mc.s.t_stack[:, :, idx], T, mc.s.t_stack[:, :, idx + 1])
 end
 
 # Green's function calculation
