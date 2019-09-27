@@ -12,14 +12,14 @@ where $\langle i, j \rangle$ indicates that the sum has to be taken over nearest
 ## Creating an Ising model
 You can create an Ising model as follows,
 ```julia
-model = IsingModel(; dims::Int=2, L::Int=8)
+model = IsingModel(dims=2, L=8)
 ```
 
 The following parameters can be set via keyword arguments:
 
-* `dims`: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)
-* `L`: linear system size
-
+* `dims::Int`: dimensionality of the lattice
+* `L::Int`: linear system size
+* `l<:AbstractLattice`: any lattice (if none is given a cubic lattice is generated based on L and dims, i.e. dims = 1 gives a chain, dims = 2 gives a  square lattice, etc.)
 
 ## Supported Monte Carlo flavors
 
