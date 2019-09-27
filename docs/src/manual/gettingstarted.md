@@ -4,8 +4,7 @@
 
 **MonteCarlo.jl** hasn't yet been released. To clone the package execute the following command in the Julia REPL:
 ```julia
-Pkg.clone("https://github.com/crstnbr/MonteCarloObservable.jl")
-Pkg.clone("https://github.com/crstnbr/MonteCarlo.jl")
+] add https://github.com/crstnbr/MonteCarlo.jl
 ```
 
 To update to the latest version of the package just do `Pkg.update()` or specifically `Pkg.update("MonteCarlo")`.
@@ -26,8 +25,8 @@ using MonteCarlo
 m = IsingModel(dims=2, L=8);
 
 # choose a Monte Carlo flavor and run the simulation
-mc = MC(m, beta=0.35);
-run!(mc, sweeps=1000, thermalization=1000, verbose=false);
+mc = MC(m, beta=0.35, sweeps=1000, thermalization=1000);
+run!(mc, verbose=false);
 
 # analyze results
 observables(mc) # what observables do exist for that simulation?
