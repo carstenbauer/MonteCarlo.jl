@@ -49,40 +49,40 @@ function build_neighbortable(::Type{ALPSLattice}, n_neighs, sites, n_bonds, bond
 end
 
 function parse_alpslattice_xml(filename::String)
-  xdoc = parse_file(filename)
-  graph = LightXML.root(xdoc)
-  sites = 1
+    xdoc = parse_file(filename)
+    graph = LightXML.root(xdoc)
+    sites = 1
 
-  sites = parse(Int, attribute(graph, "vertices"; required=true))
-  dim = parse(Int, attribute(graph, "dimension"; required=true))
+    sites = parse(Int, attribute(graph, "vertices"; required=true))
+    dim = parse(Int, attribute(graph, "dimension"; required=true))
 
-  edges = get_elements_by_tagname(graph, "EDGE")
-  n_bonds = length(edges)
+    edges = get_elements_by_tagname(graph, "EDGE")
+    n_bonds = length(edges)
 
-  # bonds & bond vectors
-  bonds = zeros(n_bonds, 3)
-  bond_vecs = zeros(n_bonds, dim)
-  v = Vector{Float64}(dim)
-  for (i, edge) in enumerate(edges)
-    src = 0
-    trg = 0
-    src = parse(Int, attribute(edge, "source"; required=true))
-    trg = parse(Int, attribute(edge, "target"; required=true))
-    typ = parse(Int, attribute(edge, "type"; required=true))
-    id = parse(Int, attribute(edge, "id"; required=true))
-    v = [parse(Float64, f) for f in split(attribute(edge, "vector"; required=true)," ")]
+    # bonds & bond vectors
+    bonds = zeros(n_bonds, 3)
+    bond_vecs = zeros(n_bonds, dim)
+    v = Vector{Float64}(dim)
+    for (i, edge) in enumerate(edges)
+        src = 0
+        trg = 0
+        src = parse(Int, attribute(edge, "source"; required=true))
+        trg = parse(Int, attribute(edge, "target"; required=true))
+        typ = parse(Int, attribute(edge, "type"; required=true))
+        id = parse(Int, attribute(edge, "id"; required=true))
+        v = [parse(Float64, f) for f in split(attribute(edge, "vector"; required=true)," ")]
 
-    if id != i error("Edges in lattice file must be sorted from 1 to N!") end
+        if id != i error("Edges in lattice file must be sorted from 1 to N!") end
 
-    bonds[i, 1] = src
-    bonds[i, 2] = trg
-    bonds[i, 3] = typ
-    bond_vecs[i, :] = v
+        bonds[i, 1] = src
+        bonds[i, 2] = trg
+        bonds[i, 3] = typ
+        bond_vecs[i, :] = v
 
-  end
+    end
 
-  n_neighs = count(x->x==1, bonds[:, 1]) + count(x->x==1, bonds[:, 2]) # neighbors of site 1
-  return sites, dim, n_neighs, bond_vecs, n_bonds, bonds
+    n_neighs = count(x->x==1, bonds[:, 1]) + count(x->x==1, bonds[:, 2]) # neighbors of site 1
+    return sites, dim, n_neighs, bond_vecs, n_bonds, bonds
 end
 
 # Implement AbstractLattice interface: mandatory
