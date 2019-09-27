@@ -44,6 +44,31 @@ propose_local(mc::DQMC, m::Model, i::Int, conf, E_boson::Float64)
 accept_local(mc::DQMC, m::Model, i::Int, slice::Int, conf, delta, detratio, delta_E_boson)
 ```
 
+!!! warning
+
+    The Monte Carlo update depends on definitions used during the derivation. In this case, the determinant ratio is given by
+
+    \begin{equation}
+        R = \det\left[I + \Delta(i, l) (I - G(l))\right]
+    \end{equation}
+
+    where $G(l)$ is the effective Greens function stored in `mc.s.greens` at the time of the update. $\Delta(i, l)$ is defined by
+
+    \begin{equation}
+        e^{-\Delta\tau V^\prime(l)} = e^{-\Delta\tau V(l)} * [I + \Delta(i, l)]
+    \end{equation}
+
+    with `i` the site index passed to `propose_local` and `update_local`, $l$ the current time slice and $V^\prime(l)$ the updated interaction matrix. This definition follows from the effective Greens function used and may differ from other derivations.
+
+    The Monte Carlo update of the Greens function, which should be performed by `accept_local` may differ from literature for the same reason. Here we have
+
+    \begin{equation}
+        G(l) = G(l) - (I - G(l)) [I - \Delta(i, l) (I - G(l))]^{-1} \Delta(i, l) G(l)
+    \end{equation}
+
+    which may differ from literature in the placement of $I - G(l)$. Note that this equation can be optimized by using the sparsity of $\Delta(i, l)$
+
+
 ## Optional methods
 
 ```@docs
