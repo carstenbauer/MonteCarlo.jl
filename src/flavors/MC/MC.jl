@@ -188,8 +188,8 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur)
                 @printf("\t\tacc rate (local) : %.1f%%\n", mc.a.acc_rate*100)
                 if mc.p.global_moves
-                  @printf("\t\tacc rate (global): %.1f%%\n", mc.a.acc_rate_global*100)
-                  @printf("\t\tacc rate (global, overall): %.1f%%\n", mc.a.acc_global/mc.a.prop_global*100)
+                    @printf("\t\tacc rate (global): %.1f%%\n", mc.a.acc_rate_global*100)
+                    @printf("\t\tacc rate (global, overall): %.1f%%\n", mc.a.acc_global/mc.a.prop_global*100)
                 end
             end
 

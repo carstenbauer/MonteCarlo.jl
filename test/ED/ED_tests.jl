@@ -79,10 +79,10 @@ end
         t = 1.0
     )
 
-    @info "Running DQMC β=1.0, 100k + 100k sweeps, ≈1min"
+    @info "Running DQMC β=1.0, 10k + 20k sweeps, ≈1min"
     dqmc = DQMC(model, beta=1.0)
-    run!(dqmc, thermalization = 100_000, sweeps = 100_000, verbose=false)
-    G_DQMC = mean(dqmc.measurements[:Greens].obs)
+    run!(dqmc, thermalization = 10_000, sweeps = 20_000, verbose=false)
+    G_DQMC = mean(dqmc.obs["greens"])
 
     @info "Running ED"
     H = HamiltonMatrix(model)

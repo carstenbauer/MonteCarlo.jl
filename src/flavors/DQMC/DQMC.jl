@@ -73,12 +73,13 @@ function DQMC(m::M;
     p = DQMCParameters(; kwargs...)
 
     geltype = greenseltype(DQMC, m)
+    heltype = hoppingeltype(DQMC, m)
     conf = rand(DQMC, m, p.slices)
     mc = DQMC{M, checkerboard ? CheckerboardTrue : CheckerboardFalse,
-        typeof(conf), DQMCStack{geltype,Float64}}()
+        typeof(conf), DQMCStack{geltype, heltype}}()
     mc.model = m
     mc.p = p
-    mc.s = DQMCStack{geltype,Float64}()
+    mc.s = DQMCStack{geltype, heltype}()
 
     init!(
         mc, seed = seed, conf = conf,

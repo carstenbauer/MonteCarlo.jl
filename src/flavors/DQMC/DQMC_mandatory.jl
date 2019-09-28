@@ -7,7 +7,7 @@ Base.rand(::Type{DQMC}, m::Model, nslices::Int) = error("Model $(typeof(m)) does
 
 
 """
-	hopping_matrix(mc::DQMC, m::Model)
+    hopping_matrix(mc::DQMC, m::Model)
 
 Calculates the hopping matrix \$T_{i\\sigma, j\\sigma '}\$ where \$i, j\$ are site indices and \$\\sigma , \\sigma '\$
 are flavor indices (e.g. spin indices). The hopping matrix should also contain
