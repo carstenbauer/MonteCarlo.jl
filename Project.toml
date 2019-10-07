@@ -15,6 +15,7 @@ Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StableDQMC = "0827807b-44c9-51d0-af97-efe667fe6b2a"
 Requires = "ae029012-a4dd-5104-9daa-d747884805df"
+JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
 
 [compat]
 julia = "1"

@@ -31,30 +31,42 @@ mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     model::M
     conf::C
 
-    obs::Dict{String, Observable}
+    thermalization_measurements::Dict{Symbol, AbstractMeasurement}
+    measurements::Dict{Symbol, AbstractMeasurement}
     p::MCParameters
     a::MCAnalysis
 
     MC{M,C}() where {M,C} = new()
 end
 
+
 """
     MC(m::M; kwargs...) where M<:Model
 
 Create a Monte Carlo simulation for model `m` with keyword parameters `kwargs`.
 """
-function MC(m::M; seed::Int=-1, kwargs...) where M<:Model
+function MC(m::M;
+        seed::Int=-1,
+        thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
+        measurements = :default,
+        kwargs...
+    ) where M<:Model
+
     conf = rand(MC, m)
     mc = MC{M, typeof(conf)}()
     mc.model = m
-
     kwdict = Dict(kwargs)
     if :T in keys(kwargs)
         kwdict[:beta] = 1/kwargs[:T]
         delete!(kwdict, :T)
     end
     mc.p = MCParameters(; kwdict...)
-    init!(mc, seed=seed, conf=conf)
+
+    init!(
+        mc, seed = seed, conf = conf,
+        thermalization_measurements = thermalization_measurements,
+        measurements = measurements
+    )
     return mc
 end
 
@@ -78,7 +90,10 @@ Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::MC)
     print(io, "Monte Carlo simulation\n")
     print(io, "Model: ", mc.model, "\n")
-    print(io, "Beta: ", round(beta(mc), sigdigits=3), " (T ≈ $(round(1/beta(mc), sigdigits=3)))")
+    print(io, "Beta: ", round(beta(mc), sigdigits=3), " (T ≈ $(round(1/beta(mc), sigdigits=3)))\n")
+    N_th_meas = length(mc.thermalization_measurements)
+    N_me_meas = length(mc.measurements)
+    print(io, "Measurements: ", N_th_meas + N_me_meas, " ($N_th_meas + $N_me_meas)")
 end
 Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 
@@ -93,11 +108,29 @@ Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 Initialize the Monte Carlo simulation `mc`.
 If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
-function init!(mc::MC; seed::Real=-1, conf=rand(MC, mc.model))
+function init!(mc::MC;
+        seed::Real=-1,
+        conf=rand(MC, mc.model),
+        thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
+        measurements = :default
+    )
     seed == -1 || Random.seed!(seed)
     mc.conf = conf
-    mc.obs = prepare_observables(mc, mc.model)
     mc.a = MCAnalysis()
+
+    mc.thermalization_measurements = thermalization_measurements
+    if measurements isa Dict{Symbol, AbstractMeasurement}
+        mc.measurements = measurements
+    elseif measurements == :default
+        mc.measurements = default_measurements(mc, mc.model)
+    else
+        @warn(
+            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}, but are " *
+            "$(typeof(measurements)). No measurements have been set."
+        )
+        mc.measurements = Dict{Symbol, AbstractMeasurement}()
+    end
+
     nothing
 end
 
@@ -108,13 +141,21 @@ end
 Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `stdout` if `verbose=true` (default).
 """
-function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalization=mc.p.thermalization)
+function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
+        thermalization=mc.p.thermalization)
+
+    do_th_measurements = !isempty(mc.thermalization_measurements)
+    do_me_measurements = !isempty(mc.measurements)
+    !do_me_measurements && @warn(
+        "There are no measurements set up for this simulation!"
+    )
     total_sweeps = sweeps + thermalization
 
     start_time = now()
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
     _time = time()
+    do_th_measurements && prepare!(mc.thermalization_measurements, mc, mc.model)
     for i in 1:total_sweeps
         sweep(mc)
 
@@ -123,9 +164,19 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
             mc.a.acc_global += global_move(mc, mc.model, conf(mc))
         end
 
-        if i > thermalization && iszero(mod(i, mc.p.measure_rate))
-            measure_observables!(mc, mc.model, mc.obs, conf(mc))
+        # For optimal performance whatever is most likely to fail should be
+        # checked first.
+        if i <= thermalization && iszero(mod(i, mc.p.measure_rate)) && do_th_measurements
+            measure!(mc.thermalization_measurements, mc, mc.model, i)
         end
+        if (i == thermalization+1)
+            do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
+            do_me_measurements && prepare!(mc.measurements, mc, mc.model)
+        end
+        if i > thermalization && iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
+            measure!(mc.measurements, mc, mc.model, i)
+        end
+
 
         print_rate = mc.p.print_rate
         if print_rate != 0 && iszero(mod(i, print_rate))
@@ -148,7 +199,7 @@ function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps, thermalizatio
             _time = time()
         end
     end
-    finish_observables!(mc, mc.model, mc.obs)
+    do_me_measurements && finish!(mc.measurements, mc, mc.model)
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global

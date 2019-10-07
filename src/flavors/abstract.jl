@@ -26,30 +26,19 @@ run!(mc::MonteCarloFlavor) = error("MonteCarloFlavor $(typeof(mc)) doesn't imple
 
 # general functions
 """
-    observables(mc::MonteCarloFlavor)
-
-Get a list of all observables defined for a given Monte Carlo simulation.
-
-Returns a `Dict{String, String}` where values are the observables names and
-keys are short versions of those names. The keys can be used to
-collect correponding observable objects from the Monte Carlo simulation, e.g. like `mc.obs[key]`.
-
-Note, there is no need to implement this function for a custom `MonteCarloFlavor`.
-"""
-function observables(mc::MonteCarloFlavor)
-    obs = Dict{String, String}()
-    obsobjects = prepare_observables(mc, mc.model)
-    for (s, o) in obsobjects
-        obs[s] = MonteCarloObservable.name(o)
-    end
-    return obs
-end
-
-
-"""
     reset!(mc::MonteCarloFlavor)
 
 Resets the Monte Carlo simulation `mc`.
 Previously set parameters will be retained.
 """
-reset!(mc::MonteCarloFlavor) = init!(mc) # convenience mapping
+function reset!(mc::MonteCarloFlavor)
+    th_meas = Dict{Symbol, AbstractMeasurement}([
+        k => typeof(v)(mc, mc.model) for (k, v) in mc.thermalization_measurements
+    ])
+
+    meas = Dict{Symbol, AbstractMeasurement}([
+        k => typeof(v)(mc, mc.model) for (k, v) in mc.measurements
+    ])
+
+    init!(mc, thermalization_measurements=th_meas, measurements=meas)
+end
