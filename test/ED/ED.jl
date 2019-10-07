@@ -2,6 +2,8 @@ using LinearAlgebra, SparseArrays
 
 # State ∈ [0, up, down, updown] = [00, 10, 01, 11]
 # 2x2 lattice -> 4 (exponent) -> 4^4 states = 256
+const UP = 1
+const DOWN = 2
 
 function state_from_integer(int, sites=4, substates_per_site=2)
     int > (2substates_per_site)^sites-1 && return
@@ -91,7 +93,9 @@ function HamiltonMatrix(model::HubbardModelAttractive)
 end
 
 
-# Greens function
+################################################################################
+### Observables / Expectation values
+################################################################################
 
 
 function Greens(site1, site2, substate1, substate2)
@@ -126,6 +130,168 @@ function Greens_permuted(site1, site2, substate1, substate2)
 end
 
 
+# Charge Density Correlation
+function charge_density_correlation(site1, site2)
+    state -> begin
+        states = typeof(state)[]
+        prefactors = Float64[]
+        for substate1 in [UP, DOWN]
+            for substate2 in [UP, DOWN]
+                sign1, _state = annihilate(state, site2, substate2)
+                sign2, _state = create(_state, site2, substate2)
+                sign3, _state = annihilate(_state, site1, substate1)
+                sign4, _state = create(_state, site1, substate1)
+                if _state != 0
+                    push!(prefactors, sign1 * sign2 * sign3 * sign4)
+                    push!(states, _state)
+                end
+            end
+        end
+        states, prefactors
+    end
+end
+
+
+# Magnetization
+function m_x(site)
+    state -> begin
+        states = typeof(state)[]
+        prefactors = Float64[]
+        _sign1, _state = annihilate(state, site, DOWN)
+        _sign2, _state = create(_state, site, UP)
+        if _state != 0
+            push!(states, _state)
+            push!(prefactors, _sign1 * _sign2)
+        end
+        _sign1, _state = annihilate(state, site, UP)
+        _sign2, _state = create(_state, site, DOWN)
+        if _state != 0
+            push!(states, _state)
+            push!(prefactors, _sign1 * _sign2)
+        end
+        return states, prefactors
+    end
+end
+function m_y(site)
+    state -> begin
+        states = typeof(state)[]
+        prefactors = Float64[]
+        _sign1, _state = annihilate(state, site, DOWN)
+        _sign2, _state = create(_state, site, UP)
+        if _state != 0
+            push!(states, _state)
+            push!(prefactors, _sign1 * _sign2)
+        end
+        _sign1, _state = annihilate(state, site, UP)
+        _sign2, _state = create(_state, site, DOWN)
+        if _state != 0
+            push!(states, _state)
+            push!(prefactors, -1.0 * _sign1 * _sign2)
+        end
+        return states, -1im * prefactors
+    end
+end
+function m_z(site)
+    state -> begin
+        states = typeof(state)[]
+        prefactors = Float64[]
+        _sign1, _state = annihilate(state, site, UP)
+        _sign2, _state = create(_state, site, UP)
+        if _state != 0
+            push!(states, _state)
+            push!(prefactors, _sign1 * _sign2)
+        end
+        _sign1, _state = annihilate(state, site, DOWN)
+        _sign2, _state = create(_state, site, DOWN)
+        if _state != 0
+            push!(states, _state)
+            push!(prefactors, -1.0 * _sign1 * _sign2)
+        end
+        return states, prefactors
+    end
+end
+
+
+
+# Spin Density Correlations (s_{x, i} * s_{x, j} etc)
+function spin_density_correlation_x(site1, site2)
+    state -> begin
+        states = typeof(state)[]
+        prefactors = Float64[]
+        for substates1 in [(UP, DOWN), (DOWN, UP)]
+            for substates2 in [(UP, DOWN), (DOWN, UP)]
+                sign1, _state = annihilate(state, site2, substates2[1])
+                sign2, _state = create(_state, site2, substates2[2])
+                sign3, _state = annihilate(_state, site1, substates1[1])
+                sign4, _state = create(_state, site1, substates1[2])
+                if _state != 0
+                    push!(prefactors, sign1 * sign2 * sign3 * sign4)
+                    push!(states, _state)
+                end
+            end
+        end
+        states, prefactors
+    end
+end
+function spin_density_correlation_y(site1, site2)
+    state -> begin
+        states = typeof(state)[]
+        prefactors = ComplexF64[]
+        for substates1 in [(UP, DOWN), (DOWN, UP)]
+            for substates2 in [(UP, DOWN), (DOWN, UP)]
+                # prefactor from the - in s_y
+                c = substates1 == substates2 ? +1.0 : -1.0
+                sign1, _state = annihilate(state, site2, substates2[1])
+                sign2, _state = create(_state, site2, substates2[2])
+                sign3, _state = annihilate(_state, site1, substates1[1])
+                sign4, _state = create(_state, site1, substates1[2])
+                if _state != 0
+                    push!(prefactors, -1.0 * c *  sign1 * sign2 * sign3 * sign4)
+                    push!(states, _state)
+                end
+            end
+        end
+        states, prefactors
+    end
+end
+function spin_density_correlation_z(site1, site2)
+    state -> begin
+        states = typeof(state)[]
+        prefactors = Float64[]
+        for substates1 in [(UP, UP), (DOWN, DOWN)]
+            for substates2 in [(UP, UP), (DOWN, DOWN)]
+                # prefactor from the - in s_z
+                c = substates1 == substates2 ? +1.0 : -1.0
+                sign1, _state = annihilate(state, site2, substates2[1])
+                sign2, _state = create(_state, site2, substates2[2])
+                sign3, _state = annihilate(_state, site1, substates1[1])
+                sign4, _state = create(_state, site1, substates1[2])
+                if _state != 0
+                    push!(prefactors, c * sign1 * sign2 * sign3 * sign4)
+                    push!(states, _state)
+                end
+            end
+        end
+        states, prefactors
+    end
+end
+
+
+function pairing_correlation(site1, site2)
+    state -> begin
+        sign1, _state = create(state, site2, DOWN)
+        sign2, _state = create(_state, site2, UP)
+        sign3, _state = annihilate(_state, site1, DOWN)
+        sign4, _state = annihilate(_state, site1, UP)
+        if _state == 0
+            return typeof(state)[], Float64[]
+        else
+            return [_state], [-sign1 * sign2 * sign3 * sign4]
+        end
+    end
+end
+
+
 function expectation_value(
         observable::Function,
         H;
@@ -143,7 +309,8 @@ function expectation_value(
         Z += temp
 
         # ⟨ψᵢ|Ô|ψᵢ⟩
-        right_coefficients = zeros(eltype(vecs), size(vecs, 1))
+        T = eltype(vecs)
+        right_coefficients = zeros(T <: Complex ? T : Complex{T}, size(vecs, 1))
         for j in 1:size(vecs, 1)
             state = state_from_integer(j-1, N_sites, N_substates)
             states, values = observable(state)

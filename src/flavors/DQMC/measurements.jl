@@ -144,6 +144,8 @@ function greens(mc::DQMC, slice::Int64)
 end
 
 
+greens(mc::DQMC, model::Model) = greens(mc)
+
 
 ################################################################################
 ### General DQMC Measurements
@@ -221,7 +223,7 @@ function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::In
     # then get N from size(model.l) / spinflavors(model) ?
     N = nsites(model)
     flv = model.flv
-    G = greens(mc)
+    G = greens(mc, model)
     IG = I - G
     m.temp .= zero(eltype(m.temp))
     for f1 in 0:flv-1, f2 in 0:flv-1
@@ -250,7 +252,6 @@ function prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model)
         "the given model has $(model.flv)."
     ))
 end
-
 
 
 """
@@ -292,7 +293,7 @@ function MagnetizationMeasurement(mc::DQMC, model)
 end
 function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
-    G = greens(mc)
+    G = greens(mc, model)
     IG = I - G
 
     # G[1:N,    1:N]    up -> up section
@@ -353,7 +354,7 @@ function SpinDensityCorrelationMeasurement(mc::DQMC, model)
 end
 function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
-    G = greens(mc)
+    G = greens(mc, model)
     IG = I - G
 
     # G[1:N,    1:N]    up -> up section
@@ -430,7 +431,7 @@ function PairingCorrelationMeasurement(mc::DQMC, model)
     PairingCorrelationMeasurement(obs1, obs2, temp)
 end
 function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
-    G = greens(mc)
+    G = greens(mc, model)
     N = nsites(model)
     m.temp .= G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N]
     push!(m.mat, m.temp)

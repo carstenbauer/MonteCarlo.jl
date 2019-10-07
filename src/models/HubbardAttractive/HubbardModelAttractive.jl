@@ -158,3 +158,10 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
 end
+
+
+function greens(mc::DQMC, model::HubbardModelAttractive)
+    G = greens(mc)
+    vcat(hcat(G, zeros(size(G))), hcat(zeros(size(G)), G))
+end
+prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing
