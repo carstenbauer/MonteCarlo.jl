@@ -392,3 +392,48 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
     push!(m.y, m2y)
     push!(m.z, m2z)
 end
+
+
+
+"""
+    PairingCorrelationMeasurement(mc::DQMC, model)
+
+Measures the s-wave equal-time pairing correlation matrix (`.mat`) and its uniform
+Fourier transform (`.uniform_fourier`).
+"""
+struct PairingCorrelationMeasurement{
+        OT1 <: AbstractObservable,
+        OT2 <: AbstractObservable,
+        T
+    } <: SpinOneHalfMeasurement
+    mat::OT1
+    uniform_fourier::OT2
+    temp::Matrix{T}
+end
+function PairingCorrelationMeasurement(mc::DQMC, model)
+    T = eltype(mc.s.greens)
+    N = nsites(model)
+
+    obs1 = LightObservable(
+        LogBinner(zeros(T, N, N)),
+        "Equal time pairing correlation matrix (s-wave)",
+        "observables.jld",
+        "etpc-s"
+    )
+    obs2 = LightObservable(
+        LogBinner(T),
+        "Uniform Fourier tranforms of equal time pairing correlation matrix (s-wave)",
+        "observables.jld",
+        "etpc-s Fourier"
+    )
+    temp = zeros(T, N, N)
+
+    PairingCorrelationMeasurement(obs1, obs2, temp)
+end
+function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
+    G = greens(mc)
+    N = nsites(model)
+    m.temp .= G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N]
+    push!(m.mat, m.temp)
+    push!(m.uniform_fourier, sum(m.temp) / N)
+end
