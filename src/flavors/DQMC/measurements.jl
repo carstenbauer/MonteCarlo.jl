@@ -312,3 +312,83 @@ function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     push!(m.y, my)
     push!(m.z, mz)
 end
+
+
+
+"""
+    SpinDensityCorrelationMeasurement(mc::DQMC, model)
+
+Measures:
+* `x`, `y`, `z`: the average spin density correlation between any two sites
+"""
+struct SpinDensityCorrelationMeasurement{
+        OTx <: AbstractObservable,
+        OTy <: AbstractObservable,
+        OTz <: AbstractObservable,
+    } <: SpinOneHalfMeasurement
+
+    x::OTx
+    y::OTy
+    z::OTz
+end
+function SpinDensityCorrelationMeasurement(mc::DQMC, model)
+    N = nsites(model)
+    T = eltype(mc.s.greens)
+    Ty = T <: Complex ? T : Complex{T}
+
+    # Spin density correlation
+    m2x = LightObservable(
+        LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
+        "Spin Density Correlation x", "Observables.jld", "sdc-x"
+    )
+    m2y = LightObservable(
+        LogBinner([zero(Ty) for _ in 1:N, __ in 1:N]),
+        "Spin Density Correlation y", "Observables.jld", "sdc-y"
+    )
+    m2z = LightObservable(
+        LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
+        "Spin Density Correlation z", "Observables.jld", "sdc-z"
+    )
+
+    SpinDensityCorrelationMeasurement(m2x, m2y, m2z)
+end
+function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
+    N = nsites(model)
+    G = greens(mc)
+    IG = I - G
+
+    # G[1:N,    1:N]    up -> up section
+    # G[N+1:N,  1:N]    down -> up section
+    # ...
+    # G[i, j] = c_i c_j^†
+
+    # NOTE
+    # these maybe wrong, maybe IG -> G
+    # Spin Density Correlation
+    m2x = zeros(eltype(G), N, N)
+    m2y = zeros(eltype(G), N, N)
+    m2z = zeros(eltype(G), N, N)
+    for i in 1:N, j in 1:N
+        m2x[i, j] = (
+            IG[i+N, i] * IG[j+N, j] + IG[j+N, i] * G[i+N, j] +
+            IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
+            IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] +
+            IG[i, i+N] * IG[j, j+N] + IG[j, i+N] * G[i, j+N]
+        )
+        m2y[i, j] = (
+            - IG[i+N, i] * IG[j+N, j] - IG[j+N, i] * G[i+N, j] +
+              IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
+              IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] -
+              IG[i, i+N] * IG[j, j+N] - IG[j, i+N] * G[i, j+N]
+        )
+        m2z[i, j] = (
+            IG[i, i] * IG[j, j] + IG[j, i] * G[i, j] -
+            IG[i, i] * IG[j+N, j+N] - IG[j+N, i] * G[i+N, j] -
+            IG[i+N, i+N] * IG[j, j] - IG[j, i+N] * G[i, j+N] +
+            IG[i+N, i+N] * IG[j+N, j+N] + IG[j+N, i+N] * G[i+N, j+N]
+        )
+    end
+    push!(m.x, m2x)
+    push!(m.y, m2y)
+    push!(m.z, m2z)
+end
