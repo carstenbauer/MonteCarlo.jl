@@ -194,5 +194,43 @@ function measure!(m::BosonEnergyMeasurement, mc::DQMC, model, i::Int64)
 end
 
 
+
+"""
+    ChargeDensityCorrelationMeasurement(mc::DQMC, model)
+
+Measures the charge density correlation matrix `⟨nᵢnⱼ⟩`.
+"""
+struct ChargeDensityCorrelationMeasurement{
+        OT <: AbstractObservable
+    } <: AbstractMeasurement
+    obs::OT
+    temp::Matrix
+end
+function ChargeDensityCorrelationMeasurement(mc::DQMC, model)
+    N = nsites(model)
+    T = eltype(mc.s.greens)
+    obs = LightObservable(
+        LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
+        "Charge density wave correlations", "Observables.jld", "CDC"
+    )
+    ChargeDensityCorrelationMeasurement(obs, [zero(T) for _ in 1:N, __ in 1:N])
+end
+function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
+    # TODO
+    # implement spinflavors(model)
+    # then get N from size(model.l) / spinflavors(model) ?
+    N = nsites(model)
+    flv = model.flv
+    G = greens(mc)
+    IG = I - G
+    m.temp .= zero(eltype(m.temp))
+    for f1 in 0:flv-1, f2 in 0:flv-1
+        for i in 1:N, j in 1:N
+            m.temp[i, j] += IG[i + f1*N, i + f1*N] * IG[j + f2*N, j + f2*N] +
+                            IG[j + f2*N, i + f1*N] *  G[i + f1*N, j + f2*N]
+        end
+    end
+    push!(m.obs, m.temp)
+end
     )
 end
