@@ -232,5 +232,83 @@ function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::In
     end
     push!(m.obs, m.temp)
 end
+
+
     )
+end
+################################################################################
+### Spin 1/2 Measurements
+################################################################################
+
+
+
+abstract type SpinOneHalfMeasurement <: AbstractMeasurement end
+
+# Abuse prepare! to verify requirements
+function prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model)
+    model.flv != 2 && throw(AssertionError(
+        "A spin 1/2 measurement ($(typeof(m))) requires two (spin) flavors of fermions, but " *
+        "the given model has $(model.flv)."
+    ))
+end
+
+
+
+"""
+    MagnetizationMeasurement(mc::DQMC, model)
+
+Measures:
+* `x`, `y`, `z`: the average onsite magnetization in x, y, or z direction
+"""
+struct MagnetizationMeasurement{
+        OTx <: AbstractObservable,
+        OTy <: AbstractObservable,
+        OTz <: AbstractObservable,
+    } <: SpinOneHalfMeasurement
+
+    x::OTx
+    y::OTy
+    z::OTz
+end
+function MagnetizationMeasurement(mc::DQMC, model)
+    N = nsites(model)
+    T = eltype(mc.s.greens)
+    Ty = T <: Complex ? T : Complex{T}
+
+    # Magnetizations
+    m1x = LightObservable(
+        LogBinner([zero(T) for _ in 1:N]),
+        "Magnetization x", "Observables.jld", "Mx"
+    )
+    m1y = LightObservable(
+        LogBinner([zero(Ty) for _ in 1:N]),
+        "Magnetization y", "Observables.jld", "My"
+    )
+    m1z = LightObservable(
+        LogBinner([zero(T) for _ in 1:N]),
+        "Magnetization z", "Observables.jld", "Mz"
+    )
+
+    MagnetizationMeasurement(m1x, m1y, m1z)
+end
+function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
+    N = nsites(model)
+    G = greens(mc)
+    IG = I - G
+
+    # G[1:N,    1:N]    up -> up section
+    # G[N+1:N,  1:N]    down -> up section
+    # ...
+    # G[i, j] = c_i c_j^†
+
+    # Magnetization
+    # c_{i, up}^† c_{i, down} + c_{i, down}^† c_{i, up}
+    mx = [- G[i+N, i] - G[i, i+N]           for i in 1:N]
+    # -i [c_{i, up}^† c_{i, down} - c_{i, down}^† c_{i, up}]
+    my = [-1im * (G[i, i+N] - G[i+N, i])    for i in 1:N]
+    # c_{i, up}^† c_{i, up} - c_{i, down}^† c_{i, down}
+    mz = [G[i+N, i+N] - G[i, i]             for i in 1:N]
+    push!(m.x, mx)
+    push!(m.y, my)
+    push!(m.z, mz)
 end
