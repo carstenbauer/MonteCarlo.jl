@@ -98,8 +98,8 @@ Measures configurations of the given Monte Carlo flavour and model. The rate of
 measurements can be reduced with `rate`. (e.g. `rate=10` means 1 measurement per
 10 sweeps)
 """
-struct ConfigurationMeasurement <: AbstractMeasurement
-    obs::Observable
+struct ConfigurationMeasurement{OT <: Observable} <: AbstractMeasurement
+    obs::OT
     rate::Int64
     ConfigurationMeasurement(mc, model, rate=1) = new(
         Observable(typeof(mc.conf), "Configurations"), rate
