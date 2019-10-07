@@ -234,8 +234,7 @@ function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::In
 end
 
 
-    )
-end
+
 ################################################################################
 ### Spin 1/2 Measurements
 ################################################################################
