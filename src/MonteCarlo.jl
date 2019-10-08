@@ -21,6 +21,7 @@ include("lattices/square.jl")
 include("lattices/chain.jl")
 include("lattices/cubic.jl")
 include("lattices/honeycomb.jl")
+include("lattices/triangular.jl")
 include("lattices/ALPS.jl")
 
 include("flavors/MC/MC.jl")
