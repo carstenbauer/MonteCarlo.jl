@@ -120,7 +120,7 @@ end
 """
     load_lattice(data)
 
-Loads a lattice from a given `data` dictionary produced by `JLD.load!(filename)`.
+Loads a lattice from a given `data` dictionary produced by `JLD.load(filename)`.
 """
 function load_lattice(data::Dict)
     @assert haskey(data, "Lattice")
