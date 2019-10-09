@@ -52,7 +52,7 @@ end
 
 
 """
-    save!(measurement, filename, entryname)
+    save(filename, measurement, entryname)
 
 Saves a measurement to a jld-file `filename` in group `entryname`.
 
@@ -65,7 +65,7 @@ a measurement.
 
 See also [`save_measurements!`](@ref), [`observables`](@ref)
 """
-function save!(m::AbstractMeasurement, filename::String, entryname::String)
+function save(filename::String, m::AbstractMeasurement, entryname::String)
     jldopen(filename, "r+") do f
         write(f, entryname*"/type", typeof{m})
     end
@@ -330,7 +330,7 @@ be overwritten if it already exists. If `allow_rename = true` random characters
 will be added to the filename until it becomes unique.
 """
 function save_measurements!(
-        mc::MonteCarloFlavor, filename::String;
+        filename::String, mc::MonteCarloFlavor;
         force_overwrite = false, allow_rename = true
     )
     isfile(filename) && !force_overwrite && !allow_rename && throw(ErrorException(
@@ -351,7 +351,7 @@ function save_measurements!(
     for (k0, v0) in measurement_dict # :TH or :ME
         for (k1, meas) in v0 # Measurement name
             entryname = "Measurements/$k0/$k1"
-            save!(meas, filename, entryname)
+            save!(filename, meas, entryname)
         end
     end
 end
