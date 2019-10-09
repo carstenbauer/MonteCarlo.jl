@@ -52,3 +52,148 @@ end
     ] ≈ measured[:conf].obs |> mean                    atol=0.01
     @test last(measured[:conf].obs) == mc.conf
 end
+
+
+
+
+
+
+"""
+    stat_equal(
+        expected_value, actual_values, standard_errors;
+        min_error = 0.1^3, order=2, rtol = 0, debug=false
+    )
+
+Compare an `expected_value` (i.e. literature value, exact result, ...) to a set
+of `actual_values` and `standard_errors` (i.e. calculated from DQMC or MC).
+
+- `order = 2`: Sets the number of σ-intervals included. (This affects the
+accuracy of the comaprison and the number of matches required)
+- `min_error = 0.1^3`: Sets a lower bound for the standard error. (If one
+standard error falls below `min_error`, `min_error` is used instead. This
+happens before `order` is multiplied.)
+- `rtol = 0`: The relative tolerance passed to `isapprox`.
+- `debug = false`: If `debug = true` information on comparisons is always printed.
+"""
+function stat_equal(
+        expected_value, actual_values::Vector, standard_errors::Vector;
+        min_error = 0.001, order=2, debug=false, rtol=0.0
+    )
+
+    @assert order > 1
+    N_matches = floor(length(actual_values) * (1 - 1 / order^2))
+    if N_matches == 0
+        error("No matches required. Try increasing the sample size or σ-Interval")
+    elseif N_matches < 3
+        @warn "Only $N_matches out of $(length(actual_values)) are required!"
+    end
+
+    is_approx_equal = [
+        isapprox(expected_value, val, atol=order * max(min_error, err), rtol=rtol)
+        for (val, err) in zip(actual_values, standard_errors)
+    ]
+    does_match = sum(is_approx_equal) >= N_matches
+
+    if debug || !does_match
+        printstyled("────────────────────────────────\n", color = :light_magenta)
+        print("stat_equal returned ")
+        printstyled("$(does_match)\n\n", color = does_match ? :green : :red)
+        print("expected: $expected_value\n")
+        print("values:   [")
+        for i in eachindex(actual_values)
+            if i < length(actual_values)
+                printstyled("$(actual_values[i])", color = is_approx_equal[i] ? :green : :red)
+                print(", ")
+            else
+                printstyled("$(actual_values[i])", color = is_approx_equal[i] ? :green : :red)
+            end
+        end
+        print("]\n")
+        print("$(order)-σ:      [")
+        for i in eachindex(standard_errors)
+            if i < length(standard_errors)
+                printstyled("$(standard_errors[i])", color = is_approx_equal[i] ? :green : :red)
+                print(", ")
+            else
+                printstyled("$(standard_errors[i])", color = is_approx_equal[i] ? :green : :red)
+            end
+        end
+        print("]\n")
+        print("checks:   [")
+        for i in eachindex(standard_errors)
+            if i < length(standard_errors)
+                printstyled("$(is_approx_equal[i])", color = is_approx_equal[i] ? :green : :red)
+                print(", ")
+            else
+                printstyled("$(is_approx_equal[i])", color = is_approx_equal[i] ? :green : :red)
+            end
+        end
+        print("]\n")
+        printstyled("────────────────────────────────\n", color = :light_magenta)
+    end
+    does_match
+end
+
+
+
+@testset "DQMC: triangular Hubbard model vs dos Santos Paper" begin
+    # > Attractive Hubbard model on a triangular lattice
+    # dos Santos
+    # https://journals.aps.org/prb/abstract/10.1103/PhysRevB.48.3976
+    Random.seed!()
+    sample_size = 5
+
+    @time for (k, (mu, lit_oc, lit_pc,  beta, L)) in enumerate([
+            (-2.0, 0.12, 1.0,  5.0, 4),
+            (-1.2, 0.48, 1.50, 5.0, 4),
+            ( 0.0, 0.88, 0.95, 5.0, 4),
+            ( 1.2, 1.25, 1.55, 5.0, 4),
+            ( 2.0, 2.00, 0.0,  5.0, 4)
+
+            # (-2.0, 0.12, 1.0,  8.0, 4),
+            # (-1.2, 0.48, 1.82, 8.0, 4),
+            # ( 0.0, 0.88, 0.95, 8.0, 4),
+            # ( 1.2, 1.25, 1.65, 8.0, 4),
+            # ( 2.0, 2.00, 0.0,  8.0, 4),
+
+            # (-2.0, 0.40, 1.0,  5.0, 6),
+            # (-1.2, 0.40, 1.05, 5.0, 6),
+            # (0.01, 0.80, 1.75, 5.0, 6),
+            # ( 1.2, 1.40, 2.0,  5.0, 6),
+            # ( 2.0, 2.00, 0.0,  5.0, 6)
+        ])
+        @info "[$(k)/5] μ = $mu (literature check)"
+        m = HubbardModelAttractive(
+            dims=2, L=L, l = MonteCarlo.TriangularLattice(L),
+            t = 1.0, U = 4.0, mu = mu
+        )
+        OC_sample = []
+        OC_errors = []
+        PC_sample = []
+        PC_errors = []
+        for i in 1:sample_size
+            mc = DQMC(
+                m, beta=5.0, delta_tau=0.125, safe_mult=8,
+                thermalization=2000, sweeps=2000, measure_rate=1,
+                measurements = Dict{Symbol, MonteCarlo.AbstractMeasurement}()
+            )
+            push!(mc, :G => MonteCarlo.GreensMeasurement)
+            push!(mc, :PC => MonteCarlo.PairingCorrelationMeasurement)
+            run!(mc, verbose=false)
+            measured = measurements(mc)[:ME]
+
+            # mean(measured[:G]) = MC mean
+            # diag gets c_i c_i^† terms
+            # 2 (1 - mean(c_i c_i^†)) = 2 mean(c_i^† c_i) where 2 follows from 2 spins
+            occupation = 2 - 2(measured[:G].obs |> mean |> diag |> mean)
+            push!(OC_sample, occupation)
+            push!(OC_errors, 2(measured[:G].obs |> std_error |> diag |> mean))
+            push!(PC_sample, measured[:PC].uniform_fourier |> mean)
+            push!(PC_errors, measured[:PC].uniform_fourier |> std_error)
+        end
+        # min_error should compensate read-of errors & errors in the results
+        # dos Santos used rather few sweeps, which seems to affect PC peaks strongly
+        @test stat_equal(lit_oc, OC_sample, OC_errors, min_error=0.025)
+        @test stat_equal(lit_pc, PC_sample, PC_errors, min_error=0.05)
+    end
+end
