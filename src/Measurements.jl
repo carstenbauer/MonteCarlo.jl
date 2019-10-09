@@ -56,24 +56,22 @@ end
 
 Saves a measurement to a jld-file `filename` in group `entryname`.
 
-The default implementation uses `observables(measurement)` to find observables
-and saves them using
-`MonteCarloObservable.saveobs(obs, filename, entryname * "/" * obs.group)`.
-The `entryname` passed to this function is equivalent to the structure given by
-`measurements()`, e.g. `ME/config/` if `measurements(mc)[:ME][:config]` carries
-a measurement.
+The default implementation saves the full measurement object. This requires the
+default constructor to be available, i.e. construction by passing fields. The
+group `entryname` follows the structure given by `measurements()`, e.g.
+`ME/config` for a `ConfigurationMeasurement` with tag `:config` in the
+measurement phase.
 
-See also [`save_measurements!`](@ref), [`observables`](@ref)
+See also [`save_measurements!`](@ref), [`measurements`](@ref), [`load`](@ref)
 """
 function save(filename::String, m::AbstractMeasurement, entryname::String)
-    jldopen(filename, "r+") do f
-        write(f, entryname*"/type", typeof{m})
-    end
-    for (k, obs) in observables(m)
-        saveobs(obs, filename, entryname * "/" * obs.group)
+    mode = isfile(filename) ? "r+" : "w"
+    jldopen(filename, mode) do f
+        write(f, entryname, m)
     end
     nothing
 end
+
 
 
 ################################################################################
@@ -368,10 +366,18 @@ See also [`observables`](@ref)
 """
 function load_measurements(filename::String)
     input = load(filename)
-    output = Dict{Symbol, Dict{Symbol, Dict{String, AbstractObservable}}}()
-    for (k1, v1) in input["Measurements"]
+    load_measurements()
+    output
+end
+function load_measurements(data::Dict)
+    haskey(data, "Measurements") && load_measurements(data["Measurements"])
+    haskey(data, "ME") || @warn "No measurement stage found (key \"ME\" missing)"
+    haskey(data, "TH") || @warn "No thermalization stage found (key \"TH\" missing)"
+
+    output = Dict{Symbol, Dict{Symbol, AbstractMeasurement}}()
+    for (k1, v1) in data
         # k1 = TH or ME
-        push!(output, Symbol(k1) => Dict{Symbol, Dict{String, AbstractObservable}}())
+        push!(output, Symbol(k1) => Dict{Symbol, AbstractMeasurement}())
         for (k2, v2) in v1
             # k2 is the key for Measurement
             push!(output[Symbol(k1)], Symbol(k2) => v2)
