@@ -104,10 +104,10 @@ measurements can be reduced with `rate`. (e.g. `rate=10` means 1 measurement per
 struct ConfigurationMeasurement{OT <: Observable} <: AbstractMeasurement
     obs::OT
     rate::Int64
-    function ConfigurationMeasurement(mc, model, rate=1)
-        o = Observable(typeof(mc.conf), "Configurations")
-        new{typeof(o)}(o, rate)
-    end
+end
+function ConfigurationMeasurement(mc::MonteCarloFlavor, model::Model, rate=1)
+    o = Observable(typeof(mc.conf), "Configurations")
+    ConfigurationMeasurement{typeof(o)}(o, rate)
 end
 function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
     (i % m.rate == 0) && push!(m.obs, conf(mc))

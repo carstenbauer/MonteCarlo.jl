@@ -16,8 +16,9 @@ struct IsingEnergyMeasurement <: IsingMeasurement
     E2::Observable
     e::Observable
     C::Observable
-
-    IsingEnergyMeasurement(mc::MC, model::IsingModel) = new(
+end
+function IsingEnergyMeasurement(mc::MC, model::IsingModel)
+    IsingEnergyMeasurement(
         1.0 / model.l.sites,
         Observable(Float64, "Total energy"),
         Observable(Float64, "Total energy squared"),
@@ -57,8 +58,9 @@ struct IsingMagnetizationMeasurement <: IsingMeasurement
     M2::Observable
     m::Observable
     chi::Observable
-
-    IsingMagnetizationMeasurement(mc::MC, model::IsingModel) = new(
+end
+function IsingMagnetizationMeasurement(mc::MC, model::IsingModel)
+    IsingMagnetizationMeasurement(
         1.0 / model.l.sites,
         Observable(Float64, "Total magnetization"),
         Observable(Float64, "Total magnetization squared"),
