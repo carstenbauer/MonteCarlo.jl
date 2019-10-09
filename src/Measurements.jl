@@ -349,7 +349,7 @@ function save_measurements!(
     for (k0, v0) in measurement_dict # :TH or :ME
         for (k1, meas) in v0 # Measurement name
             entryname = "Measurements/$k0/$k1"
-            save!(filename, meas, entryname)
+            save(filename, meas, entryname)
         end
     end
 end
