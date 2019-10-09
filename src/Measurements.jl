@@ -66,6 +66,9 @@ a measurement.
 See also [`save_measurements!`](@ref), [`observables`](@ref)
 """
 function save!(m::AbstractMeasurement, filename::String, entryname::String)
+    jldopen(filename, "r+") do f
+        write(f, entryname*"/type", typeof{m})
+    end
     for (k, obs) in observables(m)
         saveobs(obs, filename, entryname * "/" * obs.group)
     end
