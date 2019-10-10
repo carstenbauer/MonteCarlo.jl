@@ -33,9 +33,6 @@ function save(filename, mc::MonteCarloFlavor; force_overwrite=false, allow_renam
     jldopen(filename, mode) do f
         write(f, "VERSION", 1)
     end
-    # save_lattice(filename, mc.model.l, "Lattice")
-    # save_model(filename, mc.model, "Model")
-    # save_measurements(filename, mc, "Measurements", force_overwrite=true, allow_rename=false)
     save_mc(filename, mc, "MC")
 end
 
@@ -72,7 +69,7 @@ end
 
 Loads a model from a given `data` dictionary produced by `JLD.load(filename)`.
 """
-function load_model(data, ::Type{T}) where {T <: Model}
+function load_model(data, ::DataType)
     @assert data["VERSION"] == 0
     data["data"]
 end

@@ -73,7 +73,8 @@ function save_measurement(filename::String, m::AbstractMeasurement, entryname::S
     end
     nothing
 end
-function load_measurement(data, ::Type{T}) where {T <: AbstractMeasurement}
+# implement load_measurement(data, ::Type{MyMeasurement})
+function load_measurement(data, ::DataType)
     @assert data["VERSION"] == 0
     data["data"]
 end
@@ -378,7 +379,19 @@ See also [`observables`](@ref)
 function load_measurements(filename::String)
     input = JLD.load(filename)
     if input["VERSION"] == 1
-        return load_measurements(input["MC"]["Measurements"])
+        if haskey(input, "MC") && haskey(input["MC"], "Measurements")
+            return load_measurements(input["MC"]["Measurements"])
+        elseif haskey(input, "ME") || haskey(input, "TH")
+            return load_measurements(input)
+        elseif haskey(input, "Measurements")
+            return load_measurements(input["Measurements"])
+        else
+            throw(Meta.ParseError(
+                "Failed to find measurements in $filename. You can use " *
+                "`JLD.load(\"$filename\")` to open the file and manually " *
+                "search for them."
+            ))
+        end
     else
         throw(Meta.ParseError(
             "Failed to find `MC/Measurements` in $filename."
