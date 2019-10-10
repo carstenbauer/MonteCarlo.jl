@@ -29,6 +29,7 @@ include("flavors/DQMC/DQMC.jl")
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
 
+include("FileIO.jl")
 include("../test/testfunctions.jl")
 
 export reset!

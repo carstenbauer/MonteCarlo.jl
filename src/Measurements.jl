@@ -52,7 +52,7 @@ end
 
 
 """
-    save(filename, measurement, entryname)
+    save_measurement(filename, measurement, entryname)
 
 Saves a measurement to a jld-file `filename` in group `entryname`.
 
@@ -64,12 +64,18 @@ measurement phase.
 
 See also [`save_measurements!`](@ref), [`measurements`](@ref), [`load`](@ref)
 """
-function save(filename::String, m::AbstractMeasurement, entryname::String)
+function save_measurement(filename::String, m::AbstractMeasurement, entryname::String)
     mode = isfile(filename) ? "r+" : "w"
     jldopen(filename, mode) do f
-        write(f, entryname, m)
+        write(f, entryname * "/VERSION", 0)
+        write(f, entryname * "/type", typeof(m))
+        write(f, entryname * "/data", m)
     end
     nothing
+end
+function load_measurement(data, ::Type{T}) where {T <: AbstractMeasurement}
+    @assert data["VERSION"] == 0
+    data["data"]
 end
 
 
@@ -327,8 +333,8 @@ If `force_overwrite = true` the file will
 be overwritten if it already exists. If `allow_rename = true` random characters
 will be added to the filename until it becomes unique.
 """
-function save_measurements!(
-        filename::String, mc::MonteCarloFlavor;
+function save_measurements(
+        filename::String, mc::MonteCarloFlavor, entryname::String="";
         force_overwrite = false, allow_rename = true
     )
     isfile(filename) && !force_overwrite && !allow_rename && throw(ErrorException(
@@ -345,11 +351,16 @@ function save_measurements!(
         end
     end
 
+    !isempty(entryname) && !endswith(entryname, "/") && (entryname *= "/")
+    mode = isfile(filename) ? "r+" : "w"
+    jldopen(filename, mode) do f
+        write(f, entryname * "VERSION", 1)
+    end
     measurement_dict = measurements(mc)
     for (k0, v0) in measurement_dict # :TH or :ME
         for (k1, meas) in v0 # Measurement name
-            entryname = "Measurements/$k0/$k1"
-            save(filename, meas, entryname)
+            _entryname = entryname * "$k0/$k1"
+            save_measurement(filename, meas, _entryname)
         end
     end
 end
@@ -365,23 +376,34 @@ Loads recorded measurements for a given `filename`. The output is formated like
 See also [`observables`](@ref)
 """
 function load_measurements(filename::String)
-    input = load(filename)
-    load_measurements()
-    output
+    input = JLD.load(filename)
+    if input["VERSION"] == 1
+        return load_measurements(input["MC"]["Measurements"])
+    else
+        throw(Meta.ParseError(
+            "Failed to find `MC/Measurements` in $filename."
+        ))
+    end
 end
 function load_measurements(data::Dict)
-    haskey(data, "Measurements") && load_measurements(data["Measurements"])
-    haskey(data, "ME") || @warn "No measurement stage found (key \"ME\" missing)"
-    haskey(data, "TH") || @warn "No thermalization stage found (key \"TH\" missing)"
+    @assert data["VERSION"] == 1
+    !haskey(data, "ME") && @warn "No measurement stage found (key \"ME\" missing)"
+    !haskey(data, "TH") && @warn "No thermalization stage found (key \"TH\" missing)"
 
-    output = Dict{Symbol, Dict{Symbol, AbstractMeasurement}}()
-    for (k1, v1) in data
-        # k1 = TH or ME
-        push!(output, Symbol(k1) => Dict{Symbol, AbstractMeasurement}())
-        for (k2, v2) in v1
-            # k2 is the key for Measurement
-            push!(output[Symbol(k1)], Symbol(k2) => v2)
-        end
-    end
-    output
+    Dict{Symbol, Dict{Symbol, AbstractMeasurement}}(
+        :TH => Dict{Symbol, AbstractMeasurement}(
+            if haskey(data, "TH")
+                [Symbol(k) => load_measurement(v, v["type"]) for (k, v) in data["TH"]]
+            else
+                []
+            end
+        ),
+        :ME => Dict{Symbol, AbstractMeasurement}(
+            if haskey(data, "ME")
+                [Symbol(k) => load_measurement(v, v["type"]) for (k, v) in data["ME"]]
+            else
+                []
+            end
+        )
+    )
 end

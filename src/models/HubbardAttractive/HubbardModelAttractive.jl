@@ -159,28 +159,3 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
 end
-
-
-"""
-    save_model(filename, model, entryname)
-
-Save (minimal) information necessary to reconstruct the given `model` in a
-jld-file `filename` under group `entryname`.
-
-By default the full model object is saved. When saving a simulation, the
-entryname defaults to `Model`.
-"""
-function save_model(filename::String, model::HubbardModelAttractive, entryname::String)
-    mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        write(f, entryname, model)
-    end
-    nothing
-end
-
-"""
-    load_model(data)
-
-Loads a model from a given `data` dictionary produced by `JLD.load(filename)`.
-"""
-load_model(data) = data["Model"]
