@@ -98,31 +98,3 @@ end
 @inline function _neighbors(::HasNeighborsTable, l::AbstractLattice, site_index::Integer)
     l.neighs[:, site_index]
 end
-
-
-"""
-    save_lattice(filename, lattice, entryname)
-
-Save (minimal) information necessary to reconstruct the given `lattice` in a
-jld-file `filename` under group `entryname`.
-
-By default the full lattice object is saved. When saving a simulation, the
-entryname defaults to `Lattice`.
-"""
-function save_lattice(filename::String, lattice::AbstractLattice, entryname::String)
-    mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        write(f, entryname, lattice)
-    end
-    nothing
-end
-
-"""
-    load_lattice(data)
-
-Loads a lattice from a given `data` dictionary produced by `JLD.load(filename)`.
-"""
-function load_lattice(data::Dict)
-    @assert haskey(data, "Lattice")
-    data["Lattice"]
-end
