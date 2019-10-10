@@ -270,7 +270,6 @@ function load_mc(data, ::Type{T}) where {T <: MC}
     measurements = load_measurements(data["Measurements"])
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
-    mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
     mc
 end
 

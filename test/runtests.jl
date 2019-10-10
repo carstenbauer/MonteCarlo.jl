@@ -28,4 +28,8 @@ using Random
     @testset "Exact Diagonalization" begin
         include("ED/ED_tests.jl")
     end
+
+    @testset "File IO" begin
+        include("FileIO.jl")
+    end
 end
