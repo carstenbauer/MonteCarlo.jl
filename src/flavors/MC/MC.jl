@@ -234,5 +234,46 @@ Performs a sweep of local moves.
     nothing
 end
 
+
+#     save_mc(filename, mc, entryname)
+#
+# Saves (minimal) information necessary to reconstruct a given `mc::MC` to a
+# JLD-file `filename` under group `entryname`.
+#
+# When saving a simulation the default `entryname` is `MC`
+function save_mc(filename::String, mc::MC, entryname::String="MC")
+    mode = isfile(filename) ? "r+" : "w"
+    jldopen(filename, mode) do f
+        write(f, entryname * "/VERSION", 0)
+        write(f, entryname * "/type", typeof(mc))
+        write(f, entryname * "/parameters", mc.p)
+        write(f, entryname * "/conf", mc.conf)
+    end
+    save_measurements(
+        filename, mc, entryname * "/Measurements",
+        force_overwrite=true, allow_rename=false
+    )
+    save_model(filename, mc.model, entryname * "/Model")
+    nothing
+end
+
+#     load_mc(data, ::Type{<: MC})
+#
+# Loads a MC from a given `data` dictionary produced by `JLD.load(filename)`.
+function load_mc(data, ::Type{T}) where {T <: MC}
+    @assert data["VERSION"] == 0
+    mc = data["type"]()
+    mc.p = data["parameters"]
+    mc.conf = data["conf"]
+    mc.model = load_model(data["Model"], data["Model"]["type"])
+
+    measurements = load_measurements(data["Measurements"])
+    mc.thermalization_measurements = measurements[:TH]
+    mc.measurements = measurements[:ME]
+    mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
+    mc
+end
+
+
 include("MC_mandatory.jl")
 include("MC_optional.jl")

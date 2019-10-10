@@ -337,8 +337,8 @@ end
 
 #     save_mc(filename, mc, entryname)
 #
-# Saves (minimal) information necessary to reconstruct a given MonteCarloFlavor
-# `mc` to a JLD-file `filename` under group `entryname`.
+# Saves (minimal) information necessary to reconstruct a given `mc::DQMC` to a
+# JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC`
 function save_mc(filename::String, mc::DQMC, entryname::String="MC")
@@ -360,8 +360,7 @@ end
 
 #     load_mc(data, ::Type{<: DQMC})
 #
-# Loads a MonteCarloFlavor from a given `data` dictionary produced by
-# `JLD.load(filename)`.
+# Loads a DQMC from a given `data` dictionary produced by `JLD.load(filename)`.
 function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     @assert data["VERSION"] == 1
 
