@@ -57,37 +57,6 @@ end
 load_mc(data) = load_mc(data["MC"], data["MC"]["type"])
 
 
-function save_mc(filename::String, mc::MC, entryname::String="MC")
-    mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        write(f, entryname * "/VERSION", 0)
-        write(f, entryname * "/type", typeof(mc))
-        write(f, entryname * "/parameters", mc.p)
-        write(f, entryname * "/conf", mc.conf)
-    end
-    save_measurements(
-        filename, mc, entryname * "/Measurements",
-        force_overwrite=true, allow_rename=false
-    )
-    save_model(filename, mc.model, entryname * "/Model")
-    nothing
-end
-function load_mc(data, ::Type{T}) where {T <: MC}
-    @assert data["VERSION"] == 0
-    mc = data["type"]()
-    mc.p = data["parameters"]
-    mc.conf = data["conf"]
-    mc.model = load_model(data["Model"], data["Model"]["type"])
-
-    measurements = load_measurements(data["Measurements"])
-    mc.thermalization_measurements = measurements[:TH]
-    mc.measurements = measurements[:ME]
-    mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
-    mc
-end
-
-
-
 
 #     save_model(filename, model, entryname)
 #
