@@ -335,14 +335,12 @@ function greens(mc::DQMC_CBTrue)
 end
 
 
-"""
-    save_mc(filename, mc, entryname)
-
-Saves (minimal) information necessary to reconstruct a given MonteCarloFlavor
-`mc` to a JLD-file `filename` under group `entryname`.
-
-When saving a simulation the default `entryname` is `MC`
-"""
+#     save_mc(filename, mc, entryname)
+#
+# Saves (minimal) information necessary to reconstruct a given MonteCarloFlavor
+# `mc` to a JLD-file `filename` under group `entryname`.
+#
+# When saving a simulation the default `entryname` is `MC`
 function save_mc(filename::String, mc::DQMC, entryname::String="MC")
     mode = isfile(filename) ? "r+" : "w"
     jldopen(filename, mode) do f
@@ -360,13 +358,10 @@ function save_mc(filename::String, mc::DQMC, entryname::String="MC")
     nothing
 end
 
-"""
-    load_mc(data[, T], model)
-
-Loads a MonteCarloFlavor from a given `data` dictionary produced by
-`JLD.load(filename)`. `T` is the concrete type of the MonteCarloFlavor, which
-is used for dispatch.
-"""
+#     load_mc(data, ::Type{<: DQMC})
+#
+# Loads a MonteCarloFlavor from a given `data` dictionary produced by
+# `JLD.load(filename)`.
 function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     @assert data["VERSION"] == 1
 
@@ -379,23 +374,6 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
     mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
-    mc
-end
-
-
-
-function resume!(data)
-    mc = load(data)
-    # init! mostly
-    init_hopping_matrices(mc, mc.model)
-    initialize_stack(mc)
-
-    mc.a = DQMCAnalysis()
-
-    # TODO
-    # - load sweeps
-    # - configure starting point for run!
-    # - save RNG state
     mc
 end
 
