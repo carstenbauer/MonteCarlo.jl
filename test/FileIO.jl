@@ -30,9 +30,11 @@
 end
 
 @testset "DQMC" begin
-    model = HubbardModelAttractive(dims=2, L=2, t = 1.7, U = 5.5)
-    mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117)
+    model = HubbardModelAttractive(dims=2, L=4, t = 1.7, U = 5.5)
+    mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
+    t = time()
     run!(mc, verbose=false)
+    t = time() - t
     MonteCarlo.save("testfile.jld", mc)
     x = MonteCarlo.load("testfile.jld")
 
@@ -75,4 +77,27 @@ end
         end
     end
     rm("testfile.jld")
+
+    # Test resume
+    model = HubbardModelAttractive(dims=2, L=2, t = 1.7, U = 5.5)
+    mc = DQMC(model, beta=1.0, thermalization=500, sweeps=1000, measure_rate=1)
+    t = time()
+    run!(mc, verbose=false)
+    t = time() - t
+    mc = DQMC(model, beta=1.0, thermalization=500, sweeps=1000, measure_rate=1)
+    # mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
+    state = run!(
+        mc, verbose=false,
+        safe_before = now() + Millisecond(round(Int, 980t)),
+        grace_period = Millisecond(0),
+        filename = "resumable_testfile.jld"
+    )
+    @test state == false
+    ts = deepcopy(timeseries(mc.measurements[:conf].obs))
+    @assert length(ts) > 1
+
+    mc, state = resume!("resumable_testfile.jld", verbose=false)
+    @test state == true
+    @test all(x in timeseries(mc.measurements[:conf].obs) for x in ts)
+    rm("resumable_testfile.jld")
 end
