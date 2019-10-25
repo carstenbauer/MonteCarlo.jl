@@ -395,6 +395,131 @@ function sweep_spatial(mc::DQMC)
 end
 
 """
+    replay(
+        mc::DQMC[;
+        configs::ConfigurationMeasurement = mc.measurements[:conf],
+        reset_measurements = true,
+        measure_rate = 1,
+        kwargs...]
+    )
+    replay(mc::DQMC, configs::AbstractArray[; kwargs...])
+
+Replays previously generated configurations and measures observables along the
+way.
+
+By default, the first method will search `mc` for a ConfigurationMeasurement,
+remove it from the active measurements and replay it. If
+`reset_measurements = true` it will also reset every active measurement before
+replaying configurations.
+The second method replays configurations directly, i.e. it does not modify any
+measurements beforehand.
+
+### Keyword Arguments (both):
+- `verbose = true`: If true, print progress messaged to stdout.
+- `safe_before::Date`: If this date is passed, `run!` will generate a resumable
+save file and exit
+- `grace_period = Minute(5)`: Buffer between the current time and `safe_before`.
+The time required to generate a save file should be included here.
+- `filename`: Name of the save file. The default is based on `safe_before`.
+- `start=1`: The first sweep in the simulation. This will be changed when using
+`resume!(save_file)`.
+"""
+function replay!(
+        mc::DQMC;
+        configs::ConfigurationMeasurement = let
+            for (k, v) in mc.measurements
+                v isa ConfigurationMeasurement && return v
+            end
+            throw(ArgumentError(
+                "Could not find a `ConfigurationMeasurement` in the given " *
+                "mc::DQMC. Try supplying it manually."
+            ))
+        end,
+        reset_measurements = true,
+        measure_rate = 1,
+        kwargs...
+    )
+    delete!(mc, ConfigurationMeasurement)
+    reset_measurements && for (k, v) in mc.measurements
+        mc.measurements[k] = typeof(v)(mc, mc.model)
+    end
+    mc.p.measure_rate = measure_rate
+    replay(mc, timeseries(configs.obs); kwargs...)
+end
+
+function replay!(
+        mc::DQMC,
+        configs::AbstractArray;
+        verbose::Bool = true,
+        safe_before::TimeType = now() + Year(100),
+        grace_period::TimePeriod = Minute(5),
+        filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        force_overwrite = false,
+        start = 1
+    )
+    # Check for measurements
+    !isempty(mc.thermalization_measurements) && @warn(
+        "There is no thermalization process in a replayed simulation."
+    )
+    !isempty(mc.measurements) && @warn(
+        "There are no measurements set up for this simulation!"
+    )
+
+    start_time = now()
+    max_sweep_duration = 0.0
+    verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
+
+    verbose && println("Preparing Green's function stack")
+    resume_init!(mc)
+    mc.conf = first(configs)
+    initialize_stack(mc) # redundant ?!
+    build_stack(mc)
+    propagate(mc)
+
+    _time = time()
+    verbose && println("\n\nReplaying measurement stage - ", length(configs))
+    prepare!(mc.measurements, mc, mc.model)
+    for i in 1:mc.p.measure_rate:length(configs)
+        mc.s.greens, mc.s.log_det = calculate_greens_and_logdet(mc, nslices(mc))
+        measure!(mc.measurements, mc, mc.model, i)
+
+        if mod(i, 10) == 0
+            sweep_dur = (time() - _time)/10
+            max_sweep_duration = max(max_sweep_duration, sweep_dur)
+            if verbose
+                println("\t", i)
+                @printf("\t\tsweep dur: %.3fs\n", sweep_dur)
+            end
+            flush(stdout)
+            _time = time()
+        end
+
+        if safe_before - now() < Millisecond(grace_period) +
+                Millisecond(round(Int, 2e3max_sweep_duration))
+
+            println("Early save initiated for sweep #$i.\n")
+            verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
+            verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
+            filename = save(filename, mc, force_overwrite = force_overwrite)
+            save_rng(filename)
+            jldopen(filename, "r+") do f
+                write(f, "last_sweep", i)
+            end
+            verbose && println("\nEarly save finished")
+
+            return false
+        end
+    end
+    finish!(mc.measurements, mc, mc.model)
+
+    end_time = now()
+    verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
+    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
+
+    return true
+end
+
+"""
     greens(mc::DQMC)
 
 Obtain the current equal-time Green's function.
