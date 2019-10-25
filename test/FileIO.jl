@@ -56,9 +56,8 @@ end
         for f in fieldnames(typeof(v))
             if getfield(v, f) isa LightObservable
                 # TODO
-                # implement == for LogBinner in BinningAnalysis
                 # implement == for LightObservable in MonteCarloObservable
-                @test true
+                @test getfield(v, f).B == getfield(x.measurements[k], f).B
             else
                 @test getfield(v, f) == getfield(x.measurements[k], f)
             end
@@ -68,9 +67,8 @@ end
         for f in fieldnames(typeof(v))
             if getfield(v, f) isa LightObservable
                 # TODO
-                # implement == for LogBinner in BinningAnalysis
                 # implement == for LightObservable in MonteCarloObservable
-                @test true
+                @test getfield(v, f).B == getfield(x.measurements[k], f).B
             else
                 @test getfield(v, f) == getfield(x.measurements[k], f)
             end
