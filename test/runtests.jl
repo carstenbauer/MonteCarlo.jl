@@ -1,6 +1,6 @@
 using MonteCarlo, MonteCarloObservable
 using Test
-using Random
+using LinearAlgebra, Random
 
 @testset "All Tests" begin
     @testset "Lattices" begin
