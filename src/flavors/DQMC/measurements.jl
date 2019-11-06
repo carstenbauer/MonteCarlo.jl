@@ -197,46 +197,6 @@ end
 
 
 
-"""
-    ChargeDensityCorrelationMeasurement(mc::DQMC, model)
-
-Measures the charge density correlation matrix `⟨nᵢnⱼ⟩`.
-"""
-struct ChargeDensityCorrelationMeasurement{
-        OT <: AbstractObservable
-    } <: AbstractMeasurement
-    obs::OT
-    temp::Matrix
-end
-function ChargeDensityCorrelationMeasurement(mc::DQMC, model)
-    N = nsites(model)
-    T = eltype(mc.s.greens)
-    obs = LightObservable(
-        LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
-        "Charge density wave correlations", "Observables.jld", "CDC"
-    )
-    ChargeDensityCorrelationMeasurement(obs, [zero(T) for _ in 1:N, __ in 1:N])
-end
-function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
-    # TODO
-    # implement spinflavors(model)
-    # then get N from size(model.l) / spinflavors(model) ?
-    N = nsites(model)
-    flv = model.flv
-    G = greens(mc, model)
-    IG = I - G
-    m.temp .= zero(eltype(m.temp))
-    for f1 in 0:flv-1, f2 in 0:flv-1
-        for i in 1:N, j in 1:N
-            m.temp[i, j] += IG[i + f1*N, i + f1*N] * IG[j + f2*N, j + f2*N] +
-                            IG[j + f2*N, i + f1*N] *  G[i + f1*N, j + f2*N]
-        end
-    end
-    push!(m.obs, m.temp)
-end
-
-
-
 ################################################################################
 ### Spin 1/2 Measurements
 ################################################################################
@@ -252,6 +212,53 @@ function prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model)
         "the given model has $(model.flv)."
     ))
 end
+
+
+
+"""
+    ChargeDensityCorrelationMeasurement(mc::DQMC, model)
+
+Measures the charge density correlation matrix `⟨nᵢnⱼ⟩`.
+"""
+struct ChargeDensityCorrelationMeasurement{
+        OT <: AbstractObservable
+    } <: SpinOneHalfMeasurement
+    obs::OT
+    temp::Matrix
+end
+function ChargeDensityCorrelationMeasurement(mc::DQMC, model)
+    N = nsites(model)
+    T = eltype(mc.s.greens)
+    obs = LightObservable(
+        LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
+        "Charge density wave correlations", "Observables.jld", "CDC"
+    )
+    ChargeDensityCorrelationMeasurement(obs, [zero(T) for _ in 1:N, __ in 1:N])
+end
+function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
+    N = nsites(model)
+    G = greens(mc, model)
+    IG = I - G
+    m.temp .= zero(eltype(m.temp))
+    for i in 1:N, j in 1:N
+        m.temp[i, j] += begin
+            # ⟨n↑n↑⟩
+            IG[i, i] * IG[j, j] +
+            IG[j, i] *  G[i, j] +
+            # ⟨n↑n↓⟩
+            IG[i, i] * IG[j + N, j + N] +
+            IG[j + N, i] *  G[i, j + N] +
+            # ⟨n↓n↑⟩
+            IG[i + N, i + N] * IG[j, j] +
+            IG[j, i + N] *  G[i + N, j] +
+            # ⟨n↓n↓⟩
+            IG[i + N, i + N] * IG[j + N, j + N] +
+            IG[j + N, i + N] *  G[i + N, j + N]
+        end
+    end
+    push!(m.obs, m.temp)
+end
+
 
 
 """
