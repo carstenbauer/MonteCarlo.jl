@@ -79,7 +79,7 @@ end
     @inbounds for nb in 1:size(m.neighs, 1)
         field += conf[m.neighs[nb, i]]
     end
-    delta_E = dot(new_spin - conf[i], field)
+    delta_E = -dot(new_spin - conf[i], field)
     return delta_E, new_spin
 end
 

@@ -26,6 +26,11 @@ struct HeisenbergEnergyMeasurement <: HeisenbergMeasurement
     )
 end
 
+function prepare!(m::HeisenbergEnergyMeasurement, mc::MC, model::HeisenbergModel)
+    model.energy = energy(mc, model, mc.conf)
+    nothing
+end
+
 function measure!(m::HeisenbergEnergyMeasurement, mc::MC, model::HeisenbergModel, i::Int64)
     push!(m.E, model.energy)
     push!(m.E2, model.energy^2)
