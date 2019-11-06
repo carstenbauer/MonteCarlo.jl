@@ -4,7 +4,7 @@ using Reexport
 @reexport using MonteCarloObservable
 import MonteCarloObservable.AbstractObservable
 using StableDQMC, LightXML, Parameters, Requires
-using JLD
+using JLD, StaticArrays
 
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
 
@@ -27,6 +27,7 @@ include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")
 
 include("models/Ising/IsingModel.jl")
+include("models/Heisenberg/HeisenbergModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
 
 include("../test/testfunctions.jl")
