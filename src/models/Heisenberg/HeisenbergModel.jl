@@ -47,7 +47,7 @@ Base.summary(model::HeisenbergModel) = "$(model.dims)D-Heisenberg model"
 # Base.show(io::IO, model::HeisenbergModel{LT}) where LT<:AbstractCubicLattice =
     # print(io, "$(model.dims)D-Heisenberg model, L=$(model.L) ($(model.l.sites) sites)")
 Base.show(io::IO, model::HeisenbergModel{LT}) where LT<:AbstractLattice =
-    print(io, "Heisenberg model on $(replace(string(LT), "MonteCarlo."=>"")), L=$(model.L) ($(model.l.sites) sites)")
+    print(io, "Heisenberg model on $(replace(string(LT), "MonteCarlo."=>"")), L=$(model.L) ($(length(model.l)) sites)")
 Base.show(io::IO, m::MIME"text/plain", model::HeisenbergModel) = print(io, model)
 
 
