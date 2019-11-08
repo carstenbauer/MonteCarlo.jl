@@ -561,20 +561,14 @@ end
 # JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC`
-function save_mc(filename::String, mc::DQMC, entryname::String="MC")
-    mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        write(f, entryname * "/VERSION", 1)
-        write(f, entryname * "/type", typeof(mc))
-        write(f, entryname * "/parameters", mc.p)
-        write(f, entryname * "/conf", mc.conf)
-        # write(f, entryname * "/RNG", Random.GLOBAL_RNG)
-    end
-    save_measurements(
-        filename, mc, entryname * "/Measurements",
-        force_overwrite=true, allow_rename=false
-    )
-    save_model(filename, mc.model, entryname * "/Model")
+function save_mc(file::JLD.JldFile, mc::DQMC, entryname::String="MC")
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(mc))
+    write(file, entryname * "/parameters", mc.p)
+    write(file, entryname * "/conf", mc.conf)
+    # write(f, entryname * "/RNG", Random.GLOBAL_RNG)
+    save_measurements(file, mc, entryname * "/Measurements",)
+    save_model(file, mc.model, entryname * "/Model")
     nothing
 end
 

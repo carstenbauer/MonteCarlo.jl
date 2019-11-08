@@ -38,10 +38,10 @@ function save(filename, mc::MonteCarloFlavor; force_overwrite=false, allow_renam
     end
 
     mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        write(f, "VERSION", 1)
-    end
-    save_mc(filename, mc, "MC")
+    file = jldopen(filename, mode)
+    write(file, "VERSION", 1)
+    save_mc(file, mc, "MC")
+    close(file)
     return filename
 end
 
@@ -68,7 +68,7 @@ See also: [`run!`](@ref)
 """
 function resume!(filename; kwargs...)
     data = JLD.load(filename)
-    
+
     @assert data["VERSION"] == 1
     @assert haskey(data, "last_sweep")
 
@@ -82,6 +82,13 @@ function resume!(filename; kwargs...)
 end
 
 
+function save_mc(filename::String, mc::MonteCarloFlavor, entryname::String="MC")
+    mode = isfile(filename) ? "r+" : "w"
+    file = jldopen(filename, mode)
+    save_mc(file, mc, entryname)
+    close(file)
+    nothing
+end
 load_mc(data) = load_mc(data["MC"], data["MC"]["type"])
 
 
@@ -95,11 +102,15 @@ load_mc(data) = load_mc(data["MC"], data["MC"]["type"])
 # entryname defaults to `MC/Model`.
 function save_model(filename::String, model, entryname::String)
     mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        write(f, entryname * "/VERSION", 0)
-        write(f, entryname * "/type", typeof(model))
-        write(f, entryname * "/data", model)
-    end
+    file = jldopen(filename, mode)
+    save_model(file, model, entryname)
+    close(file)
+    nothing
+end
+function save_model(file::JLD.JldFile, model, entryname::String)
+    write(file, entryname * "/VERSION", 0)
+    write(file, entryname * "/type", typeof(model))
+    write(file, entryname * "/data", model)
     nothing
 end
 
@@ -123,11 +134,15 @@ end
 # entryname defaults to `MC/Model/Lattice`.
 function save_lattice(filename::String, lattice::AbstractLattice, entryname::String)
     mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        write(f, entryname * "/VERSION", 0)
-        write(f, entryname * "/type", typeof(lattice))
-        write(f, entryname * "/data", lattice)
-    end
+    file = jldopen(filename, mode)
+    save_lattice(file, lattice, entryname)
+    close(file)
+    nothing
+end
+function save_lattice(file::JLD.JldFile, lattice::AbstractLattice, entryname::String)
+    write(file, entryname * "/VERSION", 0)
+    write(file, entryname * "/type", typeof(lattice))
+    write(file, entryname * "/data", lattice)
     nothing
 end
 
@@ -151,19 +166,25 @@ function save_rng(
         rng::MersenneTwister = Random.GLOBAL_RNG,
         entryname::String="RNG"
     )
-
     mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        try
-            write(f, entryname * "/idxF", rng.idxF)
-            write(f, entryname * "/idxI", rng.idxI)
-            write(f, entryname * "/state_val", rng.state.val)
-            write(f, entryname * "/vals", rng.vals)
-            write(f, entryname * "/seed", rng.seed)
-            write(f, entryname * "/ints", Int.(rng.ints))
-        catch e
-            error("Error while saving RNG state: ", e)
-        end
+    file = jldopen(filename, mode)
+    save_rng(file, rng=rng, entryname=entryname)
+    close(file)
+end
+function save_rng(
+        file::JLD.JldFile;
+        rng::MersenneTwister = Random.GLOBAL_RNG,
+        entryname::String="RNG"
+    )
+    try
+        write(file, entryname * "/idxF", rng.idxF)
+        write(file, entryname * "/idxI", rng.idxI)
+        write(file, entryname * "/state_val", rng.state.val)
+        write(file, entryname * "/vals", rng.vals)
+        write(file, entryname * "/seed", rng.seed)
+        write(file, entryname * "/ints", Int.(rng.ints))
+    catch e
+        error("Error while saving RNG state: ", e)
     end
 end
 

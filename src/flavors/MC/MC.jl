@@ -241,19 +241,13 @@ end
 # JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC`
-function save_mc(filename::String, mc::MC, entryname::String="MC")
-    mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        write(f, entryname * "/VERSION", 0)
-        write(f, entryname * "/type", typeof(mc))
-        write(f, entryname * "/parameters", mc.p)
-        write(f, entryname * "/conf", mc.conf)
-    end
-    save_measurements(
-        filename, mc, entryname * "/Measurements",
-        force_overwrite=true, allow_rename=false
-    )
-    save_model(filename, mc.model, entryname * "/Model")
+function save_mc(file::JLD.JldFile, mc::MC, entryname::String="MC")
+    write(file, entryname * "/VERSION", 0)
+    write(file, entryname * "/type", typeof(mc))
+    write(file, entryname * "/parameters", mc.p)
+    write(file, entryname * "/conf", mc.conf)
+    save_measurements(file, mc, entryname * "/Measurements")
+    save_model(file, mc.model, entryname * "/Model")
     nothing
 end
 

@@ -64,14 +64,11 @@ measurement phase.
 
 See also [`save_measurements`](@ref), [`measurements`](@ref), [`load_measurements`](@ref)
 """
-function save_measurement(filename::String, m::AbstractMeasurement, entryname::String)
-    mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        # NOTE: `VERSION` and `type` are necessary
-        write(f, entryname * "/VERSION", 0)
-        write(f, entryname * "/type", typeof(m))
-        write(f, entryname * "/data", m)
-    end
+function save_measurement(file::JLD.JldFile, m::AbstractMeasurement, entryname::String)
+    # NOTE: `VERSION` and `type` are necessary
+    write(file, entryname * "/VERSION", 0)
+    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/data", m)
     nothing
 end
 
@@ -362,16 +359,20 @@ function save_measurements(
         end
     end
 
-    !isempty(entryname) && !endswith(entryname, "/") && (entryname *= "/")
     mode = isfile(filename) ? "r+" : "w"
-    jldopen(filename, mode) do f
-        write(f, entryname * "VERSION", 1)
-    end
+    file = jldopen(filename, mode)
+    save_measurements(file, mc, entryname)
+    close(file)
+    filename
+end
+function save_measurements(file::JLD.JldFile, mc::MonteCarloFlavor, entryname::String="")
+    !isempty(entryname) && !endswith(entryname, "/") && (entryname *= "/")
+    write(file, entryname * "VERSION", 1)
     measurement_dict = measurements(mc)
     for (k0, v0) in measurement_dict # :TH or :ME
         for (k1, meas) in v0 # Measurement name
             _entryname = entryname * "$k0/$k1"
-            save_measurement(filename, meas, _entryname)
+            save_measurement(file, meas, _entryname)
         end
     end
 end
