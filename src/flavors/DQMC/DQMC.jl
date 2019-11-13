@@ -26,11 +26,7 @@ Parameters of determinant quantum Monte Carlo (DQMC)
 
     delta_tau::Float64 = 0.1
     beta::Float64
-    slices::Int = beta / delta_tau
-    @assert isinteger(beta / delta_tau) string("beta/delta_tau", "
-        (= number of imaginary time slices) must be an integer but is",
-        beta / delta_tau, ".")
-
+    slices::Int = round(beta / delta_tau)
     measure_rate::Int = 10
 end
 
