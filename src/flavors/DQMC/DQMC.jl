@@ -37,7 +37,7 @@ function DQMCParameters(;global_moves::Bool = false,
                         measure_rate::Int   = 10,
                         kwargs...)
     nt = (;kwargs...)
-    keys(nt) == (:beta) && nt = (;beta=nt.beta, delta_tau=0.1)
+    keys(nt) == (:beta) && (nt = (;beta=nt.beta, delta_tau=0.1))
     @assert length(nt) == 2 "Invalid keyword arguments to DQMCParameters."
     if     (Set ∘ keys)(nt) == Set([:beta, :slices])
         beta, slices = nt.beta, nt.slices
