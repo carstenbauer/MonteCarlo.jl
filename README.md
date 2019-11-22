@@ -1,8 +1,7 @@
 ![logo](https://github.com/crstnbr/MonteCarlo.jl/blob/master/docs/src/assets/logo.png)
 
 [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://crstnbr.github.io/MonteCarlo.jl/latest)
-[![travis][travis-img]](https://travis-ci.org/crstnbr/MonteCarlo.jl)
-[![appveyor][appveyor-img]](https://ci.appveyor.com/project/crstnbr/montecarlo-jl/branch/master)
+[![github-ci](https://github.com/crstnbr/MonteCarlo.jl/workflows/Run%20tests/badge.svg)](https://github.com/crstnbr/MonteCarlo.jl/actions?query=workflow%3A%22Run+tests%22)
 [![codecov][codecov-img]](http://codecov.io/github/crstnbr/MonteCarlo.jl?branch=master)
 ![](https://img.shields.io/badge/lifecycle-experimental-orange.svg)
 
