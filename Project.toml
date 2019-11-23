@@ -19,6 +19,13 @@ SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 StableDQMC = "0827807b-44c9-51d0-af97-efe667fe6b2a"
 
 [compat]
+JLD = "0.9"
+LightXML = "0.8"
+MonteCarloObservable = "0.3"
+Parameters = "0.12"
+Reexport = "0.2"
+Requires = "0.5"
+StableDQMC = "0.1"
 julia = "1"
 
 [extras]
