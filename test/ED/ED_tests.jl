@@ -1,3 +1,4 @@
+using Random
 include("ED.jl")
 
 @testset "ED checks" begin
@@ -80,6 +81,7 @@ end
     )
 
     @info "Running DQMC β=1.0, 10k + 20k sweeps, ≈1min"
+    Random.seed!(123)
     dqmc = DQMC(model, beta=1.0)
     run!(dqmc, thermalization = 10_000, sweeps = 20_000, verbose=false)
     G_DQMC = mean(dqmc.measurements[:Greens].obs)
