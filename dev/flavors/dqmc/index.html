@@ -660,7 +660,7 @@
 
 <p>Generic checkerboard construction.</p>
 <p>The methods returns     * <code>checkerboard::Matrix{Int}</code>: size <code>(3, n_bonds)</code> where                 rows = <code>source site</code>, <code>target site</code>, <code>bondid</code> and cols                     correspond to bonds. Sorted (along columns) in such a way                     that <code>checkerboard[3, groups[i]]</code> are all the bond indices                     corresponding to the i-th group.     * <code>groups::Vector{UnitRange}</code>: ranges indicating which columns of <code>checkerboard</code>                     belong to which checkerboard group.     * <code>n_groups::Int</code>: number of checkerboard groups.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/fc15153b04cefc1121c43e8ffcfcb9af7e44609b/src/flavors/DQMC/abstract.jl#L8-L22' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/20f92b47b9df91770c392fe894a704d09dc1a71c/src/flavors/DQMC/abstract.jl#L8-L22' class='documenter-source'>source</a><br></p>
 <p><a id='Effective-slice-matrices-and-Green's-function-1'></a></p>
 <h3 id="effective-slice-matrices-and-greens-function">Effective slice matrices and Green's function</h3>
 <p>Combining the symmetric Suzuki-Trotter and checkerboard decomposition we can write (assuming two checkerboard groups <span><span class="MathJax_Preview">a</span><script type="math/tex">a</script></span> and <span><span class="MathJax_Preview">b</span><script type="math/tex">b</script></span>)</p>
@@ -698,7 +698,7 @@ B_l^{\text{eff}} = e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a} e^{-\Delta\tau T_b/
 
 <p>Obtain the current equal-time Green's function.</p>
 <p>Internally, <code>mc.s.greens</code> is an effective Green's function. This method transforms this effective one to the actual Green's function by multiplying hopping matrix exponentials from left and right.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/fc15153b04cefc1121c43e8ffcfcb9af7e44609b/src/flavors/DQMC/DQMC.jl#L335-L343' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/20f92b47b9df91770c392fe894a704d09dc1a71c/src/flavors/DQMC/DQMC.jl#L335-L343' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.run!-Tuple{DQMC}' href='#MonteCarlo.run!-Tuple{DQMC}'>#</a>
 <strong><code>MonteCarlo.run!</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="n">run!</span><span class="p">(</span><span class="n">mc</span><span class="o">::</span><span class="n">DQMC</span><span class="p">[;</span> <span class="n">verbose</span><span class="o">::</span><span class="kt">Bool</span><span class="o">=</span><span class="kc">true</span><span class="p">,</span> <span class="n">sweeps</span><span class="o">::</span><span class="kt">Int</span><span class="p">,</span> <span class="n">thermalization</span><span class="o">::</span><span class="kt">Int</span><span class="p">])</span>
@@ -706,11 +706,11 @@ B_l^{\text{eff}} = e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a} e^{-\Delta\tau T_b/
 
 
 <p>Runs the given Monte Carlo simulation <code>mc</code>. Progress will be printed to <code>stdout</code> if <code>verbose=true</code> (default).</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/fc15153b04cefc1121c43e8ffcfcb9af7e44609b/src/flavors/DQMC/DQMC.jl#L197-L202' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/20f92b47b9df91770c392fe894a704d09dc1a71c/src/flavors/DQMC/DQMC.jl#L197-L202' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.DQMC' href='#MonteCarlo.DQMC'>#</a>
 <strong><code>MonteCarlo.DQMC</code></strong> &mdash; <em>Type</em>.</p>
 <p>Determinant quantum Monte Carlo (DQMC) simulation</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/fc15153b04cefc1121c43e8ffcfcb9af7e44609b/src/flavors/DQMC/DQMC.jl#L70-L72' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/20f92b47b9df91770c392fe894a704d09dc1a71c/src/flavors/DQMC/DQMC.jl#L70-L72' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.DQMC-Union{Tuple{M}, Tuple{M}} where M<:MonteCarlo.Model' href='#MonteCarlo.DQMC-Union{Tuple{M}, Tuple{M}} where M<:MonteCarlo.Model'>#</a>
 <strong><code>MonteCarlo.DQMC</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="n">DQMC</span><span class="p">(</span><span class="n">m</span><span class="o">::</span><span class="n">M</span><span class="p">;</span> <span class="n">kwargs</span><span class="o">...</span><span class="p">)</span> <span class="n">where</span> <span class="n">M</span><span class="o">&lt;:</span><span class="n">Model</span>
@@ -718,7 +718,7 @@ B_l^{\text{eff}} = e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a} e^{-\Delta\tau T_b/
 
 
 <p>Create a determinant quantum Monte Carlo simulation for model <code>m</code> with keyword parameters <code>kwargs</code>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/fc15153b04cefc1121c43e8ffcfcb9af7e44609b/src/flavors/DQMC/DQMC.jl#L91-L96' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/20f92b47b9df91770c392fe894a704d09dc1a71c/src/flavors/DQMC/DQMC.jl#L91-L96' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.DQMC-Union{Tuple{T}, Tuple{MonteCarlo.Model,Dict{Symbol,T}}} where T' href='#MonteCarlo.DQMC-Union{Tuple{T}, Tuple{MonteCarlo.Model,Dict{Symbol,T}}} where T'>#</a>
 <strong><code>MonteCarlo.DQMC</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="n">DQMC</span><span class="p">(</span><span class="n">m</span><span class="o">::</span><span class="n">M</span><span class="p">,</span> <span class="n">params</span><span class="o">::</span><span class="kt">Dict</span><span class="p">)</span>
@@ -727,7 +727,7 @@ B_l^{\text{eff}} = e^{-\Delta\tau T_b/2} e^{-\Delta\tau T_a} e^{-\Delta\tau T_b/
 
 
 <p>Create a determinant quantum Monte Carlo simulation for model <code>m</code> with (keyword) parameters as specified in the dictionary/named tuple <code>params</code>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/fc15153b04cefc1121c43e8ffcfcb9af7e44609b/src/flavors/DQMC/DQMC.jl#L126-L132' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/20f92b47b9df91770c392fe894a704d09dc1a71c/src/flavors/DQMC/DQMC.jl#L126-L132' class='documenter-source'>source</a><br></p>
 <p><a id='Potential-extensions-1'></a></p>
 <h2 id="potential-extensions">Potential extensions</h2>
 <p>Pull requests are very much welcome!</p>
