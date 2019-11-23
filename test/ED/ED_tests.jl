@@ -92,7 +92,7 @@ end
 
     # G_DQMC is smaller because it doesn't differentiate between spin up/down
     for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
-        @test isapprox(G_DQMC[i, j], G_ED[i, j], atol=0.025, rtol=0.1)
+        @test isapprox(G_DQMC[i, j], G_ED[i, j], atol=dqmc.p.delta_tau^2)
         # @test isapprox(G_DQMC[i, j], G_ED[i, j])
     end
 end
