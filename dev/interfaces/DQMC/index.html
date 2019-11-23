@@ -604,7 +604,7 @@
 <p>Calculates the hopping matrix <span><span class="MathJax_Preview">T_{i\sigma, j\sigma '}</span><script type="math/tex">T_{i\sigma, j\sigma '}</script></span> where <span><span class="MathJax_Preview">i, j</span><script type="math/tex">i, j</script></span> are site indices and <span><span class="MathJax_Preview">\sigma , \sigma '</span><script type="math/tex">\sigma , \sigma '</script></span> are flavor indices (e.g. spin indices). The hopping matrix should also contain potential chemical potential terms on the diagonal.</p>
 <p>A matrix element is the hopping amplitude for a hopping process: <span><span class="MathJax_Preview">j,\sigma ' \rightarrow i,\sigma</span><script type="math/tex">j,\sigma ' \rightarrow i,\sigma</script></span>.</p>
 <p>Regarding the order of indices, if <code>T[i, σ, j, σ']</code> is your desired 4D hopping array, then <code>reshape(T, (n_sites * n_flavors, :))</code> is the hopping matrix.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7844db55ebe3d47c544422f94c6e36ae70058ec8/src/flavors/DQMC/DQMC_mandatory.jl#L9-L20' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/d0abc8e3cec56399fcedcf9643476aae9dea565d/src/flavors/DQMC/DQMC_mandatory.jl#L9-L20' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.interaction_matrix_exp!' href='#MonteCarlo.interaction_matrix_exp!'>#</a>
 <strong><code>MonteCarlo.interaction_matrix_exp!</code></strong> &mdash; <em>Function</em>.</p>
 <div class="codehilite"><pre><span></span><span class="n">interaction_matrix_exp!</span><span class="p">(</span><span class="n">mc</span><span class="o">::</span><span class="n">DQMC</span><span class="p">,</span> <span class="n">m</span><span class="o">::</span><span class="n">Model</span><span class="p">,</span> <span class="n">result</span><span class="o">::</span><span class="kt">Matrix</span><span class="p">,</span> <span class="n">conf</span><span class="p">,</span> <span class="n">slice</span><span class="o">::</span><span class="kt">Int</span><span class="p">,</span> <span class="n">power</span><span class="o">::</span><span class="kt">Float64</span><span class="o">=</span><span class="mf">1.</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">nothing</span>
@@ -613,7 +613,7 @@
 
 <p>Calculate the interaction matrix exponential <code>expV = exp(- power * delta_tau * V(slice))</code> and store it in <code>result::Matrix</code>. Potential chemical potential terms should be part of the <code>hopping_matrix</code> and not the interaction.</p>
 <p>This is a performance critical method and one might consider efficient in-place (in <code>result</code>) construction.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7844db55ebe3d47c544422f94c6e36ae70058ec8/src/flavors/DQMC/DQMC_mandatory.jl#L24-L32' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/d0abc8e3cec56399fcedcf9643476aae9dea565d/src/flavors/DQMC/DQMC_mandatory.jl#L24-L32' class='documenter-source'>source</a><br></p>
 <div class="admonition warning">
 <p class="admonition-title">Missing docstring.</p>
 <p>Missing docstring for <code>propose_local(mc::DQMC, m::Model, i::Int, conf, E_boson::Float64)</code>. Check Documenter's build log for details.</p>
@@ -626,7 +626,7 @@
 
 <p>Accept a local move for site <code>i</code> at imaginary time slice <code>slice</code> of current configuration <code>conf</code>. Arguments <code>Δ</code>, <code>detratio</code> and <code>ΔE_boson</code> correspond to output of <code>propose_local</code> for that local move.</p>
 <p>See also <a href="@ref"><code>propose_local</code></a>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7844db55ebe3d47c544422f94c6e36ae70058ec8/src/flavors/DQMC/DQMC_mandatory.jl#L48-L55' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/d0abc8e3cec56399fcedcf9643476aae9dea565d/src/flavors/DQMC/DQMC_mandatory.jl#L48-L55' class='documenter-source'>source</a><br></p>
 <p><a id='Optional-methods-1'></a></p>
 <h2 id="optional-methods">Optional methods</h2>
 <p><a id='MonteCarlo.greenseltype-Tuple{Type{DQMC},MonteCarlo.Model}' href='#MonteCarlo.greenseltype-Tuple{Type{DQMC},MonteCarlo.Model}'>#</a>
@@ -636,7 +636,7 @@
 
 
 <p>Returns the type of the elements of the Green's function matrix. Defaults to <code>ComplexF64</code>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7844db55ebe3d47c544422f94c6e36ae70058ec8/src/flavors/DQMC/DQMC_optional.jl#L1-L5' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/d0abc8e3cec56399fcedcf9643476aae9dea565d/src/flavors/DQMC/DQMC_optional.jl#L1-L5' class='documenter-source'>source</a><br></p>
 <p><a id='MonteCarlo.energy_boson-Tuple{DQMC,MonteCarlo.Model,Any}' href='#MonteCarlo.energy_boson-Tuple{DQMC,MonteCarlo.Model,Any}'>#</a>
 <strong><code>MonteCarlo.energy_boson</code></strong> &mdash; <em>Method</em>.</p>
 <div class="codehilite"><pre><span></span><span class="n">energy</span><span class="p">(</span><span class="n">mc</span><span class="o">::</span><span class="n">DQMC</span><span class="p">,</span> <span class="n">m</span><span class="o">::</span><span class="n">Model</span><span class="p">,</span> <span class="n">conf</span><span class="p">)</span>
@@ -644,7 +644,7 @@
 
 
 <p>Calculate bosonic part (non-Green's function determinant part) of energy for configuration <code>conf</code> for Model <code>m</code>.</p>
-<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/7844db55ebe3d47c544422f94c6e36ae70058ec8/src/flavors/DQMC/DQMC_optional.jl#L15-L19' class='documenter-source'>source</a><br></p>
+<p><a target='_blank' href='https://github.com/crstnbr/MonteCarlo.jl/blob/d0abc8e3cec56399fcedcf9643476aae9dea565d/src/flavors/DQMC/DQMC_optional.jl#L15-L19' class='documenter-source'>source</a><br></p>
 <div class="admonition warning">
 <p class="admonition-title">Missing docstring.</p>
 <p>Missing docstring for <code>prepare_observables(mc::DQMC, m::Model)</code>. Check Documenter's build log for details.</p>
