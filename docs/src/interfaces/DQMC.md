@@ -6,7 +6,7 @@ Example models: [Attractive Hubbard Model](@ref)
 
 ## Mandatory fields
 
- * `l::Lattice`: any [`Lattice`](@ref Lattices)
+ * `l::AbstractLattice`: any [`AbstractLattice`](@ref Lattices)
  * `flv::Int`: number of distinct fermion flavors (e.g. spins, bands, etc.). The Green's function will have shape `(flv*N, flv*N)`, where `N` is the number of sites. Note that different fermion flavors are often related by symmetry and it's advisable to use this symmetry to work with smaller Green's function matrices. Have a look at the [Attractive Hubbard Model](@ref) as an example where `flv=1` although it has spinful fermions.
 
 ## Index of all methods
@@ -66,8 +66,3 @@ measure_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable}, conf)
 ```@docs
 finish_observables!(mc::DQMC, m::Model, obs::Dict{String,Observable})
 ```
-
-
-
-
-

@@ -11,9 +11,9 @@ function LatPhysLattice(lattice::LatPhysBase.AbstractLattice)
     neighs = Matrix{Int}(undef, bonds_per_site, LatPhysBase.numSites(lattice))
     for site_idx in 1:LatPhysBase.numSites(lattice)
         for bond_idx in 1:bonds_per_site
-            neighs[bond_idx, site_idx] = bs[
-                bonds_per_site * (site_idx - 1) + bond_idx
-            ]
+            bond = bs[bonds_per_site * (site_idx - 1) + bond_idx]
+            @assert from(bond) == site_idx
+            neighs[bond_idx, site_idx] = to(bond)
         end
     end
 

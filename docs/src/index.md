@@ -4,6 +4,10 @@
 
 **MonteCarlo.jl** is a Julia software library for the simulation of physical models by means of the Markov Chain Monte Carlo technique. The package implements classical and quantum Monte Carlo flavors which can be used to study spin systems, interacting fermions, and boson-fermion mixtures.
 
+!!! warning
+
+    The documentation is out-of-date!
+
 ### Included models:
 
 * Ising model
@@ -19,7 +23,7 @@
 * Cubic lattices (chain, square, cube, ...)
 * Any ALPS lattice
 
-Have a look at the [Showcase](@ref) section to get some inspiration. 
+Have a look at the [Showcase](@ref) section to get some inspiration.
 
 ## Study your own model
 
@@ -32,4 +36,3 @@ If you implement a custom model that might be worth being added to the collectio
 ## GitHub
 
 **MonteCarlo.jl** is [open-source](https://en.wikipedia.org/wiki/Open-source_software). The source code can be found on [github](https://github.com/crstnbr/MonteCarlo.jl). Criticism and contributions are very much welcome - just [open an issue](https://github.com/crstnbr/MonteCarlo.jl/issues/new). For more details see the [Contribution Guide](Contribution Guide).
-

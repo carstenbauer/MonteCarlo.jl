@@ -1,3 +1,4 @@
+using Random
 include("ED.jl")
 
 @testset "ED checks" begin
@@ -80,7 +81,8 @@ end
     )
 
     @info "Running DQMC β=1.0, 10k + 20k sweeps, ≈1min"
-    dqmc = DQMC(model, beta=1.0, delta_tau = 0.025, measurements = Dict{Symbol, AbstractMeasurement}())
+    Random.seed!(123)
+    dqmc = DQMC(model, beta=1.0, delta_tau = 0.1, measurements = Dict{Symbol, AbstractMeasurement}())
     push!(dqmc, :Greens => MonteCarlo.GreensMeasurement)
     push!(dqmc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement)
     push!(dqmc, :Magn => MonteCarlo.MagnetizationMeasurement)
@@ -91,8 +93,9 @@ end
     @info "Running ED"
     H = HamiltonMatrix(model)
 
-    atol = 0.025
-    rtol = 0.1
+    # Absolute tolerance from Trotter decompositon
+    atol = dqmc.p.delta_tau^2
+    rtol = 0.01
 
     # G_DQMC is smaller because it doesn't differentiate between spin up/down
     @testset "Greens" begin

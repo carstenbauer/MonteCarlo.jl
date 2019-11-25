@@ -18,7 +18,7 @@ For lattice models, we define a Model to be a Hamiltonian on a lattice. Therefor
 
 ### Lattice requirements
 
-The Hamiltonian of your model might impose some requirements on the `Lattice` object that you use as it must provide you with enough lattice information.
+The Hamiltonian of your model might impose some requirements on the `AbstractLattice` object that you use as it must provide you with enough lattice information.
 
 It might be educating to look at the structure of the simple `SquareLattice` struct.
 
@@ -33,15 +33,15 @@ mutable struct SquareLattice <: AbstractCubicLattice
 end
 ```
 
-It only provides access to next nearest neighbors through the arrays `neighs` and `neighs_cartesian`. If your model's Hamiltonian requires higher order neighbor information, because of, let's say, a next next nearest neighbor hopping term, the `SquareLattice` doesn't suffice. You could either extend this Lattice or implement a `NNSquareLattice` for example.
+It only provides access to next nearest neighbors through the arrays `neighs` and `neighs_cartesian`. If your model's Hamiltonian requires higher order neighbor information, because of, let's say, a next next nearest neighbor hopping term, the `SquareLattice` doesn't suffice. You could either extend this lattice or implement a `NNSquareLattice` for example.
 
 ## Custom lattices
 
-As described in [Custom models](@ref) a lattice is considered to be part of a model. Hence, most of the requirements for fields of a `Lattice` subtype come from potential models (see [Lattice requirements](@ref)). Below you'll find information on which fields are mandatory from a Monte Carlo flavor point of view.
+As described in [Custom models](@ref) a lattice is considered to be part of a model. Hence, most of the requirements for fields of a `AbstractLattice` subtype come from potential models (see [Lattice requirements](@ref)). Below you'll find information on which fields are mandatory from a Monte Carlo flavor point of view.
 
 ### Mandatory fields
 
-Any concrete lattice type, let's call it `MyLattice` in the following, must be a subtype of the abstract type `MonteCarlo.Lattice`. To work with a Monte Carlo flavor, it **must** internally have at least have the following field,
+Any concrete lattice type, let's call it `MyLattice` in the following, must be a subtype of the abstract type `MonteCarlo.AbstractLattice`. To work with a Monte Carlo flavor, it **must** internally have at least have the following field,
 
  * `sites`: number of lattice sites.
 
