@@ -159,3 +159,43 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
 end
+
+
+function save_model(
+        file::JLD.JldFile,
+        m::HubbardModelAttractive,
+        entryname::String="Model"
+    )
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+
+    write(file, entryname * "/dims", m.dims)
+    write(file, entryname * "/L", m.L)
+    write(file, entryname * "/mu", m.mu)
+    write(file, entryname * "/U", m.U)
+    write(file, entryname * "/t", m.t)
+    write(file, entryname * "/l", m.l) # TODO: change to save_lattice
+    write(file, entryname * "/flv", m.flv)
+
+    nothing
+end
+
+#     load_parameters(data, ::Type{<: DQMCParameters})
+#
+# Loads a DQMCParameters object from a given `data` dictionary produced by
+# `JLD.load(filename)`.
+function load_model(data::Dict, ::Type{T}) where T <: HubbardModelAttractive
+    @assert data["VERSION"] == 1
+
+    l = data["l"]
+    data["type"](
+        dims = data["dims"],
+        L = data["L"],
+        mu = data["mu"],
+        U = data["U"],
+        t = data["t"],
+        l = l,
+        neighs = neighbors_lookup_table(l),
+        flv = data["flv"]
+    )
+end

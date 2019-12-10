@@ -2,6 +2,14 @@ using MonteCarlo, MonteCarloObservable
 using Test
 using Random, Dates
 
+# In case some test failed and left behind a .jld file
+for f in readdir()
+    if endswith(f, ".jld")
+        @warn "Removing $f"
+        rm(f)
+    end
+end
+
 @testset "All Tests" begin
     @testset "Lattices" begin
         include("lattices.jl")

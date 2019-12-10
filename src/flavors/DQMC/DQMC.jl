@@ -564,7 +564,7 @@ end
 function save_mc(file::JLD.JldFile, mc::DQMC, entryname::String="MC")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(mc))
-    write(file, entryname * "/parameters", mc.p)
+    save_parameters(file, mc.p, entryname * "/Parameters")
     write(file, entryname * "/conf", mc.conf)
     # write(f, entryname * "/RNG", Random.GLOBAL_RNG)
     save_measurements(file, mc, entryname * "/Measurements",)
@@ -579,7 +579,7 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     @assert data["VERSION"] == 1
 
     mc = data["type"]()
-    mc.p = data["parameters"]
+    mc.p = load_parameters(data["Parameters"], data["Parameters"]["type"])
     mc.conf = data["conf"]
     mc.model = load_model(data["Model"], data["Model"]["type"])
 
@@ -588,6 +588,51 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     mc.measurements = measurements[:ME]
     mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
     mc
+end
+
+#   save_parameters(file::JLD.JldFile, p::DQMCParameters, entrzname="Parameters")
+#
+# Saves (minimal) information necessary to reconstruct a given
+# `p::DQMCParameters` to a JLD-file `filename` under group `entryname`.
+#
+# When saving a simulation the default `entryname` is `MC/Parameters`
+function save_parameters(file::JLD.JldFile, p::DQMCParameters, entryname::String="Parameters")
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(p))
+
+    write(file, entryname * "/global_moves", p.global_moves)
+    write(file, entryname * "/global_rate", p.global_rate)
+    write(file, entryname * "/thermalization", p.thermalization)
+    write(file, entryname * "/sweeps", p.sweeps)
+    write(file, entryname * "/all_checks", p.all_checks)
+    write(file, entryname * "/safe_mult", p.safe_mult)
+    write(file, entryname * "/delta_tau", p.delta_tau)
+    write(file, entryname * "/beta", p.beta)
+    write(file, entryname * "/slices", p.slices)
+    write(file, entryname * "/measure_rate", p.measure_rate)
+
+    nothing
+end
+
+#     load_parameters(data, ::Type{<: DQMCParameters})
+#
+# Loads a DQMCParameters object from a given `data` dictionary produced by
+# `JLD.load(filename)`.
+function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
+    @assert data["VERSION"] == 1
+
+    data["type"](
+        global_moves = data["global_moves"],
+        global_rate = data["global_rate"],
+        thermalization = data["thermalization"],
+        sweeps = data["sweeps"],
+        all_checks = data["all_checks"],
+        safe_mult = data["safe_mult"],
+        delta_tau = data["delta_tau"],
+        beta = data["beta"],
+        slices = data["slices"],
+        measure_rate = data["measure_rate"],
+    )
 end
 
 
