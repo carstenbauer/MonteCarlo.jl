@@ -21,18 +21,18 @@ struct DQMCParameters
     thermalization::Int
     sweeps::Int
     all_checks::Bool
-    safe_mult::Int 
+    safe_mult::Int
     delta_tau::Float64
     beta::Float64
-    slices::Int 
+    slices::Int
     measure_rate::Int
 end
 
 function DQMCParameters(;global_moves::Bool = false,
                         global_rate::Int    = 5,
-                        thermalization::Int = 100, 
+                        thermalization::Int = 100,
                         sweeps::Int         = 100,
-                        all_checks::Bool    = true, 
+                        all_checks::Bool    = true,
                         safe_mult::Int      = 10,
                         measure_rate::Int   = 10,
                         kwargs...)
@@ -57,10 +57,10 @@ function DQMCParameters(;global_moves::Bool = false,
                    thermalization,
                    sweeps,
                    all_checks,
-                   safe_mult, 
+                   safe_mult,
                    delta_tau,
                    beta,
-                   slices, 
+                   slices,
                    measure_rate)
 end
 
@@ -335,10 +335,13 @@ end
 """
     greens(mc::DQMC)
 
-Obtain the current equal-time Green's function.
+Obtain the current equal-time Green's function, i.e. the fermionic expectation
+value of `Gᵢⱼ = ⟨cᵢcⱼ^†⟩`. The indices relate to sites and flavors, but the
+exact meanign depends on the model. For the attractive Hubbard model 
+`G[i, j] = ⟨c_{i, ↑} c_{j, ↑}^†⟩ = ⟨c_{i, ↓} c_{j, ↓}^†⟩` due to symmetry.
 
-Internally, `mc.s.greens` is an effective Green's function. This method transforms
-this effective one to the actual Green's function by multiplying hopping matrix
+Internally, `mc.s.greens` is an effective Green's function. This method
+transforms it to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
 function greens(mc::DQMC_CBFalse)

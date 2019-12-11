@@ -51,8 +51,14 @@ end
 """
     greens(mc::DQMC, slice)
 
-Computes the equal-time Greens function G(τ) = G(τ, τ). `slice = 1` represents
-τ = Δτ, `slice = nslices(mc)` τ = β = 0.
+Computes the equal-time Greens function G(τ) = G(τ, τ) for an arbitary
+imaginary time τ. The time is given through a time-slice index `slice` where
+`τ = Δτ ⋅ slice`.
+
+The elements of the Greens function depends on (the implementation of) the
+model. For the attractive Hubbard model the Greens function is a (N sites × N
+sites) matrix corresponding to to the fermion expectation value
+`G_{ij} = ⟨c_{i, σ} c_{j, σ}^†⟩`.
 """
 function greens(mc::DQMC, slice::Int64)
     cur_slice = current_slice(mc)
@@ -157,6 +163,10 @@ greens(mc::DQMC, model::Model) = greens(mc)
     GreensMeasurement(mc::DQMC, model)
 
 Measures the equal time Greens function of the given DQMC simulation and model.
+
+The mean of this measurement corresponds to the expectation value of the Greens
+function for the full partition function, i.e. including fermionic and bosonic
+(auxiliary field) degrees of freedom.
 """
 struct GreensMeasurement{OT <: AbstractObservable} <: AbstractMeasurement
     obs::OT
@@ -215,10 +225,35 @@ end
 
 
 
-"""
+@doc raw"""
     ChargeDensityCorrelationMeasurement(mc::DQMC, model)
 
-Measures the charge density correlation matrix `⟨nᵢnⱼ⟩`.
+Measures the fermionic expectation value of the charge density correlation
+matrix `⟨nᵢnⱼ⟩`.
+
+The mean of this measurement corresponds to the expectation value of the charge
+density correlation matrix for the full partition function, i.e. including
+fermionic and bosonic (auxiliary field) degrees of freedom.
+
+
+The fermionic expectation value is computed via Wick's theorem.
+```math
+      \langle n_i n_j \rangle
+    = \langle (n_{i, \uparrow} + n_{i, \downarrow}) (n_{j, \uparrow} +
+    n_{j, \downarrow})\rangle
+    = \langle n_{i, \uparrow} n_{j, \uparrow} \rangle +
+      \langle n_{i, \uparrow} n_{j, \downarrow} \rangle +
+      \langle n_{i, \downarrow} n_{j, \uparrow} \rangle +
+      \langle n_{i, \downarrow} n_{j, \downarrow} \rangle
+    = ... + \langle c_{i, \uparrow}^\dagger c_{i, \uparrow}
+        c_{j, \downarrow}^\dagger c_{j, \downarrow} \rangle + ...
+    = ... + \langle c_{i, \uparrow}^\dagger c_{i, \uparrow} \rangle
+      \langle c_{j, \downarrow}^\dagger c_{j, \downarrow} \rangle +
+      \langle c_{i, \uparrow}^\dagger c_{j, \downarrow} \rangle
+      \langle c_{i, \uparrow} c_{j, \downarrow}^\dagger \rangle + ...
+    = ... + (I - G)_{ii}^{\uparrow\uparrow} (I - G)_{jj}^{\downarrow\downarrow} +
+      (I-G)_{ji}^{\downarrow\uparrow} G_{ij}^{\uparrow\downarrow} + ...
+```
 """
 struct ChargeDensityCorrelationMeasurement{
         OT <: AbstractObservable
@@ -264,8 +299,18 @@ end
 """
     MagnetizationMeasurement(mc::DQMC, model)
 
-Measures:
-* `x`, `y`, `z`: the average onsite magnetization in x, y, or z direction
+Measures the fermionic expectation value of the magnetization
+`M_x = ⟨c_{i, ↑}^† c_{i, ↓} + h.c.⟩` in x-,
+`M_y = -i⟨c_{i, ↑}^† c_{i, ↓} - h.c.⟩` in y- and
+`M_z = ⟨n_{i, ↑} - n_{i, ↓}⟩` in z-direction.
+
+The mean of this measurement corresponds to the expectation value of the x/y/z
+magnetization for the full partition function, i.e. including fermionic and
+bosonic (auxiliary field) degrees of freedom.
+
+Note:
+
+The Magnetization in x/y/z direction can be accessed via fields `x`, `y` and `z`.
 """
 struct MagnetizationMeasurement{
         OTx <: AbstractObservable,
@@ -325,8 +370,19 @@ end
 """
     SpinDensityCorrelationMeasurement(mc::DQMC, model)
 
-Measures:
-* `x`, `y`, `z`: the average spin density correlation between any two sites
+Measures the fermionic expectation value of the spin density correlation matrix
+`SDC_x = ⟨(c_{i, ↑}^† c_{i, ↓} + h.c.) (c_{j, ↑}^† c_{j, ↓} + h.c.)⟩` in x-,
+`SDC_y = -⟨(c_{i, ↑}^† c_{i, ↓} - h.c.) (c_{j, ↑}^† c_{j, ↓} - h.c.)⟩` in y- and
+`SDC_z = ⟨(n_{i, ↑} - n_{i, ↓}) (n_{j, ↑} - n_{j, ↓})⟩` in z-direction.
+
+The mean of this measurement corresponds to the expectation value of the x/y/z
+spin density correlation matrix for the full partition function, i.e. including
+fermionic and bosonic (auxiliary field) degrees of freedom.
+
+Note:
+
+The spin density correlation matrix in x/y/z direction can be accessed via fields `x`,
+`y` and `z`.
 """
 struct SpinDensityCorrelationMeasurement{
         OTx <: AbstractObservable,
@@ -369,8 +425,6 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
     # ...
     # G[i, j] = c_i c_j^†
 
-    # NOTE
-    # these maybe wrong, maybe IG -> G
     # Spin Density Correlation
     m2x = zeros(eltype(G), N, N)
     m2y = zeros(eltype(G), N, N)
@@ -405,8 +459,11 @@ end
 """
     PairingCorrelationMeasurement(mc::DQMC, model)
 
-Measures the s-wave equal-time pairing correlation matrix (`.mat`) and its uniform
-Fourier transform (`.uniform_fourier`).
+Measures the fermionic expectation value of the s-wave pairing correlation.
+
+We define `Δᵢ = c_{i, ↑} c_{i, ↓}` s the pair-field operator and `Pᵢⱼ = ⟨ΔᵢΔⱼ^†⟩`
+as the s-wave pairing correlation matrix. `Pᵢⱼ` can be accesed via the field
+`mat` and its site-average via the field `uniform_fourier`.
 """
 struct PairingCorrelationMeasurement{
         OT1 <: AbstractObservable,
@@ -440,6 +497,10 @@ end
 function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
     G = greens(mc, model)
     N = nsites(model)
+    # Pᵢⱼ = ⟨ΔᵢΔⱼ^†⟩
+    #     = ⟨c_{i, ↑} c_{i, ↓} c_{j, ↓}^† c_{j, ↑}^†⟩
+    #     = ⟨c_{i, ↑} c_{j, ↑}^†⟩ ⟨c_{i, ↓} c_{j, ↓}^†⟩ -
+    #       ⟨c_{i, ↑} c_{j, ↓}^†⟩ ⟨c_{i, ↓} c_{j, ↑}^†⟩
     m.temp .= G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N]
     push!(m.mat, m.temp)
     push!(m.uniform_fourier, sum(m.temp) / N)
