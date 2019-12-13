@@ -270,13 +270,13 @@ function observables(mc::MonteCarloFlavor, stage = :ME)
         me_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
             k => observables(m) for (k, m) in mc.measurements
         )
-        return mc.measurements
+        return me_obs
 
     elseif stage in thermalization_stage
         th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
             k => observables(m) for (k, m) in mc.thermalization_measurements
         )
-        return mc.thermalization_stage
+        return th_obs
 
     elseif stage in all_stages
         th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(

@@ -85,6 +85,16 @@ end
     @test haskey(mc.measurements, :conf) && mc.measurements[:conf] isa ConfigurationMeasurement
     @test haskey(mc.measurements, :Greens) && mc.measurements[:Greens] isa GreensMeasurement
     @test haskey(mc.measurements, :BosonEnergy) && mc.measurements[:BosonEnergy] isa BosonEnergyMeasurement
+
+    @test measurements(mc) == mc.measurements
+    @test measurements(mc, :ME) == mc.measurements
+    @test measurements(mc, :TH) == mc.thermalization_measurements
+    @test measurements(mc, :ALL)[:ME] == mc.measurements
+    @test measurements(mc, :ALL)[:TH] == mc.thermalization_measurements
+
+    _obs = observables(mc, :all)
+    @test observables(mc, :ME) == _obs[:ME]
+    @test observables(mc, :TH) == _obs[:TH]
 end
 
 @testset "Retrieving Measurements" begin
