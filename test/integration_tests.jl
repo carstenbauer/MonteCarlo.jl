@@ -57,7 +57,7 @@ end
 
 # TODO
 # remove this / make this an example / make this faster
-exit()
+#=
 
 
 """
@@ -199,3 +199,5 @@ end
         @test stat_equal(lit_pc, PC_sample, PC_errors, min_error=0.05)
     end
 end
+
+=#
