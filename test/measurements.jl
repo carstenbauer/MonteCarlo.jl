@@ -91,13 +91,12 @@ end
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=1.0)
 
-    ms = MonteCarlo.measurements(mc)
-    @test mc.thermalization_measurements == ms[:TH]
-    @test mc.measurements == ms[:ME]
+    @test mc.thermalization_measurements == MonteCarlo.measurements(mc, :TH)
+    @test mc.measurements == MonteCarlo.measurements(mc)
 
-    obs = MonteCarlo.observables(mc)
-    @test keys(obs[:TH]) == keys(ms[:TH])
-    @test keys(obs[:ME]) == keys(ms[:ME])
+    obs = MonteCarlo.observables(mc, :all)
+    @test keys(obs[:TH]) == keys(MonteCarlo.measurements(mc, :TH))
+    @test keys(obs[:ME]) == keys(MonteCarlo.measurements(mc))
 
     @test haskey(obs[:ME][:conf], "Configurations")
     @test typeof(obs[:ME][:conf]["Configurations"]) <: AbstractObservable
@@ -165,7 +164,7 @@ end
     run!(mc, thermalization=10, sweeps=10, verbose=false)
     push!(mc, :conf => ConfigurationMeasurement, :TH)
 
-    obs = observables(mc)
+    obs = observables(mc, :all)
     save_measurements!(mc, "test.jld", force_overwrite=true)
     _obs = load_measurements("test.jld")
     @test obs == _obs
