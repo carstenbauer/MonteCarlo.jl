@@ -179,7 +179,8 @@ end
     @test mean(ms)["Total energy"] == mean(obs["Total energy"])
     @test var(ms)["Total energy"] == var(obs["Total energy"])
     @test std_error(ms)["Total energy"] == std_error(obs["Total energy"])
-    @test tau(ms)["Total energy"] == tau(obs["Total energy"])
+    # This wont work because we're not using LightObservables
+    # @test tau(ms)["Total energy"] == tau(obs["Total energy"])
 end
 
 @testset "Saving and Loading" begin
@@ -193,4 +194,32 @@ end
     _obs = load_measurements("test.jld")
     @test obs == _obs
     rm("test.jld")
+end
+
+function calc_measured_greens(mc::DQMC, G::Matrix)
+    eThalfminus = mc.s.hopping_matrix_exp
+    eThalfplus = mc.s.hopping_matrix_exp_inv
+
+    eThalfplus * G * eThalfminus
+end
+
+@testset "Measured Greens function" begin
+    m = HubbardModelAttractive(dims=2, L=8, mu=0.5)
+    mc = DQMC(m, beta=5.0, safe_mult=1)
+    MonteCarlo.build_stack(mc)
+    MonteCarlo.propagate(mc)
+
+    # greens(mc) matches expected output
+    @test greens(mc) ≈ calc_measured_greens(mc, mc.s.greens)
+    # greens() for arbitrary time matches expected output
+    @test greens(mc, mc.s.current_slice) ≈ greens(mc)
+
+    # wrap greens test
+    for k in 0:9
+        MonteCarlo.wrap_greens!(mc, mc.s.greens, mc.s.current_slice - k, -1)
+    end
+    # greens(mc) matches expected output
+    @test greens(mc) ≈ calc_measured_greens(mc, mc.s.greens)
+    # greens() for arbitrary time matches expected output
+    @test greens(mc, mc.s.current_slice-10) ≈ greens(mc)
 end

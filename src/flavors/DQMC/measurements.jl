@@ -60,10 +60,14 @@ model. For the attractive Hubbard model the Greens function is a (N sites × N
 sites) matrix corresponding to to the fermion expectation value
 `G_{ij} = ⟨c_{i, σ} c_{j, σ}^†⟩`.
 """
-function greens(mc::DQMC, slice::Int64)
+greens(mc::DQMC, slice::Int64) = copy(_greens!(mc, slice, mc.s.greens_temp, mc.s.tmp))
+function _greens!(mc::DQMC, slice::Int64,greens_out::Matrix, temp::Matrix)
     cur_slice = current_slice(mc)
     N = nslices(mc)
-    cur_slice == slice && return greens(mc)
+    if cur_slice == slice
+        greens_out .= mc.s.greens
+        return _greens!(mc, greens_out, temp)
+    end
 
     # use slice matrix multiplications if it's within safe_mult boundaries
     d = let
@@ -72,27 +76,27 @@ function greens(mc::DQMC, slice::Int64)
         abs(x) < y ? x : sign(-x) * y
     end
     if abs(d) < div(mc.p.safe_mult, 2)
-        mc.s.greens_temp .= mc.s.greens
+        greens_out .= mc.s.greens
         if d > 0 # forward in time
             for s in cur_slice:cur_slice+d-1
                 multiply_slice_matrix_left!(
-                    mc, mc.model, mod1(s, N), mc.s.greens_temp
+                    mc, mc.model, mod1(s, N), greens_out
                 )
                 multiply_slice_matrix_inv_right!(
-                    mc, mc.model, mod1(s, N), mc.s.greens_temp
+                    mc, mc.model, mod1(s, N), greens_out
                 )
             end
         else # backward in time
             for s in cur_slice-1:-1:cur_slice+d
                 multiply_slice_matrix_inv_left!(
-                    mc, mc.model, mod1(s, N), mc.s.greens_temp
+                    mc, mc.model, mod1(s, N), greens_out
                 )
                 multiply_slice_matrix_right!(
-                    mc, mc.model, mod1(s, N), mc.s.greens_temp
+                    mc, mc.model, mod1(s, N), greens_out
                 )
             end
         end
-        return _greens!(mc, mc.s.greens_temp)
+        return _greens!(mc, greens_out, temp)
     end
 
     # Otherwise we need to explicitly recalculate stuff
@@ -145,8 +149,8 @@ function greens(mc::DQMC, slice::Int64)
         internaluse = true
     )
     mul!(mc.s.tmp, mc.s.U, Diagonal(mc.s.D))
-    mul!(mc.s.greens_temp, mc.s.tmp, mc.s.T)
-    return _greens!(mc, mc.s.greens_temp)
+    mul!(greens_out, mc.s.tmp, mc.s.T)
+    return _greens!(mc, greens_out, temp)
 end
 
 
