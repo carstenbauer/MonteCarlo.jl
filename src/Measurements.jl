@@ -6,6 +6,11 @@
 abstract type AbstractMeasurement end
 
 
+###################################
+# You must implement
+###################################
+
+
 """
     measure!(measurement, mc, model, sweep_index)
 
@@ -17,7 +22,8 @@ end
 
 
 ###################################
-# You may also implement
+# You may implement
+###################################
 
 
 """
@@ -69,6 +75,42 @@ function save!(m::AbstractMeasurement, filename::String, entryname::String)
         saveobs(obs, filename, entryname * "/" * obs.group)
     end
     nothing
+end
+
+
+# Statistics forwarded from MonteCarloObservable/BinningAnalysis
+# Generates functions
+#   mean(measurement)       - returns the mean/expectation value of a measurement
+#   var(measurement)        - returns the variance of a measurement
+#   std_error(measurement)  - returns the standard error of the mean of a measurement
+#   tau(measurement)        - return the autocorrelation time of a measurement
+for (func, name) in zip(
+        (:mean, :var, :std_error, :tau),
+        ("mean", "variance", "standard error", "autocorrelation time")
+    )
+    docstring = """
+        $func(measurement)
+
+    Returns the $name of a given `measurement`.
+
+    The default implementation searches for all fields `<: AbstractObservable`
+    and returns `$func(x)` for each field `x`. If there are multiple fields
+    with type `<: AbstractObservable` a dictionary will be return.
+    """
+    @eval begin
+        @doc $docstring $func
+        function MonteCarloObservable.$(func)(m::AbstractMeasurement)
+            fn = obs_fieldnames_from_obj(m)
+            os = [getfield(m, n) for n in fn]
+            if isempty(os)
+                throw(error("Did not find any observables in $m."))
+            elseif length(os) == 1
+                return $(func)(os[1])
+            else
+                return Dict(MonteCarloObservable.name(o) => $(func)(o) for o in os)
+            end
+        end
+    end
 end
 
 

@@ -168,6 +168,20 @@ end
     @test !haskey(mc.thermalization_measurements, :TH)
 end
 
+@testset "Statistics of measurements" begin
+    m = IsingModel(dims=2, L=4);
+    mc = MC(m, beta=1.0);
+    run!(mc, sweeps=100, thermalization=0, verbose=false);
+
+    ms = measurements(mc)[:Energy]
+    obs = observables(mc)[:Energy]
+
+    @test mean(ms)["Total energy"] == mean(obs["Total energy"])
+    @test var(ms)["Total energy"] == var(obs["Total energy"])
+    @test std_error(ms)["Total energy"] == std_error(obs["Total energy"])
+    @test tau(ms)["Total energy"] == tau(obs["Total energy"])
+end
+
 @testset "Saving and Loading" begin
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=1.0)
