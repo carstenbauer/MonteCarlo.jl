@@ -1,6 +1,6 @@
 ![logo](https://github.com/crstnbr/MonteCarlo.jl/blob/master/docs/src/assets/logo.png)
 
-[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://crstnbr.github.io/MonteCarlo.jl/latest)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://crstnbr.github.io/MonteCarlo.jl/dev)
 [![github-ci](https://github.com/crstnbr/MonteCarlo.jl/workflows/Run%20tests/badge.svg)](https://github.com/crstnbr/MonteCarlo.jl/actions?query=workflow%3A%22Run+tests%22)
 [![codecov][codecov-img]](http://codecov.io/github/crstnbr/MonteCarlo.jl?branch=master)
 ![](https://img.shields.io/badge/lifecycle-experimental-orange.svg)
@@ -12,7 +12,7 @@
 
 MonteCarlo.jl is a Julia software library for the simulation of physical models by means of the Markov Chain Monte Carlo technique. The package implements classical and quantum Monte Carlo flavors which can be used to study spin systems, interacting fermions, and boson-fermion mixtures.
 
-Look at the [documentation](https://crstnbr.github.io/MonteCarlo.jl/latest/) for more information.
+Look at the [documentation](https://crstnbr.github.io/MonteCarlo.jl/dev/) for more information.
 
 ---
 **NOTICE**

@@ -55,4 +55,4 @@ Pull requests are very much welcome!
 * Arbitrary dimensions
 * Magnetic field
 * Maybe explicit $J$ instead of implicit $J=1$
-* Non-cubic lattices (just add `lattice::Lattice` keyword)
+* Non-cubic lattices (just add `lattice::AbstractLattice` keyword)
