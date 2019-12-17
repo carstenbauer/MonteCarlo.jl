@@ -32,5 +32,5 @@ makedocs(
 deploydocs(
     repo = "github.com/crstnbr/MonteCarlo.jl.git",
     push_preview = true,
-    target = "site",
+    # target = "site",
 )
