@@ -49,7 +49,7 @@ function DQMCParameters(;global_moves::Bool = false,
     elseif (Set ∘ keys)(nt) == Set([:delta_tau, :beta])
         delta_tau, beta = nt.delta_tau, nt.beta
         slices = round(beta/delta_tau)
-        !(slices ≈ beta/delta_tau) && warn_round && @warn "beta/delta_tau = $(beta/delta_tau) not an integer. Rounded to $slices"
+        warn_round && !(slices ≈ beta/delta_tau) && @warn "beta/delta_tau = $(beta/delta_tau) not an integer. Rounded to $slices"
     else
         error("Invalid keyword arguments to DQMCParameters $nt")
     end
