@@ -600,11 +600,11 @@ function save_parameters(file::JLD.JldFile, p::DQMCParameters, entryname::String
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(p))
 
-    write(file, entryname * "/global_moves", p.global_moves)
+    write(file, entryname * "/global_moves", Int(p.global_moves))
     write(file, entryname * "/global_rate", p.global_rate)
     write(file, entryname * "/thermalization", p.thermalization)
     write(file, entryname * "/sweeps", p.sweeps)
-    write(file, entryname * "/all_checks", p.all_checks)
+    write(file, entryname * "/all_checks", Int(p.all_checks))
     write(file, entryname * "/safe_mult", p.safe_mult)
     write(file, entryname * "/delta_tau", p.delta_tau)
     write(file, entryname * "/beta", p.beta)
@@ -622,11 +622,11 @@ function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
     @assert data["VERSION"] == 1
 
     data["type"](
-        global_moves = data["global_moves"],
+        global_moves = Bool(data["global_moves"]),
         global_rate = data["global_rate"],
         thermalization = data["thermalization"],
         sweeps = data["sweeps"],
-        all_checks = data["all_checks"],
+        all_checks = Bool(data["all_checks"]),
         safe_mult = data["safe_mult"],
         delta_tau = data["delta_tau"],
         beta = data["beta"],
