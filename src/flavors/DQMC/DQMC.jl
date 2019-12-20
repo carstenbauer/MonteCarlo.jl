@@ -21,18 +21,18 @@ struct DQMCParameters
     thermalization::Int
     sweeps::Int
     all_checks::Bool
-    safe_mult::Int 
+    safe_mult::Int
     delta_tau::Float64
     beta::Float64
-    slices::Int 
+    slices::Int
     measure_rate::Int
 end
 
 function DQMCParameters(;global_moves::Bool = false,
                         global_rate::Int    = 5,
-                        thermalization::Int = 100, 
+                        thermalization::Int = 100,
                         sweeps::Int         = 100,
-                        all_checks::Bool    = true, 
+                        all_checks::Bool    = true,
                         safe_mult::Int      = 10,
                         measure_rate::Int   = 10,
                         kwargs...)
@@ -57,10 +57,10 @@ function DQMCParameters(;global_moves::Bool = false,
                    thermalization,
                    sweeps,
                    all_checks,
-                   safe_mult, 
+                   safe_mult,
                    delta_tau,
                    beta,
-                   slices, 
+                   slices,
                    measure_rate)
 end
 
@@ -655,16 +655,16 @@ function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
     @assert data["VERSION"] == 1
 
     data["type"](
-        global_moves = Bool(data["global_moves"]),
-        global_rate = data["global_rate"],
-        thermalization = data["thermalization"],
-        sweeps = data["sweeps"],
-        all_checks = Bool(data["all_checks"]),
-        safe_mult = data["safe_mult"],
-        delta_tau = data["delta_tau"],
-        beta = data["beta"],
-        slices = data["slices"],
-        measure_rate = data["measure_rate"],
+        Bool(data["global_moves"]),
+        data["global_rate"],
+        data["thermalization"],
+        data["sweeps"],
+        Bool(data["all_checks"]),
+        data["safe_mult"],
+        data["delta_tau"],
+        data["beta"],
+        data["slices"],
+        data["measure_rate"],
     )
 end
 
