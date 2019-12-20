@@ -134,6 +134,11 @@ function init!(mc::MC;
     nothing
 end
 
+function resume_init!(mc::MC)
+    mc.a = MCAnalysis()
+    nothing
+end
+
 
 """
     run!(mc::MC[; verbose::Bool=true, sweeps::Int, thermalization::Int])
@@ -145,7 +150,7 @@ function run!(
         mc::MC;
         verbose::Bool = true,
         sweeps::Int = mc.p.sweeps,
-        thermalization = mc.p.thermalization
+        thermalization = mc.p.thermalization,
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
@@ -167,9 +172,9 @@ function run!(
             mc.p.global_rate,
             thermalization,
             sweeps,
-            mc.p.measure_rate
-            mc.p.print_rate
-            mc.p.beta,
+            mc.p.measure_rate,
+            mc.p.print_rate,
+            mc.p.beta
         )
         mc.p = p
     end
@@ -449,7 +454,7 @@ function save_parameters(file::JLD.JldFile, p::MCParameters, entryname::String="
     write(file, entryname * "/thermalization", p.thermalization)
     write(file, entryname * "/sweeps", p.sweeps)
     write(file, entryname * "/measure_rate", p.measure_rate)
-    write(file, entryname * "/print_rate", p.pritn_rate)
+    write(file, entryname * "/print_rate", p.print_rate)
     write(file, entryname * "/beta", p.beta)
 
     nothing

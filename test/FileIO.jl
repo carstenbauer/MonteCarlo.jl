@@ -4,6 +4,11 @@
     run!(mc, verbose=false)
     MonteCarlo.save("testfile.jld", mc)
     x = MonteCarlo.load("testfile.jld")
+    rm("testfile.jld")
+
+    # Repeat these tests once with x being replayed rather than loaded
+    replay_done = false
+    @label all_checks
 
     for f in fieldnames(typeof(mc.p))
         @test getfield(mc.p, f) == getfield(x.p, f)
@@ -26,8 +31,39 @@
             @test getfield(v, f) == getfield(x.measurements[k], f)
         end
     end
-    rm("testfile.jld")
+
+    # Check everything again with x being a replayed simulation
+    if !replay_done
+        replay!(x)
+        replay_done = true
+        @goto all_checks
+    end
+
+    # Test resume
+    model = IsingModel(dims=2, L=10)
+    mc = MC(model, beta=1.0, thermalization=50, sweeps=100_000)
+    t = time()
+    run!(mc, verbose=false)
+    t = time() - t
+    mc = MC(model, beta=1.0, thermalization=50, sweeps=100_000)
+    # mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
+    state = run!(
+        mc, verbose=false,
+        safe_before = now() + Millisecond(round(Int, 950t)),
+        grace_period = Millisecond(0),
+        filename = "resumable_testfile.jld"
+    )
+    @test state == false
+    ts = deepcopy(timeseries(mc.measurements[:conf].obs))
+    @assert length(ts) > 1
+
+    mc, state = resume!("resumable_testfile.jld", verbose=false)
+    @test state == true
+    @test all(x in timeseries(mc.measurements[:conf].obs) for x in ts)
+    rm("resumable_testfile.jld")
 end
+
+
 
 @testset "DQMC" begin
     model = HubbardModelAttractive(dims=2, L=4, t = 1.7, U = 5.5)
@@ -98,7 +134,7 @@ end
     # mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
     state = run!(
         mc, verbose=false,
-        safe_before = now() + Millisecond(round(Int, 980t)),
+        safe_before = now() + Millisecond(round(Int, 950t)),
         grace_period = Millisecond(0),
         filename = "resumable_testfile.jld"
     )
