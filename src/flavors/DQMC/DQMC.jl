@@ -15,24 +15,57 @@ end
 """
 Parameters of determinant quantum Monte Carlo (DQMC)
 """
-@with_kw struct DQMCParameters
-    global_moves::Bool = false
-    global_rate::Int = 5
-    thermalization::Int = 100 # number of thermalization sweeps
-    sweeps::Int = 100 # number of sweeps (after thermalization)
-
-    all_checks::Bool = true # e.g. check if propagation is stable/instable
-    safe_mult::Int = 10
-
-    delta_tau::Float64 = 0.1
+struct DQMCParameters
+    global_moves::Bool
+    global_rate::Int
+    thermalization::Int
+    sweeps::Int
+    all_checks::Bool
+    safe_mult::Int 
+    delta_tau::Float64
     beta::Float64
-    slices::Int = beta / delta_tau
-    @assert isinteger(beta / delta_tau) string("beta/delta_tau", "
-        (= number of imaginary time slices) must be an integer but is",
-        beta / delta_tau, ".")
-
-    measure_rate::Int = 10
+    slices::Int 
+    measure_rate::Int
 end
+
+function DQMCParameters(;global_moves::Bool = false,
+                        global_rate::Int    = 5,
+                        thermalization::Int = 100, 
+                        sweeps::Int         = 100,
+                        all_checks::Bool    = true, 
+                        safe_mult::Int      = 10,
+                        measure_rate::Int   = 10,
+                        kwargs...)
+    nt = (;kwargs...)
+    keys(nt) == (:beta,) && (nt = (;beta=nt.beta, delta_tau=0.1))
+    @assert length(nt) == 2 "Invalid keyword arguments to DQMCParameters: $nt"
+    if     (Set ∘ keys)(nt) == Set([:beta, :slices])
+        beta, slices = nt.beta, nt.slices
+        delta_tau = beta / slices
+    elseif (Set ∘ keys)(nt) == Set([:delta_tau, :slices])
+        delta_tau, slices = nt.delta_tau, nt.slices
+        beta = delta_tau * slices
+    elseif (Set ∘ keys)(nt) == Set([:delta_tau, :beta])
+        delta_tau, beta = nt.delta_tau, nt.beta
+        slices = round(beta/delta_tau)
+        !(slices ≈ beta/delta_tau) && @warn "beta/delta_tau = $(beta/delta_tau) not an integer. Rounded to $slices"
+    else
+        error("Invalid keyword arguments to DQMCParameters $nt")
+    end
+    DQMCParameters(global_moves,
+                   global_rate,
+                   thermalization,
+                   sweeps,
+                   all_checks,
+                   safe_mult, 
+                   delta_tau,
+                   beta,
+                   slices, 
+                   measure_rate)
+end
+
+
+
 
 """
 Determinant quantum Monte Carlo (DQMC) simulation

@@ -1,3 +1,17 @@
+@testset "DQMC Parameters" begin
+    P1 = MonteCarlo.DQMCParameters(beta=5.0) #defaults to delta_tau = 0.1
+    @test all((P1.beta, P1.delta_tau, P1.slices) .== (5.0, 0.1, 50))
+
+    P2 = MonteCarlo.DQMCParameters(beta=5.0, delta_tau=0.01)
+    @test all((P2.beta, P2.delta_tau, P2.slices) .== (5.0, 0.01, 500))
+
+    P3 = MonteCarlo.DQMCParameters(beta=50.0, slices=20)
+    @test all((P3.beta, P3.delta_tau, P3.slices) .== (50.0, 2.5, 20))
+
+    P4 = MonteCarlo.DQMCParameters(delta_tau=0.1, slices=50)
+    @test all((P4.beta, P4.delta_tau, P4.slices) .== (5.0, 0.1, 50))
+end
+
 @testset "DQMC" begin
     m = HubbardModelAttractive(dims=1, L=8);
 
