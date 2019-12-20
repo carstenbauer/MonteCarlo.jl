@@ -449,8 +449,8 @@ measurements beforehand.
 
 ### Keyword Arguments (both):
 - `verbose = true`: If true, print progress messaged to stdout.
-- `safe_before::Date`: If this date is passed, `run!` will generate a resumable
-save file and exit
+- `safe_before::Date`: If this date is passed, `replay!` will generate a
+resumable save file and exit
 - `grace_period = Minute(5)`: Buffer between the current time and `safe_before`.
 The time required to generate a save file should be included here.
 - `filename`: Name of the save file. The default is based on `safe_before`.
@@ -504,7 +504,6 @@ function replay!(
 
     verbose && println("Preparing Green's function stack")
     resume_init!(mc)
-    mc.conf = first(configs)
     initialize_stack(mc) # redundant ?!
     build_stack(mc)
     propagate(mc)
@@ -512,7 +511,8 @@ function replay!(
     _time = time()
     verbose && println("\n\nReplaying measurement stage - ", length(configs))
     prepare!(mc.measurements, mc, mc.model)
-    for i in 1:mc.p.measure_rate:length(configs)
+    for i in start:mc.p.measure_rate:length(configs)
+        mc.conf = configs[i]
         mc.s.greens, mc.s.log_det = calculate_greens_and_logdet(mc, nslices(mc))
         measure!(mc.measurements, mc, mc.model, i)
 
