@@ -244,7 +244,7 @@ end
 function save_mc(file::JLD.JldFile, mc::MC, entryname::String="MC")
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/type", typeof(mc))
-    write(file, entryname * "/parameters", mc.p)
+    save_parameters(file, mc.p, entryname * "/parameters")
     write(file, entryname * "/conf", mc.conf)
     save_measurements(file, mc, entryname * "/Measurements")
     save_model(file, mc.model, entryname * "/Model")
@@ -257,7 +257,7 @@ end
 function load_mc(data, ::Type{T}) where {T <: MC}
     @assert data["VERSION"] == 0
     mc = data["type"]()
-    mc.p = data["parameters"]
+    mc.p = load_parameters(data["parameters"], data["parameters"]["type"])
     mc.conf = data["conf"]
     mc.model = load_model(data["Model"], data["Model"]["type"])
 
@@ -265,6 +265,46 @@ function load_mc(data, ::Type{T}) where {T <: MC}
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
     mc
+end
+
+
+#   save_parameters(file::JLD.JldFile, p::MCParameters, entryname="Parameters")
+#
+# Saves (minimal) information necessary to reconstruct a given
+# `p::MCParameters` to a JLD-file `filename` under group `entryname`.
+#
+# When saving a simulation the default `entryname` is `MC/Parameters`
+function save_parameters(file::JLD.JldFile, p::MCParameters, entryname::String="Parameters")
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(p))
+
+    write(file, entryname * "/global_moves", Int(p.global_moves))
+    write(file, entryname * "/global_rate", p.global_rate)
+    write(file, entryname * "/thermalization", p.thermalization)
+    write(file, entryname * "/sweeps", p.sweeps)
+    write(file, entryname * "/measure_rate", p.measure_rate)
+    write(file, entryname * "/print_rate", p.pritn_rate)
+    write(file, entryname * "/beta", p.beta)
+
+    nothing
+end
+
+#     load_parameters(data, ::Type{<: MCParameters})
+#
+# Loads a MCParameters object from a given `data` dictionary produced by
+# `JLD.load(filename)`.
+function load_parameters(data::Dict, ::Type{T}) where T <: MCParameters
+    @assert data["VERSION"] == 1
+
+    data["type"](
+        Bool(data["global_moves"]),
+        data["global_rate"],
+        data["thermalization"],
+        data["sweeps"],
+        data["measure_rate"],
+        data["print_rate"],
+        data["beta"]
+    )
 end
 
 

@@ -600,7 +600,7 @@ function save_mc(file::JLD.JldFile, mc::DQMC, entryname::String="MC")
     save_parameters(file, mc.p, entryname * "/Parameters")
     write(file, entryname * "/conf", mc.conf)
     # write(f, entryname * "/RNG", Random.GLOBAL_RNG)
-    save_measurements(file, mc, entryname * "/Measurements",)
+    save_measurements(file, mc, entryname * "/Measurements")
     save_model(file, mc.model, entryname * "/Model")
     nothing
 end
@@ -623,7 +623,7 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     mc
 end
 
-#   save_parameters(file::JLD.JldFile, p::DQMCParameters, entrzname="Parameters")
+#   save_parameters(file::JLD.JldFile, p::DQMCParameters, entryname="Parameters")
 #
 # Saves (minimal) information necessary to reconstruct a given
 # `p::DQMCParameters` to a JLD-file `filename` under group `entryname`.
