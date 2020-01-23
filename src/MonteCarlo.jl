@@ -1,10 +1,10 @@
 module MonteCarlo
 
 using Reexport
-@reexport using MonteCarloObservable
+@reexport using MonteCarloObservable, TimerOutputs
 import MonteCarloObservable.AbstractObservable
 using StableDQMC, LightXML, Parameters, Requires
-using JLD, TimerOutputs
+using JLD
 
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
 

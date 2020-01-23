@@ -112,7 +112,7 @@ Benchmarks/Timings can be retrieved using `print_timer()` and reset with
 a function.
 """
 macro bm(func)
-    Expr(
+    esc(Expr(
         func.head,     # function or =
         func.args[1],  # function name w/ args
         quote                                  # name of function
@@ -120,5 +120,5 @@ macro bm(func)
                 $(func.args[2]) # function body
             end
         end
-    )
+    ))
 end

@@ -17,14 +17,14 @@ using MonteCarlo: @bm, TimerOutputs
 
         TimerOutputs.enable_debug_timings(Main)
         x, y = 0.005, 0.005
-        MonteCarlo.test1(x, y)
-        MonteCarlo.test2(x, y)
+        test1(x, y)
+        test2(x, y)
         test3(x, y)
         test4(x, y)
         TimerOutputs.reset_timer!()
         for _ in 1:10
-            MonteCarlo.test1(x, y)
-            MonteCarlo.test2(x, y)
+            test1(x, y)
+            test2(x, y)
             test3(x, y)
             test4(x, y)
         end
@@ -39,6 +39,7 @@ using MonteCarlo: @bm, TimerOutputs
         @test t1 ≈ t2 rtol=0.01
         @test t2 ≈ t3 rtol=0.01
         @test t3 ≈ t4 rtol=0.01
+        TimerOutputs.reset_timer!()
     end
 
     @testset "Lattices" begin
