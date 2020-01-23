@@ -11,35 +11,25 @@ using MonteCarlo: @bm, TimerOutputs
         end
         @bm test2(x, y) = sleep(x+y)
         function test3(x, y)
-            TimerOutputs.@timeit_debug "test3" begin sleep(x+y) end
+            TimerOutputs.@timeit_debug "test1" begin sleep(x+y) end
         end
-        test4(x, y) = TimerOutputs.@timeit_debug "test4" begin sleep(x+y) end
+        test4(x, y) = TimerOutputs.@timeit_debug "test2" begin sleep(x+y) end
 
-        TimerOutputs.enable_debug_timings(Main)
-        x, y = 0.005, 0.005
-        test1(x, y)
-        test2(x, y)
-        test3(x, y)
-        test4(x, y)
-        TimerOutputs.reset_timer!()
-        for _ in 1:10
-            test1(x, y)
-            test2(x, y)
-            test3(x, y)
-            test4(x, y)
-        end
-        TimerOutputs.disable_debug_timings(Main)
+        x = code_lowered(test1, Tuple{Float64, Float64})[1]
+        y = code_lowered(test3, Tuple{Float64, Float64})[1]
+        println(x.code)
+        println()
+        println(y.code)
+        println()
+        @test x.code == y.code
 
-        to = TimerOutputs.DEFAULT_TIMER
-        t1 = TimerOutputs.time(to["test1"])
-        t2 = TimerOutputs.time(to["test2"])
-        t3 = TimerOutputs.time(to["test3"])
-        t4 = TimerOutputs.time(to["test4"])
-
-        @test t1 ≈ t2 rtol=0.01
-        @test t2 ≈ t3 rtol=0.01
-        @test t3 ≈ t4 rtol=0.01
-        TimerOutputs.reset_timer!()
+        x = code_lowered(test2, Tuple{Float64, Float64})[1]
+        y = code_lowered(test4, Tuple{Float64, Float64})[1]
+        println(x.code)
+        println()
+        println(y.code)
+        println()
+        @test x.code == y.code
     end
 
     @testset "Lattices" begin
