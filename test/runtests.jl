@@ -17,18 +17,10 @@ using MonteCarlo: @bm, TimerOutputs
 
         x = code_lowered(test1, Tuple{Float64, Float64})[1]
         y = code_lowered(test3, Tuple{Float64, Float64})[1]
-        println(x.code)
-        println()
-        println(y.code)
-        println()
         @test x.code == y.code
 
         x = code_lowered(test2, Tuple{Float64, Float64})[1]
         y = code_lowered(test4, Tuple{Float64, Float64})[1]
-        println(x.code)
-        println()
-        println(y.code)
-        println()
         @test x.code == y.code
     end
 
