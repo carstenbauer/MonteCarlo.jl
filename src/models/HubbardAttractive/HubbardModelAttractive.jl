@@ -118,26 +118,15 @@ This is a performance critical method.
 @inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
             result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
 
-    @timeit to "interaction_matrix_exp! old" begin
-        dtau = mc.p.delta_tau
-        lambda = acosh(exp(m.U * dtau/2))
-        result .= spdiagm(0 => exp.(sign(power) * lambda * conf[:,slice]))
+
+    dtau = mc.p.delta_tau
+    lambda = acosh(exp(0.5m.U * dtau))
+
+    result .= zero(eltype(result))
+    N = size(result, 1)
+    @inbounds for i in 1:N
+        result[i, i] = exp(sign(power) * lambda * conf[i, slice])
     end
-
-    temp = deepcopy(result)
-
-    @timeit to "interaction_matrix_exp! new" begin
-        dtau = mc.p.delta_tau
-        lambda = acosh(exp(0.5m.U * dtau))
-
-        result .= zero(eltype(result))
-        N = size(result, 1)
-        @inbounds for i in 1:N
-            result[i, i] = exp(sign(power) * lambda * conf[i, slice])
-        end
-    end
-
-    @assert temp ≈ result
     nothing
 end
 

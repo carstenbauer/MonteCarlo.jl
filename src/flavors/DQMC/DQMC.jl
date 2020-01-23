@@ -204,7 +204,6 @@ Progress will be printed to `stdout` if `verbose=true` (default).
 function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
         thermalization=mc.p.thermalization)
 
-    @timeit to "run!" begin
     do_th_measurements = !isempty(mc.thermalization_measurements)
     do_me_measurements = !isempty(mc.measurements)
     !do_me_measurements && @warn(
@@ -275,7 +274,6 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
-    end
     nothing
 end
 

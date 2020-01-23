@@ -8,8 +8,6 @@ using JLD
 
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
 
-using TimerOutputs
-const to = TimerOutput()
 
 include("flavors/abstract.jl")
 include("models/abstract.jl")
