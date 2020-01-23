@@ -95,3 +95,30 @@ function SparseArrays.mul!(C::StridedMatrix, X::StridedMatrix, A::SparseMatrixCS
     end
     C
 end
+
+
+"""
+    @bm function ... end
+    @bm foo(args...) = ...
+
+Wraps the body of a function with `@timeit_debug <function name> begin ... end`.
+
+The `@timeit_debug` macro can be disabled. When it is, it should come with zero
+overhead. To enable timing, use `<module>.timeit_debug_enabled()`. See
+TimerOutputs.jl for more details.
+
+Benchmarks/Timings can be retrieved using `print_timer()` and reset with
+`reset_timer!()`. It should be no problem to add additonal `@timeit_debug` to
+a function.
+"""
+macro bm(func)
+    Expr(
+        func.head,     # function or =
+        func.args[1],  # function name w/ args
+        quote                                  # name of function
+            MonteCarlo.@timeit_debug $(string(func.args[1].args[1])) begin
+                $(func.args[2]) # function body
+            end
+        end
+    )
+end
