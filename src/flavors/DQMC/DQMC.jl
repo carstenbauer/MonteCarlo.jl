@@ -35,11 +35,12 @@ function DQMCParameters(;global_moves::Bool = false,
                         all_checks::Bool    = true, 
                         safe_mult::Int      = 10,
                         measure_rate::Int   = 10,
+                        warn_round::Bool    = true,
                         kwargs...)
     nt = (;kwargs...)
     keys(nt) == (:beta,) && (nt = (;beta=nt.beta, delta_tau=0.1))
     @assert length(nt) == 2 "Invalid keyword arguments to DQMCParameters: $nt"
-    if     (Set ∘ keys)(nt) == Set([:beta, :slices])
+    if (Set ∘ keys)(nt) == Set([:beta, :slices])
         beta, slices = nt.beta, nt.slices
         delta_tau = beta / slices
     elseif (Set ∘ keys)(nt) == Set([:delta_tau, :slices])
@@ -48,7 +49,7 @@ function DQMCParameters(;global_moves::Bool = false,
     elseif (Set ∘ keys)(nt) == Set([:delta_tau, :beta])
         delta_tau, beta = nt.delta_tau, nt.beta
         slices = round(beta/delta_tau)
-        !(slices ≈ beta/delta_tau) && @warn "beta/delta_tau = $(beta/delta_tau) not an integer. Rounded to $slices"
+        warn_round && !(slices ≈ beta/delta_tau) && @warn "beta/delta_tau = $(beta/delta_tau) not an integer. Rounded to $slices"
     else
         error("Invalid keyword arguments to DQMCParameters $nt")
     end
