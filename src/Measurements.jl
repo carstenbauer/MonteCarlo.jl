@@ -411,7 +411,7 @@ end
 function load_measurements(data::Dict)
     @assert data["VERSION"] == 1
     !haskey(data, "ME") && @warn "No measurement stage found (key \"ME\" missing)"
-    !haskey(data, "TH") && @warn "No thermalization stage found (key \"TH\" missing)"
+    !haskey(data, "TH") && @debug "No thermalization stage found (key \"TH\" missing)"
 
     Dict{Symbol, Dict{Symbol, AbstractMeasurement}}(
         :TH => Dict{Symbol, AbstractMeasurement}(
