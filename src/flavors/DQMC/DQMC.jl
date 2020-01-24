@@ -230,7 +230,7 @@ end
     run!(mc::DQMC[; kwargs...])
 
 Runs the given Monte Carlo simulation `mc`. Returns true if the run finished and
-false if it cancelled early to generate a save-file.
+false if it cancelled early to generate a resumable save-file.
 
 ### Keyword Arguments:
 - `verbose = true`: If true, print progress messaged to stdout.
@@ -242,7 +242,10 @@ default.
 save file and exit
 - `grace_period = Minute(5)`: Buffer between the current time and `safe_before`.
 The time required to generate a save file should be included here.
-- `filename`: Name of the save file. The default is based on `safe_before`.
+- `resumable_filename`: Name of the resumable save file. The default is based on
+`safe_before`.
+- `force_overwrite = false`: If set to true a file with the same name as
+`resumable_filename` will be overwritten. (This will create a temporary backup)
 - `start=1`: The first sweep in the simulation. This will be changed when using
 `resume!(save_file)`.
 
@@ -255,7 +258,7 @@ function run!(
         thermalization = mc.p.thermalization,
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
-        filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
         force_overwrite = false,
         start = 1
     )
@@ -350,11 +353,27 @@ function run!(
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            filename = save(filename, mc, force_overwrite = force_overwrite)
-            save_rng(filename)
-            jldopen(filename, "r+") do f
+
+            if force_overwrite
+                parts = splitpath(resumable_filename)
+                parts[end] = "." * parts[end]
+                temp_filename = _generate_unqiue_JLD_filename(joinpath(parts...))
+                mv(resumable_filename, temp_filename)
+            end
+
+            # We create a backup manually here because we save extra stuff
+            # In either case there should be no conflicting file, so there
+            # should be nothing to overwrite.
+            resumable_filename = save(resumable_filename, mc)
+            save_rng(resumable_filename)
+            jldopen(resumable_filename, "r+") do f
                 write(f, "last_sweep", i)
             end
+
+            if force_overwrite
+                rm(temp_filename)
+            end
+
             verbose && println("\nEarly save finished")
 
             return false

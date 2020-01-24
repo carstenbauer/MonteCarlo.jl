@@ -1,10 +1,14 @@
+const p = "temp_dir"
+isdir(p) || mkdir(p)
+rm.(joinpath.(p, readdir(p)))
+
 @testset "MC" begin
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=0.66, thermalization=33, sweeps=123)
     run!(mc, verbose=false)
-    MonteCarlo.save("testfile.jld", mc)
-    x = MonteCarlo.load("testfile.jld")
-    rm("testfile.jld")
+    MonteCarlo.save("$p/testfile.jld", mc)
+    x = MonteCarlo.load("$p/testfile.jld")
+    rm("$p/testfile.jld")
 
     # Repeat these tests once with x being replayed rather than loaded
     replay_done = false
@@ -41,29 +45,54 @@
 
     # Test resume
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, thermalization=50, sweeps=100_000)
+    mc = MC(model, beta=1.0)
+    run!(mc, verbose=false, thermalization=1, sweeps=2mc.p.measure_rate+1)
+    mc = MC(model, beta=1.0, thermalization=50, sweeps=100_000, measure_rate=100)
     t = time()
     run!(mc, verbose=false)
     t = time() - t
-    mc = MC(model, beta=1.0, thermalization=50, sweeps=100_000)
-    # mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
+
+    mc = MC(model, beta=1.0, thermalization=50, sweeps=300_000, measure_rate=100)
     state = run!(
         mc, verbose=false,
-        safe_before = now() + Millisecond(round(Int, 950t)),
+        safe_before = now() + Millisecond(round(Int, 1000t)),
         grace_period = Millisecond(0),
-        filename = "resumable_testfile.jld"
+        resumable_filename = "$p/resumable_testfile.jld"
     )
     @test state == false
     ts = deepcopy(timeseries(mc.measurements[:conf].obs))
     @assert length(ts) > 1
 
-    mc, state = resume!("resumable_testfile.jld", verbose=false)
+    # Force resume! to compile
+    resume!(
+        "$p/resumable_testfile.jld",
+        safe_before=now(),
+        grace_period=Millisecond(0),
+        resumable_filename = "$p/temp.jld",
+        verbose=false
+    )
+    rm("$p/temp.jld")
+    mc, state = resume!(
+        "$p/resumable_testfile.jld",
+        verbose=false,
+        safe_before = now() + Millisecond(round(Int, 1100t)),
+        grace_period = Millisecond(0),
+        force_overwrite = true,
+        resumable_filename = "$p/resumable_testfile.jld"
+    )
+    @test state == false
+    ts = deepcopy(timeseries(mc.measurements[:conf].obs))
+    @assert length(ts) > 1
+    @test length(readdir(p)) == 1
+
+    mc, state = resume!("$p/resumable_testfile.jld", verbose=false)
     @test state == true
     @test all(x in timeseries(mc.measurements[:conf].obs) for x in ts)
-    rm("resumable_testfile.jld")
+    rm("$p/resumable_testfile.jld")
 end
 
 
+rm.(joinpath.(p, readdir(p)))
 
 @testset "DQMC" begin
     model = HubbardModelAttractive(dims=2, L=4, t = 1.7, U = 5.5)
@@ -71,9 +100,9 @@ end
     t = time()
     run!(mc, verbose=false)
     t = time() - t
-    MonteCarlo.save("testfile.jld", mc)
-    x = MonteCarlo.load("testfile.jld")
-    rm("testfile.jld")
+    MonteCarlo.save("$p/testfile.jld", mc)
+    x = MonteCarlo.load("$p/testfile.jld")
+    rm("$p/testfile.jld")
 
     # Repeat these tests once with x being replayed rather than loaded
     replay_done = false
@@ -130,20 +159,34 @@ end
     t = time()
     run!(mc, verbose=false)
     t = time() - t
-    mc = DQMC(model, beta=1.0, thermalization=500, sweeps=1000, measure_rate=1)
-    # mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
+    mc = DQMC(model, beta=1.0, thermalization=500, sweeps=3000, measure_rate=1)
     state = run!(
         mc, verbose=false,
         safe_before = now() + Millisecond(round(Int, 950t)),
         grace_period = Millisecond(0),
-        filename = "resumable_testfile.jld"
+        resumable_filename = "$p/resumable_testfile.jld"
     )
     @test state == false
     ts = deepcopy(timeseries(mc.measurements[:conf].obs))
     @assert length(ts) > 1
 
-    mc, state = resume!("resumable_testfile.jld", verbose=false)
+    mc, state = resume!(
+        "$p/resumable_testfile.jld",
+        verbose=false,
+        safe_before = now() + Millisecond(round(Int, 1100t)),
+        grace_period = Millisecond(0),
+        force_overwrite = true,
+        resumable_filename = "$p/resumable_testfile.jld"
+    )
+    @test state == false
+    ts = deepcopy(timeseries(mc.measurements[:conf].obs))
+    @assert length(ts) > 1
+    @test length(readdir(p)) == 1
+
+    mc, state = resume!("$p/resumable_testfile.jld", verbose=false)
     @test state == true
     @test all(x in timeseries(mc.measurements[:conf].obs) for x in ts)
-    rm("resumable_testfile.jld")
+    rm("$p/resumable_testfile.jld")
 end
+
+isdir(p) && rm(p, recursive=true)

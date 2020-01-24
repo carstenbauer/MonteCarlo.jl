@@ -18,6 +18,10 @@
     save(filename, mc; force_overwrite=false, allow_rename=true)
 
 Saves the given MonteCarlo simulation `mc` to a JLD-file `filename`.
+
+If `allow_rename = true` the filename will be adjusted if it already exists. If
+`force_overwrite = true` it will be overwritten. In this case a temporary backup
+will be created. If neither are true an error will be thrown.
 """
 function save(filename, mc::MonteCarloFlavor; force_overwrite=false, allow_rename=true)
     @assert endswith(filename, ".jld")
@@ -29,12 +33,14 @@ function save(filename, mc::MonteCarloFlavor; force_overwrite=false, allow_renam
         " to overwrite the file."
     ))
     if isfile(filename) && !force_overwrite && allow_rename
-        while isfile(filename)
-            # those map to 0-9, A-Z, a-z
-            x = rand([(48:57)..., (65:90)..., (97:122)...])
-            s = string(Char(x))
-            filename = filename[1:end-4] * s * ".jld"
-        end
+        filename = _generate_unqiue_JLD_filename(filename)
+    end
+
+    if force_overwrite
+        parts = splitpath(filename)
+        parts[end] = "." * parts[end]
+        temp_filename = _generate_unqiue_JLD_filename(joinpath(parts...))
+        mv(filename, temp_filename)
     end
 
     mode = isfile(filename) ? "r+" : "w"
@@ -42,7 +48,28 @@ function save(filename, mc::MonteCarloFlavor; force_overwrite=false, allow_renam
     write(file, "VERSION", 1)
     save_mc(file, mc, "MC")
     close(file)
+
+    if force_overwrite
+        rm(temp_filename)
+    end
+
     return filename
+end
+
+# Something like
+# existing_file.jld -> existing_file_aJ3c.jld
+function _generate_unqiue_JLD_filename(filename)
+    isfile(filename) || return filename
+    # those map to 0-9,    A-Z,        a-z
+    x = rand([(48:57)..., (65:90)..., (97:122)...])
+    s = "_$(Char(x))"
+    filename = filename[1:end-4] * s * ".jld"
+    while isfile(filename)
+        x = rand([(48:57)..., (65:90)..., (97:122)...])
+        s = string(Char(x))
+        filename = filename[1:end-4] * s * ".jld"
+    end
+    filename
 end
 
 """
