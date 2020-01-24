@@ -174,4 +174,40 @@ function energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
 end
 
 
+
+function save_model(
+        file::JLD.JldFile,
+        m::IsingModel,
+        entryname::String="Model"
+    )
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+
+    write(file, entryname * "/L", m.L)
+    write(file, entryname * "/dims", m.dims)
+    write(file, entryname * "/l", m.l) # TODO: change to save_lattice
+    write(file, entryname * "/energy", m.energy[])
+    nothing
+end
+
+#     load_model(data, ::Type{<: IsingModel})
+#
+# Loads an IsingModel from a given `data` dictionary produced by
+# `JLD.load(filename)`.
+function load_model(data::Dict, ::Type{T}) where T <: IsingModel
+    @assert data["VERSION"] == 1
+
+    l = data["l"]
+    model = data["type"](
+        L = data["L"],
+        dims = data["dims"],
+        l = l,
+        neighs = neighbors_lookup_table(l)
+    )
+    model.energy[] = data["energy"]
+    model
+end
+
+
+
 include("measurements.jl")
