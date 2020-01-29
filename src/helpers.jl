@@ -104,8 +104,8 @@ end
 Wraps the body of a function with `@timeit_debug <function name> begin ... end`.
 
 The `@timeit_debug` macro can be disabled. When it is, it should come with zero
-overhead. To enable timing, use `<module>.timeit_debug_enabled()`. See
-TimerOutputs.jl for more details.
+overhead. To enable timing, use `TimerOutputs.enable_debug_timings(<module>)`.
+See TimerOutputs.jl for more details.
 
 Benchmarks/Timings can be retrieved using `print_timer()` and reset with
 `reset_timer!()`. It should be no problem to add additonal `@timeit_debug` to
@@ -122,3 +122,5 @@ macro bm(func)
         end
     ))
 end
+
+timeit_debug_enabled() = false
