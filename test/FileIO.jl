@@ -1,6 +1,5 @@
 const p = "temp_dir"
 isdir(p) || mkdir(p)
-rm.(joinpath.(p, readdir(p)))
 
 @testset "MC" begin
     model = IsingModel(dims=2, L=2)
@@ -14,6 +13,7 @@ rm.(joinpath.(p, readdir(p)))
     replay_done = false
     @label all_checks
 
+    # Check if loaded/replayed mc matches original
     for f in fieldnames(typeof(mc.p))
         @test getfield(mc.p, f) == getfield(x.p, f)
     end
@@ -44,51 +44,45 @@ rm.(joinpath.(p, readdir(p)))
     end
 
     # Test resume
-    model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0)
-    run!(mc, verbose=false, thermalization=1, sweeps=2mc.p.measure_rate+1)
-    mc = MC(model, beta=1.0, thermalization=50, sweeps=100_000, measure_rate=100)
-    t = time()
-    run!(mc, verbose=false)
-    t = time() - t
 
-    mc = MC(model, beta=1.0, thermalization=50, sweeps=300_000, measure_rate=100)
+    # Run for 1s with known RNG
+    rm.(joinpath.(p, readdir(p)))
+    Random.seed!(123)
+    model = IsingModel(dims=2, L=10)
+    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=1000)
     state = run!(
-        mc, verbose=false,
-        safe_before = now() + Millisecond(round(Int, 1000t)),
+        mc, verbose = false,
+        safe_before = now() + Second(1),
         grace_period = Millisecond(0),
         resumable_filename = "$p/resumable_testfile.jld"
     )
+
     @test state == false
     ts = deepcopy(timeseries(mc.measurements[:conf].obs))
-    @assert length(ts) > 1
+    @assert length(ts) > 1 "No measurements have been taken. Test with more time!"
+    L = length(ts)
 
-    # Force resume! to compile
-    resume!(
-        "$p/resumable_testfile.jld",
-        safe_before=now(),
-        grace_period=Millisecond(0),
-        resumable_filename = "$p/temp.jld",
-        verbose=false
-    )
-    rm("$p/temp.jld")
+    # Test whether safe file gets overwritten correctly
     mc, state = resume!(
         "$p/resumable_testfile.jld",
-        verbose=false,
-        safe_before = now() + Millisecond(round(Int, 1100t)),
+        verbose = false,
+        safe_before = now() + Second(8),
         grace_period = Millisecond(0),
         force_overwrite = true,
         resumable_filename = "$p/resumable_testfile.jld"
     )
+
     @test state == false
     ts = deepcopy(timeseries(mc.measurements[:conf].obs))
-    @assert length(ts) > 1
+    @assert length(ts) - L > 1 "No new measurements have been taken. Test with more time!"
     @test length(readdir(p)) == 1
 
-    mc, state = resume!("$p/resumable_testfile.jld", verbose=false)
-    @test state == true
-    @test all(x in timeseries(mc.measurements[:conf].obs) for x in ts)
-    rm("$p/resumable_testfile.jld")
+    # Test whether data from resumed simulation is correct
+    Random.seed!(123)
+    model = IsingModel(dims=2, L=10)
+    mc = MC(model, beta=1.0, sweeps=1000length(ts), measure_rate=1000)
+    state = run!(mc, verbose = false)
+    @test timeseries(mc.measurements[:conf].obs) == ts
 end
 
 
@@ -154,39 +148,46 @@ rm.(joinpath.(p, readdir(p)))
 
 
     # Test resume
+
+    # Run for 1s with known RNG
+    rm.(joinpath.(p, readdir(p)))
+    Random.seed!(123)
     model = HubbardModelAttractive(dims=2, L=2, t = 1.7, U = 5.5)
-    mc = DQMC(model, beta=1.0, thermalization=500, sweeps=1000, measure_rate=1)
-    t = time()
-    run!(mc, verbose=false)
-    t = time() - t
-    mc = DQMC(model, beta=1.0, thermalization=500, sweeps=3000, measure_rate=1)
+    mc = DQMC(model, beta=1.0, sweeps=10_000_000, measure_rate=100)
+
     state = run!(
-        mc, verbose=false,
-        safe_before = now() + Millisecond(round(Int, 950t)),
+        mc, verbose = false,
+        safe_before = now() + Second(1),
         grace_period = Millisecond(0),
         resumable_filename = "$p/resumable_testfile.jld"
     )
+
     @test state == false
     ts = deepcopy(timeseries(mc.measurements[:conf].obs))
-    @assert length(ts) > 1
+    @assert length(ts) > 1 "No measurements have been taken. Test with more time!"
+    L = length(ts)
 
+    # Test whether safe file gets overwritten correctly
     mc, state = resume!(
         "$p/resumable_testfile.jld",
-        verbose=false,
-        safe_before = now() + Millisecond(round(Int, 1100t)),
+        verbose = false,
+        safe_before = now() + Second(8),
         grace_period = Millisecond(0),
         force_overwrite = true,
         resumable_filename = "$p/resumable_testfile.jld"
     )
+
     @test state == false
     ts = deepcopy(timeseries(mc.measurements[:conf].obs))
-    @assert length(ts) > 1
+    @assert length(ts) - L > 1 "No new measurements have been taken. Test with more time!"
     @test length(readdir(p)) == 1
 
-    mc, state = resume!("$p/resumable_testfile.jld", verbose=false)
-    @test state == true
-    @test all(x in timeseries(mc.measurements[:conf].obs) for x in ts)
-    rm("$p/resumable_testfile.jld")
+    # Test whether data from resumed simulation is correct
+    Random.seed!(123)
+    model = HubbardModelAttractive(dims=2, L=2, t = 1.7, U = 5.5)
+    mc = DQMC(model, beta=1.0, sweeps=100length(ts), measure_rate=100)
+    state = run!(mc, verbose = false)
+    @test timeseries(mc.measurements[:conf].obs) == ts
 end
 
 isdir(p) && rm(p, recursive=true)

@@ -8,12 +8,12 @@ using JLD
 
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
 
+include("helpers.jl")
 
 include("flavors/abstract.jl")
 include("models/abstract.jl")
 include("lattices/abstract.jl")
 
-include("helpers.jl")
 include("Measurements.jl")
 export measurements, observables
 
