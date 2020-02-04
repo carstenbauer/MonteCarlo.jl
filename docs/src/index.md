@@ -20,8 +20,9 @@
 
 ### Included lattices
 
-* Cubic lattices (chain, square, cube, ...)
+* Honeycomb lattice and cubic lattices (chain, square, cube, ...)
 * Any ALPS lattice
+* Any (https://github.com/janattig/LatticePhysics.jl)[LatticePhysics.jl] lattice
 
 Have a look at the [Showcase](@ref) section to get some inspiration.
 

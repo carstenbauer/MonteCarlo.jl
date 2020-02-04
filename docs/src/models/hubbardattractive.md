@@ -15,13 +15,17 @@ You can create an attractive Hubbard model instance as follows,
 model = HubbardModelAttractive(dims=1, L=8)
 ```
 
-The following parameters can be set via keyword arguments:
+Mandatory keywords are:
 
-* `dims::Int`: dimensionality of the cubic lattice (i.e. 1 = chain, 2 = square lattice, etc.)
+* `dims::Int`: dimensionality of the lattice (i.e. 1 = chain, 2 = square lattice, etc.)
 * `L::Int`: linear system size
+
+Optional kerwords are:
+
 * `t::Float64 = 1.0`: hopping energy
 * `U::Float64 = 1.0`: onsite interaction strength, "Hubbard $U$"
 * `mu::Float64 = 0.0`: chemical potential
+* `l<:AbstractLattice`: any lattice (if none is given a cubic lattice is generated based on L and dims, i.e. dims = 1 gives a chain, dims = 2 gives a  square lattice, etc.)
 
 ## Supported Monte Carlo flavors
 
@@ -54,5 +58,3 @@ As neither $T$ nor $V$ depend on spin, neither does the equal-times Green's func
 ## Potential extensions
 
 Pull requests are very much welcome!
-
-* Arbitrary lattices (so far only cubic lattices supported)

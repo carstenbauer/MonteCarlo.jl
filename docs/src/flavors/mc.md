@@ -4,17 +4,22 @@ This is plain simple Monte Carlo (MC). It can for example be used to simulate th
 
 You can initialize a Monte Carlo simulation of a given `model` simply through
 ```julia
-mc = MC(model)
+mc = MC(model, beta=5.0)
 ```
 
-Allowed keywords are:
+Mandatory keywords are:
 
 * `beta`: inverse temperature
+
+Optional keywords are:
+
 * `sweeps`: number of measurement sweeps
 * `thermalization`: number of thermalization (warmup) sweeps
 * `global_moves`: wether global moves should be proposed
 * `global_rate`: frequency for proposing global moves
 * `seed`: initialize MC with custom seed
+* `measure_rate`: rate at which measurements are taken
+* `print_rate`: rate at which prints happen for `verbose=true`
 
 Afterwards, you can run the simulation by
 ```julia

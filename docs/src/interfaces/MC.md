@@ -4,9 +4,6 @@ Any model that wants to be simulated by means of MC must implement the following
 
 Example models: [Ising Model](@ref)
 
-## Mandatory fields
-
- * `l::Lattice`: any [`Lattice`](@ref Lattices)
 
 ## Index of all methods
 
