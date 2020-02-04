@@ -29,14 +29,10 @@ mc = MC(m, beta=0.35, sweeps=1000, thermalization=1000);
 run!(mc, verbose=false);
 
 # analyze results
-observables(mc) # what observables do exist for that simulation?
-m = mc.obs["m"] # magnetization
+obs = measurements(mc)[:ME] # what measurements exist for that simulation?
+m = obs[:Magn].m # magnetization
 mean(m)
-std(m) # one-sigma error
-
-# create standard plots
-hist(m)
-plot(m)
+std_error(m) # one-sigma error
 ```
 
 ![](../assets/ts_hist.png)
