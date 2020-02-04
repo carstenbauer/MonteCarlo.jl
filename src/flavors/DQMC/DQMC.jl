@@ -354,7 +354,8 @@ function run!(
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
 
-            if force_overwrite
+            file_exists = isfile(resumable_filename)
+            if force_overwrite && file_exists
                 parts = splitpath(resumable_filename)
                 parts[end] = "." * parts[end]
                 temp_filename = _generate_unqiue_JLD_filename(joinpath(parts...))
@@ -370,7 +371,7 @@ function run!(
                 write(f, "last_sweep", i)
             end
 
-            if force_overwrite
+            if force_overwrite && file_exists
                 rm(temp_filename)
             end
 
