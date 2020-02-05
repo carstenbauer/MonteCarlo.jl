@@ -18,14 +18,14 @@ For lattice models, we define a Model to be a Hamiltonian on a lattice. Therefor
 
 ### Model Requirements
 
-A model must meat a few requirements given by the Monte Carlo flavor used. `MC` requires the following:
+A model must meet a few requirements given by the Monte Carlo flavor. `MC` requires the following:
 
 * A method `nsites(m::MyModel)` which returns the number of sites in the underlying lattice.
-* A method `rand(::Type{MC}, m::MyModel)` which returns a new random configuration.
+* A method `rand(::Type{MC}, m::MyModel)` which returns a new random configuration. This method is used once to initialize the simulation.
 * A method `propose_local(mc::MC, m::MyModel, i::Int, conf)` which proposes a local update to a given configuration `conf` at site `i`. This method must return `(ΔE, x)`, i.e. the energy difference and "something" else. This "something" may include additional information useful to you during the update or simply be `nothing`.
 * A method `accept_local(mc::MC, m::MyModel, i::Int, conf, x, ΔE)` which finalizes a local update. This includes updating the configuration `conf`. The inputs `x` and `ΔE` correspond to the outputs of `propose_local()`.
 
-The Hamiltonian of your model might impose some requirements on the `AbstractLattice` object that you use as it must provide you with enough lattice information.
+Determiannt quantum Monte-Carlo simulations `DQMC` require the following..
 
 * A method `nsites(m::MyModel)` which returns the number of sites in the underlying lattice.
 * * A method `rand(::Type{DQMC}, m::MyModel, nslices::Int)` which returns a new random configuration.
@@ -36,11 +36,8 @@ The Hamiltonian of your model might impose some requirements on the `AbstractLat
 
 For either Monte Carlo flavor `propose_local` and `accept_local` are performance critical. `interaction_matrix_exp!` is also performance critical, however only required for `DQMC`.
 
-It only provides access to next nearest neighbors through the arrays `neighs` and `neighs_cartesian`. If your model's Hamiltonian requires higher order neighbor information, because of, let's say, a next next nearest neighbor hopping term, the `SquareLattice` doesn't suffice. You could either extend this lattice or implement a `NNSquareLattice` for example.
 
 ## Custom lattices
-
-As described in [Custom models](@ref) a lattice is considered to be part of a model. Hence, most of the requirements for fields of a `AbstractLattice` subtype come from potential models (see [Lattice requirements](@ref)). Below you'll find information on which fields are mandatory from a Monte Carlo flavor point of view.
 
 Any concrete lattice type, let's call it `MyLattice` in the following, must be a subtype of the abstract type `MonteCarlo.AbstractLattice`. Formally, there are no required methods or fields by the **Monte Carlo flavor**. However, since both flavors require `nsites(model)`, some field or method returning the number of sites of a lattice should exist.
 
