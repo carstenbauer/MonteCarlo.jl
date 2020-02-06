@@ -299,8 +299,8 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
         )
         m2z[i, j] = (
             IG[i, i] * IG[j, j] + IG[j, i] * G[i, j] -
-            IG[i, i] * IG[j+N, j+N] - IG[j+N, i] * G[i+N, j] -
-            IG[i+N, i+N] * IG[j, j] - IG[j, i+N] * G[i, j+N] +
+            IG[i, i] * IG[j+N, j+N] - IG[j+N, i] * G[i, j+N] -
+            IG[i+N, i+N] * IG[j, j] - IG[j, i+N] * G[i+N, j] +
             IG[i+N, i+N] * IG[j+N, j+N] + IG[j+N, i+N] * G[i+N, j+N]
         )
     end
