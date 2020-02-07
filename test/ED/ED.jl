@@ -277,16 +277,19 @@ function spin_density_correlation_z(site1, site2)
 end
 
 
-function pairing_correlation(site1, site2)
+# local s-wave
+pairing_correlation(site1, site2) = pairing_correlation(site1, site1, site2, site2)
+# general case
+function pairing_correlation(site1, site2, site3, site4)
     state -> begin
-        sign1, _state = create(state, site2, DOWN)
-        sign2, _state = create(_state, site2, UP)
-        sign3, _state = annihilate(_state, site1, DOWN)
-        sign4, _state = annihilate(_state, site1, UP)
+        sign1, _state = create(state, site1, UP)
+        sign2, _state = create(_state, site2, DOWN)
+        sign3, _state = annihilate(_state, site3, DOWN)
+        sign4, _state = annihilate(_state, site4, UP)
         if _state == 0
             return typeof(state)[], Float64[]
         else
-            return [_state], [-sign1 * sign2 * sign3 * sign4]
+            return [_state], [sign1 * sign2 * sign3 * sign4]
         end
     end
 end
