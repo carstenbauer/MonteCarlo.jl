@@ -79,6 +79,18 @@ function prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model)
 end
 
 
+#
+function get_lattice_shape(model::Model)
+    try
+        return size(model.l)
+    catch e
+        @warn "Failed to get lattice shape. Using flat array of sites instead."
+        @warn e
+        return nsites(model)
+    end
+end
+
+
 
 @doc raw"""
     ChargeDensityCorrelationMeasurement(mc::DQMC, model)
@@ -111,41 +123,47 @@ The fermionic expectation value is computed via Wick's theorem.
 ```
 """
 struct ChargeDensityCorrelationMeasurement{
-        OT <: AbstractObservable
+        OT <: AbstractObservable,
+        AT <: Array
     } <: SpinOneHalfMeasurement
     obs::OT
-    temp::Matrix
+    temp::AT
 end
-function ChargeDensityCorrelationMeasurement(mc::DQMC, model)
+function ChargeDensityCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(model))
     N = nsites(model)
     T = eltype(mc.s.greens)
     obs = LightObservable(
-        LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
+        LogBinner(reshape([zero(T) for _ in 1:N], shape)),
         "Charge density wave correlations", "Observables.jld", "CDC"
     )
-    ChargeDensityCorrelationMeasurement(obs, [zero(T) for _ in 1:N, __ in 1:N])
+    ChargeDensityCorrelationMeasurement(obs, reshape([zero(T) for _ in 1:N], shape))
 end
 function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
     G = greens(mc, model)
     IG = I - G
     m.temp .= zero(eltype(m.temp))
-    for i in 1:N, j in 1:N
-        m.temp[i, j] += begin
-            # ⟨n↑n↑⟩
-            IG[i, i] * IG[j, j] +
-            IG[j, i] *  G[i, j] +
-            # ⟨n↑n↓⟩
-            IG[i, i] * IG[j + N, j + N] +
-            IG[j + N, i] *  G[i, j + N] +
-            # ⟨n↓n↑⟩
-            IG[i + N, i + N] * IG[j, j] +
-            IG[j, i + N] *  G[i + N, j] +
-            # ⟨n↓n↓⟩
-            IG[i + N, i + N] * IG[j + N, j + N] +
-            IG[j + N, i + N] *  G[i + N, j + N]
+
+    for i in 1:N
+        for delta in 0:N-1
+            j = mod1(i + delta, N)
+            m.temp[delta+1] += begin
+                # ⟨n↑n↑⟩
+                IG[i, i] * IG[j, j] +
+                IG[j, i] *  G[i, j] +
+                # ⟨n↑n↓⟩
+                IG[i, i] * IG[j + N, j + N] +
+                IG[j + N, i] *  G[i, j + N] +
+                # ⟨n↓n↑⟩
+                IG[i + N, i + N] * IG[j, j] +
+                IG[j, i + N] *  G[i + N, j] +
+                # ⟨n↓n↓⟩
+                IG[i + N, i + N] * IG[j + N, j + N] +
+                IG[j + N, i + N] *  G[i + N, j + N]
+            end
         end
     end
+
     push!(m.obs, m.temp)
 end
 
@@ -243,32 +261,34 @@ struct SpinDensityCorrelationMeasurement{
         OTx <: AbstractObservable,
         OTy <: AbstractObservable,
         OTz <: AbstractObservable,
+        AT <: Array
     } <: SpinOneHalfMeasurement
 
     x::OTx
     y::OTy
     z::OTz
+    temp::AT
 end
-function SpinDensityCorrelationMeasurement(mc::DQMC, model)
+function SpinDensityCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(model))
     N = nsites(model)
     T = eltype(mc.s.greens)
     Ty = T <: Complex ? T : Complex{T}
 
     # Spin density correlation
-    m2x = LightObservable(
-        LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
+    sdc2x = LightObservable(
+        LogBinner(reshape([zero(T) for _ in 1:N], shape)),
         "Spin Density Correlation x", "Observables.jld", "sdc-x"
     )
-    m2y = LightObservable(
-        LogBinner([zero(Ty) for _ in 1:N, __ in 1:N]),
+    sdc2y = LightObservable(
+        LogBinner(reshape([zero(Ty) for _ in 1:N], shape)),
         "Spin Density Correlation y", "Observables.jld", "sdc-y"
     )
-    m2z = LightObservable(
-        LogBinner([zero(T) for _ in 1:N, __ in 1:N]),
+    sdc2z = LightObservable(
+        LogBinner(reshape([zero(T) for _ in 1:N], shape)),
         "Spin Density Correlation z", "Observables.jld", "sdc-z"
     )
 
-    SpinDensityCorrelationMeasurement(m2x, m2y, m2z)
+    SpinDensityCorrelationMeasurement(sdc2x, sdc2y, sdc2z, reshape([zero(T) for _ in 1:N], shape))
 end
 function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
@@ -280,33 +300,49 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
     # ...
     # G[i, j] = c_i c_j^†
 
+
     # Spin Density Correlation
-    m2x = zeros(eltype(G), N, N)
-    m2y = zeros(eltype(G), N, N)
-    m2z = zeros(eltype(G), N, N)
-    for i in 1:N, j in 1:N
-        m2x[i, j] = (
-            IG[i+N, i] * IG[j+N, j] + IG[j+N, i] * G[i+N, j] +
-            IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
-            IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] +
-            IG[i, i+N] * IG[j, j+N] + IG[j, i+N] * G[i, j+N]
-        )
-        m2y[i, j] = (
-            - IG[i+N, i] * IG[j+N, j] - IG[j+N, i] * G[i+N, j] +
-              IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
-              IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] -
-              IG[i, i+N] * IG[j, j+N] - IG[j, i+N] * G[i, j+N]
-        )
-        m2z[i, j] = (
-            IG[i, i] * IG[j, j] + IG[j, i] * G[i, j] -
-            IG[i, i] * IG[j+N, j+N] - IG[j+N, i] * G[i, j+N] -
-            IG[i+N, i+N] * IG[j, j] - IG[j, i+N] * G[i+N, j] +
-            IG[i+N, i+N] * IG[j+N, j+N] + IG[j+N, i+N] * G[i+N, j+N]
-        )
+    m.temp .= zero(eltype(m.temp))
+    for i in 1:N
+        for delta in 0:N-1
+            j = mod1(i + delta, N)
+            m.temp[delta+1] += (
+                IG[i+N, i] * IG[j+N, j] + IG[j+N, i] * G[i+N, j] +
+                IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
+                IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] +
+                IG[i, i+N] * IG[j, j+N] + IG[j, i+N] * G[i, j+N]
+            )
+        end
     end
-    push!(m.x, m2x)
-    push!(m.y, m2y)
-    push!(m.z, m2z)
+    push!(m.x, m.temp)
+
+    m.temp .= zero(eltype(m.temp))
+    for i in 1:N
+        for delta in 0:N-1
+            j = mod1(i + delta, N)
+            m.temp[delta+1] += (
+                - IG[i+N, i] * IG[j+N, j] - IG[j+N, i] * G[i+N, j] +
+                  IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
+                  IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] -
+                  IG[i, i+N] * IG[j, j+N] - IG[j, i+N] * G[i, j+N]
+            )
+        end
+    end
+    push!(m.y, m.temp)
+
+    m.temp .= zero(eltype(m.temp))
+    for i in 1:N
+        for delta in 0:N-1
+            j = mod1(i + delta, N)
+            m.temp[delta+1] += (
+                IG[i, i] * IG[j, j] + IG[j, i] * G[i, j] -
+                IG[i, i] * IG[j+N, j+N] - IG[j+N, i] * G[i, j+N] -
+                IG[i+N, i+N] * IG[j, j] - IG[j, i+N] * G[i+N, j] +
+                IG[i+N, i+N] * IG[j+N, j+N] + IG[j+N, i+N] * G[i+N, j+N]
+            )
+        end
+    end
+    push!(m.z, m.temp)
 end
 
 

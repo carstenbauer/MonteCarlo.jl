@@ -108,12 +108,16 @@ end
 
     @testset "Charge Density Correlation" begin
         CDC = mean(dqmc.measurements[:CDC].obs)
-        for site1 in 1:size(CDC, 1), site2 in 1:size(CDC, 2)
-            ED_CDC = expectation_value(
-                charge_density_correlation(site1, site2),
-                H, beta = 1.0, N_sites = MonteCarlo.nsites(model)
-            )
-            @test ED_CDC ≈ CDC[site1, site2] atol=atol rtol=rtol
+        N = MonteCarlo.nsites(model)
+        for offset in 0:N - 1
+            ED_CDC = 0.0
+            for site in 1:N
+                ED_CDC += expectation_value(
+                    charge_density_correlation(site, mod1(site+offset, N)),
+                    H, beta = 1.0, N_sites = N
+                )
+            end
+            @test ED_CDC ≈ CDC[offset+1] atol=atol rtol=rtol
         end
     end
 
@@ -141,32 +145,44 @@ end
 
     @testset "Spin density correlation x" begin
         SDCx = mean(dqmc.measurements[:SDC].x)
-        for site1 in 1:size(SDCx, 1), site2 in 1:size(SDCx, 2)
-            ED_SDCx = expectation_value(
-                spin_density_correlation_x(site1, site2),
-                H, beta = 1.0, N_sites = MonteCarlo.nsites(model)
-            )
-            @test ED_SDCx ≈ SDCx[site1, site2] atol=atol rtol=rtol
+        N = MonteCarlo.nsites(model)
+        for offset in 0:N - 1
+            ED_SDCx = 0.0
+            for site in 1:N
+                ED_SDCx += expectation_value(
+                    spin_density_correlation_x(site, mod1(site+offset, N)),
+                    H, beta = 1.0, N_sites = N
+                )
+            end
+            @test ED_SDCx ≈ SDCx[offset+1] atol=atol rtol=rtol
         end
     end
     @testset "Spin density correlation y" begin
         SDCy = mean(dqmc.measurements[:SDC].y)
-        for site1 in 1:size(SDCy, 1), site2 in 1:size(SDCy, 2)
-            ED_SDCy = expectation_value(
-                spin_density_correlation_y(site1, site2),
-                H, beta = 1.0, N_sites = MonteCarlo.nsites(model)
-            )
-            @test ED_SDCy ≈ SDCy[site1, site2] atol=atol rtol=rtol
+        N = MonteCarlo.nsites(model)
+        for offset in 0:N - 1
+            ED_SDCy = 0.0
+            for site in 1:N
+                ED_SDCy += expectation_value(
+                    spin_density_correlation_y(site, mod1(site+offset, N)),
+                    H, beta = 1.0, N_sites = N
+                )
+            end
+            @test ED_SDCy ≈ SDCy[offset+1] atol=atol rtol=rtol
         end
     end
     @testset "Spin density correlation z" begin
         SDCz = mean(dqmc.measurements[:SDC].z)
-        for site1 in 1:size(SDCz, 1), site2 in 1:size(SDCz, 2)
-            ED_SDCz = expectation_value(
-                spin_density_correlation_z(site1, site2),
-                H, beta = 1.0, N_sites = MonteCarlo.nsites(model)
-            )
-            @test ED_SDCz ≈ SDCz[site1, site2] atol=atol rtol=rtol
+        N = MonteCarlo.nsites(model)
+        for offset in 0:N - 1
+            ED_SDCz = 0.0
+            for site in 1:N
+                ED_SDCz += expectation_value(
+                    spin_density_correlation_z(site, mod1(site+offset, N)),
+                    H, beta = 1.0, N_sites = N
+                )
+            end
+            @test ED_SDCz ≈ SDCz[offset+1] atol=atol rtol=rtol
         end
     end
 
