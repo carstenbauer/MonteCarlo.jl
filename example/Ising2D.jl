@@ -20,7 +20,8 @@ for L in 2 .^ [3, 4, 5, 6] #[3, 4, 5, 6]
 		# mc.p.global_moves = true # enable Wolff cluster
 		# mc.p.global_rate = 1
 		run!(mc, sweeps=sweeps, thermalization=therm, verbose=false)
-		push!(df, [L, T, mean(mc.obs["m"]), mean(mc.obs["χ"]), mean(mc.obs["e"]), mean(mc.obs["C"])])
+		meas = MonteCarlo.measurements(mc)[:ME]
+		push!(df, [L, T, mean(meas[:Magn].m), mean(meas[:Magn].chi), mean(meas[:Energy].e), mean(meas[:Energy].C)])
 	end
 	flush(stdout)
 end

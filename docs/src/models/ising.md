@@ -3,9 +3,11 @@
 ## Hamiltonian
 The famous Hamiltonian of the Ising model is given by
 
+```math
 \begin{align}
 \mathcal{H} = -\sum_{\langle i,j \rangle} \sigma_i \sigma_j ,
 \end{align}
+```
 
 where $\langle i, j \rangle$ indicates that the sum has to be taken over nearest neighbors.
 
@@ -22,7 +24,7 @@ Mandatory keywords are:
 
 Optional keywords are:
 
-* `l<:AbstractLattice`: any lattice (if none is given a cubic lattice is generated based on L and dims, i.e. dims = 1 gives a chain, dims = 2 gives a  square lattice, etc.)
+* `l<:AbstractLattice`: any (concrete) lattice (if none is given a cubic lattice is generated based on L and dims, i.e. dims = 1 gives a chain, dims = 2 gives a square lattice, etc.)
 
 ## Supported Monte Carlo flavors
 
@@ -37,7 +39,7 @@ You can find example simulations of the 2D Ising model under [Getting started](@
 ```@autodocs
 Modules = [MonteCarlo]
 Private = false
-Order   = [:function, :type]
+Order = [:function, :type]
 Pages = ["IsingModel.jl"]
 ```
 
@@ -58,4 +60,4 @@ Pull requests are very much welcome!
 * Arbitrary dimensions
 * Magnetic field
 * Maybe explicit $J$ instead of implicit $J=1$
-* Non-cubic lattices (just add `lattice::Lattice` keyword)
+* Non-cubic lattices (just add `lattice::AbstractLattice` keyword)

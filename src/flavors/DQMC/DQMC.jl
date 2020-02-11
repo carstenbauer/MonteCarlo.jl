@@ -15,24 +15,58 @@ end
 """
 Parameters of determinant quantum Monte Carlo (DQMC)
 """
-@with_kw struct DQMCParameters
-    global_moves::Bool = false
-    global_rate::Int = 5
-    thermalization::Int = 100 # number of thermalization sweeps
-    sweeps::Int = 100 # number of sweeps (after thermalization)
-
-    all_checks::Bool = true # e.g. check if propagation is stable/instable
-    safe_mult::Int = 10
-
-    delta_tau::Float64 = 0.1
+struct DQMCParameters
+    global_moves::Bool
+    global_rate::Int
+    thermalization::Int
+    sweeps::Int
+    all_checks::Bool
+    safe_mult::Int 
+    delta_tau::Float64
     beta::Float64
-    slices::Int = beta / delta_tau
-    @assert isinteger(beta / delta_tau) string("beta/delta_tau", "
-        (= number of imaginary time slices) must be an integer but is",
-        beta / delta_tau, ".")
-
-    measure_every_nth::Int = 10
+    slices::Int 
+    measure_rate::Int
 end
+
+function DQMCParameters(;global_moves::Bool = false,
+                        global_rate::Int    = 5,
+                        thermalization::Int = 100, 
+                        sweeps::Int         = 100,
+                        all_checks::Bool    = true, 
+                        safe_mult::Int      = 10,
+                        measure_rate::Int   = 10,
+                        warn_round::Bool    = true,
+                        kwargs...)
+    nt = (;kwargs...)
+    keys(nt) == (:beta,) && (nt = (;beta=nt.beta, delta_tau=0.1))
+    @assert length(nt) == 2 "Invalid keyword arguments to DQMCParameters: $nt"
+    if (Set ∘ keys)(nt) == Set([:beta, :slices])
+        beta, slices = nt.beta, nt.slices
+        delta_tau = beta / slices
+    elseif (Set ∘ keys)(nt) == Set([:delta_tau, :slices])
+        delta_tau, slices = nt.delta_tau, nt.slices
+        beta = delta_tau * slices
+    elseif (Set ∘ keys)(nt) == Set([:delta_tau, :beta])
+        delta_tau, beta = nt.delta_tau, nt.beta
+        slices = round(beta/delta_tau)
+        warn_round && !(slices ≈ beta/delta_tau) && @warn "beta/delta_tau = $(beta/delta_tau) not an integer. Rounded to $slices"
+    else
+        error("Invalid keyword arguments to DQMCParameters $nt")
+    end
+    DQMCParameters(global_moves,
+                   global_rate,
+                   thermalization,
+                   sweeps,
+                   all_checks,
+                   safe_mult, 
+                   delta_tau,
+                   beta,
+                   slices, 
+                   measure_rate)
+end
+
+
+
 
 """
 Determinant quantum Monte Carlo (DQMC) simulation
@@ -45,7 +79,8 @@ mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any,
 
     p::DQMCParameters
     a::DQMCAnalysis
-    obs::Dict{String, Observable}
+    thermalization_measurements::Dict{Symbol, AbstractMeasurement}
+    measurements::Dict{Symbol, AbstractMeasurement}
 
     DQMC{M, CB, ConfType, Stack}() where {M<:Model, CB<:Checkerboard,
         ConfType<:Any, Stack<:AbstractDQMCStack} = new()
@@ -60,20 +95,31 @@ include("slice_matrices.jl")
 Create a determinant quantum Monte Carlo simulation for model `m` with
 keyword parameters `kwargs`.
 """
-function DQMC(m::M; seed::Int=-1, checkerboard::Bool=false, kwargs...) where M<:Model
+function DQMC(m::M;
+        seed::Int=-1,
+        checkerboard::Bool=false,
+        thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
+        measurements = :default,
+        kwargs...
+    ) where M<:Model
     # default params
     # paramskwargs = filter(kw->kw[1] in fieldnames(DQMCParameters), kwargs)
     p = DQMCParameters(; kwargs...)
 
     geltype = greenseltype(DQMC, m)
+    heltype = hoppingeltype(DQMC, m)
     conf = rand(DQMC, m, p.slices)
     mc = DQMC{M, checkerboard ? CheckerboardTrue : CheckerboardFalse,
-        typeof(conf), DQMCStack{geltype,Float64}}()
+        typeof(conf), DQMCStack{geltype, heltype}}()
     mc.model = m
     mc.p = p
-    mc.s = DQMCStack{geltype,Float64}()
+    mc.s = DQMCStack{geltype, heltype}()
 
-    init!(mc, seed=seed, conf=conf)
+    init!(
+        mc, seed = seed, conf = conf,
+        thermalization_measurements = thermalization_measurements,
+        measurements = measurements
+    )
     return mc
 end
 
@@ -104,7 +150,10 @@ Base.summary(mc::DQMC) = "DQMC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::DQMC)
     print(io, "Determinant quantum Monte Carlo simulation\n")
     print(io, "Model: ", mc.model, "\n")
-    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, sigdigits=3)))")
+    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, sigdigits=3)))\n")
+    N_th_meas = length(mc.thermalization_measurements)
+    N_me_meas = length(mc.measurements)
+    print(io, "Measurements: ", N_th_meas + N_me_meas, " ($N_th_meas + $N_me_meas)")
 end
 Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
 
@@ -115,7 +164,12 @@ Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
 Initialize the determinant quantum Monte Carlo simulation `mc`.
 If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
-function init!(mc::DQMC; seed::Real=-1, conf=rand(DQMC,model(mc),nslices(mc)))
+function init!(mc::DQMC;
+        seed::Real = -1,
+        conf = rand(DQMC,model(mc),nslices(mc)),
+        thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
+        measurements = :default
+    )
     seed == -1 || Random.seed!(seed)
 
     mc.conf = conf
@@ -123,9 +177,21 @@ function init!(mc::DQMC; seed::Real=-1, conf=rand(DQMC,model(mc),nslices(mc)))
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc)
 
-    mc.obs = prepare_observables(mc, mc.model)
-
     mc.a = DQMCAnalysis()
+
+    mc.thermalization_measurements = thermalization_measurements
+    if measurements isa Dict{Symbol, AbstractMeasurement}
+        mc.measurements = measurements
+    elseif measurements == :default
+        mc.measurements = default_measurements(mc, mc.model)
+    else
+        @warn(
+            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}, but is " *
+            "$(typeof(measurements)). No measurements have been set."
+        )
+        mc.measurements = Dict{Symbol, AbstractMeasurement}()
+    end
+
     nothing
 end
 
@@ -137,6 +203,12 @@ Progress will be printed to `stdout` if `verbose=true` (default).
 """
 function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
         thermalization=mc.p.thermalization)
+
+    do_th_measurements = !isempty(mc.thermalization_measurements)
+    do_me_measurements = !isempty(mc.measurements)
+    !do_me_measurements && @warn(
+        "There are no measurements set up for this simulation!"
+    )
     total_sweeps = sweeps + thermalization
 
     start_time = now()
@@ -150,16 +222,27 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
 
     _time = time()
     verbose && println("\n\nThermalization stage - ", thermalization)
+    do_th_measurements && prepare!(mc.thermalization_measurements, mc, mc.model)
     for i in 1:total_sweeps
-        verbose && (i == thermalization + 1) &&
-            println("\n\nMeasurement stage - ", sweeps)
+        verbose && (i == thermalization + 1) &&println("\n\nMeasurement stage - ", sweeps)
         for u in 1:2 * nslices(mc)
             update(mc, i)
 
-            if i > thermalization && current_slice(mc) == nslices(mc) &&
-                    mc.s.direction == -1 && (i-1)%mc.p.measure_every_nth == 0
-                measure_observables!(mc, mc.model, mc.obs, mc.conf)
+            # For optimal performance whatever is most likely to fail should be
+            # checked first.
+            if current_slice(mc) == nslices(mc) && i <= thermalization && mc.s.direction == -1 &&
+                    iszero(mod(i, mc.p.measure_rate)) && do_th_measurements
+                measure!(mc.thermalization_measurements, mc, mc.model, i)
             end
+            if (i == thermalization+1)
+                do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
+                do_me_measurements && prepare!(mc.measurements, mc, mc.model)
+            end
+            if current_slice(mc) == nslices(mc) && mc.s.direction == -1 && i > thermalization &&
+                    iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
+                measure!(mc.measurements, mc, mc.model, i)
+            end
+
         end
 
         if mod(i, 10) == 0
@@ -172,7 +255,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
                 @printf("\t\tacc rate (local) : %.1f%%\n", mc.a.acc_rate*100)
                 if mc.p.global_moves
                   @printf("\t\tacc rate (global): %.1f%%\n", mc.a.acc_rate_global*100)
-                  @printf("\t\tacc rate (global, overall): %.1f%%\n", 
+                  @printf("\t\tacc rate (global, overall): %.1f%%\n",
                     mc.a.acc_global/mc.a.prop_global*100)
                 end
             end
@@ -183,7 +266,7 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
             _time = time()
         end
     end
-    finish_observables!(mc, mc.model, mc.obs)
+    do_me_measurements && finish!(mc.measurements, mc, mc.model)
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
@@ -287,3 +370,4 @@ end
 
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")
+include("measurements.jl")

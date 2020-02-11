@@ -18,14 +18,14 @@ For lattice models, we define a Model to be a Hamiltonian on a lattice. Therefor
 
 ### Model Requirements
 
-A model must meat a few requirements given by the Monte Carlo flavor used. `MC` requires the following:
+A model must meet a few requirements given by the Monte Carlo flavor. `MC` requires the following:
 
 * A method `nsites(m::MyModel)` which returns the number of sites in the underlying lattice.
-* A method `rand(::Type{MC}, m::MyModel)` which returns a new random configuration.
+* A method `rand(::Type{MC}, m::MyModel)` which returns a new random configuration. This method is used once to initialize the simulation.
 * A method `propose_local(mc::MC, m::MyModel, i::Int, conf)` which proposes a local update to a given configuration `conf` at site `i`. This method must return `(ΔE, x)`, i.e. the energy difference and "something" else. This "something" may include additional information useful to you during the update or simply be `nothing`.
 * A method `accept_local(mc::MC, m::MyModel, i::Int, conf, x, ΔE)` which finalizes a local update. This includes updating the configuration `conf`. The inputs `x` and `ΔE` correspond to the outputs of `propose_local()`.
 
-And `dqmc` requires:
+Determiannt quantum Monte-Carlo simulations `DQMC` require the following..
 
 * A method `nsites(m::MyModel)` which returns the number of sites in the underlying lattice.
 * * A method `rand(::Type{DQMC}, m::MyModel, nslices::Int)` which returns a new random configuration.
@@ -39,13 +39,9 @@ For either Monte Carlo flavor `propose_local` and `accept_local` are performance
 
 ## Custom lattices
 
-As described in [Custom models](@ref) a lattice is considered to be part of a model. Hence, most of the requirements of a `Lattice` subtype come from potential models (see [General remarks on lattice model](@ref)). Below you'll find information on the requirements given by the Monte Carlo flavor as well as the implemented models.
-
-### Lattice requirements
-
 Any concrete lattice type, let's call it `MyLattice` in the following, must be a subtype of the abstract type `MonteCarlo.AbstractLattice`. Formally, there are no required methods or fields by the **Monte Carlo flavor**. However, since both flavors require `nsites(model)`, some field or method returning the number of sites of a lattice should exist.
 
-For a lattice to work with the implemented **models**, it must
+Any concrete lattice type, let's call it `MyLattice` in the following, must be a subtype of the abstract type `MonteCarlo.AbstractLattice`. To work with a Monte Carlo flavor, it **must** internally have at least have the following field,
 
 * implement a method `length(l::MyLattice)` giving the number of lattice sites.
 * implement a method `neighbors_lookup_table(l::MyLattice)` returning the neighours lookup table

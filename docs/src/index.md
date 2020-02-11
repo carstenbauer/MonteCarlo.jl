@@ -4,6 +4,10 @@
 
 **MonteCarlo.jl** is a Julia software library for the simulation of physical models by means of the Markov Chain Monte Carlo technique. The package implements classical and quantum Monte Carlo flavors which can be used to study spin systems, interacting fermions, and boson-fermion mixtures.
 
+!!! warning
+
+    The documentation is out-of-date!
+
 ### Included models:
 
 * Ising model

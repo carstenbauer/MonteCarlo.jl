@@ -47,7 +47,7 @@ end
 function HamiltonMatrix(model::HubbardModelAttractive)
     lattice = model.l
     t = model.t
-    U = model.U
+    U = -abs(model.U)
     mu = model.mu
 
     H = zeros(Float64, 4^lattice.sites, 4^lattice.sites)
