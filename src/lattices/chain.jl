@@ -41,6 +41,7 @@ end
 
 # Implement AbstractLattice interface: mandatory
 @inline Base.length(c::Chain) = c.sites
+@inline Base.size(c::Chain) = (c.sites,)
 
 # Implement AbstractLattice interface: optional
 @inline neighbors_lookup_table(c::Chain) = copy(c.neighs)

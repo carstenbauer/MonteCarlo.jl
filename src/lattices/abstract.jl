@@ -13,6 +13,14 @@ Number of lattice sites.
 @inline Base.length(l::AbstractLattice) = error("Lattice $(typeof(l)) doesn't implement `length`.")
 
 """
+    size(l::AbstractLattice)
+
+Returns the linear system size of a lattice.
+"""
+@inline Base.size(l::AbstractLattice) = error("Lattice $(typeof(l)) doesn't implement `length`.")
+
+
+"""
     neighbors(l::AbstractLattice[, directed=Val(false)])
 
 Returns an iterator over bonds, given as tuples (source index, target index). If

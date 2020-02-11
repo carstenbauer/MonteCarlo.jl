@@ -1,3 +1,6 @@
+# TODO
+# remove Lx, Ly or save and use them consistently
+
 struct TriangularLattice <: AbstractLattice
     L::Int
     sites::Int
@@ -99,6 +102,7 @@ end
 
 # Implement AbstractLattice interface: mandatory
 @inline Base.length(l::TriangularLattice) = l.sites
+@inline Base.size(l::TriangularLattice) = (l.L, l.L)
 
 # Implement AbstractLattice interface: optional
 @inline neighbors_lookup_table(l::TriangularLattice) = copy(l.neighs)

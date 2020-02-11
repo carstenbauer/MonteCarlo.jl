@@ -118,6 +118,7 @@ end
 
 # Implement AbstractLattice interface: mandatory
 @inline Base.length(l::HoneycombLattice) = l.sites
+@inline Base.size(l::HoneycombLattice) = (l.L, l.L)
 
 # Implement AbstractLattice interface: optional
 @inline neighbors_lookup_table(l::HoneycombLattice) = copy(l.neighs)

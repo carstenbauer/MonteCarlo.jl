@@ -21,6 +21,17 @@ function LatPhysLattice(lattice::LatPhysBase.AbstractLattice)
 end
 
 @inline Base.length(l::LatPhysLattice) = LatPhysBase.numSites(l.lattice)
+function Base.size(l::LatPhysLattice)
+    N = LatPhysBase.numSites(l.lattice)
+    D = ndims(l)
+    @warn "Guessing size of LatPhys Lattice."
+    if N % D == 0
+        return tuple((div(N, D) for _ in 1:D)...)
+    else
+        error("Failed to guess size of LatPhys Lattice.")
+    end
+end
+
 @inline function neighbors(l::LatPhysLattice, directed::Val{true})
     ((LatPhysBase.from(b), LatPhysBase.to(b)) for b in LatPhysBase.bonds(l))
 end

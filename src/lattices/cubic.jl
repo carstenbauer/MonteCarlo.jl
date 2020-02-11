@@ -56,6 +56,7 @@ end
 
 # Implement AbstractLattice interface: mandatory
 @inline Base.length(c::CubicLattice) = c.sites
+@inline Base.size(c::CubicLattice) = tuple((c.L for _ in 1:l.dims)...)
 
 # Implement AbstractLattice interface: optional
 @inline neighbors_lookup_table(c::CubicLattice) = copy(c.neighs)

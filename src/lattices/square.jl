@@ -59,6 +59,7 @@ end
 
 # Implement AbstractLattice interface: mandatory
 @inline Base.length(s::SquareLattice) = s.sites
+@inline Base.size(s::SquareLattice) = (s.L, s.L)
 
 # Implement AbstractLattice interface: optional
 @inline neighbors_lookup_table(s::SquareLattice) = copy(s.neighs)
