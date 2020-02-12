@@ -223,3 +223,30 @@ end
     # greens() for arbitrary time matches expected output
     @test greens(mc, mc.s.current_slice-10) ≈ greens(mc)
 end
+
+@testset "Uniform Fourier" begin
+    A = rand(64, 64)
+    @test uniform_fourier(A, 64) == sum(A) / 64
+    @test uniform_fourier(A, 10) == sum(A) / 10
+
+    m = HubbardModelAttractive(dims=2, L=8)
+    mc = DQMC(m, beta=5.0)
+    @test uniform_fourier(A, mc) == sum(A) / 64
+
+    push!(mc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement)
+    push!(mc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement)
+    push!(mc, :PC => MonteCarlo.PairingCorrelationMeasurement)
+    run!(mc, verbose=false)
+    measured = measurements(mc)
+
+    @test uniform_fourier(measured[:CDC]) isa MonteCarlo.UniformFourierWrapped
+    @test_throws MethodError uniform_fourier(measured[:SDC])
+    @test uniform_fourier(measured[:SDC], :x) isa MonteCarlo.UniformFourierWrapped
+    @test uniform_fourier(measured[:SDC].y) isa MonteCarlo.UniformFourierWrapped
+    @test uniform_fourier(measured[:PC]) isa MonteCarlo.UniformFourierWrapped
+
+    @test mean(uniform_fourier(measured[:CDC])) == sum(mean(measured[:CDC])) / 64
+    @test var(uniform_fourier(measured[:SDC], :x)) == sum(var(measured[:SDC].x)) / 64
+    @test std_error(uniform_fourier(measured[:SDC].z)) == sum(std_error(measured[:SDC].z)) / 64
+    @test tau(uniform_fourier(measured[:PC])) == maximum(tau(measured[:PC]))
+end

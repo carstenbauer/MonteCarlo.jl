@@ -187,7 +187,7 @@ end
     end
 
     @testset "Pairing Correlation" begin
-        PC = mean(dqmc.measurements[:PC].mat)
+        PC = mean(dqmc.measurements[:PC])
         N = MonteCarlo.nsites(model)
         for offset in 0:N - 1
             ED_PC = 0.0

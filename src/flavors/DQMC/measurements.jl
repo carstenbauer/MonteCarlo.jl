@@ -357,13 +357,10 @@ as the s-wave pairing correlation matrix. `Pᵢⱼ` can be accesed via the field
 `mat` and its site-average via the field `uniform_fourier`.
 """
 struct PairingCorrelationMeasurement{
-        # OT <: AbstractObservable,
-        OT1 <: AbstractObservable,
-        OT2 <: AbstractObservable,
+        OT <: AbstractObservable,
         AT <: Array
     } <: SpinOneHalfMeasurement
-    mat::OT1
-    uniform_fourier::OT2
+    obs::OT
     temp::AT
 end
 function PairingCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(model))
@@ -376,14 +373,8 @@ function PairingCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(
         "observables.jld",
         "etpc-s"
     )
-    obs2 = LightObservable(
-        LogBinner(T),
-        "Uniform Fourier transform of equal time pairing correlation matrix (s-wave)",
-        "observables.jld",
-        "etpc-s Fourier"
-    )
 
-    PairingCorrelationMeasurement(obs1, obs2, reshape(zeros(T, N), shape))
+    PairingCorrelationMeasurement(obs1, reshape(zeros(T, N), shape))
 end
 function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
     G = greens(mc, model)
@@ -402,11 +393,53 @@ function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
         end
     end
 
-    push!(m.mat, m.temp)
-    push!(m.uniform_fourier, sum(m.temp) / N)
+    push!(m.obs, m.temp)
 end
 
+"""
+    uniform_fourier(M, dqmc)
+    uniform_fourier(M, N)
 
+Computes the uniform Fourier transform of matrix `M` in a system with `N` sites.
+"""
+uniform_fourier(M::AbstractArray, mc::DQMC) = sum(M) / nsites(mc.model)
+uniform_fourier(M::AbstractArray, N::Integer) = sum(M) / N
+
+
+struct UniformFourierWrapped{T <: AbstractObservable}
+    obs::T
+end
+"""
+    uniform_fourier(m::AbstractMeasurement[, field::Symbol])
+    uniform_fourier(obs::AbstractObservable)
+
+Wraps an observable with a `UniformFourierWrapped`.
+Calling `mean` (`var`, etc) on a wrapped observable returns the `mean` (`var`,
+etc) of the uniform Fourier transform of that observable.
+
+`mean(uniform_fourier(m))` is equivalent to
+`uniform_fourier(mean(m.obs), nsites(model))` where `obs` may differ between
+measurements.
+"""
+uniform_fourier(m::PairingCorrelationMeasurement) = UniformFourierWrapped(m.obs)
+uniform_fourier(m::ChargeDensityCorrelationMeasurement) = UniformFourierWrapped(m.obs)
+function uniform_fourier(m::AbstractMeasurement, field::Symbol)
+    UniformFourierWrapped(getfield(m, field))
+end
+uniform_fourier(obs::AbstractObservable) = UniformFourierWrapped(obs)
+
+# Wrappers for Statistics functions
+MonteCarloObservable.mean(x::UniformFourierWrapped) = _uniform_fourier(mean(x.obs))
+MonteCarloObservable.var(x::UniformFourierWrapped) = _uniform_fourier(var(x.obs))
+MonteCarloObservable.varN(x::UniformFourierWrapped) = _uniform_fourier(varN(x.obs))
+MonteCarloObservable.std(x::UniformFourierWrapped) = _uniform_fourier(std(x.obs))
+MonteCarloObservable.std_error(x::UniformFourierWrapped) = _uniform_fourier(std_error(x.obs))
+MonteCarloObservable.all_vars(x::UniformFourierWrapped) = _uniform_fourier.(all_vars(x.obs))
+MonteCarloObservable.all_varNs(x::UniformFourierWrapped) = _uniform_fourier.(all_varNs(x.obs))
+# Autocorrelation time should not be averaged...
+MonteCarloObservable.tau(x::UniformFourierWrapped) = maximum(tau(x.obs))
+MonteCarloObservable.all_taus(x::UniformFourierWrapped) = maximum.(all_varNs(x.obs))
+_uniform_fourier(M::AbstractArray) = sum(M) / length(M)
 
 
 

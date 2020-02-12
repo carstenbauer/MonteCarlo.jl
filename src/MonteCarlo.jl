@@ -26,6 +26,7 @@ include("lattices/ALPS.jl")
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")
+export uniform_fourier
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
