@@ -357,33 +357,33 @@ as the s-wave pairing correlation matrix. `Pᵢⱼ` can be accesed via the field
 `mat` and its site-average via the field `uniform_fourier`.
 """
 struct PairingCorrelationMeasurement{
+        # OT <: AbstractObservable,
         OT1 <: AbstractObservable,
         OT2 <: AbstractObservable,
-        T
+        AT <: Array
     } <: SpinOneHalfMeasurement
     mat::OT1
     uniform_fourier::OT2
-    temp::Matrix{T}
+    temp::AT
 end
-function PairingCorrelationMeasurement(mc::DQMC, model)
+function PairingCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(model))
     T = eltype(mc.s.greens)
     N = nsites(model)
 
     obs1 = LightObservable(
-        LogBinner(zeros(T, N, N)),
+        LogBinner(reshape(zeros(T, N), shape)),
         "Equal time pairing correlation matrix (s-wave)",
         "observables.jld",
         "etpc-s"
     )
     obs2 = LightObservable(
         LogBinner(T),
-        "Uniform Fourier tranforms of equal time pairing correlation matrix (s-wave)",
+        "Uniform Fourier transform of equal time pairing correlation matrix (s-wave)",
         "observables.jld",
         "etpc-s Fourier"
     )
-    temp = zeros(T, N, N)
 
-    PairingCorrelationMeasurement(obs1, obs2, temp)
+    PairingCorrelationMeasurement(obs1, obs2, reshape(zeros(T, N), shape))
 end
 function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
     G = greens(mc, model)
@@ -392,7 +392,16 @@ function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
     #     = ⟨c_{i, ↑} c_{i, ↓} c_{j, ↓}^† c_{j, ↑}^†⟩
     #     = ⟨c_{i, ↑} c_{j, ↑}^†⟩ ⟨c_{i, ↓} c_{j, ↓}^†⟩ -
     #       ⟨c_{i, ↑} c_{j, ↓}^†⟩ ⟨c_{i, ↓} c_{j, ↑}^†⟩
-    m.temp .= G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N]
+    # m.temp .= G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N]
+
+    m.temp .= zero(eltype(m.temp))
+    for i in 1:N
+        for delta in 0:N-1
+            j = mod1(i + delta, N)
+            m.temp[delta+1] += G[i, j] * G[i+N, j+N] - G[i, j+N] * G[i+N, j]
+        end
+    end
+
     push!(m.mat, m.temp)
     push!(m.uniform_fourier, sum(m.temp) / N)
 end
