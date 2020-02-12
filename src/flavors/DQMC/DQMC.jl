@@ -21,18 +21,18 @@ struct DQMCParameters
     thermalization::Int
     sweeps::Int
     all_checks::Bool
-    safe_mult::Int 
+    safe_mult::Int
     delta_tau::Float64
     beta::Float64
-    slices::Int 
+    slices::Int
     measure_rate::Int
 end
 
 function DQMCParameters(;global_moves::Bool = false,
                         global_rate::Int    = 5,
-                        thermalization::Int = 100, 
+                        thermalization::Int = 100,
                         sweeps::Int         = 100,
-                        all_checks::Bool    = true, 
+                        all_checks::Bool    = true,
                         safe_mult::Int      = 10,
                         measure_rate::Int   = 10,
                         warn_round::Bool    = true,
@@ -58,10 +58,10 @@ function DQMCParameters(;global_moves::Bool = false,
                    thermalization,
                    sweeps,
                    all_checks,
-                   safe_mult, 
+                   safe_mult,
                    delta_tau,
                    beta,
-                   slices, 
+                   slices,
                    measure_rate)
 end
 
@@ -201,7 +201,7 @@ end
 Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `stdout` if `verbose=true` (default).
 """
-function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
+@bm function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
         thermalization=mc.p.thermalization)
 
     do_th_measurements = !isempty(mc.thermalization_measurements)
@@ -307,7 +307,7 @@ end
 Performs a sweep of local moves along spatial dimension at current
 imaginary time slice.
 """
-function sweep_spatial(mc::DQMC)
+@bm function sweep_spatial(mc::DQMC)
     m = model(mc)
     N = nsites(m)
 
