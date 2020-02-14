@@ -512,10 +512,10 @@ function replay!(
         start = 1
     )
     # Check for measurements
-    !isempty(mc.thermalization_measurements) && @warn(
+    isempty(mc.thermalization_measurements) && @debug(
         "There is no thermalization process in a replayed simulation."
     )
-    !isempty(mc.measurements) && @warn(
+    isempty(mc.measurements) && @warn(
         "There are no measurements set up for this simulation!"
     )
 
