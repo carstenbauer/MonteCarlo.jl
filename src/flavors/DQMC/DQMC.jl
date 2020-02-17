@@ -21,18 +21,18 @@ struct DQMCParameters
     thermalization::Int
     sweeps::Int
     all_checks::Bool
-    safe_mult::Int 
+    safe_mult::Int
     delta_tau::Float64
     beta::Float64
-    slices::Int 
+    slices::Int
     measure_rate::Int
 end
 
 function DQMCParameters(;global_moves::Bool = false,
                         global_rate::Int    = 5,
-                        thermalization::Int = 100, 
+                        thermalization::Int = 100,
                         sweeps::Int         = 100,
-                        all_checks::Bool    = true, 
+                        all_checks::Bool    = true,
                         safe_mult::Int      = 10,
                         measure_rate::Int   = 10,
                         warn_round::Bool    = true,
@@ -58,10 +58,10 @@ function DQMCParameters(;global_moves::Bool = false,
                    thermalization,
                    sweeps,
                    all_checks,
-                   safe_mult, 
+                   safe_mult,
                    delta_tau,
                    beta,
-                   slices, 
+                   slices,
                    measure_rate)
 end
 
@@ -274,7 +274,6 @@ function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
     end_time = now()
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
-
     nothing
 end
 
