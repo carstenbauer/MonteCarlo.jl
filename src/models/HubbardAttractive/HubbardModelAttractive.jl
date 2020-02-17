@@ -107,20 +107,10 @@ and store it in `result::Matrix`.
 
 This is a performance critical method.
 """
-# @inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
-#             result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
-#     dtau = mc.p.delta_tau
-#     lambda = acosh(exp(m.U * dtau/2))
-#     result .= spdiagm(0 => exp.(sign(power) * lambda * conf[:,slice]))
-#     nothing
-# end
-
 @inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
             result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
-
-
     dtau = mc.p.delta_tau
-    lambda = acosh(exp(0.5m.U * dtau))
+    lambda = acosh(exp(0.5 * m.U * dtau))
 
     result .= zero(eltype(result))
     N = size(result, 1)
