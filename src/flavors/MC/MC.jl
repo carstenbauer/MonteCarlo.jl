@@ -449,7 +449,7 @@ end
 #
 # When saving a simulation the default `entryname` is `MC`
 function save_mc(file::JLD.JldFile, mc::MC, entryname::String="MC")
-    write(file, entryname * "/VERSION", 0)
+    write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.p, entryname * "/parameters")
     write(file, entryname * "/conf", mc.conf)
@@ -462,7 +462,9 @@ end
 #
 # Loads a MC from a given `data` dictionary produced by `JLD.load(filename)`.
 function load_mc(data, ::Type{T}) where {T <: MC}
-    @assert data["VERSION"] == 0
+    if !(data["VERSION"] == 1)
+        throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
+    end
     mc = data["type"]()
     mc.p = load_parameters(data["parameters"], data["parameters"]["type"])
     mc.conf = data["conf"]
@@ -501,7 +503,9 @@ end
 # Loads a MCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
 function load_parameters(data::Dict, ::Type{T}) where T <: MCParameters
-    @assert data["VERSION"] == 1
+    if !(data["VERSION"] == 1)
+        throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
+    end
 
     data["type"](
         Bool(data["global_moves"]),

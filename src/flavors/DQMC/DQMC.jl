@@ -630,7 +630,9 @@ end
 #
 # Loads a DQMC from a given `data` dictionary produced by `JLD.load(filename)`.
 function load_mc(data::Dict, ::Type{T}) where T <: DQMC
-    @assert data["VERSION"] == 1
+    if !(data["VERSION"] == 1)
+        throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
+    end
 
     mc = data["type"]()
     mc.p = load_parameters(data["Parameters"], data["Parameters"]["type"])
@@ -673,7 +675,9 @@ end
 # Loads a DQMCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
 function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
-    @assert data["VERSION"] == 1
+    if !(data["VERSION"] == 1)
+        throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
+    end
 
     data["type"](
         Bool(data["global_moves"]),

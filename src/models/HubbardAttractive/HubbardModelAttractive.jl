@@ -185,7 +185,9 @@ end
 # Loads a DQMCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
 function load_model(data::Dict, ::Type{T}) where T <: HubbardModelAttractive
-    @assert data["VERSION"] == 1
+    if !(data["VERSION"] == 1)
+        throw(ErrorException("Failed to load HubbardModelAttractive version $(data["VERSION"])"))
+    end
 
     l = data["l"]
     data["type"](

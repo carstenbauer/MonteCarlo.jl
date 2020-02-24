@@ -195,7 +195,9 @@ end
 # Loads an IsingModel from a given `data` dictionary produced by
 # `JLD.load(filename)`.
 function load_model(data::Dict, ::Type{T}) where T <: IsingModel
-    @assert data["VERSION"] == 1
+    if !(data["VERSION"] == 1)
+        throw(ErrorException("Failed to load IsingModel version $(data["VERSION"])"))
+    end
 
     l = data["l"]
     model = data["type"](
