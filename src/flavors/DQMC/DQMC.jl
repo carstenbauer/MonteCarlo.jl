@@ -201,7 +201,7 @@ end
 Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `stdout` if `verbose=true` (default).
 """
-function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
+@bm function run!(mc::DQMC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
         thermalization=mc.p.thermalization)
 
     do_th_measurements = !isempty(mc.thermalization_measurements)
@@ -306,7 +306,7 @@ end
 Performs a sweep of local moves along spatial dimension at current
 imaginary time slice.
 """
-function sweep_spatial(mc::DQMC)
+@bm function sweep_spatial(mc::DQMC)
     m = model(mc)
     N = nsites(m)
 

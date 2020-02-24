@@ -230,7 +230,7 @@ end
 """
 Updates stack[idx+1] based on stack[idx]
 """
-function add_slice_sequence_left(mc::DQMC, idx::Int)
+@bm function add_slice_sequence_left(mc::DQMC, idx::Int)
     copyto!(mc.s.curr_U, mc.s.u_stack[:, :, idx])
 
     # println("Adding slice seq left $idx = ", mc.s.ranges[idx])
@@ -245,7 +245,7 @@ end
 """
 Updates stack[idx] based on stack[idx+1]
 """
-function add_slice_sequence_right(mc::DQMC, idx::Int)
+@bm function add_slice_sequence_right(mc::DQMC, idx::Int)
     copyto!(mc.s.curr_U, mc.s.u_stack[:, :, idx + 1])
 
     for slice in reverse(mc.s.ranges[idx])
@@ -262,7 +262,7 @@ end
 Calculates G(slice) using mc.s.Ur,mc.s.Dr,mc.s.Tr=B(slice)' ... B(M)' and
 mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
 """
-function calculate_greens(mc::DQMC)
+@bm function calculate_greens(mc::DQMC)
     # U, D, T = udt(mc.s.greens) after this
     mc.s.U, mc.s.D, mc.s.T = udt_inv_one_plus(
         UDT(mc.s.Ul, mc.s.Dl, mc.s.Tl),
@@ -278,7 +278,7 @@ end
 """
 Only reasonable immediately after calculate_greens()!
 """
-function calculate_logdet(mc::DQMC)
+@bm function calculate_logdet(mc::DQMC)
     mc.s.log_det = real(
         log(complex(det(mc.s.U))) +
         sum(log.(mc.s.D)) +
@@ -288,7 +288,7 @@ function calculate_logdet(mc::DQMC)
 end
 
 # Green's function propagation
-@inline function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)
+@inline @bm function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)
     if direction == -1
         multiply_slice_matrix_inv_left!(mc, mc.model, curr_slice - 1, gf)
         multiply_slice_matrix_right!(mc, mc.model, curr_slice - 1, gf)
@@ -303,7 +303,7 @@ end
 #     wrap_greens!(mc, temp, slice, direction)
 #     return temp
 # end
-function propagate(mc::DQMC)
+@bm function propagate(mc::DQMC)
     if mc.s.direction == 1
         if mod(mc.s.current_slice, mc.p.safe_mult) == 0
             mc.s.current_slice +=1 # slice we are going to

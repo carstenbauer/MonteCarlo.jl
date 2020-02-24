@@ -106,7 +106,7 @@ struct ConfigurationMeasurement{OT <: Observable} <: AbstractMeasurement
         new{typeof(o)}(o, rate)
     end
 end
-function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
+@bm function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
     (i % m.rate == 0) && push!(m.obs, conf(mc))
     nothing
 end

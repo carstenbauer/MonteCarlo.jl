@@ -141,7 +141,7 @@ end
 Runs the given Monte Carlo simulation `mc`.
 Progress will be printed to `stdout` if `verbose=true` (default).
 """
-function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
+@bm function run!(mc::MC; verbose::Bool=true, sweeps::Int=mc.p.sweeps,
         thermalization=mc.p.thermalization)
 
     do_th_measurements = !isempty(mc.thermalization_measurements)
@@ -216,7 +216,7 @@ end
 
 Performs a sweep of local moves.
 """
-@inline function sweep(mc::MC)
+@inline @bm function sweep(mc::MC)
     c = conf(mc)
     m = model(mc)
     β = beta(mc)
