@@ -166,7 +166,7 @@ The time required to generate a save file should be included here.
 
 See also: [`resume!`](@ref)
 """
-function run!(
+@bm function run!(
         mc::MC;
         verbose::Bool = true,
         sweeps::Int = mc.p.sweeps,
@@ -299,7 +299,7 @@ end
 
 Performs a sweep of local moves.
 """
-@inline function sweep(mc::MC)
+@inline @bm function sweep(mc::MC)
     c = conf(mc)
     m = model(mc)
     β = beta(mc)

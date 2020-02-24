@@ -252,7 +252,7 @@ The time required to generate a save file should be included here.
 
 See also: [`resume!`](@ref)
 """
-function run!(
+@bm function run!(
         mc::DQMC;
         verbose::Bool = true,
         sweeps::Int = mc.p.sweeps,
@@ -422,7 +422,7 @@ end
 Performs a sweep of local moves along spatial dimension at current
 imaginary time slice.
 """
-function sweep_spatial(mc::DQMC)
+@bm function sweep_spatial(mc::DQMC)
     m = model(mc)
     N = nsites(m)
 

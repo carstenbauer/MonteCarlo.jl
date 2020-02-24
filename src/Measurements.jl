@@ -123,7 +123,7 @@ function ConfigurationMeasurement(mc::MonteCarloFlavor, model::Model, rate=1)
     o = Observable(typeof(mc.conf), "Configurations")
     ConfigurationMeasurement{typeof(o)}(o, rate)
 end
-function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
+@bm function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
     (i % m.rate == 0) && push!(m.obs, conf(mc))
     nothing
 end
