@@ -22,6 +22,12 @@ using MonteCarlo: @bm, TimerOutputs
         x = code_lowered(test2, Tuple{Float64, Float64})[1]
         y = code_lowered(test4, Tuple{Float64, Float64})[1]
         @test x.code == y.code
+
+        @test !MonteCarlo.timeit_debug_enabled()
+        enable_benchmarks()
+        @test MonteCarlo.timeit_debug_enabled()
+        disable_benchmarks()
+        @test !MonteCarlo.timeit_debug_enabled()
     end
 
     @testset "Lattices" begin

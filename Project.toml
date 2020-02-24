@@ -27,6 +27,7 @@ Parameters = "0.12"
 Reexport = "0.2"
 Requires = "0.5, 1.0"
 StableDQMC = "0.1"
+TimerOutputs = "0.5.3"
 julia = "1"
 
 [extras]

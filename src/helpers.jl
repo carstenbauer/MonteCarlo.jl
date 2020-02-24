@@ -124,3 +124,29 @@ macro bm(func)
 end
 
 timeit_debug_enabled() = false
+
+"""
+    enable_benchmarks()
+
+Enables benchmarking for `MonteCarlo`.
+
+This affects every function with the `MonteCarlo.@bm` macro as well as any
+`TimerOutputs.@timeit_debug` blocks. Benchmarks are recorded to the default
+TimerOutput `TimerOutputs.DEFAULT_TIMER`. Results can be printed via
+`TimerOutputs.print_timer()`.
+
+[`disable_benchmarks`](@ref)
+"""
+enable_benchmarks() = TimerOutputs.enable_debug_timings(MonteCarlo)
+
+"""
+    disable_benchmarks()
+
+Disables benchmarking for `MonteCarlo`.
+
+This affects every function with the `MonteCarlo.@bm` macro as well as any
+`TimerOutputs.@timeit_debug` blocks.
+
+[`enable_benchmarks`](@ref)
+"""
+disable_benchmarks() = TimerOutputs.disable_debug_timings(MonteCarlo)
