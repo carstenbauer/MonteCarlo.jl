@@ -164,7 +164,7 @@ function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::In
         end
     end
 
-    push!(m.obs, m.temp)
+    push!(m.obs, m.temp / N)
 end
 
 
@@ -189,11 +189,13 @@ struct MagnetizationMeasurement{
         OTx <: AbstractObservable,
         OTy <: AbstractObservable,
         OTz <: AbstractObservable,
+        AT <: AbstractArray
     } <: SpinOneHalfMeasurement
 
     x::OTx
     y::OTy
     z::OTz
+    temp::AT
 end
 function MagnetizationMeasurement(mc::DQMC, model)
     N = nsites(model)
@@ -214,7 +216,7 @@ function MagnetizationMeasurement(mc::DQMC, model)
         "Magnetization z", "Observables.jld", "Mz"
     )
 
-    MagnetizationMeasurement(m1x, m1y, m1z)
+    MagnetizationMeasurement(m1x, m1y, m1z, [zero(T) for _ in 1:N])
 end
 function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
@@ -228,14 +230,18 @@ function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
 
     # Magnetization
     # c_{i, up}^† c_{i, down} + c_{i, down}^† c_{i, up}
-    mx = [- G[i+N, i] - G[i, i+N]           for i in 1:N]
+    # mx = [- G[i+N, i] - G[i, i+N]           for i in 1:N]
+    map!(i -> -G[i+N, i] - G[i, i+N], m.temp, 1:N)
+    push!(m.x, m.temp)
+
     # -i [c_{i, up}^† c_{i, down} - c_{i, down}^† c_{i, up}]
-    my = [-1im * (G[i, i+N] - G[i+N, i])    for i in 1:N]
+    # my = [-1im * (G[i, i+N] - G[i+N, i])    for i in 1:N]
+    map!(i -> -1im *(G[i+N, i] - G[i, i+N]), m.temp, 1:N)
+    push!(m.y, m.temp)
     # c_{i, up}^† c_{i, up} - c_{i, down}^† c_{i, down}
-    mz = [G[i+N, i+N] - G[i, i]             for i in 1:N]
-    push!(m.x, mx)
-    push!(m.y, my)
-    push!(m.z, mz)
+    # mz = [G[i+N, i+N] - G[i, i]             for i in 1:N]
+    map!(i -> G[i+N, i+N] - G[i, i], m.temp, 1:N)
+    push!(m.z, m.temp)
 end
 
 
@@ -314,7 +320,7 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
             )
         end
     end
-    push!(m.x, m.temp)
+    push!(m.x, m.temp / N)
 
     m.temp .= zero(eltype(m.temp))
     for i in 1:N
@@ -328,7 +334,7 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
             )
         end
     end
-    push!(m.y, m.temp)
+    push!(m.y, m.temp / N)
 
     m.temp .= zero(eltype(m.temp))
     for i in 1:N
@@ -342,7 +348,7 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
             )
         end
     end
-    push!(m.z, m.temp)
+    push!(m.z, m.temp / N)
 end
 
 
@@ -393,7 +399,7 @@ function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
         end
     end
 
-    push!(m.obs, m.temp)
+    push!(m.obs, m.temp / N)
 end
 
 """

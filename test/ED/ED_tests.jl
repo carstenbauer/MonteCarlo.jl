@@ -117,7 +117,7 @@ end
                     H, beta = 1.0, N_sites = N
                 )
             end
-            @test ED_CDC ≈ CDC[offset+1] atol=atol rtol=rtol
+            @test ED_CDC/N ≈ CDC[offset+1] atol=atol rtol=rtol
         end
     end
 
@@ -154,7 +154,7 @@ end
                     H, beta = 1.0, N_sites = N
                 )
             end
-            @test ED_SDCx ≈ SDCx[offset+1] atol=atol rtol=rtol
+            @test ED_SDCx/N ≈ SDCx[offset+1] atol=atol rtol=rtol
         end
     end
     @testset "Spin density correlation y" begin
@@ -168,7 +168,7 @@ end
                     H, beta = 1.0, N_sites = N
                 )
             end
-            @test ED_SDCy ≈ SDCy[offset+1] atol=atol rtol=rtol
+            @test ED_SDCy/N ≈ SDCy[offset+1] atol=atol rtol=rtol
         end
     end
     @testset "Spin density correlation z" begin
@@ -182,7 +182,7 @@ end
                     H, beta = 1.0, N_sites = N
                 )
             end
-            @test ED_SDCz ≈ SDCz[offset+1] atol=atol rtol=rtol
+            @test ED_SDCz/N ≈ SDCz[offset+1] atol=atol rtol=rtol
         end
     end
 
@@ -197,7 +197,7 @@ end
                     H, beta = 1.0, N_sites = N
                 )
             end
-            @test ED_PC ≈ PC[offset+1] atol=atol rtol=rtol
+            @test ED_PC/N ≈ PC[offset+1] atol=atol rtol=rtol
         end
     end
 end
