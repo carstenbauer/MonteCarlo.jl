@@ -1,0 +1,7 @@
+[deps]
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+MonteCarlo = "7ed9e010-db43-58a0-91f1-3971ebfac852"
+PyPlot = "d330b81b-6aea-500a-939a-2ce795aea3ee"
+StatsPlots = "f3b207a7-027a-5e70-b257-86293d7955fd"
