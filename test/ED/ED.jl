@@ -94,7 +94,7 @@ end
 
 
 ################################################################################
-### Observables / Expectation values
+### equal-time Observables / Expectation values
 ################################################################################
 
 
@@ -353,8 +353,96 @@ function calculate_Greens_matrix(H, lattice; beta=1.0, N_substates=2)
 end
 
 
+################################################################################
+### unequal time
+################################################################################
 
-# utility
+
+function expectation_value(
+        obsτ::Function, obs0::Function, H, tau;
+        T=1.0, beta = 1.0 / T,
+        N_sites = 4, N_substates = 2
+    )
+
+    vals, vecs = eigen(H)
+    Z = 0.0
+    O = 0.0
+
+    obsτ_mat = zeros(ComplexF64, size(H))
+    obs0_mat = zeros(ComplexF64, size(H))
+    for i in eachindex(vals)
+        lstate = state_from_integer(i-1, N_sites)
+        for j in eachindex(vals)
+            rstate = state_from_integer(j-1, N_sites)
+            states, values = obsτ(rstate)
+            for (s, v) in zip(states, values)
+                if s == lstate
+                    obsτ_mat[i, j] += v
+                end
+            end
+
+            states, values = obs0(rstate)
+            for (s, v) in zip(states, values)
+                if s == lstate
+                    obs0_mat[i, j] += v
+                end
+            end
+        end
+    end
+
+    obsτ_mat = vecs' * obsτ_mat * vecs
+    obs0_mat = vecs' * obs0_mat * vecs
+
+    Z = mapreduce(E -> exp(-beta * E), +, vals)
+    O = 0.0
+
+    for i in eachindex(vals), j in eachindex(vals)
+        O += (
+            exp(-(beta - tau) * vals[i]) *
+            obsτ_mat[i, j] *
+            exp(-tau * vals[j]) *
+            obs0_mat[j, i]
+        )
+    end
+
+    O / Z
+end
+
+
+function calculate_Greens_matrix(H, tau, lattice; beta=1.0, N_substates=2)
+    G = Matrix{Float64}(
+        undef,
+        lattice.sites*N_substates,
+        lattice.sites*N_substates
+    )
+    for substate1 in 1:N_substates, substate2 in 1:N_substates
+        for site1 in 1:lattice.sites, site2 in 1:lattice.sites
+            G[
+                lattice.sites * (substate1-1) + site1,
+                lattice.sites * (substate2-1) + site2
+            ] = expectation_value(
+                s -> begin
+                    _sign, state = annihilate(s, site2, substate2)
+                    state == 0 ? (typeof(s)[], Float64[]) : ([state], [_sign])
+                end,
+                s -> begin
+                    _sign, state = create(s, site1, substate1)
+                    state == 0 ? (typeof(s)[], Float64[]) : ([state], [_sign])
+                end,
+                H, tau,
+                beta = beta,
+                N_sites = lattice.sites,
+                N_substates = N_substates
+            )
+        end
+    end
+    G
+end
+
+
+################################################################################
+### utility
+################################################################################
 
 function state2string(state)
     sub, L = size(state)

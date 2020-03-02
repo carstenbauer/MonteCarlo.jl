@@ -599,17 +599,13 @@ end
 greens(mc::DQMC, model::Model) = greens(mc)
 
 
+################################################################################
+### Unequal time Greens function
+################################################################################
 
 
-# Ported from crstnbr/dqmc
 
-# unequal time greens function
-@enum Direction begin
-    LEFT
-    RIGHT
-end
-
-mutable struct UnequalTimeGreensFunction{G} <: AbstractMeasurement
+struct UnequalTimeGreensFunction{G} <: AbstractMeasurement
     Gt0::Vector{Matrix{G}}
     G0t::Vector{Matrix{G}}
 
@@ -629,7 +625,6 @@ mutable struct UnequalTimeGreensFunction{G} <: AbstractMeasurement
     BBetaTInv_d_stack::Vector{Vector{Float64}}
     BBetaTInv_t_stack::Vector{Matrix{G}}
 end
-
 
 
 function UnequalTimeGreensFunction(mc::DQMC, model)
@@ -662,57 +657,28 @@ function UnequalTimeGreensFunction(mc::DQMC, model)
     )
 end
 
-function deallocate!(m::UnequalTimeGreensFunction)
-    m.BT0Inv_u_stack = Matrix{G}[]
-    m.BT0Inv_d_stack = Vector{Float64}[]
-    m.BT0Inv_t_stack = Matrix{G}[]
-    m.BBetaT_u_stack = Matrix{G}[]
-    m.BBetaT_d_stack = Vector{Float64}[]
-    m.BBetaT_t_stack = Matrix{G}[]
-    m.BT0_u_stack = Matrix{G}[]
-    m.BT0_d_stack = Vector{Float64}[]
-    m.BT0_t_stack = Matrix{G}[]
-    m.BBetaTInv_u_stack = Matrix{G}[]
-    m.BBetaTInv_d_stack = Vector{Float64}[]
-    m.BBetaTInv_t_stack = Matrix{G}[]
 
-    println("Deallocated UDT stacks memory of TDGF measurement.")
-    nothing
+deallocate!(m::UnequalTimeGreensFunction) = empty!(m)
+function Base.empty!(m::UnequalTimeGreensFunction)
+    empty!(m.BT0Inv_u_stack)
+    empty!(m.BT0Inv_d_stack)
+    empty!(m.BT0Inv_t_stack)
+    empty!(m.BBetaT_u_stack)
+    empty!(m.BBetaT_d_stack)
+    empty!(m.BBetaT_t_stack)
+    empty!(m.BT0_u_stack)
+    empty!(m.BT0_d_stack)
+    empty!(m.BT0_t_stack)
+    empty!(m.BBetaTInv_u_stack)
+    empty!(m.BBetaTInv_d_stack)
+    empty!(m.BBetaTInv_t_stack)
+    m
 end
 
-"""
-Returns the actual memory usage of fields related to `measure_tdgfs` (in MB).
-"""
-function memory_usage_tdgfs(m::UnequalTimeGreensFunction)
-    s = x -> Base.summarysize(x) / 1024 / 1024 # size in MB
-
-    mem = 0.
-
-    mem += s(m.Gt0)
-    mem += s(m.G0t)
-
-    mem += s(m.BT0Inv_u_stack)
-    mem += s(m.BT0Inv_d_stack)
-    mem += s(m.BT0Inv_t_stack)
-    mem += s(m.BBetaT_u_stack)
-    mem += s(m.BBetaT_d_stack)
-    mem += s(m.BBetaT_t_stack)
-    mem += s(m.BT0_u_stack)
-    mem += s(m.BT0_d_stack)
-    mem += s(m.BT0_t_stack)
-    mem += s(m.BBetaTInv_u_stack)
-    mem += s(m.BBetaTInv_d_stack)
-    mem += s(m.BBetaTInv_t_stack)
-
-    return mem
-end
+memory_usage(m::UnequalTimeGreensFunction) = Base.summarysize(m)
 
 
-"""
-        estimate_memory_usage_tdgfs(L, beta; flv=4, safe_mult=10, delta_tau=0.1)
-Estimates the expected memory usage of fields related to `measure_tdgfs` (in MB).
-"""
-function estimate_memory_usage_tdgfs(L, beta; flv=4, safe_mult=10, delta_tau=0.1)
+function _estimate_memory_usage_tdgfs(L, beta; flv=4, safe_mult=10, delta_tau=0.1)
     N = L^2
     M = Int(beta / delta_tau)
 
@@ -726,10 +692,12 @@ function estimate_memory_usage_tdgfs(L, beta; flv=4, safe_mult=10, delta_tau=0.1
 end
 
 """
-Estimates the expected memory usage of fields related to `measure_tdgfs` (in MB).
+    estimate_memory_usage(UnequalTimeGreensFunction, dqmc::DQMC)
+
+Estimates the memory usage of the unequal-time Greens function (in MB).
 """
-function estimate_memory_usage_tdgfs(mc::DQMC)
-    estimate_memory_usage_tdgfs(
+function estimate_memory_usage(::Type{UnequalTimeGreensFunction}, mc::DQMC)
+    _estimate_memory_usage_tdgfs(
         mc.p.L, mc.p.beta;
         flv = mc.p.flv,
         safe_mult = mc.p.safe_mult,
@@ -738,39 +706,37 @@ function estimate_memory_usage_tdgfs(mc::DQMC)
 end
 
 
-# TODO
-
 
 function measure!(m::UnequalTimeGreensFunction, mc::DQMC, model, i::Int64)
     G = geltype(mc)
     M = mc.p.slices
     safe_mult = mc.p.safe_mult
 
-    Gt0 = m.Gt0
-    G0t = m.G0t
-
-    BT0Inv_u_stack = m.BT0Inv_u_stack
-    BT0Inv_d_stack = m.BT0Inv_d_stack
-    BT0Inv_t_stack = m.BT0Inv_t_stack
-    BBetaT_u_stack = m.BBetaT_u_stack
-    BBetaT_d_stack = m.BBetaT_d_stack
-    BBetaT_t_stack = m.BBetaT_t_stack
-    BT0_u_stack = m.BT0_u_stack
-    BT0_d_stack = m.BT0_d_stack
-    BT0_t_stack = m.BT0_t_stack
-    BBetaTInv_u_stack = m.BBetaTInv_u_stack
-    BBetaTInv_d_stack = m.BBetaTInv_d_stack
-    BBetaTInv_t_stack = m.BBetaTInv_t_stack
-
 
     # ---- first, calculate Gt0 and G0t only at safe_mult slices
     # right mult (Gt0)
-    calc_Bchain_udts!(mc, BT0Inv_u_stack, BT0Inv_d_stack, BT0Inv_t_stack, invert=true, dir=LEFT);
-    calc_Bchain_udts!(mc, BBetaT_u_stack, BBetaT_d_stack, BBetaT_t_stack, invert=false, dir=RIGHT);
+    calc_Bchain_udts!(
+        mc,
+        m.BT0Inv_u_stack, m.BT0Inv_d_stack, m.BT0Inv_t_stack,
+        invert=true, dir=LEFT
+    )
+    calc_Bchain_udts!(
+        mc,
+        m.BBetaT_u_stack, m.BBetaT_d_stack, m.BBetaT_t_stack,
+        invert=false, dir=RIGHT
+    )
 
     # left mult (G0t)
-    calc_Bchain_udts!(mc, BT0_u_stack, BT0_d_stack, BT0_t_stack, invert=false, dir=LEFT);
-    calc_Bchain_udts!(mc, BBetaTInv_u_stack, BBetaTInv_d_stack, BBetaTInv_t_stack, invert=true, dir=RIGHT);
+    calc_Bchain_udts!(
+        mc,
+        m.BT0_u_stack, m.BT0_d_stack, m.BT0_t_stack,
+        invert=false, dir=LEFT
+    )
+    calc_Bchain_udts!(
+        mc,
+        m.BBetaTInv_u_stack, m.BBetaTInv_d_stack, m.BBetaTInv_t_stack,
+        invert=true, dir=RIGHT
+    )
 
 
     safe_mult_taus = 1:safe_mult:mc.p.slices
@@ -778,51 +744,51 @@ function measure!(m::UnequalTimeGreensFunction, mc::DQMC, model, i::Int64)
         tau = safe_mult_taus[i] # tau = tauth (overall) time slice
         if i != 1
             # TODO: temporary matrices
-            # Gt0
             inv_sum_loh!(
-                Gt0[tau],
-                UDT(BT0Inv_u_stack[i-1], BT0Inv_d_stack[i-1], BT0Inv_t_stack[i-1]),
-                UDT(BBetaT_u_stack[i], BBetaT_d_stack[i], BBetaT_t_stack[i])
-            ) # G(i,0) = G(mc.s.ranges[i][1], 0), i.e. G(21, 1) for i = 3
-            # effective_greens2greens!(mc, Gt0[tau])
-            _greens!(mc, Gt0[tau], mc.s.greens_temp)
+                m.Gt0[tau],
+                UDT(m.BT0Inv_u_stack[i-1], m.BT0Inv_d_stack[i-1], m.BT0Inv_t_stack[i-1]),
+                UDT(m.BBetaT_u_stack[i], m.BBetaT_d_stack[i], m.BBetaT_t_stack[i])
+            )
+            _greens!(mc, m.Gt0[tau], mc.s.greens_temp)
 
-            # G0t
             inv_sum_loh!(
-                G0t[tau],
-                UDT(BT0_u_stack[i-1], BT0_d_stack[i-1], BT0_t_stack[i-1]),
-                UDT(BBetaTInv_u_stack[i], BBetaTInv_d_stack[i], BBetaTInv_t_stack[i])
-            ) # G(i,0) = G(mc.s.ranges[i][1], 0), i.e. G(21, 1) for i = 3
-            # effective_greens2greens!(mc, G0t[tau])
-            _greens!(mc, G0t[tau], mc.s.greens_temp)
+                m.G0t[tau],
+                UDT(m.T0_u_stack[i-1], m.BT0_d_stack[i-1], m.BT0_t_stack[i-1]),
+                UDT(m.BBetaTInv_u_stack[i], m.BBetaTInv_d_stack[i], m.BBetaTInv_t_stack[i])
+            )
+            _greens!(mc, m.G0t[tau], mc.s.greens_temp)
         else
             # TODO: temporary matrices
-            # Gt0
             inv_one_plus_loh!(
-                Gt0[tau],
-                UDT(BBetaT_u_stack[1], BBetaT_d_stack[1], BBetaT_t_stack[1])
+                m.Gt0[tau],
+                UDT(m.BBetaT_u_stack[1], m.BBetaT_d_stack[1], m.BBetaT_t_stack[1])
             )
-            _greens!(mc, Gt0[tau], mc.s.greens_temp)
-            # effective_greens2greens!(mc, Gt0[tau])
+            _greens!(mc, m.Gt0[tau], mc.s.greens_temp)
 
-            # G0t
             inv_one_plus_loh!(
-                G0t[tau],
-                UDT(BBetaTInv_u_stack[1], BBetaTInv_d_stack[1], BBetaTInv_t_stack[1])
+                m.G0t[tau],
+                UDT(m.BBetaTInv_u_stack[1], m.BBetaTInv_d_stack[1], m.BBetaTInv_t_stack[1])
             )
-            _greens!(mc, G0t[tau], mc.s.greens_temp)
-            # effective_greens2greens!(mc, G0t[tau]) # TODO: check analytically that we can still do this
+            _greens!(mc, m.G0t[tau], mc.s.greens_temp)
+            # TODO: check analytically that we can still do this
         end
     end
 
     # ---- fill time slices between safe_mult slices
-    fill_tdgf!(mc, Gt0, G0t)
+    fill_tdgf!(mc, m.Gt0, m.G0t)
 
+    # Why?
     @inbounds for i in 1:M
-        G0t[i] .*= -1 # minus sign
+        G0t[i] .*= -1
     end
 
     nothing
+end
+
+
+@enum Direction begin
+    LEFT
+    RIGHT
 end
 
 
@@ -842,19 +808,22 @@ function calc_Bchain_udts!(mc::DQMC, u_stack, d_stack, t_stack; invert::Bool=fal
     flv = mc.model.flv
     N = mc.model.l.sites
     curr_U_or_T = mc.s.curr_U
+    # if dir == RIGHT
+    #     ranges = reverse(reverse.(mc.s.ranges))
+    # else
+    #     ranges = mc.s.ranges
+    # end
     ranges = mc.s.ranges
 
+    # rightmult = (dir == RIGHT && !invert) || (dir == LEFT && invert)
     rightmult = false
     ((dir == RIGHT && !invert) || (dir == LEFT && invert)) && (rightmult = true)
 
-    # @show rightmult
+    range_idxs = 1:length(ranges)
+    dir == RIGHT && (range_idxs = reverse(range_idxs))
 
-    rng = 1:length(ranges)
-    dir == RIGHT && (rng = reverse(rng))
-
-    # Calculate udv[i], given udv[i-1]
-    @inbounds for (i, rngidx) in enumerate(rng)
-
+    # Calculate udt[i], given udt[i-1]
+    @inbounds for (i, rngidx) in enumerate(range_idxs)
         if i == 1
             copyto!(curr_U_or_T, I)
         else
@@ -917,12 +886,11 @@ function calc_Bchain_udts!(mc::DQMC, u_stack, d_stack, t_stack; invert::Bool=fal
     end
 
     if dir == RIGHT
-        reverse!(u_stack), reverse!(d_stack), reverse!(t_stack)
+        reverse!(u_stack); reverse!(d_stack); reverse!(t_stack)
     end
 
     nothing
 end
-
 
 
 # Given Gt0 and G0t at safe mult slices (mc.s.ranges[i][1])
@@ -950,20 +918,25 @@ end
 
 
 
-
-
+################################################################################
+### Direct computation
+################################################################################
 
 
 # Calculate "G(tau, 0)", i.e. G(slice,1) as G(slice,1) = [B(slice, 1)^-1 + B(beta, slice)]^-1 which is equal to B(slice,1)G(1)
 function calc_tdgf_direct(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult; scalettar=true)
     if slice != 1
-        Ul, Dl, Tl = calc_Bchain_inv(mc, 1, slice-1, safe_mult)
+        # NOTE: This allocated mc.s.Ul, mc.s.Dl, mc.s.Tl
+        # Does not overwrite mc.s.Ur, mc.s.Dr, mc.s.Tr
+        Ul, Dl, Tl, svsl = calc_Bchain_inv(mc, 1, slice-1, safe_mult)
     else
         Ul, Dl, Tl = mc.s.eye_full, mc.s.ones_vec, mc.s.eye_full
     end
 
     if slice != mc.p.slices
-        Ur, Dr, Tr = calc_Bchain(mc, slice, mc.p.slices, safe_mult)
+        # NOTE: This allocated mc.s.Ur, mc.s.Dr, mc.s.Tr
+        # Does not overwrite mc.s.Ul, mc.s.Dl, mc.s.Tl
+        Ur, Dr, Tr, svs = calc_Bchain(mc, slice, mc.p.slices, safe_mult)
     else
         Ur, Dr, Tr = mc.s.eye_full, mc.s.ones_vec, mc.s.eye_full
     end
@@ -974,36 +947,83 @@ function calc_tdgf_direct(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult; s
     else
         U, D, T = udt_inv_sum_loh(UDT(Ul, Dl, Tl), UDT(Ur, Dr, Tr))
     end
-    effective_greens2greens!(mc, U, T)
-
     rmul!(U, Diagonal(D))
-    return U*T
+    mul!(mc.s.greens_temp, U, T)
+    _greens!(mc, mc.s.greens_temp, mc.s.tmp)
+
+    return mc.s.greens_temp
 end
 
+# Calculate Ul, Dl, Tl = [B(stop) ... B(start)]^(-1) = B(start)^(-1) ... B(stop)^(-1)
+function calc_Bchain_inv(mc::DQMC, start::Int, stop::Int, safe_mult::Int=mc.p.safe_mult)
+    flv = mc.model.flv
+    N = mc.l.sites
+    G = geltype(mc)
 
-function effective_greens2greens!(mc::DQMC_CBFalse, U::AbstractMatrix, T::AbstractMatrix)
-    eTminus = mc.s.hopping_matrix_exp
-    eTplus = mc.s.hopping_matrix_exp_inv
+    @assert 0 < start <= mc.p.slices
+    @assert 0 < stop <= mc.p.slices
+    @assert start <= stop
 
-    T = T * eTminus
-    U = eTplus * U
-    nothing
-end
-function effective_greens2greens!(mc::DQMC_CBTrue, U::AbstractMatrix, T::AbstractMatrix)
-    chkr_hop_half_minus = mc.s.chkr_hop_half
-    chkr_hop_half_plus = mc.s.chkr_hop_half_inv
-    n_groups = mc.l.n_groups
-    tmp = mc.s.tmp
+    # NOTE: U is used as a temporary matrix in multiply_slice_matrix...
+    U = mc.s.Ul;     copyto!(U, I)
+    D = mc.s.Dl;     D .= 1.0
+    T = mc.s.Tl;     copyto!(T, I)
+    Ttemp = mc.s.T
 
-    @inbounds @views begin
-        for i in reverse(1:n_groups)
-            mul!(tmp, T, chkr_hop_half_minus[i])
-            T .= tmp
-        end
-        for i in reverse(1:n_groups)
-            mul!(tmp, chkr_hop_half_plus[i], U)
-            U .= tmp
+    svs = zeros(flv*N, length(start:stop))
+    svc = 1
+    for k in reverse(start:stop)
+        if mod(k, safe_mult) == 0 || k == start # always decompose in the end
+            multiply_slice_matrix_inv_left!(mc, mc.model, k, U)
+            rmul!(U, Diagonal(D))
+            U, D, Ttemp = udt!(U)
+            mul!(mc.s.tmp, Ttemp, T)
+            T .= mc.s.tmp
+            svs[:, svc] = log.(D)
+            svc += 1
+        else
+            multiply_slice_matrix_inv_left!(mc, mc.model, k, U)
         end
     end
-    nothing
+    return U, D, T, svs
+end
+
+
+"""
+    calc_Bchain(dqmc, start, stop[, safe_mult])
+
+QR DECOMPOSITION: Calculate effective(!) Green's function (direct, i.e. without stack)
+"""
+function calc_Bchain(mc::DQMC, start::Int, stop::Int, safe_mult::Int=mc.p.safe_mult)
+    # Calculate Ul, Dl, Tl =B(stop) ... B(start)
+    flv = mc.model.flv
+    N = mc.l.sites
+    G = geltype(mc)
+
+    @assert 0 < start <= mc.p.slices
+    @assert 0 < stop <= mc.p.slices
+    @assert start <= stop
+
+    # NOTE: U is used as a temporary matrix in multiply_slice_matrix...
+    U = mc.s.Ur;     copyto!(U, I)
+    D = mc.s.Dr;     D .= 1.0
+    T = mc.s.Tr;     copyto!(T, I)
+    Ttemp = mc.s.T
+
+    svs = zeros(flv*N, length(start:stop))
+    svc = 1
+    for k in start:stop
+        if mod(k, safe_mult) == 0 || k == stop # always decompose in the end
+            multiply_slice_matrix_left!(mc, mc.model, k, U)
+            rmul!(U, Diagonal(D))
+            U, D, Ttemp = udt!(U)
+            mul!(mc.s.tmp, Tnew, T)
+            T .=  mc.s.tmp
+            svs[:, svc] = log.(D)
+            svc += 1
+        else
+            multiply_slice_matrix_left!(mc, mc.model, k, U)
+        end
+    end
+    return U, D, T, svs
 end
