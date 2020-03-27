@@ -21,7 +21,7 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
 JLD = "0.9"
-LightXML = "0.8"
+LightXML = "0.8, 0.9"
 MonteCarloObservable = "0.3"
 Parameters = "0.12"
 Reexport = "0.2"
