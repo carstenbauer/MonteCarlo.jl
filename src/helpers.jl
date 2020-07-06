@@ -100,27 +100,42 @@ end
 """
     @bm function ... end
     @bm foo(args...) = ...
+    @bm "name" begin ... end
 
 Wraps the body of a function with `@timeit_debug <function name> begin ... end`.
+This macro can also be used on a code block to generate
+`@timeit_debug <name> begin ... end`.
 
-The `@timeit_debug` macro can be disabled. When it is, it should come with zero
-overhead. To enable timing, use `TimerOutputs.enable_debug_timings(<module>)`.
-See TimerOutputs.jl for more details.
+The `@timeit_debug` macro can be disabled per module. Using `@bm` will make
+sure that the module is always `MonteCarlo`. One can enable and disable
+benchmarking with `enable_benchmarks()` and `disable_benchmarks()`. If they are
+disabled they should come with zero overhead. See TimerOutputs.jl for more
+details.
 
 Benchmarks/Timings can be retrieved using `print_timer()` and reset with
-`reset_timer!()`. It should be no problem to add additonal `@timeit_debug` to
-a function.
+`reset_timer!()`.
 """
-macro bm(func)
-    esc(Expr(
-        func.head,     # function or =
-        func.args[1],  # function name w/ args
-        quote                                  # name of function
-            MonteCarlo.@timeit_debug $(string(func.args[1].args[1])) begin
-                $(func.args[2]) # function body
-            end
-        end
-    ))
+macro bm(args...)
+    if length(args) == 1 && args[1].head in (Symbol("="), :function)
+        expr = args[1]
+        code = TimerOutputs.timer_expr(
+            MonteCarlo, true,
+            string(expr.args[1].args[1]), # name is the function call signature
+            :(begin $(expr.args[2]) end) # inner code block
+        )
+        Expr(
+            expr.head,     # function or =
+            esc(expr.args[1]),  # function name w/ args
+            code
+        )
+    else
+        # Not a function, just do the same as timeit_debug
+        # This is copied from TimerOutputs.jl
+        # With __module__ replaced by MonteCarlo because we want to have all
+        # timings in the MonteCarlo namespace (otherwise they are not tied to
+        # MonteCarlo.timeit_debug_enabled())
+        TimerOutputs.timer_expr(MonteCarlo, true, args...)
+    end
 end
 
 timeit_debug_enabled() = false
