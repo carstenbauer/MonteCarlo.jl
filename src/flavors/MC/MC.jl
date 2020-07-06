@@ -30,6 +30,7 @@ Monte Carlo simulation
 mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     model::M
     conf::C
+    last_sweep::Int
 
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
@@ -49,6 +50,7 @@ function MC(m::M;
         seed::Int=-1,
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
         measurements = :default,
+        last_sweep = 0,
         kwargs...
     ) where M<:Model
 
@@ -61,6 +63,7 @@ function MC(m::M;
         delete!(kwdict, :T)
     end
     mc.p = MCParameters(; kwdict...)
+    mc.last_sweep = last_sweep
 
     init!(
         mc, seed = seed, conf = conf,
@@ -84,6 +87,7 @@ MC(m::Model, params::NamedTuple) = MC(m; params...)
 @inline beta(mc::MC) = mc.p.beta
 @inline model(mc::MC) = mc.model
 @inline conf(mc::MC) = mc.conf
+@inline last_sweep(mc::MC) = mc.last_sweep
 
 # cosmetics
 Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
@@ -161,8 +165,6 @@ The time required to generate a save file should be included here.
 `safe_before`.
 - `force_overwrite = false`: If set to true a file with the same name as
 `resumable_filename` will be overwritten. (This will create a temporary backup)
-- `start=1`: The first sweep in the simulation. This will be changed when using
-`resume!(save_file)`.
 
 See also: [`resume!`](@ref)
 """
@@ -174,8 +176,7 @@ See also: [`resume!`](@ref)
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false,
-        start = 1
+        force_overwrite = false
     )
 
     do_th_measurements = !isempty(mc.thermalization_measurements)
@@ -206,8 +207,9 @@ See also: [`resume!`](@ref)
 
     _time = time()
     do_th_measurements && prepare!(mc.thermalization_measurements, mc, mc.model)
-    for i in start:total_sweeps
+    for i in mc.last_sweep+1:total_sweeps
         sweep(mc)
+        mc.last_sweep = i
 
         if mc.p.global_moves && mod(i, mc.p.global_rate) == 0
             mc.a.prop_global += 1
@@ -268,10 +270,10 @@ See also: [`resume!`](@ref)
             # In either case there should be no conflicting file, so there
             # should be nothing to overwrite.
             resumable_filename = save(resumable_filename, mc)
-            save_rng(resumable_filename)
-            jldopen(resumable_filename, "r+") do f
-                write(f, "last_sweep", i)
-            end
+            # save_rng(resumable_filename)
+            # jldopen(resumable_filename, "r+") do f
+            #     write(f, "last_sweep", i)
+            # end
 
             if force_overwrite
                 rm(temp_filename)
@@ -346,8 +348,6 @@ resumable save file and exit
 - `grace_period = Minute(5)`: Buffer between the current time and `safe_before`.
 The time required to generate a save file should be included here.
 - `filename`: Name of the save file. The default is based on `safe_before`.
-- `start=1`: The first sweep in the simulation. This will be changed when using
-`resume!(save_file)`.
 """
 function replay!(
         mc::MC;
@@ -379,8 +379,7 @@ function replay!(
             safe_before::TimeType = now() + Year(100),
             grace_period::TimePeriod = Minute(5),
             filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-            force_overwrite = false,
-            start = 1
+            force_overwrite = false
         )
 
     # Check for measurements
@@ -400,10 +399,11 @@ function replay!(
     _time = time()
     verbose && println("\n\nReplaying measurement stage - ", length(configs))
     prepare!(mc.measurements, mc, mc.model)
-    for i in start:mc.p.measure_rate:length(configs)
+    for i in mc.last_sweep+1:mc.p.measure_rate:length(configs)
         mc.config = configs[i]
         # maybe calculate total Energy?
         measure!(mc.measurements, mc, mc.model, i)
+        mc.last_sweep = i
 
         if mc.p.print_rate != 0 && iszero(mod(i, mc.p.print_rate))
             sweep_dur = (time() - _time)/print_rate
@@ -423,10 +423,10 @@ function replay!(
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
             filename = save(filename, mc, force_overwrite = force_overwrite)
-            save_rng(filename)
-            jldopen(filename, "r+") do f
-                write(f, "last_sweep", i)
-            end
+            # save_rng(filename)
+            # jldopen(filename, "r+") do f
+            #     write(f, "last_sweep", i)
+            # end
             verbose && println("\nEarly save finished")
 
             return false
@@ -453,6 +453,7 @@ function save_mc(file::JLD.JldFile, mc::MC, entryname::String="MC")
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.p, entryname * "/parameters")
     write(file, entryname * "/conf", mc.conf)
+    write(file, entryname * "/last_sweep", mc.last_sweep)
     save_measurements(file, mc, entryname * "/Measurements")
     save_model(file, mc.model, entryname * "/Model")
     nothing
@@ -468,6 +469,7 @@ function load_mc(data, ::Type{T}) where {T <: MC}
     mc = data["type"]()
     mc.p = load_parameters(data["parameters"], data["parameters"]["type"])
     mc.conf = data["conf"]
+    mc.last_sweep = data["last_sweep"]
     mc.model = load_model(data["Model"], data["Model"]["type"])
 
     measurements = load_measurements(data["Measurements"])

@@ -75,6 +75,7 @@ mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any,
         Stack<:AbstractDQMCStack} <: MonteCarloFlavor
     model::M
     conf::ConfType
+    last_sweep::Int
     s::Stack
 
     p::DQMCParameters
@@ -115,12 +116,15 @@ simulation
 - `measure_rate = 10`: Number of sweeps discarded between every measurement.
 - `global_moves = false`:: Currently not used
 - `global_rate = 5`: Currently not used
+- `last_sweep = 0`: Sets the index of the last finished sweep. The simulation
+will start with sweep `last_sweep + 1`.
 """
 function DQMC(m::M;
         seed::Int=-1,
         checkerboard::Bool=false,
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
         measurements = :default,
+        last_sweep = 0,
         kwargs...
     ) where M<:Model
     # default params
@@ -135,6 +139,7 @@ function DQMC(m::M;
     mc.model = m
     mc.p = p
     mc.s = DQMCStack{geltype, heltype}()
+    mc.last_sweep = last_sweep
 
     init!(
         mc, seed = seed, conf = conf,
@@ -162,6 +167,7 @@ DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
 @inline model(mc::DQMC) = mc.model
 @inline conf(mc::DQMC) = mc.conf
 @inline current_slice(mc::DQMC) = mc.s.current_slice
+@inline last_sweep(mc::DQMC) = mc.last_sweep
 
 
 # cosmetics
@@ -247,8 +253,6 @@ The time required to generate a save file should be included here.
 `safe_before`.
 - `force_overwrite = false`: If set to true a file with the same name as
 `resumable_filename` will be overwritten. (This will create a temporary backup)
-- `start=1`: The first sweep in the simulation. This will be changed when using
-`resume!(save_file)`.
 
 See also: [`resume!`](@ref)
 """
@@ -260,8 +264,7 @@ See also: [`resume!`](@ref)
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false,
-        start = 1
+        force_overwrite = false
     )
 
     # Check for measurements
@@ -303,7 +306,8 @@ See also: [`resume!`](@ref)
     _time = time()
     verbose && println("\n\nThermalization stage - ", thermalization)
     do_th_measurements && prepare!(mc.thermalization_measurements, mc, mc.model)
-    for i in start:total_sweeps
+    # dqmc.last_sweep:total_sweeps won't change when last_sweep is changed
+    for i in mc.last_sweep+1:total_sweeps
         verbose && (i == thermalization + 1) && println("\n\nMeasurement stage - ", sweeps)
         for u in 1:2 * nslices(mc)
             update(mc, i)
@@ -322,8 +326,8 @@ See also: [`resume!`](@ref)
                     iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
                 measure!(mc.measurements, mc, mc.model, i)
             end
-
         end
+        mc.last_sweep = i
 
         if mod(i, 10) == 0
             mc.a.acc_rate = mc.a.acc_rate / (10 * 2 * nslices(mc))
@@ -367,10 +371,10 @@ See also: [`resume!`](@ref)
             # In either case there should be no conflicting file, so there
             # should be nothing to overwrite.
             resumable_filename = save(resumable_filename, mc)
-            save_rng(resumable_filename)
-            jldopen(resumable_filename, "r+") do f
-                write(f, "last_sweep", i)
-            end
+            # save_rng(resumable_filename)
+            # jldopen(resumable_filename, "r+") do f
+            #     write(f, "last_sweep", i)
+            # end
 
             if force_overwrite && file_exists
                 rm(temp_filename)
@@ -493,6 +497,7 @@ function replay!(
         measure_rate = 1,
         kwargs...
     )
+    # TODO should that really be deleted?
     delete!(mc, ConfigurationMeasurement)
     reset_measurements && for (k, v) in mc.measurements
         mc.measurements[k] = typeof(v)(mc, mc.model)
@@ -508,8 +513,7 @@ function replay!(
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false,
-        start = 1
+        force_overwrite = false
     )
     # Check for measurements
     isempty(mc.thermalization_measurements) && @debug(
@@ -532,10 +536,11 @@ function replay!(
     _time = time()
     verbose && println("\n\nReplaying measurement stage - ", length(configs))
     prepare!(mc.measurements, mc, mc.model)
-    for i in start:mc.p.measure_rate:length(configs)
+    for i in mc.last_sweep+1:mc.p.measure_rate:length(configs)
         mc.conf = configs[i]
         mc.s.greens, mc.s.log_det = calculate_greens_and_logdet(mc, nslices(mc))
         measure!(mc.measurements, mc, mc.model, i)
+        mc.last_sweep = i
 
         if mod(i, 10) == 0
             sweep_dur = (time() - _time)/10
@@ -555,10 +560,10 @@ function replay!(
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
             filename = save(filename, mc, force_overwrite = force_overwrite)
-            save_rng(filename)
-            jldopen(filename, "r+") do f
-                write(f, "last_sweep", i)
-            end
+            # save_rng(filename)
+            # jldopen(filename, "r+") do f
+            #     write(f, "last_sweep", i)
+            # end
             verbose && println("\nEarly save finished")
 
             return false
@@ -620,7 +625,7 @@ function save_mc(file::JLD.JldFile, mc::DQMC, entryname::String="MC")
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.p, entryname * "/Parameters")
     write(file, entryname * "/conf", mc.conf)
-    # write(f, entryname * "/RNG", Random.GLOBAL_RNG)
+    write(file, entryname * "/last_sweep", mc.last_sweep)
     save_measurements(file, mc, entryname * "/Measurements")
     save_model(file, mc.model, entryname * "/Model")
     nothing
@@ -637,6 +642,7 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     mc = data["type"]()
     mc.p = load_parameters(data["Parameters"], data["Parameters"]["type"])
     mc.conf = data["conf"]
+    mc.last_sweep = data["last_sweep"]
     mc.model = load_model(data["Model"], data["Model"]["type"])
 
     measurements = load_measurements(data["Measurements"])
