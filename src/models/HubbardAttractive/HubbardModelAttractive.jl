@@ -64,6 +64,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 
 # implement `Model` interface
 @inline nsites(m::HubbardModelAttractive) = length(m.l)
+@inline lattice(m::HubbardModelAttractive) = m.l
 
 
 # implement `DQMC` interface: mandatory

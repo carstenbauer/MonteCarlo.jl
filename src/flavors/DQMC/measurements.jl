@@ -63,6 +63,24 @@ end
 
 
 ################################################################################
+### Utility
+################################################################################
+
+
+
+function get_lattice_shape(model::Model)
+    try
+        return size(model.l)
+    catch e
+        @warn "Failed to get lattice shape. Using flat array of sites instead."
+        @warn e
+        return nsites(model)
+    end
+end
+
+
+
+################################################################################
 ### Spin 1/2 Measurements
 ################################################################################
 
@@ -79,19 +97,6 @@ function prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model)
 end
 
 
-#
-function get_lattice_shape(model::Model)
-    try
-        return size(model.l)
-    catch e
-        @warn "Failed to get lattice shape. Using flat array of sites instead."
-        @warn e
-        return nsites(model)
-    end
-end
-
-
-
 @doc raw"""
     ChargeDensityCorrelationMeasurement(mc::DQMC, model)
 
@@ -101,26 +106,6 @@ matrix `⟨nᵢnⱼ⟩`.
 The mean of this measurement corresponds to the expectation value of the charge
 density correlation matrix for the full partition function, i.e. including
 fermionic and bosonic (auxiliary field) degrees of freedom.
-
-
-The fermionic expectation value is computed via Wick's theorem.
-```math
-      \langle n_i n_j \rangle
-    = \langle (n_{i, \uparrow} + n_{i, \downarrow}) (n_{j, \uparrow} +
-    n_{j, \downarrow})\rangle
-    = \langle n_{i, \uparrow} n_{j, \uparrow} \rangle +
-      \langle n_{i, \uparrow} n_{j, \downarrow} \rangle +
-      \langle n_{i, \downarrow} n_{j, \uparrow} \rangle +
-      \langle n_{i, \downarrow} n_{j, \downarrow} \rangle
-    = ... + \langle c_{i, \uparrow}^\dagger c_{i, \uparrow}
-        c_{j, \downarrow}^\dagger c_{j, \downarrow} \rangle + ...
-    = ... + \langle c_{i, \uparrow}^\dagger c_{i, \uparrow} \rangle
-      \langle c_{j, \downarrow}^\dagger c_{j, \downarrow} \rangle +
-      \langle c_{i, \uparrow}^\dagger c_{j, \downarrow} \rangle
-      \langle c_{i, \uparrow} c_{j, \downarrow}^\dagger \rangle + ...
-    = ... + (I - G)_{ii}^{\uparrow\uparrow} (I - G)_{jj}^{\downarrow\downarrow} +
-      (I-G)_{ji}^{\downarrow\uparrow} G_{ij}^{\uparrow\downarrow} + ...
-```
 """
 struct ChargeDensityCorrelationMeasurement{
         OT <: AbstractObservable,
@@ -128,6 +113,7 @@ struct ChargeDensityCorrelationMeasurement{
     } <: SpinOneHalfMeasurement
     obs::OT
     temp::AT
+    mask::DistanceMask
 end
 function ChargeDensityCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(model))
     N = nsites(model)
@@ -136,7 +122,9 @@ function ChargeDensityCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_
         LogBinner(reshape([zero(T) for _ in 1:N], shape)),
         "Charge density wave correlations", "Observables.jld", "CDC"
     )
-    ChargeDensityCorrelationMeasurement(obs, reshape([zero(T) for _ in 1:N], shape))
+    temp = reshape([zero(T) for _ in 1:N], shape)
+    mask = DistanceMask(lattice(model))
+    ChargeDensityCorrelationMeasurement(obs, temp, mask)
 end
 function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
@@ -145,9 +133,8 @@ function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::In
     m.temp .= zero(eltype(m.temp))
 
     for i in 1:N
-        for delta in 0:N-1
-            j = mod1(i + delta, N)
-            m.temp[delta+1] += begin
+        for (delta, j) in enumerate(m.mask[i, :])
+            m.temp[delta] += begin
                 # ⟨n↑n↑⟩
                 IG[i, i] * IG[j, j] +
                 IG[j, i] *  G[i, j] +
@@ -274,6 +261,7 @@ struct SpinDensityCorrelationMeasurement{
     y::OTy
     z::OTz
     temp::AT
+    mask::DistanceMask
 end
 function SpinDensityCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(model))
     N = nsites(model)
@@ -293,8 +281,9 @@ function SpinDensityCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_sh
         LogBinner(reshape([zero(T) for _ in 1:N], shape)),
         "Spin Density Correlation z", "Observables.jld", "sdc-z"
     )
-
-    SpinDensityCorrelationMeasurement(sdc2x, sdc2y, sdc2z, reshape([zero(T) for _ in 1:N], shape))
+    temp = reshape([zero(T) for _ in 1:N], shape)
+    mask = DistanceMask(lattice(model))
+    SpinDensityCorrelationMeasurement(sdc2x, sdc2y, sdc2z, temp, mask)
 end
 function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
@@ -310,9 +299,8 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
     # Spin Density Correlation
     m.temp .= zero(eltype(m.temp))
     for i in 1:N
-        for delta in 0:N-1
-            j = mod1(i + delta, N)
-            m.temp[delta+1] += (
+        for (delta, j) in enumerate(m.mask[i, :])
+            m.temp[delta] += (
                 IG[i+N, i] * IG[j+N, j] + IG[j+N, i] * G[i+N, j] +
                 IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
                 IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] +
@@ -324,9 +312,8 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
 
     m.temp .= zero(eltype(m.temp))
     for i in 1:N
-        for delta in 0:N-1
-            j = mod1(i + delta, N)
-            m.temp[delta+1] += (
+        for (delta, j) in enumerate(m.mask[i, :])
+            m.temp[delta] += (
                 - IG[i+N, i] * IG[j+N, j] - IG[j+N, i] * G[i+N, j] +
                   IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
                   IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] -
@@ -338,9 +325,8 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
 
     m.temp .= zero(eltype(m.temp))
     for i in 1:N
-        for delta in 0:N-1
-            j = mod1(i + delta, N)
-            m.temp[delta+1] += (
+        for (delta, j) in enumerate(m.mask[i, :])
+            m.temp[delta] += (
                 IG[i, i] * IG[j, j] + IG[j, i] * G[i, j] -
                 IG[i, i] * IG[j+N, j+N] - IG[j+N, i] * G[i, j+N] -
                 IG[i+N, i+N] * IG[j, j] - IG[j, i+N] * G[i+N, j] +
@@ -368,6 +354,7 @@ struct PairingCorrelationMeasurement{
     } <: SpinOneHalfMeasurement
     obs::OT
     temp::AT
+    mask::DistanceMask
 end
 function PairingCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(model))
     T = eltype(mc.s.greens)
@@ -379,8 +366,9 @@ function PairingCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(
         "observables.jld",
         "etpc-s"
     )
-
-    PairingCorrelationMeasurement(obs1, reshape(zeros(T, N), shape))
+    temp = reshape(zeros(T, N), shape)
+    mask = DistanceMask(lattice(model))
+    PairingCorrelationMeasurement(obs1, temp, mask)
 end
 function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
     G = greens(mc, model)
@@ -393,9 +381,8 @@ function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
 
     m.temp .= zero(eltype(m.temp))
     for i in 1:N
-        for delta in 0:N-1
-            j = mod1(i + delta, N)
-            m.temp[delta+1] += G[i, j] * G[i+N, j+N] - G[i, j+N] * G[i+N, j]
+        for (delta, j) in enumerate(m.mask[i, :])
+            m.temp[delta] += G[i, j] * G[i+N, j+N] - G[i, j+N] * G[i+N, j]
         end
     end
 
