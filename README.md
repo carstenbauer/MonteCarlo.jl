@@ -4,6 +4,7 @@
 [![github-ci](https://github.com/crstnbr/MonteCarlo.jl/workflows/Run%20tests/badge.svg)](https://github.com/crstnbr/MonteCarlo.jl/actions?query=workflow%3A%22Run+tests%22)
 [![codecov][codecov-img]](http://codecov.io/github/crstnbr/MonteCarlo.jl?branch=master)
 ![](https://img.shields.io/badge/lifecycle-experimental-orange.svg)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.3819449.svg)](https://doi.org/10.5281/zenodo.3819449)
 
 [travis-img]: https://img.shields.io/travis/crstnbr/MonteCarlo.jl/master.svg?label=Linux+/+macOS
 [appveyor-img]: https://img.shields.io/appveyor/ci/crstnbr/montecarlo-jl/master.svg?label=Windows

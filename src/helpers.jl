@@ -95,3 +95,114 @@ function SparseArrays.mul!(C::StridedMatrix, X::StridedMatrix, A::SparseMatrixCS
     end
     C
 end
+
+
+
+# Taken from Base
+if !isdefined(Base, :splitpath)
+    splitpath(p::AbstractString) = splitpath(String(p))
+
+    if Sys.isunix()
+        const path_dir_splitter = r"^(.*?)(/+)([^/]*)$"
+    elseif Sys.iswindows()
+        const path_dir_splitter = r"^(.*?)([/\\]+)([^/\\]*)$"
+    else
+        error("path primitives for this OS need to be defined")
+    end
+
+    _splitdir_nodrive(path::String) = _splitdir_nodrive("", path)
+    function _splitdir_nodrive(a::String, b::String)
+        m = match(path_dir_splitter,b)
+        m === nothing && return (a,b)
+        a = string(a, isempty(m.captures[1]) ? m.captures[2][1] : m.captures[1])
+        a, String(m.captures[3])
+    end
+
+    function splitpath(p::String)
+        drive, p = splitdrive(p)
+        out = String[]
+        isempty(p) && (pushfirst!(out,p))  # "" means the current directory.
+        while !isempty(p)
+            dir, base = _splitdir_nodrive(p)
+            dir == p && (pushfirst!(out, dir); break)  # Reached root node.
+            if !isempty(base)  # Skip trailing '/' in basename
+                pushfirst!(out, base)
+            end
+            p = dir
+        end
+        if !isempty(drive)  # Tack the drive back on to the first element.
+            out[1] = drive*out[1]  # Note that length(out) is always >= 1.
+        end
+        return out
+    end
+end
+
+
+"""
+    @bm function ... end
+    @bm foo(args...) = ...
+    @bm "name" begin ... end
+
+Wraps the body of a function with `@timeit_debug <function name> begin ... end`.
+This macro can also be used on a code block to generate
+`@timeit_debug <name> begin ... end`.
+
+The `@timeit_debug` macro can be disabled per module. Using `@bm` will make
+sure that the module is always `MonteCarlo`. One can enable and disable
+benchmarking with `enable_benchmarks()` and `disable_benchmarks()`. If they are
+disabled they should come with zero overhead. See TimerOutputs.jl for more
+details.
+
+Benchmarks/Timings can be retrieved using `print_timer()` and reset with
+`reset_timer!()`.
+"""
+macro bm(args...)
+    if length(args) == 1 && args[1].head in (Symbol("="), :function)
+        expr = args[1]
+        code = TimerOutputs.timer_expr(
+            MonteCarlo, true,
+            string(expr.args[1].args[1]), # name is the function call signature
+            :(begin $(expr.args[2]) end) # inner code block
+        )
+        Expr(
+            expr.head,     # function or =
+            esc(expr.args[1]),  # function name w/ args
+            code
+        )
+    else
+        # Not a function, just do the same as timeit_debug
+        # This is copied from TimerOutputs.jl
+        # With __module__ replaced by MonteCarlo because we want to have all
+        # timings in the MonteCarlo namespace (otherwise they are not tied to
+        # MonteCarlo.timeit_debug_enabled())
+        TimerOutputs.timer_expr(MonteCarlo, true, args...)
+    end
+end
+
+timeit_debug_enabled() = false
+
+"""
+    enable_benchmarks()
+
+Enables benchmarking for `MonteCarlo`.
+
+This affects every function with the `MonteCarlo.@bm` macro as well as any
+`TimerOutputs.@timeit_debug` blocks. Benchmarks are recorded to the default
+TimerOutput `TimerOutputs.DEFAULT_TIMER`. Results can be printed via
+`TimerOutputs.print_timer()`.
+
+[`disable_benchmarks`](@ref)
+"""
+enable_benchmarks() = TimerOutputs.enable_debug_timings(MonteCarlo)
+
+"""
+    disable_benchmarks()
+
+Disables benchmarking for `MonteCarlo`.
+
+This affects every function with the `MonteCarlo.@bm` macro as well as any
+`TimerOutputs.@timeit_debug` blocks.
+
+[`enable_benchmarks`](@ref)
+"""
+disable_benchmarks() = TimerOutputs.disable_debug_timings(MonteCarlo)

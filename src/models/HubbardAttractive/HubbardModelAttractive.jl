@@ -32,6 +32,7 @@ with linear system size `L`. Additional allowed `kwargs` are:
     flv::Int = 1
 end
 
+
 function choose_lattice(::Type{HubbardModelAttractive}, dims::Int, L::Int)
     if dims == 1
         return Chain(L)
@@ -108,16 +109,21 @@ and store it in `result::Matrix`.
 
 This is a performance critical method.
 """
-@inline function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
+@inline @bm function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
             result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
     dtau = mc.p.delta_tau
-    lambda = acosh(exp(m.U * dtau/2))
-    result .= spdiagm(0 => exp.(sign(power) * lambda * conf[:,slice]))
+    lambda = acosh(exp(0.5 * m.U * dtau))
+
+    result .= zero(eltype(result))
+    N = size(result, 1)
+    @inbounds for i in 1:N
+        result[i, i] = exp(sign(power) * lambda * conf[i, slice])
+    end
     nothing
 end
 
 
-@inline function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf)
+@inline @bm function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf)
     # see for example dos Santos (2002)
     greens = mc.s.greens
     dtau = mc.p.delta_tau
@@ -130,7 +136,7 @@ end
     return detratio, ΔE_boson, γ
 end
 
-@inline function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, ΔE_boson::Float64)
+@inline @bm function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, ΔE_boson::Float64)
     greens = mc.s.greens
     γ = delta
 
@@ -161,8 +167,50 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
 end
 
 
+
 function greens(mc::DQMC, model::HubbardModelAttractive)
     G = greens(mc)
     vcat(hcat(G, zeros(size(G))), hcat(zeros(size(G)), G))
 end
 prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing
+
+function save_model(
+        file::JLD.JldFile,
+        m::HubbardModelAttractive,
+        entryname::String="Model"
+    )
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+
+    write(file, entryname * "/dims", m.dims)
+    write(file, entryname * "/L", m.L)
+    write(file, entryname * "/mu", m.mu)
+    write(file, entryname * "/U", m.U)
+    write(file, entryname * "/t", m.t)
+    write(file, entryname * "/l", m.l) # TODO: change to save_lattice
+    write(file, entryname * "/flv", m.flv)
+
+    nothing
+end
+
+#     load_parameters(data, ::Type{<: DQMCParameters})
+#
+# Loads a DQMCParameters object from a given `data` dictionary produced by
+# `JLD.load(filename)`.
+function load_model(data::Dict, ::Type{T}) where T <: HubbardModelAttractive
+    if !(data["VERSION"] == 1)
+        throw(ErrorException("Failed to load HubbardModelAttractive version $(data["VERSION"])"))
+    end
+
+    l = data["l"]
+    data["type"](
+        dims = data["dims"],
+        L = data["L"],
+        mu = data["mu"],
+        U = data["U"],
+        t = data["t"],
+        l = l,
+        neighs = neighbors_lookup_table(l),
+        flv = data["flv"]
+    )
+end

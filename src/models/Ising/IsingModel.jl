@@ -65,7 +65,7 @@ Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 # implement `MC` interface
 Base.rand(::Type{MC}, m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m))...)
 
-@propagate_inbounds function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf)
+@propagate_inbounds @bm function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf)
     field = 0.0
     @inbounds for nb in 1:size(m.neighs, 1)
         field += conf[m.neighs[nb, i]]
@@ -74,14 +74,14 @@ Base.rand(::Type{MC}, m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m
     return delta_E, nothing
 end
 
-@propagate_inbounds function accept_local!(mc::MC, m::IsingModel, i::Int, conf::IsingConf, delta_i, delta_E::Float64)
+@propagate_inbounds @bm function accept_local!(mc::MC, m::IsingModel, i::Int, conf::IsingConf, delta_i, delta_E::Float64)
     m.energy[] += delta_E
     conf[i] *= -1
     nothing
 end
 
 # optimized for 2D case
-@propagate_inbounds function propose_local(mc::MC, m::IsingModel{SquareLattice}, i::Int, conf::IsingConf)
+@propagate_inbounds @bm function propose_local(mc::MC, m::IsingModel{SquareLattice}, i::Int, conf::IsingConf)
     neighs = m.neighs
     @inbounds delta_E = 2. * conf[i] * (conf[neighs[1, i]] + conf[neighs[2, i]] +
                               + conf[neighs[3, i]] + conf[neighs[4, i]])
@@ -96,7 +96,7 @@ end
 Constructs a Wolff cluster spinflip for configuration `conf`.
 Returns wether a cluster spinflip has been performed (any spins have been flipped).
 """
-function global_move(mc::MC, m::IsingModel, conf::IsingConf)
+@bm function global_move(mc::MC, m::IsingModel, conf::IsingConf)
     N = nsites(m)
     neighs = m.neighs
     beta = mc.p.beta
@@ -172,6 +172,44 @@ function energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
     end
     return E
 end
+
+
+
+function save_model(
+        file::JLD.JldFile,
+        m::IsingModel,
+        entryname::String="Model"
+    )
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+
+    write(file, entryname * "/L", m.L)
+    write(file, entryname * "/dims", m.dims)
+    write(file, entryname * "/l", m.l) # TODO: change to save_lattice
+    write(file, entryname * "/energy", m.energy[])
+    nothing
+end
+
+#     load_model(data, ::Type{<: IsingModel})
+#
+# Loads an IsingModel from a given `data` dictionary produced by
+# `JLD.load(filename)`.
+function load_model(data::Dict, ::Type{T}) where T <: IsingModel
+    if !(data["VERSION"] == 1)
+        throw(ErrorException("Failed to load IsingModel version $(data["VERSION"])"))
+    end
+
+    l = data["l"]
+    model = data["type"](
+        L = data["L"],
+        dims = data["dims"],
+        l = l,
+        neighs = neighbors_lookup_table(l)
+    )
+    model.energy[] = data["energy"]
+    model
+end
+
 
 
 include("measurements.jl")
