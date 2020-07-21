@@ -211,8 +211,6 @@ end
 
     # greens(mc) matches expected output
     @test greens(mc) ≈ calc_measured_greens(mc, mc.s.greens)
-    # greens() for arbitrary time matches expected output
-    @test greens(mc, mc.s.current_slice) ≈ greens(mc)
 
     # wrap greens test
     for k in 0:9
@@ -220,8 +218,6 @@ end
     end
     # greens(mc) matches expected output
     @test greens(mc) ≈ calc_measured_greens(mc, mc.s.greens)
-    # greens() for arbitrary time matches expected output
-    @test greens(mc, mc.s.current_slice-10) ≈ greens(mc)
 end
 
 @testset "Uniform Fourier" begin

@@ -27,6 +27,14 @@ for (d, lattype) in enumerate((
             mirrored_bonds = [[trg, src] for (src, trg) in reduced_bonds]
             all_bonds = vcat(reduced_bonds, mirrored_bonds)
             @test sort(all_bonds) == sort(bonds)
+
+            if L == 4
+                mask = MonteCarlo.DistanceMask(l)
+                for i in 1:length(l)
+                    @test allunique(mask[i, :])
+                    @test allunique(mask[:, i])
+                end
+            end
         end
     end
 end
@@ -60,6 +68,12 @@ end
         @test size(l.NNNs) == (6, length(l))
         for i in 1:length(l)
             @test allunique(l.NNNs[:, i])
+        end
+
+        mask = MonteCarlo.DistanceMask(l)
+        for i in 1:length(l)
+            @test allunique(mask[i, :])
+            @test allunique(mask[:, i])
         end
     end
 end
