@@ -8,7 +8,6 @@ using JLD, TimerOutputs
 
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
 
-
 include("helpers.jl")
 export enable_benchmarks, disable_benchmarks
 include("flavors/abstract.jl")
@@ -16,7 +15,7 @@ include("models/abstract.jl")
 include("lattices/abstract.jl")
 
 include("Measurements.jl")
-export measurements, observables, save_measurements!, load_measurements
+export measurements, observables
 
 include("lattices/square.jl")
 include("lattices/chain.jl")
@@ -30,10 +29,12 @@ include("flavors/DQMC/DQMC.jl")
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
 
+include("FileIO.jl")
+export save, load, resume!
 include("../test/testfunctions.jl")
 
 export reset!
-export run!
+export run!, resume!, replay!
 export IsingModel
 export HubbardModelAttractive
 export MC

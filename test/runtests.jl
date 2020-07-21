@@ -1,7 +1,15 @@
 using MonteCarlo, MonteCarloObservable
 using Test
-using Random
+using Random, Dates
 using MonteCarlo: @bm, TimerOutputs
+
+# In case some test failed and left behind a .jld file
+for f in readdir()
+    if endswith(f, ".jld")
+        @warn "Removing $f"
+        rm(f)
+    end
+end
 
 macro benchmark_test(name, code)
     TimerOutputs.timer_expr(MonteCarlo, true, name, code)
@@ -59,6 +67,10 @@ end
 
     @testset "Exact Diagonalization" begin
         include("ED/ED_tests.jl")
+    end
+
+    @testset "File IO" begin
+        include("FileIO.jl")
     end
 end
 

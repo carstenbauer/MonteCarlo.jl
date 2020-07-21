@@ -165,9 +165,15 @@ end
     run!(mc, thermalization=10, sweeps=10, verbose=false)
     push!(mc, :conf => ConfigurationMeasurement, :TH)
 
-    obs = observables(mc)
-    save_measurements!(mc, "test.jld", force_overwrite=true)
-    _obs = load_measurements("test.jld")
-    @test obs == _obs
-    rm("test.jld")
+    meas = measurements(mc)
+    MonteCarlo.save_measurements("testfile.jld", mc, force_overwrite=true)
+    _meas = MonteCarlo.load_measurements("testfile.jld")
+    for (k, v) in meas
+        for (k2, v2) in v
+            for f in fieldnames(typeof(v2))
+                @test getfield(v2, f) == getfield(_meas[k][k2], f)
+            end
+        end
+    end
+    rm("testfile.jld")
 end

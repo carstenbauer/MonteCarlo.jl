@@ -1,4 +1,4 @@
-using InteractiveUtils, SparseArrays, LinearAlgebra
+using SparseArrays, LinearAlgebra
 
 @testset "right_mul!" begin
 

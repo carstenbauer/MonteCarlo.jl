@@ -18,7 +18,16 @@ end
 @bm function measure!(m::GreensMeasurement, mc::DQMC, model, i::Int64)
     push!(m.obs, greens(mc))
 end
-
+function save_measurement(file::JLD.JldFile, m::GreensMeasurement, entryname::String)
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/obs", m.obs)
+    nothing
+end
+function load_measurement(data, ::Type{T}) where T <: GreensMeasurement
+    @assert data["VERSION"] == 1
+    data["type"](data["obs"])
+end
 
 
 """
@@ -38,6 +47,16 @@ function BosonEnergyMeasurement(mc::DQMC, model)
 end
 @bm function measure!(m::BosonEnergyMeasurement, mc::DQMC, model, i::Int64)
     push!(m.obs, energy_boson(mc, model, conf(mc)))
+end
+function save_measurement(file::JLD.JldFile, m::BosonEnergyMeasurement, entryname::String)
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/obs", m.obs)
+    nothing
+end
+function load_measurement(data, ::Type{T}) where T <: BosonEnergyMeasurement
+    @assert data["VERSION"] == 1
+    data["type"](data["obs"])
 end
 
 
