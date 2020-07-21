@@ -8,34 +8,32 @@ Direct calculation of effective slice matrix, i.e. no checkerboard.
 Calculates `Beff(slice) = exp(−1/2∆tauT)exp(−1/2∆tauT)exp(−∆tauV(slice))`.
 """
 @bm function slice_matrix(mc::DQMC_CBFalse, m::Model, slice::Int, power::Float64=1.)
-    eT = mc.s.hopping_matrix_exp
-    eTinv = mc.s.hopping_matrix_exp_inv
+    eT2 = mc.s.hopping_matrix_exp_squared
+    eTinv2 = mc.s.hopping_matrix_exp_inv_squared
     eV = mc.s.eV
 
     interaction_matrix_exp!(mc, m, eV, mc.conf, slice, power)
 
     if power > 0
-        return eT * eT * eV
+        return eT2 * eV
     else
-        return eV * eTinv * eTinv
+        return eV * eTinv2
     end
 end
 @bm function slice_matrix!(mc::DQMC_CBFalse, m::Model, slice::Int,
                     power::Float64=1., result = mc.s.U)
-    eT = mc.s.hopping_matrix_exp
-    eTinv = mc.s.hopping_matrix_exp_inv
+    eT2 = mc.s.hopping_matrix_exp_squared
+    eTinv2 = mc.s.hopping_matrix_exp_inv_squared
     eV = mc.s.eV
 
     interaction_matrix_exp!(mc, m, eV, mc.conf, slice, power)
 
     if power > 0
         # eT * (eT * eV)
-        mul!(mc.s.tmp, eT, eV)
-        mul!(result, eT, mc.s.tmp)
+        mul!(result, eT2, eV)
     else
         # ev * (eTinv * eTinv)
-        mul!(mc.s.tmp, eTinv, eTinv)
-        mul!(result, eV, mc.s.tmp)
+        mul!(result, eV, eTinv2)
     end
     return result
 end
