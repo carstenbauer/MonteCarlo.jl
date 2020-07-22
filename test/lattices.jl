@@ -29,10 +29,23 @@ for (d, lattype) in enumerate((
             @test sort(all_bonds) == sort(bonds)
 
             if L == 4
+                positions = if lattype == MonteCarlo.Chain
+                    [[i] for i in 1:L]
+                else
+                    l.lattice |> CartesianIndices .|> Tuple .|> collect
+                end
                 mask = MonteCarlo.DistanceMask(l)
                 for i in 1:length(l)
                     @test allunique(mask[i, :])
                     @test allunique(mask[:, i])
+                end
+                # The point of DistanceMask is for all i -> mask[i, j] to point
+                # in the same direction
+                for j in 1:length(l)
+                    dirs = map(enumerate(mask[:, j])) do (src, trg)
+                        mod1.(positions[trg] .- positions[src], L)
+                    end
+                    @test all(dirs[1] == d for d in dirs)
                 end
             end
         end
@@ -71,3 +84,45 @@ end
         end
     end
 end
+
+
+# TODO: maybe if LatticePhysics gets registered one day?
+# @testset "LatPhys" begin
+#     for uc in [
+#             getUnitcellSquare(), getUnitcellTriangular(),
+#             getUnitcellSC(), getUnitcellFCC()
+#         ]
+#         l = getLatticePeriodic(uc, 4)
+#         lattice = MonteCarlo.LatPhysLattice(l)
+#
+#         @test length(lattice) == numSites(l)
+#         @test ndims(lattice) == ndims(l)
+#
+#         # ...
+#
+#         mask = MonteCarlo.DistanceMask(lattice)
+#         for i in 1:length(lattice)
+#             @test allunique(mask[i, :])
+#             @test allunique(mask[:, i])
+#         end
+#
+#         positions = point.(sites(l))
+#         wrap = MonteCarlo.generate_combinations(latticeVectors(l))
+#
+#         # in the same direction
+#         for j in 1:length(lattice)
+#             dirs = map(enumerate(mask[:, j])) do (src, trg)
+#                 d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
+#                 for v in wrap[2:end]
+#                     new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
+#                     if norm(new_d) < norm(d)
+#                         d .= new_d
+#                     end
+#                 end
+#                 # This is necessary to get consistency
+#                 round.(d, digits=6)
+#             end
+#             @test all(dirs[1] == d for d in dirs)
+#         end
+#     end
+# end

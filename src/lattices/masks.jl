@@ -30,6 +30,8 @@ struct RawMask <: AbstractMask
 end
 RawMask(lattice::AbstractLattice) = RawMask(length(lattice))
 Base.getindex(mask::RawMask, source, ::Colon) = 1:mask.nsites
+Base.size(mask::RawMask) = (mask.nsites, mask.nsites)
+Base.size(mask::RawMask, dim) = dim <= 2 ? mask.nsites : 1
 
 
 """
@@ -91,3 +93,5 @@ function mark_unmarked(lattice, marked, from)
     new_sites
 end
 Base.getindex(mask::DistanceMask, source, target) = mask.targets[source, target]
+Base.size(mask::DistanceMask) = size(mask.targets)
+Base.size(mask::DistanceMask, dim) = size(mask.targets, dim)

@@ -1,4 +1,5 @@
-using LatPhysBase: from, to, numSites, bonds, sites, latticeVectors, unitcell, point
+using LatPhysBase: from, to, numSites, bonds, sites, latticeVectors, unitcell,
+                   point, AbstractSite
 import LatPhysBase
 
 struct LatPhysLattice{LT <: LatPhysBase.AbstractLattice} <: AbstractLattice
@@ -24,11 +25,7 @@ function LatPhysLattice(lattice::LatPhysBase.AbstractLattice)
 end
 
 @inline Base.length(l::LatPhysLattice) = numSites(l.lattice)
-@inline function Base.ndims(::LatPhysLattice{LT}) where {
-        T, D, S <: AbstractSite{T, D}, LT <: LatPhysBase.AbstractLattice{S}
-    }
-    D
-end
+@inline Base.ndims(l::LatPhysLattice) = ndims(l.lattice)
 function Base.size(l::LatPhysLattice)
     N = numSites(l.lattice)
     D = ndims(l)
@@ -76,15 +73,15 @@ function DistanceMask(lattice::LatPhysLattice)
 
     for origin in 1:length(lattice)
         dist_vecs = map(positions) do p
-            d = positions[origin] .- p .+ wrap[1]
+            # Rounding is necessary to get consistency
+            d = round.(positions[origin] .- p .+ wrap[1], digits=6)
             for v in wrap[2:end]
-                new_d = positions[origin] .- p .+ v
+                new_d = round.(positions[origin] .- p .+ v, digits=6)
                 if norm(new_d) < norm(d)
                     d .= new_d
                 end
             end
-            # This is necessary to get consistency
-            round.(d, digits=6)
+            d
         end
         idxs = collect(eachindex(dist_vecs))
         for j in 1:length(dist_vecs[1])
@@ -95,10 +92,10 @@ function DistanceMask(lattice::LatPhysLattice)
 
     DistanceMask(targets)
 end
-
-#############################################
-#######
-#######################
-######################################
-######
-DistanceMasks as a whole don't work with a basis
+#
+# #############################################
+# #######
+# #######################
+# ######################################
+# ######
+# DistanceMasks as a whole don't work with a basis

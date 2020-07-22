@@ -92,8 +92,8 @@ _get_shape(mask::RawMask) = (mask.nsites, mask.nsites)
 _get_shape(mask::DistanceMask) = (size(mask.targets, 2),)
 
 function mask_kernel!(mask::RawMask, IG, G, kernel::Function, output)
-    for i in 1:mask.nsites
-        for j in 1:mask.nsites
+    for i in 1:size(mask, 1)
+        for j in 1:size(mask, 2)
             output[i, j] = kernel(IG, G, i, j)
         end
     end
@@ -101,7 +101,7 @@ function mask_kernel!(mask::RawMask, IG, G, kernel::Function, output)
 end
 function mask_kernel!(mask::DistanceMask, IG, G, kernel::Function, output)
     output .= zero(eltype(output))
-    for i in 1:size(mask.targets, 1)
+    for i in 1:size(mask, 1)
         for (delta, j) in enumerate(mask[i, :])
             output[delta] += kernel(IG, G, i, j)
         end
@@ -167,7 +167,6 @@ function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::In
     push!(m.obs, m.temp / N)
 end
 function _cdc_kernel(IG, G, i, j)
-    # TODO pass N?
     N = div(size(IG, 1), 2)
     # ⟨n↑n↑⟩
     IG[i, i] * IG[j, j] +
