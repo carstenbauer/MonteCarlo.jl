@@ -52,7 +52,13 @@ order. Furthermore each bond is assumed to be of equal length.
 struct DistanceMask <: AbstractMask
     targets::Matrix{Int64}
 end
-function DistanceMask(lattice::AbstractLattice)
+DistanceMask(lattice::AbstractLattice) = MethodError(DistanceMask, (lattice))
+# These should be save!?
+DistanceMask(lattice::Chain) = default_distance_mask(lattice)
+DistanceMask(lattice::SquareLattice) = default_distance_mask(lattice)
+DistanceMask(lattice::CubicLattice) = default_distance_mask(lattice)
+DistanceMask(lattice::TriangularLattice) = default_distance_mask(lattice)
+function default_distance_mask(lattice::AbstractLattice)
     targets = Array{Int64}(undef, length(lattice), length(lattice))
     for origin in 1:length(lattice)
         new_sites = [origin]

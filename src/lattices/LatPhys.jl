@@ -67,6 +67,9 @@ end
 
 
 function DistanceMask(lattice::LatPhysLattice)
+    if length(sites(unitcell(lattice.lattice))) > 1
+        error("Lattices with a basis are currently not supported!")
+    end
     targets = Array{Int64}(undef, length(lattice), length(lattice))
     positions = point.(sites(lattice.lattice))
     wrap = generate_combinations(latticeVectors(lattice.lattice))
@@ -92,3 +95,10 @@ function DistanceMask(lattice::LatPhysLattice)
 
     DistanceMask(targets)
 end
+
+#############################################
+#######
+#######################
+######################################
+######
+DistanceMasks as a whole don't work with a basis
