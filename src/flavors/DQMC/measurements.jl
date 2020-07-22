@@ -87,14 +87,26 @@ end
 
 
 
-function get_lattice_shape(model::Model)
-    try
-        return size(model.l)
-    catch e
-        @warn "Failed to get lattice shape. Using flat array of sites instead."
-        @warn e
-        return nsites(model)
+_get_shape(model) = (nsites(model),)
+_get_shape(mask::RawMask) = (mask.nsites, mask.nsites)
+_get_shape(mask::DistanceMask) = (size(mask.targets, 2),)
+
+function mask_kernel!(mask::RawMask, IG, G, kernel::Function, output)
+    for i in 1:mask.nsites
+        for j in 1:mask.nsites
+            output[i, j] = kernel(IG, G, i, j)
+        end
     end
+    output
+end
+function mask_kernel!(mask::DistanceMask, IG, G, kernel::Function, output)
+    output .= zero(eltype(output))
+    for i in 1:size(mask.targets, 1)
+        for (delta, j) in enumerate(mask[i, :])
+            output[delta] += kernel(IG, G, i, j)
+        end
+    end
+    output
 end
 
 
@@ -128,49 +140,47 @@ fermionic and bosonic (auxiliary field) degrees of freedom.
 """
 struct ChargeDensityCorrelationMeasurement{
         OT <: AbstractObservable,
-        AT <: Array
+        AT <: Array,
+        MT <: AbstractMask
     } <: SpinOneHalfMeasurement
     obs::OT
     temp::AT
-    mask::DistanceMask
+    mask::MT
 end
-function ChargeDensityCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(model))
+function ChargeDensityCorrelationMeasurement(mc::DQMC, model; mask=RawMask(lattice(model)))
     N = nsites(model)
     T = eltype(mc.s.greens)
     obs = LightObservable(
-        LogBinner(reshape([zero(T) for _ in 1:N], shape)),
+        LogBinner(zeros(T, _get_shape(mask))),
         "Charge density wave correlations", "Observables.jld", "CDC"
     )
-    temp = reshape([zero(T) for _ in 1:N], shape)
-    mask = DistanceMask(lattice(model))
+    temp = zeros(T, _get_shape(mask))
     ChargeDensityCorrelationMeasurement(obs, temp, mask)
 end
 function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
     G = greens(mc, model)
     IG = I - G
-    m.temp .= zero(eltype(m.temp))
 
-    for i in 1:N
-        for (delta, j) in enumerate(m.mask[i, :])
-            m.temp[delta] += begin
-                # ⟨n↑n↑⟩
-                IG[i, i] * IG[j, j] +
-                IG[j, i] *  G[i, j] +
-                # ⟨n↑n↓⟩
-                IG[i, i] * IG[j + N, j + N] +
-                IG[j + N, i] *  G[i, j + N] +
-                # ⟨n↓n↑⟩
-                IG[i + N, i + N] * IG[j, j] +
-                IG[j, i + N] *  G[i + N, j] +
-                # ⟨n↓n↓⟩
-                IG[i + N, i + N] * IG[j + N, j + N] +
-                IG[j + N, i + N] *  G[i + N, j + N]
-            end
-        end
-    end
+    mask_kernel!(m.mask, IG, G, _cdc_kernel, m.temp)
 
     push!(m.obs, m.temp / N)
+end
+function _cdc_kernel(IG, G, i, j)
+    # TODO pass N?
+    N = div(size(IG, 1), 2)
+    # ⟨n↑n↑⟩
+    IG[i, i] * IG[j, j] +
+    IG[j, i] *  G[i, j] +
+    # ⟨n↑n↓⟩
+    IG[i, i] * IG[j + N, j + N] +
+    IG[j + N, i] *  G[i, j + N] +
+    # ⟨n↓n↑⟩
+    IG[i + N, i + N] * IG[j, j] +
+    IG[j, i + N] *  G[i + N, j] +
+    # ⟨n↓n↓⟩
+    IG[i + N, i + N] * IG[j + N, j + N] +
+    IG[j + N, i + N] *  G[i + N, j + N]
 end
 
 
@@ -273,35 +283,35 @@ struct SpinDensityCorrelationMeasurement{
         OTx <: AbstractObservable,
         OTy <: AbstractObservable,
         OTz <: AbstractObservable,
-        AT <: Array
+        AT <: Array,
+        MT <: AbstractMask
     } <: SpinOneHalfMeasurement
 
     x::OTx
     y::OTy
     z::OTz
     temp::AT
-    mask::DistanceMask
+    mask::MT
 end
-function SpinDensityCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(model))
+function SpinDensityCorrelationMeasurement(mc::DQMC, model; mask=RawMask(lattice(model)))
     N = nsites(model)
     T = eltype(mc.s.greens)
     Ty = T <: Complex ? T : Complex{T}
 
     # Spin density correlation
     sdc2x = LightObservable(
-        LogBinner(reshape([zero(T) for _ in 1:N], shape)),
+        LogBinner(zeros(T, _get_shape(mask))),
         "Spin Density Correlation x", "Observables.jld", "sdc-x"
     )
     sdc2y = LightObservable(
-        LogBinner(reshape([zero(Ty) for _ in 1:N], shape)),
+        LogBinner(zeros(Ty, _get_shape(mask))),
         "Spin Density Correlation y", "Observables.jld", "sdc-y"
     )
     sdc2z = LightObservable(
-        LogBinner(reshape([zero(T) for _ in 1:N], shape)),
+        LogBinner(zeros(T, _get_shape(mask))),
         "Spin Density Correlation z", "Observables.jld", "sdc-z"
     )
-    temp = reshape([zero(T) for _ in 1:N], shape)
-    mask = DistanceMask(lattice(model))
+    temp = zeros(T, _get_shape(mask))
     SpinDensityCorrelationMeasurement(sdc2x, sdc2y, sdc2z, temp, mask)
 end
 function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
@@ -316,44 +326,35 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
 
 
     # Spin Density Correlation
-    m.temp .= zero(eltype(m.temp))
-    for i in 1:N
-        for (delta, j) in enumerate(m.mask[i, :])
-            m.temp[delta] += (
-                IG[i+N, i] * IG[j+N, j] + IG[j+N, i] * G[i+N, j] +
-                IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
-                IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] +
-                IG[i, i+N] * IG[j, j+N] + IG[j, i+N] * G[i, j+N]
-            )
-        end
-    end
+    mask_kernel!(m.mask, IG, G, _sdc_x_kernel, m.temp)
     push!(m.x, m.temp / N)
 
-    m.temp .= zero(eltype(m.temp))
-    for i in 1:N
-        for (delta, j) in enumerate(m.mask[i, :])
-            m.temp[delta] += (
-                - IG[i+N, i] * IG[j+N, j] - IG[j+N, i] * G[i+N, j] +
-                  IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
-                  IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] -
-                  IG[i, i+N] * IG[j, j+N] - IG[j, i+N] * G[i, j+N]
-            )
-        end
-    end
+    mask_kernel!(m.mask, IG, G, _sdc_y_kernel, m.temp)
     push!(m.y, m.temp / N)
 
-    m.temp .= zero(eltype(m.temp))
-    for i in 1:N
-        for (delta, j) in enumerate(m.mask[i, :])
-            m.temp[delta] += (
-                IG[i, i] * IG[j, j] + IG[j, i] * G[i, j] -
-                IG[i, i] * IG[j+N, j+N] - IG[j+N, i] * G[i, j+N] -
-                IG[i+N, i+N] * IG[j, j] - IG[j, i+N] * G[i+N, j] +
-                IG[i+N, i+N] * IG[j+N, j+N] + IG[j+N, i+N] * G[i+N, j+N]
-            )
-        end
-    end
+    mask_kernel!(m.mask, IG, G, _sdc_z_kernel, m.temp)
     push!(m.z, m.temp / N)
+end
+function _sdc_x_kernel(IG, G, i, j)
+    N = div(size(IG, 1), 2)
+    IG[i+N, i] * IG[j+N, j] + IG[j+N, i] * G[i+N, j] +
+    IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
+    IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] +
+    IG[i, i+N] * IG[j, j+N] + IG[j, i+N] * G[i, j+N]
+end
+function _sdc_y_kernel(IG, G, i, j)
+    N = div(size(IG, 1), 2)
+    - IG[i+N, i] * IG[j+N, j] - IG[j+N, i] * G[i+N, j] +
+      IG[i+N, i] * IG[j, j+N] + IG[j, i] * G[i+N, j+N] +
+      IG[i, i+N] * IG[j+N, j] + IG[j+N, i+N] * G[i, j] -
+      IG[i, i+N] * IG[j, j+N] - IG[j, i+N] * G[i, j+N]
+end
+function _sdc_z_kernel(IG, G, i, j)
+    N = div(size(IG, 1), 2)
+    IG[i, i] * IG[j, j] + IG[j, i] * G[i, j] -
+    IG[i, i] * IG[j+N, j+N] - IG[j+N, i] * G[i, j+N] -
+    IG[i+N, i+N] * IG[j, j] - IG[j, i+N] * G[i+N, j] +
+    IG[i+N, i+N] * IG[j+N, j+N] + IG[j+N, i+N] * G[i+N, j+N]
 end
 
 
@@ -369,24 +370,24 @@ as the s-wave pairing correlation matrix. `Pᵢⱼ` can be accesed via the field
 """
 struct PairingCorrelationMeasurement{
         OT <: AbstractObservable,
-        AT <: Array
+        AT <: Array,
+        MT <: AbstractMask
     } <: SpinOneHalfMeasurement
     obs::OT
     temp::AT
-    mask::DistanceMask
+    mask::MT
 end
-function PairingCorrelationMeasurement(mc::DQMC, model; shape=get_lattice_shape(model))
+function PairingCorrelationMeasurement(mc::DQMC, model; mask=RawMask(lattice(model)))
     T = eltype(mc.s.greens)
     N = nsites(model)
 
     obs1 = LightObservable(
-        LogBinner(reshape(zeros(T, N), shape)),
+        LogBinner(zeros(T, _get_shape(mask))),
         "Equal time pairing correlation matrix (s-wave)",
         "observables.jld",
         "etpc-s"
     )
-    temp = reshape(zeros(T, N), shape)
-    mask = DistanceMask(lattice(model))
+    temp = zeros(T, _get_shape(mask))
     PairingCorrelationMeasurement(obs1, temp, mask)
 end
 function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
@@ -398,14 +399,13 @@ function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
     #       ⟨c_{i, ↑} c_{j, ↓}^†⟩ ⟨c_{i, ↓} c_{j, ↑}^†⟩
     # m.temp .= G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N]
 
-    m.temp .= zero(eltype(m.temp))
-    for i in 1:N
-        for (delta, j) in enumerate(m.mask[i, :])
-            m.temp[delta] += G[i, j] * G[i+N, j+N] - G[i, j+N] * G[i+N, j]
-        end
-    end
-
+    # Doesn't require IG
+    mask_kernel!(m.mask, G, G, _pc_s_wave_kernel, m.temp)
     push!(m.obs, m.temp / N)
+end
+function _pc_s_wave_kernel(IG, G, i, j)
+    N = div(size(IG, 1), 2)
+    G[i, j] * G[i+N, j+N] - G[i, j+N] * G[i+N, j]
 end
 
 """

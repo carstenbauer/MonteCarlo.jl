@@ -69,11 +69,5 @@ end
         for i in 1:length(l)
             @test allunique(l.NNNs[:, i])
         end
-
-        mask = MonteCarlo.DistanceMask(l)
-        for i in 1:length(l)
-            @test allunique(mask[i, :])
-            @test allunique(mask[:, i])
-        end
     end
 end

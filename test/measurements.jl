@@ -235,9 +235,10 @@ end
     mc = DQMC(m, beta=5.0)
     @test uniform_fourier(A, mc) == sum(A) / 64
 
-    push!(mc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement)
-    push!(mc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement)
-    push!(mc, :PC => MonteCarlo.PairingCorrelationMeasurement)
+    mask = MonteCarlo.DistanceMask(MonteCarlo.lattice(m))
+    MonteCarlo.unsafe_push!(mc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement(mc, m, mask=mask))
+    MonteCarlo.unsafe_push!(mc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement(mc, m, mask=mask))
+    MonteCarlo.unsafe_push!(mc, :PC => MonteCarlo.PairingCorrelationMeasurement(mc, m, mask=mask))
     run!(mc, verbose=false)
     measured = measurements(mc)
 

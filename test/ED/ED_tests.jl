@@ -85,10 +85,10 @@ end
     Random.seed!(123)
     dqmc = DQMC(model, beta=1.0, delta_tau = 0.1, measurements = Dict{Symbol, AbstractMeasurement}())
     push!(dqmc, :Greens => MonteCarlo.GreensMeasurement)
-    push!(dqmc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement)
+    MonteCarlo.unsafe_push!(dqmc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement(dqmc, model, mask=mask))
     push!(dqmc, :Magn => MonteCarlo.MagnetizationMeasurement)
-    push!(dqmc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement)
-    push!(dqmc, :PC => MonteCarlo.PairingCorrelationMeasurement)
+    MonteCarlo.unsafe_push!(dqmc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement(dqmc, model, mask=mask))
+    MonteCarlo.unsafe_push!(dqmc, :PC => MonteCarlo.PairingCorrelationMeasurement(dqmc, model, mask=mask))
     @time run!(dqmc, thermalization = 10_000, sweeps = 50_000, verbose=false)
 
     @info "Running ED"

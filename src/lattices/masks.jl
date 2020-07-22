@@ -29,7 +29,7 @@ struct RawMask <: AbstractMask
     nsites::Int64
 end
 RawMask(lattice::AbstractLattice) = RawMask(length(lattice))
-Base.getindex(mask::RawMask, source, target) = 1:mask.nsites
+Base.getindex(mask::RawMask, source, ::Colon) = 1:mask.nsites
 
 
 """
