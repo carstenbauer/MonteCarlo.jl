@@ -705,4 +705,5 @@ end
 
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")
-include("measurements.jl")
+include("measurements/equal_time_measurements.jl")
+include("measurements/extensions.jl")

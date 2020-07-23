@@ -67,3 +67,5 @@ end
 # HasNeighborsTable and HasBondsTable traits
 has_neighbors_table(::SquareLattice) = HasNeighborsTable()
 has_bonds_table(::SquareLattice) = HasBondsTable()
+
+positions(l::SquareLattice) = l.lattice |> CartesianIndices .|> Tuple .|> collect

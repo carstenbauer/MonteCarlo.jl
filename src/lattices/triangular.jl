@@ -110,3 +110,8 @@ end
 # HasNeighborsTable and HasBondsTable traits
 has_neighbors_table(::TriangularLattice) = HasNeighborsTable()
 has_bonds_table(::TriangularLattice) = HasBondsTable()
+
+function positions(l::TriangularLattice)
+    idxs = l.lattice |> CartesianIndices .|> Tuple .|> collect
+    [[0.5, 0.8660254037844386] * idx[1] + [1, 0] * idx[2] for idx in idxs]
+end
