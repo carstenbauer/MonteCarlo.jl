@@ -93,6 +93,7 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:Abstra
         for src in 1:N
             for nb in 1:size(neighs,1)
                 trg = neighs[nb,src]
+                trg == -1 && continue
                 T[trg,src] += -m.t
             end
         end
