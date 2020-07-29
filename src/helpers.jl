@@ -100,9 +100,9 @@ end
 # Let's assume equal size
 # See LoopVectorization.jl
 function vmul!(C, A, B)
-    @avx for m in axes(A,1), n in axes(B,2)
+    @avx for m in 1:size(A, 1), n in 1:size(B, 2)
         Cmn = zero(eltype(C))
-        for k in axes(A,2)
+        for k in 1:size(A, 2)
             Cmn += A[m,k] * B[k,n]
         end
         C[m,n] = Cmn
