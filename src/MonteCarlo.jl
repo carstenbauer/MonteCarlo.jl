@@ -9,7 +9,7 @@ using JLD, TimerOutputs
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
 
 include("helpers.jl")
-export enable_benchmarks, disable_benchmarks
+export enable_benchmarks, disable_benchmarks, print_timer, reset_timer!
 include("flavors/abstract.jl")
 include("models/abstract.jl")
 include("lattices/abstract.jl")
