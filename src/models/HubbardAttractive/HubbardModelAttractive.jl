@@ -117,7 +117,10 @@ This is a performance critical method.
     dtau = mc.p.delta_tau
     lambda = acosh(exp(0.5 * m.U * dtau))
 
-    result .= zero(eltype(result))
+    z = zero(eltype(result))
+    @inbounds for j in eachindex(result)
+        result[j] = z
+    end
     N = size(result, 1)
     @inbounds for i in 1:N
         result[i, i] = exp(sign(power) * lambda * conf[i, slice])
