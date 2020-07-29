@@ -30,10 +30,10 @@ end
 
     if power > 0
         # eT * (eT * eV)
-        mul!(result, eT2, eV)
+        vmul!(result, eT2, eV)
     else
         # ev * (eTinv * eTinv)
-        mul!(result, eV, eTinv2)
+        vmul!(result, eV, eTinv2)
     end
     return result
 end
@@ -42,35 +42,35 @@ end
 @bm function multiply_slice_matrix_left!(mc::DQMC_CBFalse, m::Model,
                                 slice::Int, M::AbstractMatrix)
     slice_matrix!(mc, m, slice, 1.0, mc.s.U)
-    mul!(mc.s.tmp, mc.s.U, M)
+    vmul!(mc.s.tmp, mc.s.U, M)
     M .= mc.s.tmp
     nothing
 end
 @bm function multiply_slice_matrix_right!(mc::DQMC_CBFalse, m::Model,
                                 slice::Int, M::AbstractMatrix)
     slice_matrix!(mc, m, slice, 1.0, mc.s.U)
-    mul!(mc.s.tmp, M, mc.s.U)
+    vmul!(mc.s.tmp, M, mc.s.U)
     M .= mc.s.tmp
     nothing
 end
 @bm function multiply_slice_matrix_inv_right!(mc::DQMC_CBFalse, m::Model,
                                 slice::Int, M::AbstractMatrix)
     slice_matrix!(mc, m, slice, -1.0, mc.s.U)
-    mul!(mc.s.tmp, M, mc.s.U)
+    vmul!(mc.s.tmp, M, mc.s.U)
     M .= mc.s.tmp
     nothing
 end
 @bm function multiply_slice_matrix_inv_left!(mc::DQMC_CBFalse, m::Model,
                                 slice::Int, M::AbstractMatrix)
     slice_matrix!(mc, m, slice, -1.0, mc.s.U)
-    mul!(mc.s.tmp, mc.s.U, M)
+    vmul!(mc.s.tmp, mc.s.U, M)
     M .= mc.s.tmp
     nothing
 end
 @bm function multiply_daggered_slice_matrix_left!(mc::DQMC_CBFalse, m::Model,
                                 slice::Int, M::AbstractMatrix)
     slice_matrix!(mc, m, slice, 1.0, mc.s.U)
-    mul!(mc.s.tmp, adjoint(mc.s.U), M)
+    vmul!(mc.s.tmp, adjoint(mc.s.U), M)
     M .= mc.s.tmp
     nothing
 end

@@ -4,7 +4,7 @@ using Reexport
 @reexport using MonteCarloObservable
 import MonteCarloObservable.AbstractObservable
 using StableDQMC, LightXML, Parameters, Requires
-using JLD, TimerOutputs
+using JLD, TimerOutputs, LoopVectorization
 
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
 
