@@ -99,13 +99,18 @@ end
 # LoopVectorization
 # Let's assume equal size
 # See LoopVectorization.jl
-function vmul!(C, A, B)
-    @avx for m in 1:size(A, 1), n in 1:size(B, 2)
-        Cmn = zero(eltype(C))
-        for k in 1:size(A, 2)
-            Cmn += A[m,k] * B[k,n]
+if VERSION < v"1.2.0"
+    @warn "What are you doing update your Julia! Not using LoopVectorization!"
+    const vmul! = mul!
+else
+    function vmul!(C, A, B)
+        @avx for m in 1:size(A, 1), n in 1:size(B, 2)
+            Cmn = zero(eltype(C))
+            for k in 1:size(A, 2)
+                Cmn += A[m,k] * B[k,n]
+            end
+            C[m,n] = Cmn
         end
-        C[m,n] = Cmn
     end
 end
 
