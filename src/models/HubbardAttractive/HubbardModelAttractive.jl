@@ -28,8 +28,8 @@ with linear system size `L`. Additional allowed `kwargs` are:
 
     # non-user fields
     l::LT = choose_lattice(HubbardModelAttractive, dims, L)
-    neighs::Matrix{Int} = neighbors_lookup_table(l)
     flv::Int = 1
+
     # to avoid allocations (TODO always real?)
     IG::Vector{Float64} = Vector{Float64}(undef, length(l))
     G::Vector{Float64} = Vector{Float64}(undef, length(l))
@@ -87,18 +87,13 @@ actual simulation.
 """
 function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:AbstractLattice}
     N = nsites(m)
-    neighs = m.neighs # row = up, right, down, left; col = siteidx
-
     T = diagm(0 => fill(-m.mu, N))
 
     # Nearest neighbor hoppings
     @inbounds @views begin
-        for src in 1:N
-            for nb in 1:size(neighs,1)
-                trg = neighs[nb,src]
-                trg == -1 && continue
-                T[trg,src] += -m.t
-            end
+        for (src, trg) in neighbors(m.l, Val(true))
+            trg == -1 && continue
+            T[trg, src] += -m.t
         end
     end
 
@@ -225,7 +220,6 @@ function load_model(data::Dict, ::Type{T}) where T <: HubbardModelAttractive
         U = data["U"],
         t = data["t"],
         l = l,
-        neighs = neighbors_lookup_table(l),
         flv = data["flv"]
     )
 end
