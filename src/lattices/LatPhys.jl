@@ -6,17 +6,22 @@ end
 function LatPhysLattice(lattice::LatPhysBase.AbstractLattice)
     # Build lookup table for neighbors
     # neighs[:, site] = list of neighoring site indices
-    bs = sort(LatPhysBase.bonds(lattice), by = LatPhysBase.from)
-    bonds_per_site = findfirst(b -> LatPhysBase.from(b) > 1, bs) - 1
-    neighs = Matrix{Int}(undef, bonds_per_site, LatPhysBase.numSites(lattice))
-    for site_idx in 1:LatPhysBase.numSites(lattice)
-        for bond_idx in 1:bonds_per_site
-            bond = bs[bonds_per_site * (site_idx - 1) + bond_idx]
-            @assert from(bond) == site_idx
-            neighs[bond_idx, site_idx] = to(bond)
+    nested_bonds = [Int[] for _ in 1:numSites(lattice)]
+    for b in bonds(lattice)
+        push!(nested_bonds[from(b)], to(b))
+    end
+    max_bonds = maximum(length(x) for x in nested_bonds)
+
+    neighs = fill(-1, max_bonds, numSites(lattice))
+    for (src, targets) in enumerate(nested_bonds)
+        for (idx, trg) in enumerate(targets)
+            neighs[idx, src] = trg
         end
     end
-
+    any(x -> x == -1, neighs) && @warn(
+        "neighs is padded with -1 to indicated the lack of a bond. This is " *
+        "due to the lattice having an irregular number of bonds per site."
+    )
     LatPhysLattice(lattice, neighs)
 end
 

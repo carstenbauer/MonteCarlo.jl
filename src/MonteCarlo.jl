@@ -4,12 +4,12 @@ using Reexport
 @reexport using MonteCarloObservable
 import MonteCarloObservable.AbstractObservable
 using StableDQMC, LightXML, Parameters, Requires
-using JLD, TimerOutputs
+using JLD, TimerOutputs, LoopVectorization
 
 using Printf, SparseArrays, LinearAlgebra, Dates, Random
 
 include("helpers.jl")
-export enable_benchmarks, disable_benchmarks
+export enable_benchmarks, disable_benchmarks, print_timer, reset_timer!
 include("flavors/abstract.jl")
 include("models/abstract.jl")
 include("lattices/abstract.jl")

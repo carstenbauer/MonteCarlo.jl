@@ -244,7 +244,7 @@ Updates stack[idx+1] based on stack[idx]
 
     @views rmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx]))
     mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], T = udt!(mc.s.curr_U)
-    @views mul!(mc.s.t_stack[:, :, idx + 1],    T, mc.s.t_stack[:, :, idx])
+    @views vmul!(mc.s.t_stack[:, :, idx + 1],    T, mc.s.t_stack[:, :, idx])
 end
 """
 Updates stack[idx] based on stack[idx+1]
@@ -258,7 +258,7 @@ Updates stack[idx] based on stack[idx+1]
 
     @views rmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx + 1]))
     mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], T = udt!(mc.s.curr_U)
-    @views mul!(mc.s.t_stack[:, :, idx], T, mc.s.t_stack[:, :, idx + 1])
+    @views vmul!(mc.s.t_stack[:, :, idx], T, mc.s.t_stack[:, :, idx + 1])
 end
 
 # Green's function calculation
@@ -274,8 +274,8 @@ mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
         tmp = mc.s.U, tmp2 = mc.s.T, tmp3 = mc.s.tmp,
         internaluse = true
     )
-    mul!(mc.s.tmp, mc.s.U, Diagonal(mc.s.D))
-    mul!(mc.s.greens, mc.s.tmp, mc.s.T)
+    vmul!(mc.s.tmp, mc.s.U, Diagonal(mc.s.D))
+    vmul!(mc.s.greens, mc.s.tmp, mc.s.T)
     mc.s.greens
 end
 
