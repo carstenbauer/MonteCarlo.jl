@@ -197,7 +197,7 @@ function save_model(
     write(file, entryname * "/mu", m.mu)
     write(file, entryname * "/U", m.U)
     write(file, entryname * "/t", m.t)
-    write(file, entryname * "/l", m.l) # TODO: change to save_lattice
+    save_lattice(file, m.l, entryname * "/l")
     write(file, entryname * "/flv", m.flv)
 
     nothing
@@ -212,7 +212,7 @@ function load_model(data::Dict, ::Type{T}) where T <: HubbardModelAttractive
         throw(ErrorException("Failed to load HubbardModelAttractive version $(data["VERSION"])"))
     end
 
-    l = data["l"]
+    l = load_lattice(data["l"], data["l"]["type"])
     data["type"](
         dims = data["dims"],
         L = data["L"],
