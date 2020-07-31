@@ -23,7 +23,7 @@ isdir(p) || mkdir(p)
     for f in fieldnames(typeof(mc.model.l))
         @test getfield(mc.model.l, f) == getfield(x.model.l, f)
     end
-    @test mc.model.neighs == x.model.neighs
+    # @test mc.model.neighs == x.model.neighs
     @test mc.model.energy[] == x.model.energy[]
     for (k, v) in mc.thermalization_measurements
         for f in fieldnames(typeof(v))
@@ -114,7 +114,6 @@ rm.(joinpath.(p, readdir(p)))
     for f in fieldnames(typeof(mc.model.l))
         @test getfield(mc.model.l, f) == getfield(x.model.l, f)
     end
-    @test mc.model.neighs == x.model.neighs
     @test mc.model.flv == x.model.flv
     for (k, v) in mc.thermalization_measurements
         for f in fieldnames(typeof(v))
