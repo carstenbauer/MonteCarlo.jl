@@ -18,7 +18,6 @@ with linear system size `L`.
     L::Int
     dims::Int
     l::C = choose_lattice(IsingModel, dims, L)
-    neighs::Matrix{Int} = neighbors_lookup_table(l)
     energy::Ref{Float64} = Ref(0.0)
 end
 
@@ -67,8 +66,8 @@ Base.rand(::Type{MC}, m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m
 
 @propagate_inbounds @bm function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf)
     field = 0.0
-    @inbounds for nb in 1:size(m.neighs, 1)
-        field += conf[m.neighs[nb, i]]
+    @inbounds for trg in neighbors(m.l, i)
+        field += conf[trg]
     end
     delta_E = 2. * conf[i] * field
     return delta_E, nothing
@@ -82,9 +81,11 @@ end
 
 # optimized for 2D case
 @propagate_inbounds @bm function propose_local(mc::MC, m::IsingModel{SquareLattice}, i::Int, conf::IsingConf)
-    neighs = m.neighs
-    @inbounds delta_E = 2. * conf[i] * (conf[neighs[1, i]] + conf[neighs[2, i]] +
-                              + conf[neighs[3, i]] + conf[neighs[4, i]])
+    neighs = m.l.neighs
+    @inbounds delta_E = 2. * conf[i] * (
+        conf[neighs[1, i]] + conf[neighs[2, i]] +
+        conf[neighs[3, i]] + conf[neighs[4, i]]
+    )
     return delta_E, nothing
 end
 
@@ -98,7 +99,6 @@ Returns wether a cluster spinflip has been performed (any spins have been flippe
 """
 @bm function global_move(mc::MC, m::IsingModel, conf::IsingConf)
     N = nsites(m)
-    neighs = m.neighs
     beta = mc.p.beta
 
     cluster = Array{Int, 1}()
@@ -110,10 +110,9 @@ Returns wether a cluster spinflip has been performed (any spins have been flippe
 
     while !isempty(tocheck)
         cur = pop!(tocheck)
-        @inbounds for ni in 1:size(neighs, 1)
-            n = neighs[ni,cur]
+        @inbounds for n in neighbors(m.l, cur)
 
-            @inbounds if conf[cur] == conf[n] && !(n in cluster) && rand() < (1 - exp(- 2.0 * beta))
+            if conf[cur] == conf[n] && !(n in cluster) && rand() < (1 - exp(- 2.0 * beta))
                 push!(tocheck, n)
                 push!(cluster, n)
             end
@@ -148,10 +147,8 @@ function energy(mc::MC, m::IsingModel{LT}, conf::IsingConf) where {
         LT <: Union{Chain, SquareLattice, CubicLattice}
     }
     E = 0.0
-    for n in 1:ndims(m)
-        @inbounds @simd for i in 1:nsites(m)
-            E -= conf[i]*conf[m.neighs[n,i]]
-        end
+    @inbounds for (src, trg) in neighbors(m.l, Val(false))
+        E -= conf[src]*conf[trg]
     end
     return E
 end
@@ -165,7 +162,7 @@ This method is a faster variant of the general method for the
 square lattice case. (It is roughly twice as fast in this case.)
 """
 function energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
-    neighs = m.neighs
+    neighs = m.l.neighs
     E = 0.0
     @inbounds @simd for i in 1:nsites(m)
         E -= conf[i]*conf[neighs[1,i]] + conf[i]*conf[neighs[2,i]]
@@ -185,7 +182,7 @@ function save_model(
 
     write(file, entryname * "/L", m.L)
     write(file, entryname * "/dims", m.dims)
-    write(file, entryname * "/l", m.l) # TODO: change to save_lattice
+    save_lattice(file, m.l, entryname * "/l")
     write(file, entryname * "/energy", m.energy[])
     nothing
 end
@@ -199,12 +196,11 @@ function load_model(data::Dict, ::Type{T}) where T <: IsingModel
         throw(ErrorException("Failed to load IsingModel version $(data["VERSION"])"))
     end
 
-    l = data["l"]
+    l = load_lattice(data["l"], data["l"]["type"])
     model = data["type"](
         L = data["L"],
         dims = data["dims"],
-        l = l,
-        neighs = neighbors_lookup_table(l)
+        l = l
     )
     model.energy[] = data["energy"]
     model
