@@ -28,8 +28,11 @@ with linear system size `L`. Additional allowed `kwargs` are:
 
     # non-user fields
     l::LT = choose_lattice(HubbardModelAttractive, dims, L)
-    neighs::Matrix{Int} = neighbors_lookup_table(l)
     flv::Int = 1
+
+    # to avoid allocations (TODO always real?)
+    IG::Vector{Float64} = Vector{Float64}(undef, length(l))
+    G::Vector{Float64} = Vector{Float64}(undef, length(l))
 end
 
 
@@ -85,17 +88,13 @@ actual simulation.
 """
 function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:AbstractLattice}
     N = nsites(m)
-    neighs = m.neighs # row = up, right, down, left; col = siteidx
-
     T = diagm(0 => fill(-m.mu, N))
 
     # Nearest neighbor hoppings
     @inbounds @views begin
-        for src in 1:N
-            for nb in 1:size(neighs,1)
-                trg = neighs[nb,src]
-                T[trg,src] += -m.t
-            end
+        for (src, trg) in neighbors(m.l, Val(true))
+            trg == -1 && continue
+            T[trg, src] += -m.t
         end
     end
 
@@ -114,7 +113,10 @@ This is a performance critical method.
     dtau = mc.p.delta_tau
     lambda = acosh(exp(0.5 * m.U * dtau))
 
-    result .= zero(eltype(result))
+    z = zero(eltype(result))
+    @inbounds for j in eachindex(result)
+        result[j] = z
+    end
     N = size(result, 1)
     @inbounds for i in 1:N
         result[i, i] = exp(sign(power) * lambda * conf[i, slice])
@@ -140,10 +142,26 @@ end
     greens = mc.s.greens
     γ = delta
 
-    u = -greens[:, i]
-    u[i] += 1.
-    # TODO: OPT: speed check, maybe @views/@inbounds
-    greens .-= kron(u * 1. /(1 + γ * u[i]), transpose(γ * greens[i, :]))
+    # Unoptimized Version
+    # u = -greens[:, i]
+    # u[i] += 1.
+    # # OPT: speed check, maybe @views/@inbounds
+    # greens .-= kron(u * 1./(1 + gamma * u[i]), transpose(gamma * greens[i, :]))
+    # conf[i, slice] .*= -1.
+
+    # Optimized
+    # copy! and `.=` allocate, this doesn't. Synced loop is marginally faster
+    @inbounds for j in eachindex(m.IG)
+        m.IG[j] = -greens[j, i]
+        m.G[j] = greens[i, j]
+    end
+    @inbounds m.IG[i] += 1.0
+    # This is way faster for small systems and still ~33% faster at L = 15
+    # Also no allocations here
+    x = γ / (1.0 + γ * m.IG[i])
+    @inbounds for k in eachindex(m.IG), l in eachindex(m.G)
+        greens[k, l] -= m.IG[k] * x * m.G[l]
+    end
     conf[i, slice] *= -1
     nothing
 end
@@ -187,7 +205,7 @@ function save_model(
     write(file, entryname * "/mu", m.mu)
     write(file, entryname * "/U", m.U)
     write(file, entryname * "/t", m.t)
-    write(file, entryname * "/l", m.l) # TODO: change to save_lattice
+    save_lattice(file, m.l, entryname * "/l")
     write(file, entryname * "/flv", m.flv)
 
     nothing
@@ -202,7 +220,7 @@ function load_model(data::Dict, ::Type{T}) where T <: HubbardModelAttractive
         throw(ErrorException("Failed to load HubbardModelAttractive version $(data["VERSION"])"))
     end
 
-    l = data["l"]
+    l = load_lattice(data["l"], data["l"]["type"])
     data["type"](
         dims = data["dims"],
         L = data["L"],
@@ -210,7 +228,6 @@ function load_model(data::Dict, ::Type{T}) where T <: HubbardModelAttractive
         U = data["U"],
         t = data["t"],
         l = l,
-        neighs = neighbors_lookup_table(l),
         flv = data["flv"]
     )
 end

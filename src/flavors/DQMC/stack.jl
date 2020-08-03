@@ -46,9 +46,11 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
     curr_U::Matrix{GreensEltype}
     eV::Matrix{GreensEltype}
 
-    # hopping matrices
-    hopping_matrix_exp::Matrix{HoppingEltype} # mu included
-    hopping_matrix_exp_inv::Matrix{HoppingEltype} # mu included
+    # hopping matrices (mu included)
+    hopping_matrix_exp::Matrix{HoppingEltype}
+    hopping_matrix_exp_inv::Matrix{HoppingEltype}
+    hopping_matrix_exp_squared::Matrix{HoppingEltype}
+    hopping_matrix_exp_inv_squared::Matrix{HoppingEltype}
 
     # checkerboard hopping matrices
     checkerboard::Matrix{Int} # src, trg, bondid
@@ -152,6 +154,8 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
                                 "$((flv*N, flv*N)) but has size $(size(T)) .")
     mc.s.hopping_matrix_exp = exp(-0.5 * dtau * T)
     mc.s.hopping_matrix_exp_inv = exp(0.5 * dtau * T)
+    mc.s.hopping_matrix_exp_squared = mc.s.hopping_matrix_exp * mc.s.hopping_matrix_exp
+    mc.s.hopping_matrix_exp_inv_squared = mc.s.hopping_matrix_exp_inv * mc.s.hopping_matrix_exp_inv
     nothing
 end
 
@@ -240,7 +244,7 @@ Updates stack[idx+1] based on stack[idx]
 
     @views rmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx]))
     mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], T = udt!(mc.s.curr_U)
-    @views mul!(mc.s.t_stack[:, :, idx + 1],    T, mc.s.t_stack[:, :, idx])
+    @views vmul!(mc.s.t_stack[:, :, idx + 1],    T, mc.s.t_stack[:, :, idx])
 end
 """
 Updates stack[idx] based on stack[idx+1]
@@ -254,7 +258,7 @@ Updates stack[idx] based on stack[idx+1]
 
     @views rmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx + 1]))
     mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], T = udt!(mc.s.curr_U)
-    @views mul!(mc.s.t_stack[:, :, idx], T, mc.s.t_stack[:, :, idx + 1])
+    @views vmul!(mc.s.t_stack[:, :, idx], T, mc.s.t_stack[:, :, idx + 1])
 end
 
 # Green's function calculation
@@ -270,8 +274,8 @@ mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
         tmp = mc.s.U, tmp2 = mc.s.T, tmp3 = mc.s.tmp,
         internaluse = true
     )
-    mul!(mc.s.tmp, mc.s.U, Diagonal(mc.s.D))
-    mul!(mc.s.greens, mc.s.tmp, mc.s.T)
+    vmul!(mc.s.tmp, mc.s.U, Diagonal(mc.s.D))
+    vmul!(mc.s.greens, mc.s.tmp, mc.s.T)
     mc.s.greens
 end
 
