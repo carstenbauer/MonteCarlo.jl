@@ -81,7 +81,7 @@ end
     )
     mask = MonteCarlo.DistanceMask(model.l)
 
-    @info "Running DQMC β=1.0, 10k + 20k sweeps, ≈1min"
+    @info "Running DQMC β=1.0, 10k + 50k sweeps, ≈4s"
     Random.seed!(123)
     dqmc = DQMC(model, beta=1.0, delta_tau = 0.1, measurements = Dict{Symbol, AbstractMeasurement}())
     push!(dqmc, :Greens => MonteCarlo.GreensMeasurement)
