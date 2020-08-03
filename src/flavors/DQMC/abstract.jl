@@ -21,7 +21,7 @@ The methods returns
     * `n_groups::Int`: number of checkerboard groups.
 """
 function build_checkerboard(l::AbstractLattice)
-    bonds = neighbors(l)
+    bonds = collect(neighbors(l))
     n_bonds = length(bonds)
 
     groups = UnitRange[]
