@@ -91,7 +91,8 @@ _get_shape(model) = (nsites(model),)
 _get_shape(mask::RawMask) = (mask.nsites, mask.nsites)
 _get_shape(mask::DistanceMask) = (size(mask.targets, 2),)
 
-function mask_kernel!(mask::RawMask, IG, G, kernel::Function, output)
+# m is the measurement for potential dispatch
+function mask_kernel!(m, mask::RawMask, IG, G, kernel::Function, output)
     for i in 1:size(mask, 1)
         for j in 1:size(mask, 2)
             output[i, j] = kernel(IG, G, i, j)
@@ -99,7 +100,7 @@ function mask_kernel!(mask::RawMask, IG, G, kernel::Function, output)
     end
     output
 end
-function mask_kernel!(mask::DistanceMask, IG, G, kernel::Function, output)
+function mask_kernel!(m, mask::DistanceMask, IG, G, kernel::Function, output)
     output .= zero(eltype(output))
     for src in 1:size(mask, 1)
         for (dir_idx, trg) in getorder(mask, src)
@@ -164,7 +165,7 @@ function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::In
     G = greens(mc, model)
     IG = I - G
 
-    mask_kernel!(m.mask, IG, G, _cdc_kernel, m.temp)
+    mask_kernel!(m, m.mask, IG, G, _cdc_kernel, m.temp)
 
     push!(m.obs, m.temp / N)
 end
@@ -327,13 +328,13 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
 
 
     # Spin Density Correlation
-    mask_kernel!(m.mask, IG, G, _sdc_x_kernel, m.temp)
+    mask_kernel!(m, m.mask, IG, G, _sdc_x_kernel, m.temp)
     push!(m.x, m.temp / N)
 
-    mask_kernel!(m.mask, IG, G, _sdc_y_kernel, m.temp)
+    mask_kernel!(m, m.mask, IG, G, _sdc_y_kernel, m.temp)
     push!(m.y, m.temp / N)
 
-    mask_kernel!(m.mask, IG, G, _sdc_z_kernel, m.temp)
+    mask_kernel!(m, m.mask, IG, G, _sdc_z_kernel, m.temp)
     push!(m.z, m.temp / N)
 end
 function _sdc_x_kernel(IG, G, i, j)
@@ -359,7 +360,8 @@ function _sdc_z_kernel(IG, G, i, j)
 end
 
 
-
+# TODO
+# Add Symmetry-mask to further compress this?
 """
     PairingCorrelationMeasurement(mc::DQMC, model)
 
@@ -378,33 +380,65 @@ struct PairingCorrelationMeasurement{
     temp::AT
     mask::MT
 end
-function PairingCorrelationMeasurement(mc::DQMC, model; mask=RawMask(lattice(model)))
+function PairingCorrelationMeasurement(mc::DQMC, model; mask=DistanceMask(lattice(model)))
+    mask isa RawMask && @warn(
+        "The Pairing Correlation Measurement will be very large with a RawMask!"
+    )
     T = eltype(mc.s.greens)
     N = nsites(model)
+    shape = tuple((x for x in _get_shape(mask) for _ in 1:2)...)
 
     obs1 = LightObservable(
-        LogBinner(zeros(T, _get_shape(mask))),
+        LogBinner(zeros(T, shape)),
         "Equal time pairing correlation matrix (s-wave)",
         "observables.jld",
         "etpc-s"
     )
-    temp = zeros(T, _get_shape(mask))
+    temp = zeros(T, shape)
     PairingCorrelationMeasurement(obs1, temp, mask)
 end
 function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
     G = greens(mc, model)
     N = nsites(model)
     # Pᵢⱼ = ⟨ΔᵢΔⱼ^†⟩
-    #     = ⟨c_{i, ↑} c_{i, ↓} c_{j, ↓}^† c_{j, ↑}^†⟩
-    #     = ⟨c_{i, ↑} c_{j, ↑}^†⟩ ⟨c_{i, ↓} c_{j, ↓}^†⟩ -
-    #       ⟨c_{i, ↑} c_{j, ↓}^†⟩ ⟨c_{i, ↓} c_{j, ↑}^†⟩
-    # m.temp .= G[1:N, 1:N] .* G[N+1:2N, N+1:2N] - G[1:N, N+1:2N] .* G[N+1:2N, 1:N]
+    #     = ⟨c_{i, ↑} c_{i+di, ↓} c_{j+dj, ↓}^† c_{j, ↑}^†⟩
+    #     = ⟨c_{i, ↑} c_{j, ↑}^†⟩ ⟨c_{i+di, ↓} c_{j+dj, ↓}^†⟩ -
+    #       ⟨c_{i, ↑} c_{j+dj, ↓}^†⟩ ⟨c_{i+di, ↓} c_{j, ↑}^†⟩
 
     # Doesn't require IG
-    mask_kernel!(m.mask, G, G, _pc_s_wave_kernel, m.temp)
-    push!(m.obs, m.temp / N)
+    mask_kernel!(m, m.mask, G, G, _pc_s_wave_kernel, m.temp)
+    push!(m.obs, m.temp / N^2)
 end
-function _pc_s_wave_kernel(IG, G, i, j)
+
+# m is the measurement for potential dispatch
+function mask_kernel!(
+        m::PairingCorrelationMeasurement,
+        mask::RawMask, IG, G, kernel::Function, output
+    )
+    for src1 in 1:size(mask, 1), src2 in 1:size(mask, 1)
+        for trg1 in 1:size(mask, 2), trg2 in 1:size(mask, 2)
+            output[src1, src2, trg1, trg2] += kernel(IG, G, src1, src2, trg1, trg2)
+        end
+    end
+    output
+end
+function mask_kernel!(
+        m::PairingCorrelationMeasurement,
+        mask::DistanceMask, IG, G, kernel::Function, output
+    )
+    output .= zero(eltype(output))
+    for src1 in 1:size(mask, 1)
+        for (dir_idx1, trg1) in getorder(mask, src1)
+            for src2 in 1:size(mask, 1)
+                for (dir_idx2, trg2) in getorder(mask, src2)
+                    output[dir_idx1, dir_idx2] += kernel(IG, G, src1, src2, trg1, trg2)
+                end
+            end
+        end
+    end
+    output
+end
+function _pc_s_wave_kernel(IG, G, src1, src2, trg1, trg2)
     N = div(size(IG, 1), 2)
-    G[i, j] * G[i+N, j+N] - G[i, j+N] * G[i+N, j]
+    G[src1, src2] * G[trg1+N, trg2+N] - G[src1, trg2+N] * G[trg1+N, src2]
 end
