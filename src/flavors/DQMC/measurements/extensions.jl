@@ -61,9 +61,8 @@ end
 structure_factor(m, dqmc::DQMC, args...) = structure_factor(m, dqmc.model, args...)
 structure_factor(m, model::Model, args...) = structure_factor(m, lattice(model), args...)
 
-function structure_factor(m, lattice::AbstractLattice, args...)
-    pos = positions(lattice)
-    dirs = [pos[1] .- p for p in pos[m.mask[1, :]]]
+function structure_factor(m::AbstractMeasurement, lattice::AbstractLattice, args...)
+    dirs = directions(mask(m), lattice)
     structure_factor(m, dirs, args...)
 end
 function structure_factor(m::AbstractMeasurement, directions::Vector{<: Vector}, field=:obs)

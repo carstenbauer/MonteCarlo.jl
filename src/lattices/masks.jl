@@ -30,8 +30,15 @@ struct RawMask <: AbstractMask
 end
 RawMask(lattice::AbstractLattice) = RawMask(length(lattice))
 Base.getindex(mask::RawMask, source, ::Colon) = 1:mask.nsites
+# TODO name?
+getorder(mask::RawMask, source) = enumerate(1:mask.nsites)
 Base.size(mask::RawMask) = (mask.nsites, mask.nsites)
 Base.size(mask::RawMask, dim) = dim <= 2 ? mask.nsites : 1
+function directions(mask::RawMask, lattice::AbstractLattice)
+    pos = positions(lattice)
+    [p2 .- p1 for p2 in pos for p1 in pos]
+end
+
 
 
 """
@@ -51,7 +58,8 @@ The first site in this list is `src`
 Warning: For this to work correctly the lattice must provide the neighbors in
 order. Furthermore each bond is assumed to be of equal length.
 """
-struct DistanceMask <: AbstractMask
+abstract type DistanceMask <: AbstractMask end
+struct SimpleDistanceMask <: DistanceMask
     targets::Matrix{Int64}
 end
 DistanceMask(lattice::AbstractLattice) = MethodError(DistanceMask, (lattice))
@@ -79,7 +87,7 @@ function default_distance_mask(lattice::AbstractLattice)
         targets[origin, :] .= sites
     end
 
-    DistanceMask(targets)
+    SimpleDistanceMask(targets)
 end
 function mark_unmarked(lattice, marked, from)
     @assert from != 0
@@ -92,6 +100,32 @@ function mark_unmarked(lattice, marked, from)
     end
     new_sites
 end
-Base.getindex(mask::DistanceMask, source, target) = mask.targets[source, target]
+Base.getindex(mask::DistanceMask, source, target_idx) = mask.targets[source, target_idx]
+# TODO name?
+getorder(mask::SimpleDistanceMask, source) = enumerate(mask.targets[source, :])
 Base.size(mask::DistanceMask) = size(mask.targets)
 Base.size(mask::DistanceMask, dim) = size(mask.targets, dim)
+function directions(mask::SimpleDistanceMask, lattice::AbstractLattice)
+    pos = positions(lattice)
+    [pos[1] .- p for p in pos[mask.targets[1, :]]]
+end
+
+
+struct VerboseDistanceMask <: DistanceMask
+    targets::Matrix{Tuple{Int64, Int64}}
+end
+getorder(mask::VerboseDistanceMask, source) = mask.targets[source, :]
+function directions(mask::VerboseDistanceMask, lattice::AbstractLattice)
+    pos = positions(lattice)
+    marked = Set{Int64}()
+    dirs = eltype(pos)[]
+    for src in 1:size(mask.targets, 1)
+        for (idx, trg) in mask.targets[src, :]
+            if !(idx in marked)
+                push!(marked, idx)
+                push!(dirs, pos[trg] - pos[src])
+            end
+        end
+    end
+    dirs
+end

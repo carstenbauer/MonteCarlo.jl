@@ -101,13 +101,15 @@ function mask_kernel!(mask::RawMask, IG, G, kernel::Function, output)
 end
 function mask_kernel!(mask::DistanceMask, IG, G, kernel::Function, output)
     output .= zero(eltype(output))
-    for i in 1:size(mask, 1)
-        for (delta, j) in enumerate(mask[i, :])
-            output[delta] += kernel(IG, G, i, j)
+    for src in 1:size(mask, 1)
+        for (dir_idx, trg) in getorder(mask, src)
+            output[dir_idx] += kernel(IG, G, src, trg)
         end
     end
     output
 end
+
+mask(m::AbstractMeasurement) = m.mask
 
 
 

@@ -69,17 +69,47 @@ function generate_combinations(vs::Vector{Vector{Float64}})
 end
 
 
+# function DistanceMask(lattice::LatPhysLattice)
+#     if length(sites(unitcell(lattice.lattice))) > 1
+#         error("Lattices with a basis are currently not supported!")
+#     end
+#     targets = Array{Int64}(undef, length(lattice), length(lattice))
+#     positions = point.(sites(lattice.lattice))
+#     wrap = generate_combinations(latticeVectors(lattice.lattice))
+#
+#     for origin in 1:length(lattice)
+#         dist_vecs = map(positions) do p
+#             # Rounding is necessary to get consistency
+#             d = round.(positions[origin] .- p .+ wrap[1], digits=6)
+#             for v in wrap[2:end]
+#                 new_d = round.(positions[origin] .- p .+ v, digits=6)
+#                 if norm(new_d) < norm(d)
+#                     d .= new_d
+#                 end
+#             end
+#             d
+#         end
+#         idxs = collect(eachindex(dist_vecs))
+#         for j in 1:length(dist_vecs[1])
+#             sort!(idxs, by = i -> dist_vecs[i][j], alg=MergeSort)
+#         end
+#         targets[origin, :] .= sort(idxs, by = i -> norm(dist_vecs[i]), alg=MergeSort)
+#     end
+#
+#     DistanceMask(targets)
+# end
+
+
 function DistanceMask(lattice::LatPhysLattice)
-    if length(sites(unitcell(lattice.lattice))) > 1
-        error("Lattices with a basis are currently not supported!")
-    end
-    targets = Array{Int64}(undef, length(lattice), length(lattice))
     positions = point.(sites(lattice.lattice))
     wrap = generate_combinations(latticeVectors(lattice.lattice))
 
+    directions = Vector{Float64}[]
+    # distance_idx, src, trg
+    bonds = [Tuple{Int64, Int64}[] for _ in 1:length(lattice)]
+
     for origin in 1:length(lattice)
-        dist_vecs = map(positions) do p
-            # Rounding is necessary to get consistency
+        for (trg, p) in enumerate(positions)
             d = round.(positions[origin] .- p .+ wrap[1], digits=6)
             for v in wrap[2:end]
                 new_d = round.(positions[origin] .- p .+ v, digits=6)
@@ -87,22 +117,36 @@ function DistanceMask(lattice::LatPhysLattice)
                     d .= new_d
                 end
             end
-            d
+            # I think the rounding will allow us to use == here
+            idx = findfirst(dir -> dir == d, directions)
+            if idx == nothing
+                push!(directions, d)
+                push!(bonds[origin], (length(directions), trg))
+            else
+                push!(bonds[origin], (idx, trg))
+            end
         end
-        idxs = collect(eachindex(dist_vecs))
-        for j in 1:length(dist_vecs[1])
-            sort!(idxs, by = i -> dist_vecs[i][j], alg=MergeSort)
-        end
-        targets[origin, :] .= sort(idxs, by = i -> norm(dist_vecs[i]), alg=MergeSort)
     end
 
-    DistanceMask(targets)
+    targets = Array{Tuple{Int64, Int64}}(undef, length(lattice), length(lattice))
+    temp = sortperm(directions, by=norm)
+    sorted = Vector{Int64}(undef, length(directions))
+    sorted[temp] .= eachindex(directions)
+
+    for (src, bs) in enumerate(bonds)
+        targets[src, :] = map(sort(bs, by = t -> norm(directions[t[1]]))) do b
+            (sorted[b[1]], b[2])
+        end
+    end
+
+    VerboseDistanceMask(targets)
 end
 
-      
+
+
 # Saving & Loading
 
-      
+
 function save_lattice(file::JLD.JldFile, lattice::LatPhysLattice, entryname::String)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/type", typeof(lattice))
