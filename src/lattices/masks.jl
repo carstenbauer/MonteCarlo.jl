@@ -116,14 +116,14 @@ struct VerboseDistanceMask <: DistanceMask
 end
 getorder(mask::VerboseDistanceMask, source) = mask.targets[source, :]
 function directions(mask::VerboseDistanceMask, lattice::AbstractLattice)
-    pos = positions(lattice)
+    pos = MonteCarlo.positions(lattice)
     marked = Set{Int64}()
-    dirs = eltype(pos)[]
+    dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
     for src in 1:size(mask.targets, 1)
         for (idx, trg) in mask.targets[src, :]
             if !(idx in marked)
                 push!(marked, idx)
-                push!(dirs, pos[trg] - pos[src])
+                dirs[idx] = pos[trg] - pos[src]
             end
         end
     end

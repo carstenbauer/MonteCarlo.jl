@@ -86,13 +86,17 @@ end
 end
 
 
-# TODO: maybe if LatticePhysics gets registered one day?
+# # TODO: maybe if LatticePhysics gets registered one day?
 # @testset "LatPhys" begin
 #     for uc in [
 #             getUnitcellSquare(), getUnitcellTriangular(),
-#             getUnitcellSC(), getUnitcellFCC()
+#             getUnitcellKagome(), getUnitcellHoneycomb(),
+#             getUnitcellSC(), getUnitcellFCC(),
+#             getUnitcellDiamond(),
+#             getUnitcell_9_3_a() # <- This one takes a bit longer
 #         ]
 #         l = getLatticePeriodic(uc, 4)
+#         @info l
 #         lattice = MonteCarlo.LatPhysLattice(l)
 #
 #         @test length(lattice) == numSites(l)
@@ -110,8 +114,9 @@ end
 #         wrap = MonteCarlo.generate_combinations(latticeVectors(l))
 #
 #         # in the same direction
-#         for j in 1:length(lattice)
-#             dirs = map(enumerate(mask[:, j])) do (src, trg)
+#         dirs = MonteCarlo.directions(mask, lattice)
+#         for src in 1:length(lattice)
+#             for (idx, trg) in MonteCarlo.getorder(mask, src)
 #                 d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
 #                 for v in wrap[2:end]
 #                     new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
@@ -119,10 +124,8 @@ end
 #                         d .= new_d
 #                     end
 #                 end
-#                 # This is necessary to get consistency
-#                 round.(d, digits=6)
+#                 @test dirs[idx] ≈ d
 #             end
-#             @test all(dirs[1] == d for d in dirs)
 #         end
 #     end
 # end
