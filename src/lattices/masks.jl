@@ -47,13 +47,15 @@ end
 Constructs a mask that orders sites by distance and direction relative to each
 other site.
 
-For example:
-- `mask[src, n]` returns the n-th furthest site from `src`
-- `mask[:, n]` returns the n-th furthest site from each site. The
-direction of each real space vector (target position - source positions) is
-equal (up to periodic bonds).
-- `mask[src, :]` returns a list of all sites, ordered by distance from `src`.
-The first site in this list is `src`
+Related Functions:
+* `getorder(mask, src)`: Returns an iterable of (idx, trg) tuples, ordered by
+distance. `idx` has a 1:1 correspondence with a directions, i.e. every
+`(trg, src)` pair which points in the same direction will have the same `idx`.
+* `directions(mask, lattice)`: Returns a list of directions which can be indexed
+by the `idx` returned from `getorder` to get the corresponding direction.
+* `mask[src, n]`: Returns the n-th closest site from `src`. Depending on the
+lattice it may also return a directional `idx`. If it does not, that index is
+given by `n`.
 
 Warning: For this to work correctly the lattice must provide the neighbors in
 order. Furthermore each bond is assumed to be of equal length.
@@ -105,6 +107,17 @@ Base.getindex(mask::DistanceMask, source, target_idx) = mask.targets[source, tar
 getorder(mask::SimpleDistanceMask, source) = enumerate(mask.targets[source, :])
 Base.size(mask::DistanceMask) = size(mask.targets)
 Base.size(mask::DistanceMask, dim) = size(mask.targets, dim)
+"""
+    directions(mask, lattice)
+
+Returns a vector of directions in the order emposed by the given mask.
+
+For a `RawMask` the output directly mimics the mask, i.e.
+`directions(mask, lattice)[src, idx]` is the direction to
+`trg = mask[src, idx]`.
+For a `DistanceMask` the `directions(mask, lattice)[dir_idx]` return the
+direction of `dir_idx, trg = mask[src, idx]`.
+"""
 function directions(mask::SimpleDistanceMask, lattice::AbstractLattice)
     pos = positions(lattice)
     [pos[1] .- p for p in pos[mask.targets[1, :]]]

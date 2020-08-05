@@ -363,13 +363,24 @@ end
 # TODO
 # Add Symmetry-mask to further compress this?
 """
-    PairingCorrelationMeasurement(mc::DQMC, model)
+    PairingCorrelationMeasurement(mc::DQMC, model[; mask=DistanceMask(lattice(model))])
 
-Measures the fermionic expectation value of the s-wave pairing correlation.
+Measures the fermionic expectation value of generic pairing correlations.
 
-We define `Δᵢ = c_{i, ↑} c_{i, ↓}` s the pair-field operator and `Pᵢⱼ = ⟨ΔᵢΔⱼ^†⟩`
-as the s-wave pairing correlation matrix. `Pᵢⱼ` can be accesed via the field
-`mat` and its site-average via the field `uniform_fourier`.
+We define `Δᵢ = c_{i, ↑} c_{i+di, ↓}` s the pair-field operator and
+`P = ⟨ΔᵢΔⱼ^†⟩` as the pairing correlation matrix. If a `DistanceMask` is passed
+`P` is indexed by two direction `P[di, dj]`. For a `RawMask` the indices are
+`P[i, j, i+di, j+dj]` resulting in a much larger matrix. The matrix can be
+retrieved using the field `obs`.
+
+To get pairing correlations of different symmetries one needs to sum the results
+for specific directions with relevant weights. These weights can be determined
+by overlapping the symmetry with the lattice.
+
+See also:
+* [`mean`](@ref), [`std_error`](@ref), [`var`](@ref)
+* [`RawMask`](@ref), [`DistanceMask`](@ref), [`directions`](@ref)
+* [`uniform_fourier`](@ref), [`structure_factor`](@ref)
 """
 struct PairingCorrelationMeasurement{
         OT <: AbstractObservable,
