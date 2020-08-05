@@ -52,6 +52,87 @@ for (d, lattype) in enumerate((
     end
 end
 
+
+
+# L = 3 hardcoded Honeycomb
+struct HoneycombTestLattice <: MonteCarlo.AbstractLattice
+    positions::Vector{Vector{Float64}}
+end
+
+function HoneycombTestLattice()
+    # Taken from LatticePhysics (L = 3)
+    pos = [[0.0, 0.0], [0.5773502691896258, 0.0], [0.8660254037844386, 0.5], [1.4433756729740645, 0.5], [1.7320508075688772, 1.0], [2.309401076758503, 1.0], [0.8660254037844386, -0.5], [1.4433756729740645, -0.5], [1.7320508075688772, 0.0], [2.309401076758503, 0.0], [2.598076211353316, 0.5], [3.1754264805429417, 0.5], [1.7320508075688772, -1.0], [2.309401076758503, -1.0], [2.598076211353316, -0.5], [3.1754264805429413, -0.5], [3.4641016151377544, 0.0], [4.04145188432738, 0.0]]
+    HoneycombTestLattice(pos)
+end
+Base.length(l::HoneycombTestLattice) = length(l.positions)
+MonteCarlo.positions(l::HoneycombTestLattice) = l.positions
+function MonteCarlo.DistanceMask(lattice::HoneycombTestLattice)
+    L = 3
+    wrap = MonteCarlo.generate_combinations(
+        [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
+    )
+    MonteCarlo.VerboseDistanceMask(lattice, wrap)
+end
+function MonteCarlo.directions(mask::MonteCarlo.VerboseDistanceMask, lattice::HoneycombTestLattice)
+    pos = MonteCarlo.positions(lattice)
+    marked = Set{Int64}()
+    dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
+    for src in 1:size(mask.targets, 1)
+        for (idx, trg) in mask.targets[src, :]
+            if !(idx in marked)
+                push!(marked, idx)
+                dirs[idx] = pos[trg] - pos[src]
+            end
+        end
+    end
+    L = 3
+    wrap = MonteCarlo.generate_combinations(
+        [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
+    )
+    map(dirs) do _d
+        d = round.(_d .+ wrap[1], digits=6)
+        for v in wrap[2:end]
+            new_d = round.(_d .+ v, digits=6)
+            if norm(new_d) < norm(d)
+                d .= new_d
+            end
+        end
+        d
+    end
+end
+
+@testset "Mask with basis" begin
+    l = HoneycombTestLattice()
+    L = 3
+    positions = MonteCarlo.positions(l)
+    mask = MonteCarlo.DistanceMask(l)
+    @test mask isa MonteCarlo.VerboseDistanceMask
+    @test size(mask) == (18, 27)
+    @test size(mask, 2) == 27
+    for i in 1:length(l)
+        @test allunique(mask[i, :])
+        @test allunique(mask[:, i])
+    end
+    wrap = MonteCarlo.generate_combinations(
+        [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
+    )
+
+    # in the same direction
+    dirs = MonteCarlo.directions(mask, l)
+    for src in 1:length(l)
+        for (idx, trg) in MonteCarlo.getorder(mask, src)
+            d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
+            for v in wrap[2:end]
+                new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
+                if norm(new_d) < norm(d)
+                    d .= new_d
+                end
+            end
+            @test dirs[idx] ≈ d
+        end
+    end
+end
+
 # @testset "2D Honeycomb" begin
 #     for L in (2, 3)
 #         l = MonteCarlo.HoneycombLattice(L)
