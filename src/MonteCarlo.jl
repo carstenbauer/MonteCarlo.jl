@@ -17,13 +17,13 @@ include("lattices/abstract.jl")
 include("Measurements.jl")
 export measurements, observables
 
+include("lattices/masks.jl")
 include("lattices/square.jl")
 include("lattices/chain.jl")
 include("lattices/cubic.jl")
 include("lattices/honeycomb.jl")
 include("lattices/triangular.jl")
 include("lattices/ALPS.jl")
-include("lattices/masks.jl")
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")

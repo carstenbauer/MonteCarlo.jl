@@ -115,3 +115,4 @@ function positions(l::TriangularLattice)
     idxs = l.lattice |> CartesianIndices .|> Tuple .|> collect
     [[0.5, 0.8660254037844386] * idx[1] + [1, 0] * idx[2] for idx in idxs]
 end
+DistanceMask(lattice::TriangularLattice) = default_distance_mask(lattice)

@@ -65,11 +65,6 @@ struct SimpleDistanceMask <: DistanceMask
     targets::Matrix{Int64}
 end
 DistanceMask(lattice::AbstractLattice) = MethodError(DistanceMask, (lattice))
-# These should be save!?
-DistanceMask(lattice::Chain) = default_distance_mask(lattice)
-DistanceMask(lattice::SquareLattice) = default_distance_mask(lattice)
-DistanceMask(lattice::CubicLattice) = default_distance_mask(lattice)
-DistanceMask(lattice::TriangularLattice) = default_distance_mask(lattice)
 function default_distance_mask(lattice::AbstractLattice)
     targets = Array{Int64}(undef, length(lattice), length(lattice))
     for origin in 1:length(lattice)
@@ -106,7 +101,7 @@ Base.getindex(mask::DistanceMask, source, target_idx) = mask.targets[source, tar
 # TODO name?
 getorder(mask::SimpleDistanceMask, source) = enumerate(mask.targets[source, :])
 Base.size(mask::DistanceMask) = size(mask.targets)
-Base.size(mask::DistanceMask, dim) = size(mask.targets, dim)
+Base.size(mask::DistanceMask, dim) = size(mask)[dim]
 """
     directions(mask, lattice)
 
@@ -127,6 +122,9 @@ end
 struct VerboseDistanceMask <: DistanceMask
     targets::Matrix{Tuple{Int64, Int64}}
 end
+# NOTE Does this definition makes sense?
+# This would be (number of source sites, number of directions)
+Base.size(mask::VerboseDistanceMask) = (size(mask.targets, 1), maximum(first(x) for x in mask.targets))
 getorder(mask::VerboseDistanceMask, source) = mask.targets[source, :]
 function directions(mask::VerboseDistanceMask, lattice::AbstractLattice)
     pos = MonteCarlo.positions(lattice)
@@ -141,4 +139,51 @@ function directions(mask::VerboseDistanceMask, lattice::AbstractLattice)
         end
     end
     dirs
+end
+# For shifting sites across periodic bounds
+function generate_combinations(vs::Vector{Vector{Float64}})
+    out = [zeros(length(vs[1]))]
+    for v in vs
+        out = vcat([e.-v for e in out], out, [e.+v for e in out])
+    end
+    out
+end
+function VerboseDistanceMask(lattice, wrap)
+    _positions = positions(lattice)
+    directions = Vector{Float64}[]
+    # distance_idx, src, trg
+    bonds = [Tuple{Int64, Int64}[] for _ in 1:length(lattice)]
+
+    for origin in 1:length(lattice)
+        for (trg, p) in enumerate(_positions)
+            d = round.(_positions[origin] .- p .+ wrap[1], digits=6)
+            for v in wrap[2:end]
+                new_d = round.(_positions[origin] .- p .+ v, digits=6)
+                if norm(new_d) < norm(d)
+                    d .= new_d
+                end
+            end
+            # I think the rounding will allow us to use == here
+            idx = findfirst(dir -> dir == d, directions)
+            if idx == nothing
+                push!(directions, d)
+                push!(bonds[origin], (length(directions), trg))
+            else
+                push!(bonds[origin], (idx, trg))
+            end
+        end
+    end
+
+    targets = Array{Tuple{Int64, Int64}}(undef, length(lattice), length(lattice))
+    temp = sortperm(directions, by=norm)
+    sorted = Vector{Int64}(undef, length(directions))
+    sorted[temp] .= eachindex(directions)
+
+    for (src, bs) in enumerate(bonds)
+        targets[src, :] = map(sort(bs, by = t -> norm(directions[t[1]]))) do b
+            (sorted[b[1]], b[2])
+        end
+    end
+
+    VerboseDistanceMask(targets)
 end

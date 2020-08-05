@@ -61,55 +61,9 @@ end
 
 positions(lattice::LatPhysLattice) = point.(sites(lattice.lattice))
 
-function generate_combinations(vs::Vector{Vector{Float64}})
-    out = [zeros(length(vs[1]))]
-    for v in vs
-        out = vcat([e.-v for e in out], out, [e.+v for e in out])
-    end
-    out
-end
-
-
 function DistanceMask(lattice::LatPhysLattice)
-    _positions = positions(lattice)
     wrap = generate_combinations(latticeVectors(lattice.lattice))
-
-    directions = Vector{Float64}[]
-    # distance_idx, src, trg
-    bonds = [Tuple{Int64, Int64}[] for _ in 1:length(lattice)]
-
-    for origin in 1:length(lattice)
-        for (trg, p) in enumerate(_positions)
-            d = round.(_positions[origin] .- p .+ wrap[1], digits=6)
-            for v in wrap[2:end]
-                new_d = round.(_positions[origin] .- p .+ v, digits=6)
-                if norm(new_d) < norm(d)
-                    d .= new_d
-                end
-            end
-            # I think the rounding will allow us to use == here
-            idx = findfirst(dir -> dir == d, directions)
-            if idx == nothing
-                push!(directions, d)
-                push!(bonds[origin], (length(directions), trg))
-            else
-                push!(bonds[origin], (idx, trg))
-            end
-        end
-    end
-
-    targets = Array{Tuple{Int64, Int64}}(undef, length(lattice), length(lattice))
-    temp = sortperm(directions, by=norm)
-    sorted = Vector{Int64}(undef, length(directions))
-    sorted[temp] .= eachindex(directions)
-
-    for (src, bs) in enumerate(bonds)
-        targets[src, :] = map(sort(bs, by = t -> norm(directions[t[1]]))) do b
-            (sorted[b[1]], b[2])
-        end
-    end
-
-    VerboseDistanceMask(targets)
+    VerboseDistanceMask(lattice, wrap)
 end
 
 function directions(mask::VerboseDistanceMask, lattice::LatPhysLattice)

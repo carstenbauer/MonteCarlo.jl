@@ -50,3 +50,4 @@ end
 has_neighbors_table(::Chain) = HasNeighborsTable()
 has_bonds_table(::Chain) = HasBondsTable()
 positions(l::Chain) = [[i] for i in 1:l.sites]
+DistanceMask(lattice::Chain) = default_distance_mask(lattice)

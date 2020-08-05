@@ -89,7 +89,7 @@ end
 
 _get_shape(model) = (nsites(model),)
 _get_shape(mask::RawMask) = (mask.nsites, mask.nsites)
-_get_shape(mask::DistanceMask) = (size(mask.targets, 2),)
+_get_shape(mask::DistanceMask) = (size(mask, 2),)
 
 # m is the measurement for potential dispatch
 function mask_kernel!(m, mask::RawMask, IG, G, kernel::Function, output)
