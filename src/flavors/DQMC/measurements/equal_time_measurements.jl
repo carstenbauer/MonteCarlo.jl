@@ -150,7 +150,7 @@ struct ChargeDensityCorrelationMeasurement{
     temp::AT
     mask::MT
 end
-function ChargeDensityCorrelationMeasurement(mc::DQMC, model; mask=RawMask(lattice(model)))
+function ChargeDensityCorrelationMeasurement(mc::DQMC, model; mask=DistanceMask(lattice(model)))
     N = nsites(model)
     T = eltype(mc.s.greens)
     obs = LightObservable(
@@ -295,7 +295,7 @@ struct SpinDensityCorrelationMeasurement{
     temp::AT
     mask::MT
 end
-function SpinDensityCorrelationMeasurement(mc::DQMC, model; mask=RawMask(lattice(model)))
+function SpinDensityCorrelationMeasurement(mc::DQMC, model; mask=DistanceMask(lattice(model)))
     N = nsites(model)
     T = eltype(mc.s.greens)
     Ty = T <: Complex ? T : Complex{T}
