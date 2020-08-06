@@ -360,9 +360,9 @@ end
 
 
 """
-    push!(mc, tag::Symbol => MT::Type{<:AbstractMeasurement}[, stage=:ME])
+    push!(mc, tag::Symbol => MT::Type{<:AbstractMeasurement}[, stage=:ME; paassthrough...])
 
-Adds a new pair `tag => MT(mc, model)`, where `MT` is a type
+Adds a new pair `tag => MT(mc, model; passthorugh...)`, where `MT` is a type
 `<: AbstractMeasurement`, to either the thermalization or measurement `stage`
 (`:TH` or `:ME`) of the simulation `mc`.
 
@@ -374,14 +374,14 @@ push!(mc, :conf => ConfigurationMeasurement, stage=:ME)
 
 See also: [`unsafe_push!`](@ref)
 """
-function Base.push!(mc::MonteCarloFlavor, p::Pair{Symbol, T}, stage=:ME) where T
+function Base.push!(mc::MonteCarloFlavor, p::Pair{Symbol, T}, stage=:ME; passthrough...) where T
     tag, MT = p
     p[2] <: AbstractMeasurement || throw(ErrorException(
         "The given `tag => MT` pair should be of type " *
         "`Pair{Symbol, Type(<: AbstractMeasurement)}`, but is " *
         "`Pair{Symbol, Type{$(p[2])}}`."
     ))
-    unsafe_push!(mc, tag => MT(mc, mc.model), stage)
+    unsafe_push!(mc, tag => MT(mc, mc.model; passthrough...), stage)
 end
 
 """
