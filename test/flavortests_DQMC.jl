@@ -55,7 +55,7 @@ end
     @test greens ≈ mc.s.greens
     # here with a single implied wrap
     greens, = MonteCarlo.calculate_greens_and_logdet(mc, mc.s.current_slice)
-    @test maximum(MonteCarlo.absdiff(greens, mc.s.greens)) < 5e-13
+    @test maximum(MonteCarlo.absdiff(greens, mc.s.greens)) < 1e-12
 
     # wrap greens test
     for k in 0:9
