@@ -267,16 +267,6 @@ Calculates G(slice) using mc.s.Ur,mc.s.Dr,mc.s.Tr=B(slice)' ... B(M)' and
 mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
 """
 @bm function calculate_greens(mc::DQMC)
-    # # U, D, T = udt(mc.s.greens) after this
-    # mc.s.U, mc.s.D, mc.s.T = udt_inv_one_plus(
-    #     UDT(mc.s.Ul, mc.s.Dl, mc.s.Tl),
-    #     UDT(mc.s.Ur, mc.s.Dr, mc.s.Tr),
-    #     tmp = mc.s.U, tmp2 = mc.s.T, tmp3 = mc.s.tmp,
-    #     internaluse = true
-    # )
-    # vmul!(mc.s.tmp, mc.s.U, Diagonal(mc.s.D))
-    # vmul!(mc.s.greens, mc.s.tmp, mc.s.T)
-    # mc.s.greens
     calculate_greens_AVX!(
         mc.s.Ul, mc.s.Dl, mc.s.Tl,
         mc.s.Ur, mc.s.Dr, mc.s.Tr,

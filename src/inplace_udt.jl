@@ -1,7 +1,7 @@
 # Fully inplace, with @avx
 # NOTE Results from QR match qr(A), but not qr(A, Val(true))
 # However still more stable and slightly faster and U*D*T = input holds
-
+# QR is based on the LinearAlgebra submodule
 
 @inline function reflector!(x::AbstractVector)
     n = length(x)
@@ -46,13 +46,21 @@ end
     return A
 end
 
+
+"""
+    udt_AVX!(U::Matrix, D::Vector, T::Matrix)
+
+In-place calculation of a UDT decomposition. The matrix `T` is simultaniously
+the input matrix that is decomposed and an output matrix.
+
+This assumes correctly sized square matrices as inputs.
+"""
 function udt_AVX!(U::AbstractArray{C, 2}, D::AbstractArray{C, 1}, input::AbstractArray{C, 2}) where {C<:Number}
     # Assumptions:
     # - all matrices same size
     # - input can be fucked up (input becomes T)
 
-    # @bm "QR" begin
-        # QR (use D as tau, input as A)
+    # @bm "Compute QR decomposition" begin
         n, _ = size(input)
         @inbounds D[n] = zero(C)
         @inbounds for k = 1:(n - 1 + !(C<:Real))
@@ -63,12 +71,8 @@ function udt_AVX!(U::AbstractArray{C, 2}, D::AbstractArray{C, 1}, input::Abstrac
         end
     # end
 
-    # @bm "diagonalize" begin
+    # @bm "Calculate Q" begin
         inplace_identity!(U)
-    # end
-    # @bm "Q/U" begin
-        # Compute Q/U (A.factors -> input, B -> U, A.τ -> D)
-        # TODO: try to optimize away the inplace_identity
         @inbounds begin
             U[n, n] -= D[n]
             for k = n-1:-1:1
@@ -88,8 +92,7 @@ function udt_AVX!(U::AbstractArray{C, 2}, D::AbstractArray{C, 1}, input::Abstrac
         # U done
     # end
 
-    # @bm "R" begin
-        # Generate R
+    # @bm "Calculate R" begin
         @inbounds for j in 1:n-1
             @avx for i in max(1, j + 1):n
                 input[i,j] = zero(input[i,j])
@@ -97,14 +100,13 @@ function udt_AVX!(U::AbstractArray{C, 2}, D::AbstractArray{C, 1}, input::Abstrac
         end
     # end
 
-    # @bm "D" begin
-        # Generate output D
+    # @bm "Calculate D" begin
         @inbounds for i in 1:n
             D[i] = abs(real(input[i, i]))
         end
     # end
 
-    # @bm "T" begin
+    # @bm "Calculate T" begin
         @avx for i in 1:n
             d = 1.0 / D[i]
             for j in 1:n
@@ -129,47 +131,54 @@ function inplace_identity!(A::AbstractArray{T, 2}) where T
 end
 
 """
-Use dark magic to calculate G from two UDT decomposition
-Ul, Dl, Tl,
-Ur, Dr, Tr
-"""
+    calculate_greens_AVX!(Ul, Dl, Tl, Ur, Dr, Tr, G[, pivot])
 
+Calculates the Greens function matrix `G` from two UDT decompositions
+`Ul, Dl, Tl` and `Ur, Dr, Tr`. Additionally a `pivot` vector can be given. Note
+that all inputs will be overwritten.
+
+The UDT should follow from a set of slice_matrix multiplications, such that
+Ur, Dr, Tr = B(slice)' ... B(M)'
+Ul, Dl, Tl = B(slice-1) ... B(1)
+"""
 function calculate_greens_AVX!(
         Ul, Dl, Tl, Ur, Dr, Tr, G,
         D = Vector{Int64}(undef, length(Dl))
     )
-    @bm "B1" begin
+    # NOTE `inv!` still allocates (Thanks BLAS)
+
+    # @bm "B1" begin
         # Requires: Ul, Dl, Tl, Ur, Dr, Tr
         vmul!(G, Tl, adjoint(Tr))
         rvmul!(G, Diagonal(Dr))
         lvmul!(Diagonal(Dl), G)
         udt_AVX!(Tr, Dr, G)
-    end
+    # end
 
-    @bm "B2" begin
+    # @bm "B2" begin
         # Requires: G, Ul, Ur, G, Tr, Dr
         vmul!(Tl, Ul, Tr)
         vmul!(Ul, G, adjoint(Ur))
         copyto!(Tr, Ul)
         LinearAlgebra.inv!(RecursiveFactorization.lu!(Tr, D))
         vmul!(G, adjoint(Tl), Tr)
-    end
+    # end
 
-    @bm "B3" begin
+    # @bm "B3" begin
         # Requires: G, Dr, Ul, Tl
         @avx for i in 1:length(Dr)
             G[i, i] = G[i, i] + Dr[i]
         end
-    end
+    # end
 
-    @bm "B4" begin
+    # @bm "B4" begin
         # Requires: G, Ul, Tl
         udt_AVX!(Ur, Dr, G)
         vmul!(Tr, G, Ul)
         vmul!(Ul, Tl, Ur)
-    end
+    # end
 
-    @bm "B5" begin
+    # @bm "B5" begin
         # Requires: Dr, Tr, Ul
         copyto!(Ur, Tr)
         LinearAlgebra.inv!(RecursiveFactorization.lu!(Ur, D))
@@ -177,13 +186,13 @@ function calculate_greens_AVX!(
         @avx for i in eachindex(Dr)
             Dl[i] = 1.0 / Dr[i]
         end
-    end
+    # end
 
-    @bm "B6" begin
+    # @bm "B6" begin
         # Requires: Dl, Ur, Ul
         rvmul!(Ur, Diagonal(Dl))
         vmul!(G, Ur, adjoint(Ul))
-    end
+    # end
 end
 
 
