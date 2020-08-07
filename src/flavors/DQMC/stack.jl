@@ -242,7 +242,7 @@ Updates stack[idx+1] based on stack[idx]
         multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
     end
 
-    @views rmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx]))
+    @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx]))
     @views udt_AVX!(mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], mc.s.curr_U)
     @views vmul!(mc.s.t_stack[:, :, idx + 1], mc.s.curr_U, mc.s.t_stack[:, :, idx])
 end
@@ -256,7 +256,7 @@ Updates stack[idx] based on stack[idx+1]
         multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
     end
 
-    @views rmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx + 1]))
+    @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx + 1]))
     @views udt_AVX!(mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.curr_U)
     @views vmul!(mc.s.t_stack[:, :, idx], mc.s.curr_U, mc.s.t_stack[:, :, idx + 1])
 end
