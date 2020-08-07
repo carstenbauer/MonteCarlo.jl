@@ -17,8 +17,6 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
 
     greens::Matrix{GreensEltype}
     greens_temp::Matrix{GreensEltype}
-    log_det::Float64 # contains logdet of greens_{mc.p.slices+1} === greens_1
-                     # after we calculated a fresh greens in propagate()
 
     U::Matrix{GreensEltype}
     D::Vector{Float64}
@@ -279,17 +277,6 @@ mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
     mc.s.greens
 end
 
-"""
-Only reasonable immediately after calculate_greens()!
-"""
-@bm function calculate_logdet(mc::DQMC)
-    mc.s.log_det = real(
-        log(complex(det(mc.s.U))) +
-        sum(log.(mc.s.D)) +
-        log(complex(det(mc.s.T)))
-    )
-    # mc.s.log_det = real(logdet(mc.s.U) + sum(log.(mc.s.D)) + logdet(mc.s.T))
-end
 
 # Green's function propagation
 @inline @bm function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)
@@ -319,7 +306,6 @@ end
                 mc.s.Ul[:,:], mc.s.Dl[:], mc.s.Tl[:,:] = mc.s.u_stack[:, :, 1], mc.s.d_stack[:, 1], mc.s.t_stack[:, :, 1]
 
                 calculate_greens(mc) # greens_1 ( === greens_{m+1} )
-                calculate_logdet(mc)
 
             elseif 1 < mc.s.current_slice <= mc.p.slices
                 idx = Int((mc.s.current_slice - 1)/mc.p.safe_mult)
@@ -368,7 +354,6 @@ end
                 mc.s.Ur[:,:], mc.s.Dr[:], mc.s.Tr[:,:] = mc.s.u_stack[:, :, end], mc.s.d_stack[:, end], mc.s.t_stack[:, :, end]
 
                 calculate_greens(mc) # greens_{mc.p.slices+1} === greens_1
-                calculate_logdet(mc) # calculate logdet for potential global update
 
                 # wrap to greens_{mc.p.slices}
                 wrap_greens!(mc, mc.s.greens, mc.s.current_slice + 1, -1)
