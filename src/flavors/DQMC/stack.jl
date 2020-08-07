@@ -14,6 +14,7 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
     Dr::Vector{Float64}
     Tl::Matrix{GreensEltype}
     Tr::Matrix{GreensEltype}
+    pivot::Vector{Int64}
 
     greens::Matrix{GreensEltype}
     greens_temp::Matrix{GreensEltype}
@@ -107,6 +108,7 @@ function initialize_stack(mc::DQMC)
     mc.s.Tr = Matrix{GreensEltype}(I, flv*N, flv*N)
     mc.s.Dl = ones(Float64, flv*N)
     mc.s.Dr = ones(Float64, flv*N)
+    mc.s.pivot = Vector{Int64}(undef, flv*N)
 
     mc.s.U = zeros(GreensEltype, flv*N, flv*N)
     mc.s.D = zeros(Float64, flv*N)
@@ -278,7 +280,7 @@ mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
     calculate_greens_AVX!(
         mc.s.Ul, mc.s.Dl, mc.s.Tl,
         mc.s.Ur, mc.s.Dr, mc.s.Tr,
-        mc.s.greens
+        mc.s.greens, mc.s.pivot
     )
     mc.s.greens
 end
