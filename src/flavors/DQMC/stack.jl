@@ -14,11 +14,10 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
     Dr::Vector{Float64}
     Tl::Matrix{GreensEltype}
     Tr::Matrix{GreensEltype}
+    pivot::Vector{Int64}
 
     greens::Matrix{GreensEltype}
     greens_temp::Matrix{GreensEltype}
-    log_det::Float64 # contains logdet of greens_{mc.p.slices+1} === greens_1
-                     # after we calculated a fresh greens in propagate()
 
     U::Matrix{GreensEltype}
     D::Vector{Float64}
@@ -109,6 +108,7 @@ function initialize_stack(mc::DQMC)
     mc.s.Tr = Matrix{GreensEltype}(I, flv*N, flv*N)
     mc.s.Dl = ones(Float64, flv*N)
     mc.s.Dr = ones(Float64, flv*N)
+    mc.s.pivot = Vector{Int64}(undef, flv*N)
 
     mc.s.U = zeros(GreensEltype, flv*N, flv*N)
     mc.s.D = zeros(Float64, flv*N)
@@ -242,9 +242,9 @@ Updates stack[idx+1] based on stack[idx]
         multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
     end
 
-    @views rmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx]))
-    mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], T = udt!(mc.s.curr_U)
-    @views vmul!(mc.s.t_stack[:, :, idx + 1],    T, mc.s.t_stack[:, :, idx])
+    @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx]))
+    @views udt_AVX!(mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], mc.s.curr_U)
+    @views vmul!(mc.s.t_stack[:, :, idx + 1], mc.s.curr_U, mc.s.t_stack[:, :, idx])
 end
 """
 Updates stack[idx] based on stack[idx+1]
@@ -256,9 +256,9 @@ Updates stack[idx] based on stack[idx+1]
         multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
     end
 
-    @views rmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx + 1]))
-    mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], T = udt!(mc.s.curr_U)
-    @views vmul!(mc.s.t_stack[:, :, idx], T, mc.s.t_stack[:, :, idx + 1])
+    @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx + 1]))
+    @views udt_AVX!(mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.curr_U)
+    @views vmul!(mc.s.t_stack[:, :, idx], mc.s.curr_U, mc.s.t_stack[:, :, idx + 1])
 end
 
 # Green's function calculation
@@ -267,29 +267,14 @@ Calculates G(slice) using mc.s.Ur,mc.s.Dr,mc.s.Tr=B(slice)' ... B(M)' and
 mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
 """
 @bm function calculate_greens(mc::DQMC)
-    # U, D, T = udt(mc.s.greens) after this
-    mc.s.U, mc.s.D, mc.s.T = udt_inv_one_plus(
-        UDT(mc.s.Ul, mc.s.Dl, mc.s.Tl),
-        UDT(mc.s.Ur, mc.s.Dr, mc.s.Tr),
-        tmp = mc.s.U, tmp2 = mc.s.T, tmp3 = mc.s.tmp,
-        internaluse = true
+    calculate_greens_AVX!(
+        mc.s.Ul, mc.s.Dl, mc.s.Tl,
+        mc.s.Ur, mc.s.Dr, mc.s.Tr,
+        mc.s.greens, mc.s.pivot
     )
-    vmul!(mc.s.tmp, mc.s.U, Diagonal(mc.s.D))
-    vmul!(mc.s.greens, mc.s.tmp, mc.s.T)
     mc.s.greens
 end
 
-"""
-Only reasonable immediately after calculate_greens()!
-"""
-@bm function calculate_logdet(mc::DQMC)
-    mc.s.log_det = real(
-        log(complex(det(mc.s.U))) +
-        sum(log.(mc.s.D)) +
-        log(complex(det(mc.s.T)))
-    )
-    # mc.s.log_det = real(logdet(mc.s.U) + sum(log.(mc.s.D)) + logdet(mc.s.T))
-end
 
 # Green's function propagation
 @inline @bm function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)
@@ -319,7 +304,6 @@ end
                 mc.s.Ul[:,:], mc.s.Dl[:], mc.s.Tl[:,:] = mc.s.u_stack[:, :, 1], mc.s.d_stack[:, 1], mc.s.t_stack[:, :, 1]
 
                 calculate_greens(mc) # greens_1 ( === greens_{m+1} )
-                calculate_logdet(mc)
 
             elseif 1 < mc.s.current_slice <= mc.p.slices
                 idx = Int((mc.s.current_slice - 1)/mc.p.safe_mult)
@@ -368,7 +352,6 @@ end
                 mc.s.Ur[:,:], mc.s.Dr[:], mc.s.Tr[:,:] = mc.s.u_stack[:, :, end], mc.s.d_stack[:, end], mc.s.t_stack[:, :, end]
 
                 calculate_greens(mc) # greens_{mc.p.slices+1} === greens_1
-                calculate_logdet(mc) # calculate logdet for potential global update
 
                 # wrap to greens_{mc.p.slices}
                 wrap_greens!(mc, mc.s.greens, mc.s.current_slice + 1, -1)
