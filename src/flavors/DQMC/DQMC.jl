@@ -604,19 +604,15 @@ Internally, `mc.s.greens` is an effective Green's function. This method
 transforms it to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
-greens(mc::DQMC) = _greens!(mc)
+@bm greens(mc::DQMC) = _greens!(mc)
 function _greens!(
         mc::DQMC_CBFalse, target::Matrix = mc.s.Ul, 
         source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
     )
     eThalfminus = mc.s.hopping_matrix_exp
     eThalfplus = mc.s.hopping_matrix_exp_inv
-    greens = copy(mc.s.greens)
-    greens .= greens * eThalfminus
-    greens .= eThalfplus * greens
     vmul!(temp, source, eThalfminus)
     vmul!(target, eThalfplus, temp)
-    @assert greens ≈ target
     return target
 end
 function _greens!(
