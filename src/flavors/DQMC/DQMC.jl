@@ -604,30 +604,40 @@ Internally, `mc.s.greens` is an effective Green's function. This method
 transforms it to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
-greens(mc::DQMC) = _greens(mc, mc.s.greens)
-_greens(mc::DQMC, G::Matrix) = _greens!(mc, copy(G), mc.s.greens_temp)
-function _greens!(mc::DQMC_CBFalse, greens::Matrix, temp::Matrix)
+greens(mc::DQMC) = _greens!(mc)
+function _greens!(
+        mc::DQMC_CBFalse, target::Matrix = mc.s.Ul, 
+        source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
+    )
     eThalfminus = mc.s.hopping_matrix_exp
     eThalfplus = mc.s.hopping_matrix_exp_inv
-    vmul!(temp, greens, eThalfminus)
-    vmul!(greens, eThalfplus, temp)
-    return greens
+    greens = copy(mc.s.greens)
+    greens .= greens * eThalfminus
+    greens .= eThalfplus * greens
+    vmul!(temp, source, eThalfminus)
+    vmul!(target, eThalfplus, temp)
+    @assert greens ≈ target
+    return target
 end
-function _greens!(mc::DQMC_CBTrue, greens::Matrix, temp::Matrix)
+function _greens!(
+        mc::DQMC_CBTrue, target::Matrix = mc.s.Ul, 
+        source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
+    )
     chkr_hop_half_minus = mc.s.chkr_hop_half
     chkr_hop_half_plus = mc.s.chkr_hop_half_inv
+    copyto!(target, source)
 
     @inbounds @views begin
         for i in reverse(1:mc.s.n_groups)
-            vmul!(temp, greens, chkr_hop_half_minus[i])
-            copyto!(greens, temp)
+            vmul!(temp, target, chkr_hop_half_minus[i])
+            copyto!(target, temp)
         end
         for i in reverse(1:mc.s.n_groups)
-            vmul!(temp, chkr_hop_half_plus[i], greens)
-            copyto!(greens, temp)
+            vmul!(temp, chkr_hop_half_plus[i], target)
+            copyto!(target, temp)
         end
     end
-    return greens
+    return target
 end
 
 
