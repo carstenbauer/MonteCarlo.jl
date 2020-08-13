@@ -553,7 +553,7 @@ function replay!(
     prepare!(mc.measurements, mc, mc.model)
     for i in mc.last_sweep+1:mc.p.measure_rate:length(configs)
         mc.conf = configs[i]
-        mc.s.greens, _ = calculate_greens_and_logdet(mc, nslices(mc))
+        mc.s.greens = calculate_greens(mc, nslices(mc))
         for (k, m) in mc.measurements
             k in ignore && continue
             measure!(m, mc, mc.model, i)

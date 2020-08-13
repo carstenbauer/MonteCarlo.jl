@@ -1,9 +1,5 @@
 # type
 mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: AbstractDQMCStack
-    eye_flv::Matrix{Float64}
-    eye_full::Matrix{Float64}
-    ones_vec::Vector{Float64}
-
     u_stack::Array{GreensEltype, 3}
     d_stack::Matrix{Float64}
     t_stack::Array{GreensEltype, 3}
@@ -19,10 +15,11 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
     greens::Matrix{GreensEltype}
     greens_temp::Matrix{GreensEltype}
 
-    U::Matrix{GreensEltype}
-    D::Vector{Float64}
-    T::Matrix{GreensEltype}
-    tmp::Matrix{GreensEltype}
+    # U::Matrix{GreensEltype}
+    # D::Vector{Float64}
+    # T::Matrix{GreensEltype}
+    tmp1::Matrix{GreensEltype}
+    tmp2::Matrix{GreensEltype}
 
     ranges::Array{UnitRange, 1}
     n_elements::Int
@@ -89,10 +86,6 @@ function initialize_stack(mc::DQMC)
     N = length(mc.model.l)
     flv = mc.model.flv
 
-    mc.s.eye_flv = Matrix{Float64}(I, flv,flv)
-    mc.s.eye_full = Matrix{Float64}(I, flv*N,flv*N)
-    mc.s.ones_vec = ones(flv*N)
-
     mc.s.n_elements = convert(Int, mc.p.slices / mc.p.safe_mult) + 1
 
     mc.s.u_stack = zeros(GreensEltype, flv*N, flv*N, mc.s.n_elements)
@@ -102,18 +95,20 @@ function initialize_stack(mc::DQMC)
     mc.s.greens = zeros(GreensEltype, flv*N, flv*N)
     mc.s.greens_temp = zeros(GreensEltype, flv*N, flv*N)
 
+    # used in calculate_greens
+    # do not change in slice_matrices.jl or interaction_matrix_exp!
     mc.s.Ul = Matrix{GreensEltype}(I, flv*N, flv*N)
     mc.s.Ur = Matrix{GreensEltype}(I, flv*N, flv*N)
     mc.s.Tl = Matrix{GreensEltype}(I, flv*N, flv*N)
     mc.s.Tr = Matrix{GreensEltype}(I, flv*N, flv*N)
     mc.s.Dl = ones(Float64, flv*N)
     mc.s.Dr = ones(Float64, flv*N)
+    # can be changed anywhere
     mc.s.pivot = Vector{Int64}(undef, flv*N)
 
-    mc.s.U = zeros(GreensEltype, flv*N, flv*N)
-    mc.s.D = zeros(Float64, flv*N)
-    mc.s.T = zeros(GreensEltype, flv*N, flv*N)
-    mc.s.tmp = zeros(GreensEltype, flv*N, flv*N)
+    # can be changed anywhere
+    mc.s.tmp1 = zeros(GreensEltype, flv*N, flv*N)
+    mc.s.tmp2 = zeros(GreensEltype, flv*N, flv*N)
 
 
     # # Global update backup
@@ -130,7 +125,7 @@ function initialize_stack(mc::DQMC)
         push!(mc.s.ranges, 1 + (i - 1) * mc.p.safe_mult:i * mc.p.safe_mult)
     end
 
-    mc.s.curr_U = zero(mc.s.U)
+    mc.s.curr_U = zeros(GreensEltype, flv*N, flv*N)
     mc.s.eV = zeros(GreensEltype, flv*N, flv*N)
 
     # mc.s.hopping_matrix_exp = zeros(HoppingEltype, flv*N, flv*N)
@@ -218,9 +213,9 @@ end
 Build stack from scratch.
 """
 function build_stack(mc::DQMC)
-    mc.s.u_stack[:, :, 1] = mc.s.eye_full
-    mc.s.d_stack[:, 1] = mc.s.ones_vec
-    mc.s.t_stack[:, :, 1] = mc.s.eye_full
+    @views copyto!(mc.s.u_stack[:, :, 1], I)
+    @views mc.s.d_stack[:, 1] .= one(eltype(mc.s.d_stack))
+    @views copyto!(mc.s.t_stack[:, :, 1], I)
 
     @inbounds for i in 1:length(mc.s.ranges)
         add_slice_sequence_left(mc, i)
@@ -275,6 +270,64 @@ mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
     mc.s.greens
 end
 
+# Faster version of calculate_greens_and_logdet from testfunctions.jl
+@bm function calculate_greens(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult)
+    copyto!(mc.s.curr_U, I)
+    mc.s.Dr .= one(eltype(mc.s.Dr))
+    copyto!(mc.s.Tr, I)
+
+    # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
+    if slice <= mc.p.slices
+        start = slice
+        stop = mc.p.slices
+        for k in reverse(start:stop)
+            if mod(k,safe_mult) == 0
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+                rvmul!(mc.s.curr_U, Diagonal(mc.s.Dr))
+                udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
+                copyto!(mc.s.tmp1, mc.s.Tr)
+                vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp1) # TODO
+                copyto!(mc.s.curr_U, mc.s.Ur)
+            else
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+            end
+        end
+        rvmul!(mc.s.curr_U, Diagonal(mc.s.Dr))
+        udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
+        copyto!(mc.s.tmp1, mc.s.Tr)
+        vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp1)
+    end
+
+
+    copyto!(mc.s.curr_U, I)
+    mc.s.Dl .= one(eltype(mc.s.Dl))
+    copyto!(mc.s.Tl, I)
+
+    # Calculate Ul,Dl,Tl=B(slice-1) ... B(1)
+    if slice-1 >= 1
+        start = 1
+        stop = slice-1
+        for k in start:stop
+            if mod(k,safe_mult) == 0
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+                rvmul!(mc.s.curr_U, Diagonal(mc.s.Dl))
+                udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
+                copyto!(mc.s.tmp1, mc.s.Tl)
+                vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp1) # TODO
+                copyto!(mc.s.curr_U, mc.s.Ul)
+            else
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+            end
+        end
+        rvmul!(mc.s.curr_U, Diagonal(mc.s.Dl))
+        udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
+        copyto!(mc.s.tmp1, mc.s.Tl)
+        vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp1)
+    end
+
+    return calculate_greens(mc)
+end
+
 
 # Green's function propagation
 @inline @bm function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)
@@ -298,9 +351,9 @@ end
             mc.s.current_slice +=1 # slice we are going to
             if mc.s.current_slice == 1
                 mc.s.Ur[:, :], mc.s.Dr[:], mc.s.Tr[:, :] = mc.s.u_stack[:, :, 1], mc.s.d_stack[:, 1], mc.s.t_stack[:, :, 1]
-                mc.s.u_stack[:, :, 1] = mc.s.eye_full
-                mc.s.d_stack[:, 1] = mc.s.ones_vec
-                mc.s.t_stack[:, :, 1] = mc.s.eye_full
+                @views copyto!(mc.s.u_stack[:, :, 1], I)
+                @views mc.s.d_stack[:, 1] .= one(eltype(mc.s.d_stack))
+                @views copyto!(mc.s.t_stack[:, :, 1], I)
                 mc.s.Ul[:,:], mc.s.Dl[:], mc.s.Tl[:,:] = mc.s.u_stack[:, :, 1], mc.s.d_stack[:, 1], mc.s.t_stack[:, :, 1]
 
                 calculate_greens(mc) # greens_1 ( === greens_{m+1} )
@@ -348,9 +401,9 @@ end
             mc.s.current_slice -= 1 # slice we are going to
             if mc.s.current_slice == mc.p.slices
                 mc.s.Ul[:, :], mc.s.Dl[:], mc.s.Tl[:, :] = mc.s.u_stack[:, :, end], mc.s.d_stack[:, end], mc.s.t_stack[:, :, end]
-                mc.s.u_stack[:, :, end] = mc.s.eye_full
-                mc.s.d_stack[:, end] = mc.s.ones_vec
-                mc.s.t_stack[:, :, end] = mc.s.eye_full
+                @views copyto!(mc.s.u_stack[:, :, end], I)
+                @views mc.s.d_stack[:, end] .= one(eltype(mc.s.d_stack))
+                @views copyto!(mc.s.t_stack[:, :, end], I)
                 mc.s.Ur[:,:], mc.s.Dr[:], mc.s.Tr[:,:] = mc.s.u_stack[:, :, end], mc.s.d_stack[:, end], mc.s.t_stack[:, :, end]
 
                 calculate_greens(mc) # greens_{mc.p.slices+1} === greens_1
@@ -395,3 +448,4 @@ end
     end
     nothing
 end
+
