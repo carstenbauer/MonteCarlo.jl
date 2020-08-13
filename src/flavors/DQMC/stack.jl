@@ -313,9 +313,11 @@ end
                 mc.s.Ul[:,:], mc.s.Dl[:], mc.s.Tl[:,:] = mc.s.u_stack[:, :, idx+1], mc.s.d_stack[:, idx+1], mc.s.t_stack[:, :, idx+1]
 
                 if mc.p.all_checks
-                    mc.s.greens_temp = copy(mc.s.greens)
+                    copyto!(mc.s.greens_temp, mc.s.greens)
                 end
 
+                # Should this be mc.s.greens_temp?
+                # If so, shouldn't this only run w/ mc.p.all_checks = true?
                 wrap_greens!(mc, mc.s.greens_temp, mc.s.current_slice - 1, 1)
 
                 calculate_greens(mc) # greens_{slice we are propagating to}
@@ -363,7 +365,7 @@ end
                 mc.s.Ur[:,:], mc.s.Dr[:], mc.s.Tr[:,:] = mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.t_stack[:, :, idx]
 
                 if mc.p.all_checks
-                    mc.s.greens_temp = copy(mc.s.greens)
+                    copyto!(mc.s.greens_temp, mc.s.greens)
                 end
 
                 calculate_greens(mc)

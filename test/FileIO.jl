@@ -38,7 +38,7 @@ isdir(p) || mkdir(p)
 
     # Check everything again with x being a replayed simulation
     if !replay_done
-        replay!(x)
+        replay!(x, verbose=false)
         replay_done = true
         @goto all_checks
     end
@@ -140,7 +140,7 @@ rm.(joinpath.(p, readdir(p)))
 
     # Check everything again with x being a replayed simulation
     if !replay_done
-        replay!(x)
+        replay!(x, verbose=false)
         replay_done = true
         @goto all_checks
     end

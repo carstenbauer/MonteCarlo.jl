@@ -72,7 +72,7 @@ function udt_AVX!(U::AbstractArray{C, 2}, D::AbstractArray{C, 1}, input::Abstrac
     # end
 
     # @bm "Calculate Q" begin
-        inplace_identity!(U)
+        copyto!(U, I)
         @inbounds begin
             U[n, n] -= D[n]
             for k = n-1:-1:1
@@ -118,17 +118,6 @@ function udt_AVX!(U::AbstractArray{C, 2}, D::AbstractArray{C, 1}, input::Abstrac
     nothing
 end
 
-function inplace_identity!(A::AbstractArray{T, 2}) where T
-    T0 = zero(T)
-    T1 = one(T)
-    @avx for i in 1:size(A, 1), j in 1:size(A, 2)
-        A[i, j] = T0
-    end
-    @avx for i in 1:size(A, 1)
-        A[i, i] = T1
-    end
-    A
-end
 
 """
     calculate_greens_AVX!(Ul, Dl, Tl, Ur, Dr, Tr, G[, pivot])

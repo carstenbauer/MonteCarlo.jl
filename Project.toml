@@ -4,6 +4,7 @@ license = "MIT"
 authors = ["Carsten Bauer <crstnbr@gmail.com>"]
 
 [deps]
+BinningAnalysis = "b7192094-8e58-5052-a244-180a858778ee"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
@@ -22,11 +23,13 @@ StableDQMC = "0827807b-44c9-51d0-af97-efe667fe6b2a"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
+BinningAnalysis = "0.4"
 JLD = "0.9, 0.10"
 LightXML = "0.8, 0.9"
 LoopVectorization = "0.8"
 MonteCarloObservable = "0.3"
 Parameters = "0.12"
+RecursiveFactorization = "0.1"
 Reexport = "0.2"
 Requires = "0.5, 1.0"
 StableDQMC = "0.1"

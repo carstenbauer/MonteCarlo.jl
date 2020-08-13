@@ -39,8 +39,14 @@ function DQMCParameters(;global_moves::Bool = false,
                         kwargs...)
     nt = (;kwargs...)
     keys(nt) == (:beta,) && (nt = (;beta=nt.beta, delta_tau=0.1))
-    @assert length(nt) == 2 "Invalid keyword arguments to DQMCParameters: $nt"
-    if (Set ∘ keys)(nt) == Set([:beta, :slices])
+    @assert length(nt) >= 2 "Invalid keyword arguments to DQMCParameters: $nt"
+    if (Set ∘ keys)(nt) == Set([:delta_tau, :beta, :slices])
+        delta_tau, beta = nt.delta_tau, nt.beta
+        slices = round(Int, beta/delta_tau)
+        if slices != nt.slices
+            error("Given slices ($(nt.slices)) does not match calculated slices beta/delta_tau ≈ $(slices)")
+        end
+    elseif (Set ∘ keys)(nt) == Set([:beta, :slices])
         beta, slices = nt.beta, nt.slices
         delta_tau = beta / slices
     elseif (Set ∘ keys)(nt) == Set([:delta_tau, :slices])
@@ -371,10 +377,6 @@ See also: [`resume!`](@ref)
             # In either case there should be no conflicting file, so there
             # should be nothing to overwrite.
             resumable_filename = save(resumable_filename, mc)
-            # save_rng(resumable_filename)
-            # jldopen(resumable_filename, "r+") do f
-            #     write(f, "last_sweep", i)
-            # end
 
             if force_overwrite && file_exists
                 rm(temp_filename)
@@ -439,6 +441,12 @@ imaginary time slice.
                 abs(imag(detratio)))
             @printf "%.10e" abs(imag(detratio))
         end
+        if real(detratio) < 0.0
+            @warn @sprintf(
+                "Did you expect a sign problem? negative detratio %.6e\n",
+                real(detratio)
+            )
+        end
         p = real(exp(- ΔE_boson) * detratio)
 
         # Metropolis
@@ -481,38 +489,45 @@ The time required to generate a save file should be included here.
 - `filename`: Name of the save file. The default is based on `safe_before`.
 - `start=1`: The first sweep in the simulation. This will be changed when using
 `resume!(save_file)`.
+- `ignore`: A collection of measurement keys to ignore. Defaults to the key of
+the configuration measurement.
 """
 function replay!(
         mc::DQMC;
-        configs::ConfigurationMeasurement = let
-            for (k, v) in mc.measurements
-                v isa ConfigurationMeasurement && return v
-            end
-            throw(ArgumentError(
-                "Could not find a `ConfigurationMeasurement` in the given " *
-                "mc::DQMC. Try supplying it manually."
-            ))
+        configs::ConfigurationMeasurement = try
+            k = findfirst(v -> v isa ConfigurationMeasurement, mc.measurements)
+            mc.measurements[k]
+        catch e
+            @error(
+                "Failed to find a ConfigurationMeasurement in the given " *
+                "DQMC Simulation. Try supplying it manually."
+            )
+            rethrow(e)
         end,
-        reset_measurements = true,
+        ignore = (findfirst(v -> v isa ConfigurationMeasurement, mc.measurements),),
+        # reset_measurements = true,
         measure_rate = 1,
         kwargs...
     )
-    # TODO should that really be deleted?
-    delete!(mc, ConfigurationMeasurement)
-    reset_measurements && for (k, v) in mc.measurements
-        mc.measurements[k] = typeof(v)(mc, mc.model)
-    end
-    mc.p.measure_rate = measure_rate
-    replay(mc, timeseries(configs.obs); kwargs...)
+    mc.p = DQMCParameters(
+        mc.p.global_moves, mc.p.global_rate,
+        mc.p.thermalization, mc.p.sweeps,
+        mc.p.all_checks, mc.p.safe_mult,
+        mc.p.delta_tau, mc.p.beta, mc.p.slices,
+        measure_rate
+    )
+    replay!(mc, timeseries(configs.obs); ignore=ignore, kwargs...)
 end
+
 
 function replay!(
         mc::DQMC,
         configs::AbstractArray;
+        ignore = tuple(),
         verbose::Bool = true,
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
-        filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
         force_overwrite = false
     )
     # Check for measurements
@@ -539,7 +554,10 @@ function replay!(
     for i in mc.last_sweep+1:mc.p.measure_rate:length(configs)
         mc.conf = configs[i]
         mc.s.greens, _ = calculate_greens_and_logdet(mc, nslices(mc))
-        measure!(mc.measurements, mc, mc.model, i)
+        for (k, m) in mc.measurements
+            k in ignore && continue
+            measure!(m, mc, mc.model, i)
+        end
         mc.last_sweep = i
 
         if mod(i, 10) == 0
@@ -560,10 +578,6 @@ function replay!(
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
             filename = save(filename, mc, force_overwrite = force_overwrite)
-            # save_rng(filename)
-            # jldopen(filename, "r+") do f
-            #     write(f, "last_sweep", i)
-            # end
             verbose && println("\nEarly save finished")
 
             return false
@@ -590,30 +604,36 @@ Internally, `mc.s.greens` is an effective Green's function. This method
 transforms it to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
-greens(mc::DQMC) = _greens(mc, mc.s.greens)
-_greens(mc::DQMC, G::Matrix) = _greens!(mc, copy(G), mc.s.greens_temp)
-function _greens!(mc::DQMC_CBFalse, greens::Matrix, temp::Matrix)
+@bm greens(mc::DQMC) = _greens!(mc)
+function _greens!(
+        mc::DQMC_CBFalse, target::Matrix = mc.s.Ul, 
+        source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
+    )
     eThalfminus = mc.s.hopping_matrix_exp
     eThalfplus = mc.s.hopping_matrix_exp_inv
-    mul!(temp, greens, eThalfminus)
-    mul!(greens, eThalfplus, temp)
-    return greens
+    vmul!(temp, source, eThalfminus)
+    vmul!(target, eThalfplus, temp)
+    return target
 end
-function _greens!(mc::DQMC_CBTrue, greens::Matrix, temp::Matrix)
+function _greens!(
+        mc::DQMC_CBTrue, target::Matrix = mc.s.Ul, 
+        source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
+    )
     chkr_hop_half_minus = mc.s.chkr_hop_half
     chkr_hop_half_plus = mc.s.chkr_hop_half_inv
+    copyto!(target, source)
 
     @inbounds @views begin
         for i in reverse(1:mc.s.n_groups)
-            mul!(temp, greens, chkr_hop_half_minus[i])
-            copyto!(greens, temp)
+            vmul!(temp, target, chkr_hop_half_minus[i])
+            copyto!(target, temp)
         end
         for i in reverse(1:mc.s.n_groups)
-            mul!(temp, chkr_hop_half_plus[i], greens)
-            copyto!(greens, temp)
+            vmul!(temp, chkr_hop_half_plus[i], target)
+            copyto!(target, temp)
         end
     end
-    return greens
+    return target
 end
 
 
