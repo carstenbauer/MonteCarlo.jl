@@ -130,9 +130,9 @@ end
     dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
 
-    ΔE_boson = -2. * lambda * conf[i, slice]
+    @inbounds ΔE_boson = -2. * lambda * conf[i, slice]
     γ = exp(ΔE_boson) - 1
-    detratio = (1 + γ * (1 - greens[i,i]))^2 # squared because of two spin sectors.
+    @inbounds detratio = (1 + γ * (1 - greens[i,i]))^2 # squared because of two spin sectors.
 
     return detratio, ΔE_boson, γ
 end
@@ -150,18 +150,18 @@ end
 
     # Optimized
     # copy! and `.=` allocate, this doesn't. Synced loop is marginally faster
-    @inbounds for j in eachindex(m.IG)
+    @avx for j in eachindex(m.IG)
         m.IG[j] = -greens[j, i]
         m.G[j] = greens[i, j]
     end
     @inbounds m.IG[i] += 1.0
     # This is way faster for small systems and still ~33% faster at L = 15
     # Also no allocations here
-    x = γ / (1.0 + γ * m.IG[i])
-    @inbounds for k in eachindex(m.IG), l in eachindex(m.G)
+    @inbounds x = γ / (1.0 + γ * m.IG[i])
+    @avx for k in eachindex(m.IG), l in eachindex(m.G)
         greens[k, l] -= m.IG[k] * x * m.G[l]
     end
-    conf[i, slice] *= -1
+    @inbounds conf[i, slice] *= -1
     nothing
 end
 
