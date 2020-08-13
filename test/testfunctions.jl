@@ -10,7 +10,7 @@ function calculate_slice_matrix_chain(mc::DQMC, start::Int, stop::Int, safe_mult
     @assert start <= stop
 
     flv = mc.model.flv
-    N = mc.model.l.sites
+    N = nsites(mc.model)
     GreensType = geltype(mc)
 
     U = Matrix{GreensType}(I, flv*N, flv*N)
@@ -45,7 +45,7 @@ function calculate_slice_matrix_chain_dagger(mc::DQMC, start::Int, stop::Int, sa
     @assert start <= stop
 
     flv = mc.model.flv
-    N = mc.model.l.sites
+    N = nsites(mc.model)
     GreensType = geltype(mc)
 
     U = Matrix{GreensType}(I, flv*N, flv*N)
@@ -77,7 +77,7 @@ end
 function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult)
     GreensType = geltype(mc)
     flv = mc.model.flv
-    N = mc.model.l.sites
+    N = nsites(mc.model)
 
     # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
     if slice <= mc.p.slices
