@@ -267,6 +267,64 @@ mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
     mc.s.greens
 end
 
+# Faster version of calculate_greens_and_logdet from testfunctions.jl
+@bm function calculate_greens(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult)
+    copyto!(mc.s.curr_U, I)
+    mc.s.Dr .= one(eltype(mc.s.Dr))
+    copyto!(mc.s.Tr, I)
+
+    # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
+    if slice <= mc.p.slices
+        start = slice
+        stop = mc.p.slices
+        for k in reverse(start:stop)
+            if mod(k,safe_mult) == 0
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+                rvmul!(mc.s.curr_U, Diagonal(mc.s.Dr))
+                udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
+                copyto!(mc.s.tmp, mc.s.Tr)
+                vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp) # TODO
+                copyto!(mc.s.curr_U, mc.s.Ur)
+            else
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+            end
+        end
+        rvmul!(mc.s.curr_U, Diagonal(mc.s.Dr))
+        udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
+        copyto!(mc.s.tmp, mc.s.Tr)
+        vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp)
+    end
+
+
+    copyto!(mc.s.curr_U, I)
+    mc.s.Dl .= one(eltype(mc.s.Dl))
+    copyto!(mc.s.Tl, I)
+
+    # Calculate Ul,Dl,Tl=B(slice-1) ... B(1)
+    if slice-1 >= 1
+        start = 1
+        stop = slice-1
+        for k in start:stop
+            if mod(k,safe_mult) == 0
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+                rvmul!(mc.s.curr_U, Diagonal(mc.s.Dl))
+                udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
+                copyto!(mc.s.tmp, mc.s.Tl)
+                vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp) # TODO
+                copyto!(mc.s.curr_U, mc.s.Ul)
+            else
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+            end
+        end
+        rvmul!(mc.s.curr_U, Diagonal(mc.s.Dl))
+        udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
+        copyto!(mc.s.tmp, mc.s.Tl)
+        vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp)
+    end
+
+    return calculate_greens(mc)
+end
+
 
 # Green's function propagation
 @inline @bm function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)

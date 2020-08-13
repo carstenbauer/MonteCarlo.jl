@@ -92,9 +92,9 @@ function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.s
     if slice-1 >= 1
         Ul, Dl, Tl = calculate_slice_matrix_chain(mc,1,slice-1, safe_mult)
     else
-        Ul = eye(GreensType, flv * N)
+        Ul = Matrix{GreensType}(I, flv * N, flv * N)
         Dl = ones(Float64, flv * N)
-        Tl = eye(GreensType, flv * N)
+        Tl = Matrix{GreensType}(I, flv * N, flv * N)
     end
 
     tmp = Tl * adjoint(Tr)
