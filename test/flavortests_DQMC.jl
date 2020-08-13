@@ -64,6 +64,13 @@ end
     greens, = MonteCarlo.calculate_greens_and_logdet(mc, mc.s.current_slice-10)
     @test maximum(MonteCarlo.absdiff(greens, mc.s.greens)) < 1e-9
 
+    # Check greens reconstruction used in replay
+    mc = DQMC(m, beta=5.0, safe_mult=5)
+    for k in 1:MonteCarlo.nslices(mc)
+        G1, _ = MonteCarlo.calculate_greens_and_logdet(mc, k)
+        G2 = MonteCarlo.calculate_greens(mc, k)
+        @test G1 ≈ G2
+    end
 
     include("slice_matrices.jl")
 end
