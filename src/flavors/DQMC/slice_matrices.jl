@@ -21,7 +21,7 @@ Calculates `Beff(slice) = exp(−1/2∆tauT)exp(−1/2∆tauT)exp(−∆tauV(sli
     end
 end
 @bm function slice_matrix!(mc::DQMC_CBFalse, m::Model, slice::Int,
-                    power::Float64=1., result = mc.s.U)
+                    power::Float64=1., result = mc.s.tmp2)
     eT2 = mc.s.hopping_matrix_exp_squared
     eTinv2 = mc.s.hopping_matrix_exp_inv_squared
     eV = mc.s.eV
@@ -41,37 +41,37 @@ end
 
 @bm function multiply_slice_matrix_left!(mc::DQMC_CBFalse, m::Model,
                                 slice::Int, M::AbstractMatrix)
-    slice_matrix!(mc, m, slice, 1.0, mc.s.U)
-    vmul!(mc.s.tmp, mc.s.U, M)
-    M .= mc.s.tmp
+    slice_matrix!(mc, m, slice, 1.0, mc.s.tmp2)
+    vmul!(mc.s.tmp1, mc.s.tmp2, M)
+    M .= mc.s.tmp1
     nothing
 end
 @bm function multiply_slice_matrix_right!(mc::DQMC_CBFalse, m::Model,
                                 slice::Int, M::AbstractMatrix)
-    slice_matrix!(mc, m, slice, 1.0, mc.s.U)
-    vmul!(mc.s.tmp, M, mc.s.U)
-    M .= mc.s.tmp
+    slice_matrix!(mc, m, slice, 1.0, mc.s.tmp2)
+    vmul!(mc.s.tmp1, M, mc.s.tmp2)
+    M .= mc.s.tmp1
     nothing
 end
 @bm function multiply_slice_matrix_inv_right!(mc::DQMC_CBFalse, m::Model,
                                 slice::Int, M::AbstractMatrix)
-    slice_matrix!(mc, m, slice, -1.0, mc.s.U)
-    vmul!(mc.s.tmp, M, mc.s.U)
-    M .= mc.s.tmp
+    slice_matrix!(mc, m, slice, -1.0, mc.s.tmp2)
+    vmul!(mc.s.tmp1, M, mc.s.tmp2)
+    M .= mc.s.tmp1
     nothing
 end
 @bm function multiply_slice_matrix_inv_left!(mc::DQMC_CBFalse, m::Model,
                                 slice::Int, M::AbstractMatrix)
-    slice_matrix!(mc, m, slice, -1.0, mc.s.U)
-    vmul!(mc.s.tmp, mc.s.U, M)
-    M .= mc.s.tmp
+    slice_matrix!(mc, m, slice, -1.0, mc.s.tmp2)
+    vmul!(mc.s.tmp1, mc.s.tmp2, M)
+    M .= mc.s.tmp1
     nothing
 end
 @bm function multiply_daggered_slice_matrix_left!(mc::DQMC_CBFalse, m::Model,
                                 slice::Int, M::AbstractMatrix)
-    slice_matrix!(mc, m, slice, 1.0, mc.s.U)
-    vmul!(mc.s.tmp, adjoint(mc.s.U), M)
-    M .= mc.s.tmp
+    slice_matrix!(mc, m, slice, 1.0, mc.s.tmp2)
+    vmul!(mc.s.tmp1, adjoint(mc.s.tmp2), M)
+    M .= mc.s.tmp1
     nothing
 end
 
@@ -105,21 +105,21 @@ end
     s = mc.s
     interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, 1.)
 
-    mul!(s.tmp, s.eV, M)
-    M .= s.tmp
-    mul!(s.tmp, s.chkr_mu, M)
-    M .= s.tmp
+    mul!(s.tmp1, s.eV, M)
+    M .= s.tmp1
+    mul!(s.tmp1, s.chkr_mu, M)
+    M .= s.tmp1
 
     @inbounds begin
         for i in reverse(2:s.n_groups)
-            mul!(s.tmp, s.chkr_hop_half[i], M)
-            M .= s.tmp
+            mul!(s.tmp1, s.chkr_hop_half[i], M)
+            M .= s.tmp1
         end
-        mul!(s.tmp, s.chkr_hop[1], M)
-        M .= s.tmp
+        mul!(s.tmp1, s.chkr_hop[1], M)
+        M .= s.tmp1
         for i in 2:s.n_groups
-            mul!(s.tmp, s.chkr_hop_half[i], M)
-            M .= s.tmp
+            mul!(s.tmp1, s.chkr_hop_half[i], M)
+            M .= s.tmp1
         end
     end
     nothing
@@ -129,22 +129,22 @@ end
     s = mc.s
     @inbounds begin
         for i in reverse(2:s.n_groups)
-            mul!(s.tmp, M, s.chkr_hop_half[i])
-            M .= s.tmp
+            mul!(s.tmp1, M, s.chkr_hop_half[i])
+            M .= s.tmp1
         end
-        mul!(s.tmp, M, s.chkr_hop[1])
-        M .= s.tmp
+        mul!(s.tmp1, M, s.chkr_hop[1])
+        M .= s.tmp1
         for i in 2:s.n_groups
-            mul!(s.tmp, M, s.chkr_hop_half[i])
-            M .= s.tmp
+            mul!(s.tmp1, M, s.chkr_hop_half[i])
+            M .= s.tmp1
         end
     end
 
     interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, 1.)
-    mul!(s.tmp, M, s.chkr_mu)
-    M .= s.tmp
-    mul!(s.tmp, M, s.eV)
-    M .= s.tmp
+    mul!(s.tmp1, M, s.chkr_mu)
+    M .= s.tmp1
+    mul!(s.tmp1, M, s.eV)
+    M .= s.tmp1
     nothing
 end
 @bm function multiply_slice_matrix_inv_left!(mc::DQMC_CBTrue, m::Model, slice::Int,
@@ -152,44 +152,44 @@ end
     s = mc.s
     @inbounds begin
         for i in reverse(2:s.n_groups)
-            mul!(s.tmp, s.chkr_hop_half_inv[i], M)
-            M .= s.tmp
+            mul!(s.tmp1, s.chkr_hop_half_inv[i], M)
+            M .= s.tmp1
         end
-        mul!(s.tmp, s.chkr_hop_inv[1], M)
-        M .= s.tmp
+        mul!(s.tmp1, s.chkr_hop_inv[1], M)
+        M .= s.tmp1
         for i in 2:s.n_groups
-            mul!(s.tmp, s.chkr_hop_half_inv[i], M)
-            M .= s.tmp
+            mul!(s.tmp1, s.chkr_hop_half_inv[i], M)
+            M .= s.tmp1
         end
     end
 
     interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, -1.)
-    mul!(s.tmp, s.chkr_mu_inv, M)
-    M .= s.tmp
-    mul!(s.tmp, s.eV, M)
-    M .= s.tmp
+    mul!(s.tmp1, s.chkr_mu_inv, M)
+    M .= s.tmp1
+    mul!(s.tmp1, s.eV, M)
+    M .= s.tmp1
     nothing
 end
 @bm function multiply_slice_matrix_inv_right!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
     s = mc.s
     interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, -1.)
-    mul!(s.tmp, M, s.eV)
-    M .= s.tmp
-    mul!(s.tmp, M, s.chkr_mu_inv)
-    M .= s.tmp
+    mul!(s.tmp1, M, s.eV)
+    M .= s.tmp1
+    mul!(s.tmp1, M, s.chkr_mu_inv)
+    M .= s.tmp1
 
 
     @inbounds begin
         for i in reverse(2:s.n_groups)
-            mul!(s.tmp, M, s.chkr_hop_half_inv[i])
-            M .= s.tmp
+            mul!(s.tmp1, M, s.chkr_hop_half_inv[i])
+            M .= s.tmp1
         end
-        mul!(s.tmp, M, s.chkr_hop_inv[1])
-        M .= s.tmp
+        mul!(s.tmp1, M, s.chkr_hop_inv[1])
+        M .= s.tmp1
         for i in 2:s.n_groups
-            mul!(s.tmp, M, s.chkr_hop_half_inv[i])
-            M .= s.tmp
+            mul!(s.tmp1, M, s.chkr_hop_half_inv[i])
+            M .= s.tmp1
         end
     end
     nothing
@@ -200,22 +200,22 @@ end
 
     @inbounds begin
         for i in reverse(2:s.n_groups)
-            mul!(s.tmp, s.chkr_hop_half_dagger[i], M)
-            M .= s.tmp
+            mul!(s.tmp1, s.chkr_hop_half_dagger[i], M)
+            M .= s.tmp1
         end
-        mul!(s.tmp, s.chkr_hop_dagger[1], M)
-        M .= s.tmp
+        mul!(s.tmp1, s.chkr_hop_dagger[1], M)
+        M .= s.tmp1
         for i in 2:s.n_groups
-            mul!(s.tmp, s.chkr_hop_half_dagger[i], M)
-            M .= s.tmp
+            mul!(s.tmp1, s.chkr_hop_half_dagger[i], M)
+            M .= s.tmp1
         end
     end
 
     interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, 1.)
     # s.eV == adjoint(s.eV) and s.chkr_mu == adjoint(s.chkr_mu)
-    mul!(s.tmp, s.chkr_mu, M)
-    M .= s.tmp
-    mul!(s.tmp, s.eV, M)
-    M .= s.tmp
+    mul!(s.tmp1, s.chkr_mu, M)
+    M .= s.tmp1
+    mul!(s.tmp1, s.eV, M)
+    M .= s.tmp1
     nothing
 end

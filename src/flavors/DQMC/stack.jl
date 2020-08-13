@@ -15,10 +15,11 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
     greens::Matrix{GreensEltype}
     greens_temp::Matrix{GreensEltype}
 
-    U::Matrix{GreensEltype}
-    D::Vector{Float64}
-    T::Matrix{GreensEltype}
-    tmp::Matrix{GreensEltype}
+    # U::Matrix{GreensEltype}
+    # D::Vector{Float64}
+    # T::Matrix{GreensEltype}
+    tmp1::Matrix{GreensEltype}
+    tmp2::Matrix{GreensEltype}
 
     ranges::Array{UnitRange, 1}
     n_elements::Int
@@ -94,18 +95,20 @@ function initialize_stack(mc::DQMC)
     mc.s.greens = zeros(GreensEltype, flv*N, flv*N)
     mc.s.greens_temp = zeros(GreensEltype, flv*N, flv*N)
 
+    # used in calculate_greens
+    # do not change in slice_matrices.jl or interaction_matrix_exp!
     mc.s.Ul = Matrix{GreensEltype}(I, flv*N, flv*N)
     mc.s.Ur = Matrix{GreensEltype}(I, flv*N, flv*N)
     mc.s.Tl = Matrix{GreensEltype}(I, flv*N, flv*N)
     mc.s.Tr = Matrix{GreensEltype}(I, flv*N, flv*N)
     mc.s.Dl = ones(Float64, flv*N)
     mc.s.Dr = ones(Float64, flv*N)
+    # can be changed anywhere
     mc.s.pivot = Vector{Int64}(undef, flv*N)
 
-    mc.s.U = zeros(GreensEltype, flv*N, flv*N)
-    mc.s.D = zeros(Float64, flv*N)
-    mc.s.T = zeros(GreensEltype, flv*N, flv*N)
-    mc.s.tmp = zeros(GreensEltype, flv*N, flv*N)
+    # can be changed anywhere
+    mc.s.tmp1 = zeros(GreensEltype, flv*N, flv*N)
+    mc.s.tmp2 = zeros(GreensEltype, flv*N, flv*N)
 
 
     # # Global update backup
@@ -122,7 +125,7 @@ function initialize_stack(mc::DQMC)
         push!(mc.s.ranges, 1 + (i - 1) * mc.p.safe_mult:i * mc.p.safe_mult)
     end
 
-    mc.s.curr_U = zero(mc.s.U)
+    mc.s.curr_U = zeros(GreensEltype, flv*N, flv*N)
     mc.s.eV = zeros(GreensEltype, flv*N, flv*N)
 
     # mc.s.hopping_matrix_exp = zeros(HoppingEltype, flv*N, flv*N)
@@ -282,8 +285,8 @@ end
                 multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
                 rvmul!(mc.s.curr_U, Diagonal(mc.s.Dr))
                 udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
-                copyto!(mc.s.tmp, mc.s.Tr)
-                vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp) # TODO
+                copyto!(mc.s.tmp1, mc.s.Tr)
+                vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp1) # TODO
                 copyto!(mc.s.curr_U, mc.s.Ur)
             else
                 multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
@@ -291,8 +294,8 @@ end
         end
         rvmul!(mc.s.curr_U, Diagonal(mc.s.Dr))
         udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
-        copyto!(mc.s.tmp, mc.s.Tr)
-        vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp)
+        copyto!(mc.s.tmp1, mc.s.Tr)
+        vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp1)
     end
 
 
@@ -309,8 +312,8 @@ end
                 multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
                 rvmul!(mc.s.curr_U, Diagonal(mc.s.Dl))
                 udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
-                copyto!(mc.s.tmp, mc.s.Tl)
-                vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp) # TODO
+                copyto!(mc.s.tmp1, mc.s.Tl)
+                vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp1) # TODO
                 copyto!(mc.s.curr_U, mc.s.Ul)
             else
                 multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
@@ -318,8 +321,8 @@ end
         end
         rvmul!(mc.s.curr_U, Diagonal(mc.s.Dl))
         udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
-        copyto!(mc.s.tmp, mc.s.Tl)
-        vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp)
+        copyto!(mc.s.tmp1, mc.s.Tl)
+        vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp1)
     end
 
     return calculate_greens(mc)
