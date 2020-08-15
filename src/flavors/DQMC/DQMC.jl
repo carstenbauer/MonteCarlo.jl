@@ -364,24 +364,7 @@ See also: [`resume!`](@ref)
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-
-            file_exists = isfile(resumable_filename)
-            if force_overwrite && file_exists
-                parts = splitpath(resumable_filename)
-                parts[end] = "." * parts[end]
-                temp_filename = _generate_unqiue_JLD_filename(joinpath(parts...))
-                mv(resumable_filename, temp_filename)
-            end
-
-            # We create a backup manually here because we save extra stuff
-            # In either case there should be no conflicting file, so there
-            # should be nothing to overwrite.
-            resumable_filename = save(resumable_filename, mc)
-
-            if force_overwrite && file_exists
-                rm(temp_filename)
-            end
-
+            save(resumable_filename, mc, force_overwrite = force_overwrite, allow_rename=false)
             verbose && println("\nEarly save finished")
 
             return false
@@ -577,7 +560,7 @@ function replay!(
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            filename = save(filename, mc, force_overwrite = force_overwrite)
+            save(resumable_filename, mc, force_overwrite = force_overwrite, allow_rename=false)
             verbose && println("\nEarly save finished")
 
             return false
