@@ -7,7 +7,7 @@ using StableDQMC, LightXML, Parameters, Requires
 using JLD, TimerOutputs
 using LoopVectorization, RecursiveFactorization
 
-using Printf, SparseArrays, LinearAlgebra, Dates, Random
+using Printf, SparseArrays, LinearAlgebra, Dates, Random, Statistics
 
 include("helpers.jl")
 include("inplace_udt.jl")

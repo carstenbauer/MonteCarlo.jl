@@ -365,7 +365,7 @@ end
                 add_slice_sequence_left(mc, idx)
                 mc.s.Ul[:,:], mc.s.Dl[:], mc.s.Tl[:,:] = mc.s.u_stack[:, :, idx+1], mc.s.d_stack[:, idx+1], mc.s.t_stack[:, :, idx+1]
 
-                if mc.p.all_checks
+                if mc.p.check_propagation_error
                     copyto!(mc.s.greens_temp, mc.s.greens)
                 end
 
@@ -375,10 +375,14 @@ end
 
                 calculate_greens(mc) # greens_{slice we are propagating to}
 
-                if mc.p.all_checks
+                if mc.p.check_propagation_error
                     greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
                     if greensdiff > 1e-7
-                        @printf("->%d \t+1 Propagation instability\t %.1e\n", mc.s.current_slice, greensdiff)
+                        push!(mc.a.propagation_error, greensdiff)
+                        mc.p.silent || @printf(
+                            "->%d \t+1 Propagation instability\t %.1e\n", 
+                            mc.s.current_slice, greensdiff
+                        )
                     end
                 end
 
@@ -417,16 +421,20 @@ end
                 add_slice_sequence_right(mc, idx)
                 mc.s.Ur[:,:], mc.s.Dr[:], mc.s.Tr[:,:] = mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.t_stack[:, :, idx]
 
-                if mc.p.all_checks
+                if mc.p.check_propagation_error
                     copyto!(mc.s.greens_temp, mc.s.greens)
                 end
 
                 calculate_greens(mc)
 
-                if mc.p.all_checks
+                if mc.p.check_propagation_error
                     greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
                     if greensdiff > 1e-7
-                        @printf("->%d \t-1 Propagation instability\t %.1e\n", mc.s.current_slice, greensdiff)
+                        push!(mc.a.propagation_error, greensdiff)
+                        mc.p.silent || @printf(
+                            "->%d \t-1 Propagation instability\t %.1e\n", 
+                            mc.s.current_slice, greensdiff
+                        )
                     end
                 end
 
