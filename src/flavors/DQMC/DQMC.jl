@@ -1,5 +1,35 @@
 include("abstract.jl")
 
+# For recording error information
+mutable struct MagnitudeStats
+    max::Float64
+    min::Float64
+    sum::Float64
+    count::Int64
+end
+
+MagnitudeStats() = MagnitudeStats(-Inf, +Inf, 0.0, 0)
+
+function Base.push!(stat::MagnitudeStats, value)
+    v = log10(value)
+    stat.max = max(stat.max, v)
+    stat.min = min(stat.min, v)
+    stat.sum += v
+    stat.count += 1
+end
+
+Base.min(s::MagnitudeStats) = s.count > 0 ? 10.0^(s.min) : 0.0
+Base.max(s::MagnitudeStats) = s.count > 0 ? 10.0^(s.max) : 0.0
+Statistics.mean(s::MagnitudeStats) = s.count > 0 ? 10.0^(s.sum / s.count) : 0.0
+Base.length(s::MagnitudeStats) = s.count
+
+function Base.show(io::IO, s::MagnitudeStats)
+    println(io, "MagnitudeStats: ($(s.count) Values)")
+    println(io, "\tmin = $(min(s))")
+    println(io, "\tmean = $(mean(s))")
+    println(io, "\tmax = $(max(s))")
+end
+
 """
 Analysis data of determinant quantum Monte Carlo (DQMC) simulation
 """
@@ -10,6 +40,10 @@ Analysis data of determinant quantum Monte Carlo (DQMC) simulation
     acc_rate_global::Float64 = 0.
     prop_global::Int = 0
     acc_global::Int = 0
+
+    imaginary_probability::MagnitudeStats = MagnitudeStats()
+    negative_probability::MagnitudeStats = MagnitudeStats()
+    propagation_error::MagnitudeStats = MagnitudeStats()
 end
 
 """
@@ -18,25 +52,35 @@ Parameters of determinant quantum Monte Carlo (DQMC)
 struct DQMCParameters
     global_moves::Bool
     global_rate::Int
+
     thermalization::Int
     sweeps::Int
-    all_checks::Bool
+    
+    silent::Bool
+    check_sign_problem::Bool
+    check_propagation_error::Bool
+    
     safe_mult::Int
     delta_tau::Float64
     beta::Float64
     slices::Int
+    
     measure_rate::Int
 end
 
-function DQMCParameters(;global_moves::Bool = false,
-                        global_rate::Int    = 5,
-                        thermalization::Int = 100,
-                        sweeps::Int         = 100,
-                        all_checks::Bool    = true,
-                        safe_mult::Int      = 10,
-                        measure_rate::Int   = 10,
-                        warn_round::Bool    = true,
-                        kwargs...)
+function DQMCParameters(;
+        global_moves::Bool  = false,
+        global_rate::Int    = 5,
+        thermalization::Int = 100,
+        sweeps::Int         = 100,
+        silent::Bool        = false,
+        check_sign_problem::Bool = true,
+        check_propagation_error::Bool = true,
+        safe_mult::Int      = 10,
+        measure_rate::Int   = 10,
+        warn_round::Bool    = true,
+        kwargs...
+    )
     nt = (;kwargs...)
     keys(nt) == (:beta,) && (nt = (;beta=nt.beta, delta_tau=0.1))
     @assert length(nt) >= 2 "Invalid keyword arguments to DQMCParameters: $nt"
@@ -59,16 +103,20 @@ function DQMCParameters(;global_moves::Bool = false,
     else
         error("Invalid keyword arguments to DQMCParameters $nt")
     end
-    DQMCParameters(global_moves,
-                   global_rate,
-                   thermalization,
-                   sweeps,
-                   all_checks,
-                   safe_mult,
-                   delta_tau,
-                   beta,
-                   slices,
-                   measure_rate)
+    DQMCParameters(
+        global_moves,
+        global_rate,
+        thermalization,
+        sweeps,
+        silent, 
+        check_sign_problem,
+        check_propagation_error,
+        safe_mult,
+        delta_tau,
+        beta,
+        slices,
+        measure_rate
+    )
 end
 
 
@@ -144,6 +192,7 @@ function DQMC(m::M;
         typeof(conf), DQMCStack{geltype, heltype}}()
     mc.model = m
     mc.p = p
+    mc.a = DQMCAnalysis()
     mc.s = DQMCStack{geltype, heltype}()
     mc.last_sweep = last_sweep
 
@@ -210,8 +259,6 @@ function init!(mc::DQMC;
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc)
 
-    mc.a = DQMCAnalysis()
-
     mc.thermalization_measurements = thermalization_measurements
     if measurements isa Dict{Symbol, AbstractMeasurement}
         mc.measurements = measurements
@@ -234,7 +281,6 @@ end
 function resume_init!(mc::DQMC)
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc)
-    mc.a = DQMCAnalysis()
     nothing
 end
 
@@ -288,7 +334,9 @@ See also: [`resume!`](@ref)
             mc.p.global_rate,
             thermalization,
             sweeps,
-            mc.p.all_checks,
+            mc.p.silent, 
+            mc.p.check_sign_problem,
+            mc.p.check_propagation_error,
             mc.p.safe_mult,
             mc.p.delta_tau,
             mc.p.beta,
@@ -375,8 +423,32 @@ See also: [`resume!`](@ref)
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
 
+    if verbose
+        if length(mc.a.imaginary_probability) > 0
+            s = mc.a.imaginary_probability
+            println("\nImaginary Probability Errors: ($(s.count))")
+            @printf("\tmax  = %0.3e\n", max(s))
+            @printf("\tmean = %0.3e\n", mean(s))
+            @printf("\tmin  = %0.3e\n\n", min(s))
+        end
+        if length(mc.a.negative_probability) > 0
+            s = mc.a.negative_probability
+            println("\nNegative Probability Errors: ($(s.count))")
+            @printf("\tmax  = %0.3e\n", max(s))
+            @printf("\tmean = %0.3e\n", mean(s))
+            @printf("\tmin  = %0.3e\n\n", min(s))
+        end
+        if length(mc.a.propagation_error) > 0
+            s = mc.a.propagation_error
+            println("\nPropagation Errors: ($(s.count))")
+            @printf("\tmax  = %0.3e\n", max(s))
+            @printf("\tmean = %0.3e\n", mean(s))
+            @printf("\tmin  = %0.3e\n\n", min(s))
+        end
+    end
+
     end_time = now()
-    verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
+    verbose && println("\nEnded: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
 
     return true
@@ -419,16 +491,21 @@ imaginary time slice.
         detratio, ΔE_boson, Δ = propose_local(mc, m, i, current_slice(mc), conf(mc))
         mc.a.prop_local += 1
 
-        if abs(imag(detratio)) > 1e-6
-            println("Did you expect a sign problem? imag. detratio: ",
-                abs(imag(detratio)))
-            @printf "%.10e" abs(imag(detratio))
-        end
-        if real(detratio) < 0.0
-            @warn @sprintf(
-                "Did you expect a sign problem? negative detratio %.6e\n",
-                real(detratio)
-            )
+        if mc.p.check_sign_problem
+            if abs(imag(detratio)) > 1e-6
+                push!(mc.a.imaginary_probability, abs(imag(detratio)))
+                mc.p.silent || @printf(
+                    "Did you expect a sign problem? imag. detratio:  %.9e\n", 
+                    abs(imag(detratio))
+                )
+            end
+            if real(detratio) < 0.0
+                push!(mc.a.negative_probability, real(detratio))
+                mc.p.silent || @printf(
+                    "Did you expect a sign problem? negative detratio %.9e\n",
+                    real(detratio)
+                )
+            end
         end
         p = real(exp(- ΔE_boson) * detratio)
 
@@ -495,8 +572,8 @@ function replay!(
     mc.p = DQMCParameters(
         mc.p.global_moves, mc.p.global_rate,
         mc.p.thermalization, mc.p.sweeps,
-        mc.p.all_checks, mc.p.safe_mult,
-        mc.p.delta_tau, mc.p.beta, mc.p.slices,
+        mc.p.silent, mc.p.check_sign_problem,mc.p.check_propagation_error,
+        mc.p.safe_mult, mc.p.delta_tau, mc.p.beta, mc.p.slices,
         measure_rate
     )
     replay!(mc, timeseries(configs.obs); ignore=ignore, kwargs...)
@@ -630,6 +707,7 @@ function save_mc(file::JLD.JldFile, mc::DQMC, entryname::String="MC")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.p, entryname * "/Parameters")
+    save_analysis(file, mc.a, entryname * "/Analysis")
     write(file, entryname * "/conf", mc.conf)
     write(file, entryname * "/last_sweep", mc.last_sweep)
     save_measurements(file, mc, entryname * "/Measurements")
@@ -647,6 +725,7 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
 
     mc = data["type"]()
     mc.p = load_parameters(data["Parameters"], data["Parameters"]["type"])
+    mc.a = load_analysis(data["Analysis"], data["Analysis"]["type"])
     mc.conf = data["conf"]
     mc.last_sweep = data["last_sweep"]
     mc.model = load_model(data["Model"], data["Model"]["type"])
@@ -672,7 +751,9 @@ function save_parameters(file::JLD.JldFile, p::DQMCParameters, entryname::String
     write(file, entryname * "/global_rate", p.global_rate)
     write(file, entryname * "/thermalization", p.thermalization)
     write(file, entryname * "/sweeps", p.sweeps)
-    write(file, entryname * "/all_checks", Int(p.all_checks))
+    write(file, entryname * "/silent", Int(p.silent))
+    write(file, entryname * "/check_sign_problem", Int(p.check_sign_problem))
+    write(file, entryname * "/check_propagation_error", Int(p.check_propagation_error))
     write(file, entryname * "/safe_mult", p.safe_mult)
     write(file, entryname * "/delta_tau", p.delta_tau)
     write(file, entryname * "/beta", p.beta)
@@ -696,7 +777,9 @@ function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
         data["global_rate"],
         data["thermalization"],
         data["sweeps"],
-        Bool(data["all_checks"]),
+        Bool(data["silent"]),
+        Bool(data["check_sign_problem"]),
+        Bool(data["check_propagation_error"]),
         data["safe_mult"],
         data["delta_tau"],
         data["beta"],
@@ -705,6 +788,35 @@ function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
     )
 end
 
+function save_analysis(file::JLD.JldFile, a::DQMCAnalysis, entryname::String="Analysis")
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(a))
+
+    save_stats(file, a.imaginary_probability, entryname * "/imag_prob")
+    save_stats(file, a.negative_probability, entryname * "/neg_prob")
+    save_stats(file, a.propagation_error, entryname * "/propagation")
+end
+function save_stats(file::JLD.JldFile, ms::MagnitudeStats, entryname::String="MStats")
+    write(file, entryname * "/max", ms.max)
+    write(file, entryname * "/min", ms.min)
+    write(file, entryname * "/sum", ms.sum)
+    write(file, entryname * "/count", ms.count)
+end
+
+function load_analysis(data::Dict, ::Type{T}) where T <: DQMCAnalysis
+    if !(data["VERSION"] == 1)
+        throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
+    end
+
+    data["type"](
+        imaginary_probability = load_stats(data["imag_prob"]),
+        negative_probability = load_stats(data["neg_prob"]),
+        propagation_error = load_stats(data["propagation"])
+    )
+end
+function load_stats(data)
+    MagnitudeStats(data["max"], data["min"], data["sum"], data["count"])
+end
 
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")
