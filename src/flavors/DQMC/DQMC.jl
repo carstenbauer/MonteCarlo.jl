@@ -725,7 +725,7 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
 
     mc = data["type"]()
     mc.p = load_parameters(data["Parameters"], data["Parameters"]["type"])
-    mc.p = load_analysis(data["Analysis"], data["Analysis"]["type"])
+    mc.a = load_analysis(data["Analysis"], data["Analysis"]["type"])
     mc.conf = data["conf"]
     mc.last_sweep = data["last_sweep"]
     mc.model = load_model(data["Model"], data["Model"]["type"])
@@ -808,7 +808,7 @@ function load_analysis(data::Dict, ::Type{T}) where T <: DQMCAnalysis
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
 
-    DQMCAnalysis(
+    data["type"](
         imaginary_probability = load_stats(data["imag_prob"]),
         negative_probability = load_stats(data["neg_prob"]),
         propagation_error = load_stats(data["propagation"])
