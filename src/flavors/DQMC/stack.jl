@@ -11,6 +11,7 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
     Tl::Matrix{GreensEltype}
     Tr::Matrix{GreensEltype}
     pivot::Vector{Int64}
+    tempv::Vector{GreensEltype}
 
     greens::Matrix{GreensEltype}
     greens_temp::Matrix{GreensEltype}
@@ -105,6 +106,7 @@ function initialize_stack(mc::DQMC)
     mc.s.Dr = ones(Float64, flv*N)
     # can be changed anywhere
     mc.s.pivot = Vector{Int64}(undef, flv*N)
+    mc.s.tempv = Vector{GreensEltype}(undef, flv*N)
 
     # can be changed anywhere
     mc.s.tmp1 = zeros(GreensEltype, flv*N, flv*N)
@@ -238,7 +240,10 @@ Updates stack[idx+1] based on stack[idx]
     end
 
     @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx]))
-    @views udt_AVX!(mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], mc.s.curr_U)
+    # @views udt_AVX!(mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], mc.s.curr_U)
+    @views udt_AVX_pivot!(
+        mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], mc.s.curr_U, mc.s.pivot, mc.s.tempv
+    )
     @views vmul!(mc.s.t_stack[:, :, idx + 1], mc.s.curr_U, mc.s.t_stack[:, :, idx])
 end
 """
@@ -252,7 +257,10 @@ Updates stack[idx] based on stack[idx+1]
     end
 
     @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx + 1]))
-    @views udt_AVX!(mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.curr_U)
+    # @views udt_AVX!(mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.curr_U)
+    @views udt_AVX_pivot!(
+        mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.curr_U, mc.s.pivot, mc.s.tempv
+    )
     @views vmul!(mc.s.t_stack[:, :, idx], mc.s.curr_U, mc.s.t_stack[:, :, idx + 1])
 end
 
@@ -265,7 +273,7 @@ mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
     calculate_greens_AVX!(
         mc.s.Ul, mc.s.Dl, mc.s.Tl,
         mc.s.Ur, mc.s.Dr, mc.s.Tr,
-        mc.s.greens, mc.s.pivot
+        mc.s.greens, mc.s.pivot, mc.s.tempv
     )
     mc.s.greens
 end
@@ -284,7 +292,8 @@ end
             if mod(k,safe_mult) == 0
                 multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
                 rvmul!(mc.s.curr_U, Diagonal(mc.s.Dr))
-                udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
+                # udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
+                udt_AVX_pivot!(mc.s.Ur, mc.s.Dr, mc.s.curr_U, mc.s.pivot, mc.s.tempv)
                 copyto!(mc.s.tmp1, mc.s.Tr)
                 vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp1) # TODO
                 copyto!(mc.s.curr_U, mc.s.Ur)
@@ -293,7 +302,8 @@ end
             end
         end
         rvmul!(mc.s.curr_U, Diagonal(mc.s.Dr))
-        udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
+        # udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
+        udt_AVX_pivot!(mc.s.Ur, mc.s.Dr, mc.s.curr_U, mc.s.pivot, mc.s.tempv)
         copyto!(mc.s.tmp1, mc.s.Tr)
         vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp1)
     end
@@ -311,7 +321,8 @@ end
             if mod(k,safe_mult) == 0
                 multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
                 rvmul!(mc.s.curr_U, Diagonal(mc.s.Dl))
-                udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
+                # udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
+                udt_AVX_pivot!(mc.s.Ul, mc.s.Dl, mc.s.curr_U, mc.s.pivot, mc.s.tempv)
                 copyto!(mc.s.tmp1, mc.s.Tl)
                 vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp1) # TODO
                 copyto!(mc.s.curr_U, mc.s.Ul)
@@ -320,7 +331,8 @@ end
             end
         end
         rvmul!(mc.s.curr_U, Diagonal(mc.s.Dl))
-        udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
+        # udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
+        udt_AVX_pivot!(mc.s.Ul, mc.s.Dl, mc.s.curr_U, mc.s.pivot, mc.s.tempv)
         copyto!(mc.s.tmp1, mc.s.Tl)
         vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp1)
     end
