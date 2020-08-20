@@ -1,4 +1,4 @@
-using MonteCarlo, MonteCarloObservable
+using MonteCarlo, MonteCarloObservable, StableDQMC
 using Test
 using Random, Dates
 using MonteCarlo: @bm, TimerOutputs
