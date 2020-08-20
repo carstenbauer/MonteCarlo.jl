@@ -30,6 +30,6 @@ jobs:
       - uses: julia-actions/julia-uploadcodecov@master
         env:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
-      - uses: julia-actions/julia-uploadcoveralls@master
+      - uses: julia-actions/julia-uploadcoveralls@latest
         env:
           COVERALLS_TOKEN: ${{ secrets.COVERALLS_TOKEN }}
