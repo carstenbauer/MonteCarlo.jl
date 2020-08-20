@@ -311,11 +311,11 @@ Performs a sweep of local moves.
         # Metropolis
         if ΔE <= 0 || rand() < exp(- β*ΔE)
             accept_local!(mc, m, i, c, ΔE, passthrough)
-            mc.a.acc_rate += 1/nsites(m)
+            mc.a.acc_rate += 1.0
             mc.a.acc_local += 1
         end
     end
-
+    mc.a.acc_rate /= length(c)
     nothing
 end
 
