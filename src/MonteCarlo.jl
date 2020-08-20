@@ -3,7 +3,7 @@ module MonteCarlo
 using Reexport
 @reexport using MonteCarloObservable
 import MonteCarloObservable.AbstractObservable
-using LightXML, Parameters, Requires
+using Parameters, Requires
 using JLD, TimerOutputs
 using LoopVectorization, RecursiveFactorization
 
@@ -45,6 +45,7 @@ export greens
 
 function __init__()
     @require LatPhysBase="eec5c15a-e8bd-11e8-0d23-6799ca40c963" include("lattices/LatPhys.jl")
+    @require LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179" include("lattices/ALPS.jl")
 end
 
 end # module

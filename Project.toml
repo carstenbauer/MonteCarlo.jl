@@ -6,9 +6,7 @@ authors = ["Carsten Bauer <crstnbr@gmail.com>"]
 [deps]
 BinningAnalysis = "b7192094-8e58-5052-a244-180a858778ee"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
-InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
-LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
 MonteCarloObservable = "8a675f2c-1eea-59ef-99a5-5eebc71d1519"
@@ -25,7 +23,6 @@ TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 [compat]
 BinningAnalysis = "0.4"
 JLD = "0.9, 0.10"
-LightXML = "0.8, 0.9"
 LoopVectorization = "0.8"
 MonteCarloObservable = "0.3"
 Parameters = "0.12"
