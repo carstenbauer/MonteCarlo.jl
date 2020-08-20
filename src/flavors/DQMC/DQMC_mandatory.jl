@@ -3,7 +3,7 @@
 
 Draw random configuration.
 """
-Base.rand(::Type{DQMC}, m::Model, nslices::Int) = error("Model $(typeof(m)) doesn't implement `rand(::Type{DQMC}, m::Model, nslices::Int)`!")
+Base.rand(::Type{DQMC}, m::Model, nslices::Int) = MethodError(rand, (DQMC, m, nslices))
 
 
 """
@@ -18,7 +18,7 @@ A matrix element is the hopping amplitude for a hopping process: \$j,\\sigma ' \
 Regarding the order of indices, if `T[i, σ, j, σ']` is your desired 4D hopping array, then `reshape(T, (n_sites * n_flavors, :))`
 is the hopping matrix.
 """
-hopping_matrix(mc::DQMC, m::Model) = error("Model has no implementation of `hopping_matrix(mc::DQMC, m::Model)`.")
+hopping_matrix(mc::DQMC, m::Model) = MethodError(hopping_matrix, (mc, m))
 
 
 """
@@ -30,28 +30,30 @@ part of the `hopping_matrix` and not the interaction.
 
 This is a performance critical method and one might consider efficient in-place (in `result`) construction.
 """
-interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.) = error("Model has no implementation of `interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.)`.")
+interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.) = 
+    MethodError(interaction_matrix_exp!, (mc, m, result, conf, slice, power))
 
 
 """
-    propose_local(mc::DQMC, m::Model, i::Int, conf) -> detratio, ΔE_boson, Δ
+    propose_local(mc::DQMC, m::Model, i::Int, conf) -> detratio, ΔE_boson, passthrough
 
 Propose a local move for lattice site `i` of current configuration `conf` . Returns the
 Green's function determinant ratio, the boson energy difference `ΔE_boson = E_boson_new - E_boson`,
-and potentially additional local move information `Δ` (will be forwarded to `accept_local!`).
+and potentially additional local move information `passthrough` (will be forwarded to `accept_local!`).
 
 See also [`accept_local!`](@ref).
 """
 propose_local(mc::DQMC, m::Model, i::Int, conf) =
-    error("Model has no implementation of `propose_local(mc::DQMC, m::Model, i::Int, conf)`!")
+    MethodError(propose_local, (mc, m, i, conf))
 
 """
-    accept_local(mc::DQMC, m::Model, i::Int, slice::Int, conf, Δ, detratio, ΔE_boson)
+    accept_local(mc::DQMC, m::Model, i::Int, slice::Int, conf, detratio, ΔE_boson, passthrough)
 
 Accept a local move for site `i` at imaginary time slice `slice` of current configuration `conf`.
-Arguments `Δ`, `detratio` and `ΔE_boson` correspond to output of `propose_local` for that local move.
+Arguments `detratio`, `ΔE_boson` and `passthrough` correspond to output of `propose_local` for that 
+local move.
 
 See also [`propose_local`](@ref).
 """
-accept_local(mc::DQMC, m::Model, i::Int, slice::Int, conf, Δ, detratio, ΔE_boson) =
-    error("Model has no implementation of `accept_local(mc::DQMC, m::Model, i::Int, slice::Int, conf, Δ, detratio, ΔE_boson)`!")
+accept_local!(mc::DQMC, m::Model, i::Int, slice::Int, conf, detratio, ΔE_boson, passthrough) =
+    MethodError(accept_local!, (mc, m, i, slice, conf, detratio, ΔE_boson, passthrough))

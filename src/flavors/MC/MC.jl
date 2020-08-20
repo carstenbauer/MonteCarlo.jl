@@ -306,11 +306,11 @@ Performs a sweep of local moves.
     m = model(mc)
     β = beta(mc)
     @inbounds for i in eachindex(c)
-        ΔE, Δsite = propose_local(mc, m, i, c)
+        ΔE, passthrough = propose_local(mc, m, i, c)
         mc.a.prop_local += 1
         # Metropolis
         if ΔE <= 0 || rand() < exp(- β*ΔE)
-            accept_local!(mc, m, i, c, Δsite, ΔE)
+            accept_local!(mc, m, i, c, ΔE, passthrough)
             mc.a.acc_rate += 1/nsites(m)
             mc.a.acc_local += 1
         end

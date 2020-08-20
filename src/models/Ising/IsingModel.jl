@@ -73,7 +73,9 @@ Base.rand(::Type{MC}, m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m
     return delta_E, nothing
 end
 
-@propagate_inbounds @bm function accept_local!(mc::MC, m::IsingModel, i::Int, conf::IsingConf, delta_i, delta_E::Float64)
+@propagate_inbounds @bm function accept_local!(
+        mc::MC, m::IsingModel, i::Int, conf::IsingConf, delta_E::Float64, passthrough
+    )
     m.energy[] += delta_E
     conf[i] *= -1
     nothing

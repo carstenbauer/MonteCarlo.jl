@@ -137,9 +137,10 @@ end
     return detratio, ΔE_boson, γ
 end
 
-@inline @bm function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, ΔE_boson::Float64)
+@inline @bm function accept_local!(
+        mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, 
+        detratio, ΔE_boson, γ)
     greens = mc.s.greens
-    γ = delta
 
     # Unoptimized Version
     # u = -greens[:, i]

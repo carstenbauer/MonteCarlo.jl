@@ -488,7 +488,7 @@ imaginary time slice.
     N = nsites(m)
 
     @inbounds for i in 1:N
-        detratio, ΔE_boson, Δ = propose_local(mc, m, i, current_slice(mc), conf(mc))
+        detratio, ΔE_boson, passthrough = propose_local(mc, m, i, current_slice(mc), conf(mc))
         mc.a.prop_local += 1
 
         if mc.p.check_sign_problem
@@ -511,8 +511,8 @@ imaginary time slice.
 
         # Metropolis
         if p > 1 || rand() < p
-            accept_local!(mc, m, i, current_slice(mc), conf(mc), Δ, detratio,
-                ΔE_boson)
+            accept_local!(mc, m, i, current_slice(mc), conf(mc), detratio, ΔE_boson, passthrough)
+            # Δ, detratio,ΔE_boson)
             mc.a.acc_rate += 1/N
             mc.a.acc_local += 1
         end
