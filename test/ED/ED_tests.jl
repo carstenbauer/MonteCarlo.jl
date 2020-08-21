@@ -11,11 +11,11 @@ include("ED.jl")
     _sign, s = create(void, 1, 1)
     @test _sign == 1.0 &&  s == up
     _sign, s = create(up, 1, 1)
-    @test _sign == 0 &&  s == 0
+    @test _sign == 0
     _sign, s = create(down, 1, 1)
     @test _sign == 1.0 &&  s == updown
     _sign, s = create(updown, 1, 1)
-    @test _sign == 0 &&  s == 0
+    @test _sign == 0
 
     # create down at site 1
     _sign, s = create(void, 1, 2)
@@ -23,25 +23,25 @@ include("ED.jl")
     _sign, s = create(up, 1, 2)
     @test _sign == -1.0 &&  s == updown
     _sign, s = create(down, 1, 2)
-    @test _sign == 0 &&  s == 0
+    @test _sign == 0
     _sign, s = create(updown, 1, 2)
-    @test _sign == 0 &&  s == 0
+    @test _sign == 0
 
     # annihilate up at site 1
     _sign, s = annihilate(void, 1, 1)
-    @test _sign == 0 &&  s == 0
+    @test _sign == 0
     _sign, s = annihilate(up, 1, 1)
     @test _sign == 1.0 &&  s == void
     _sign, s = annihilate(down, 1, 1)
-    @test _sign == 0 &&  s == 0
+    @test _sign == 0
     _sign, s = annihilate(updown, 1, 1)
     @test _sign == 1.0 &&  s == down
 
     # annihilate down at site 1
     _sign, s = annihilate(void, 1, 2)
-    @test _sign == 0 &&  s == 0
+    @test _sign == 0 
     _sign, s = annihilate(up, 1, 2)
-    @test _sign == 0 &&  s == 0
+    @test _sign == 0
     _sign, s = annihilate(down, 1, 2)
     @test _sign == 1.0 &&  s == void
     _sign, s = annihilate(updown, 1, 2)
@@ -92,6 +92,7 @@ end
     @time run!(dqmc, thermalization = 10_000, sweeps = 50_000, verbose=false)
 
     @info "Running ED"
+    @time begin
     H = HamiltonMatrix(model)
 
     # Absolute tolerance from Trotter decompositon
@@ -201,5 +202,6 @@ end
             end
             @test ED_PC/N^2 ≈ PC[offset1, offset2] atol=atol rtol=rtol
         end
+    end
     end
 end
