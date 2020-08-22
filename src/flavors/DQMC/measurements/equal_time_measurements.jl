@@ -6,7 +6,28 @@ function default_measurements(mc::DQMC, model)
     )
 end
 
+"""
+    _default_capacity(mc::DQMC)
 
+Returns 100_000 if the configuration measurement is not available or empty, and
+the length of the configuration measurement if it is not.
+
+This should be useful for `run` - `setup measurements` - `replay` workflow, 
+returning the exact capacity needed.
+"""
+function _default_capacity(mc::DQMC)
+    k = if isdefined(mc, :measurements)
+        findfirst(v -> v isa ConfigurationMeasurement, mc.measurements)
+    else
+        nothing
+    end
+    if k === nothing
+        return 100_000
+    else
+        N = length(mc.measurements[k].obs)
+        return N == 0 ? 100_000 : N
+    end
+end
 
 ################################################################################
 ### General DQMC Measurements
@@ -26,9 +47,11 @@ function for the full partition function, i.e. including fermionic and bosonic
 struct GreensMeasurement{OT <: AbstractObservable} <: AbstractMeasurement
     obs::OT
 end
-function GreensMeasurement(mc::DQMC, model)
+function GreensMeasurement(mc::DQMC, model; capacity=_default_capacity(mc))
+    T = greenseltype(DQMC, model)
+    N = model.flv * length(lattice(model))
     o = LightObservable(
-        LogBinner(zeros(eltype(mc.s.greens), size(mc.s.greens))),
+        LogBinner(zeros(T, (N, N)), capacity=capacity),
         "Equal-times Green's function",
         "Observables.jld",
         "G"
@@ -61,8 +84,8 @@ implemented for the specific `model`.
 struct BosonEnergyMeasurement{OT <: AbstractObservable} <: AbstractMeasurement
     obs::OT
 end
-function BosonEnergyMeasurement(mc::DQMC, model)
-    o = LightObservable(Float64, name="Bosonic Energy", alloc=1_000_000)
+function BosonEnergyMeasurement(mc::DQMC, model; capacity=_default_capacity(mc))
+    o = LightObservable(Float64, name="Bosonic Energy", alloc=capacity)
     BosonEnergyMeasurement{typeof(o)}(o)
 end
 @bm function measure!(m::BosonEnergyMeasurement, mc::DQMC, model, i::Int64)
@@ -150,11 +173,14 @@ struct ChargeDensityCorrelationMeasurement{
     temp::AT
     mask::MT
 end
-function ChargeDensityCorrelationMeasurement(mc::DQMC, model; mask=DistanceMask(lattice(model)))
+function ChargeDensityCorrelationMeasurement(
+        mc::DQMC, model; 
+        mask=DistanceMask(lattice(model)), capacity=_default_capacity(mc)
+    )
     N = nsites(model)
-    T = eltype(mc.s.greens)
+    T = greenseltype(DQMC, model)
     obs = LightObservable(
-        LogBinner(zeros(T, _get_shape(mask))),
+        LogBinner(zeros(T, _get_shape(mask)), capacity=capacity),
         "Charge density wave correlations", "Observables.jld", "CDC"
     )
     temp = zeros(T, _get_shape(mask))
@@ -215,22 +241,22 @@ struct MagnetizationMeasurement{
     z::OTz
     temp::AT
 end
-function MagnetizationMeasurement(mc::DQMC, model)
+function MagnetizationMeasurement(mc::DQMC, model; capacity=_default_capacity(mc))
     N = nsites(model)
-    T = eltype(mc.s.greens)
+    T = greenseltype(DQMC, model)
     Ty = T <: Complex ? T : Complex{T}
 
     # Magnetizations
     m1x = LightObservable(
-        LogBinner([zero(T) for _ in 1:N]),
+        LogBinner([zero(T) for _ in 1:N], capacity=capacity),
         "Magnetization x", "Observables.jld", "Mx"
     )
     m1y = LightObservable(
-        LogBinner([zero(Ty) for _ in 1:N]),
+        LogBinner([zero(Ty) for _ in 1:N], capacity=capacity),
         "Magnetization y", "Observables.jld", "My"
     )
     m1z = LightObservable(
-        LogBinner([zero(T) for _ in 1:N]),
+        LogBinner([zero(T) for _ in 1:N], capacity=capacity),
         "Magnetization z", "Observables.jld", "Mz"
     )
 
@@ -295,22 +321,25 @@ struct SpinDensityCorrelationMeasurement{
     temp::AT
     mask::MT
 end
-function SpinDensityCorrelationMeasurement(mc::DQMC, model; mask=DistanceMask(lattice(model)))
+function SpinDensityCorrelationMeasurement(
+        mc::DQMC, model; 
+        mask=DistanceMask(lattice(model)), capacity=_default_capacity(mc)
+    )
     N = nsites(model)
-    T = eltype(mc.s.greens)
+    T = greenseltype(DQMC, model)
     Ty = T <: Complex ? T : Complex{T}
 
     # Spin density correlation
     sdc2x = LightObservable(
-        LogBinner(zeros(T, _get_shape(mask))),
+        LogBinner(zeros(T, _get_shape(mask)), capacity=capacity),
         "Spin Density Correlation x", "Observables.jld", "sdc-x"
     )
     sdc2y = LightObservable(
-        LogBinner(zeros(Ty, _get_shape(mask))),
+        LogBinner(zeros(Ty, _get_shape(mask)), capacity=capacity),
         "Spin Density Correlation y", "Observables.jld", "sdc-y"
     )
     sdc2z = LightObservable(
-        LogBinner(zeros(T, _get_shape(mask))),
+        LogBinner(zeros(T, _get_shape(mask)), capacity=capacity),
         "Spin Density Correlation z", "Observables.jld", "sdc-z"
     )
     temp = zeros(T, _get_shape(mask))
@@ -391,16 +420,19 @@ struct PairingCorrelationMeasurement{
     temp::AT
     mask::MT
 end
-function PairingCorrelationMeasurement(mc::DQMC, model; mask=DistanceMask(lattice(model)))
-    mask isa RawMask && @warn(
-        "The Pairing Correlation Measurement will be very large with a RawMask!"
+function PairingCorrelationMeasurement(
+        mc::DQMC, model; 
+        mask=DistanceMask(lattice(model)), capacity=_default_capacity(mc)
     )
-    T = eltype(mc.s.greens)
+    mask isa RawMask && @error(
+        "The Pairing Correlation Measurement will be extremely with a RawMask!"
+    )
+    T = greenseltype(DQMC, model)
     N = nsites(model)
     shape = tuple((x for x in _get_shape(mask) for _ in 1:2)...)
 
     obs1 = LightObservable(
-        LogBinner(zeros(T, shape)),
+        LogBinner(zeros(T, shape), capacity=capacity),
         "Equal time pairing correlation matrix (s-wave)",
         "observables.jld",
         "etpc-s"
