@@ -1,13 +1,14 @@
 module MonteCarlo
 
 using Reexport
-@reexport using MonteCarloObservable
+# Loading the RNG will fail if Random is nto exported
+@reexport using MonteCarloObservable, Random
 import MonteCarloObservable.AbstractObservable
 using StableDQMC, LightXML, Parameters, Requires
 using JLD, TimerOutputs
 using LoopVectorization, RecursiveFactorization
 
-using Printf, SparseArrays, LinearAlgebra, Dates, Random, Statistics
+using Printf, SparseArrays, LinearAlgebra, Dates, Statistics
 
 include("helpers.jl")
 include("inplace_udt.jl")
