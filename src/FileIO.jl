@@ -124,6 +124,10 @@ function save_mc(filename::String, mc::MonteCarloFlavor, entryname::String="MC")
     nothing
 end
 load_mc(data) = load_mc(data["MC"], data["MC"]["type"])
+load_mc(_, ::Type{JLD.UnsupportedType}) = throw(ErrorException(
+    "Got JLD.UnsupportedType instead of a MonteCarloFlavor. This may be " * 
+    "caused by missing imports."
+))
 
 
 
