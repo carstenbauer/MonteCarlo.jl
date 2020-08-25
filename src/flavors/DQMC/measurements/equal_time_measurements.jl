@@ -414,7 +414,7 @@ See also:
 struct PairingCorrelationMeasurement{
         OT <: AbstractObservable,
         AT <: Array,
-        MT <: AbstractMask
+        MT <: DistanceMask
     } <: SpinOneHalfMeasurement
     obs::OT
     temp::AT
@@ -425,15 +425,16 @@ function PairingCorrelationMeasurement(
         mask=DistanceMask(lattice(model)), capacity=_default_capacity(mc)
     )
     mask isa RawMask && @error(
-        "The Pairing Correlation Measurement will be extremely with a RawMask!"
+        "The Pairing Correlation Measurement will be extremely large with a RawMask!" *
+        " (Estimate: $(ceil(Int64, log2(capacity))*3*length(lattice(model))^4*8 / 1024 / 1024)MB)"
     )
     T = greenseltype(DQMC, model)
     N = nsites(model)
-    shape = tuple((x for x in _get_shape(mask) for _ in 1:2)...)
+    shape = _get_shape(mask)
 
     obs1 = LightObservable(
         LogBinner(zeros(T, shape), capacity=capacity),
-        "Equal time pairing correlation matrix (s-wave)",
+        "Equal time pairing correlation matrix",
         "observables.jld",
         "etpc-s"
     )
@@ -444,9 +445,9 @@ function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
     G = greens(mc, model)
     N = nsites(model)
     # Pᵢⱼ = ⟨ΔᵢΔⱼ^†⟩
-    #     = ⟨c_{i, ↑} c_{i+di, ↓} c_{j+dj, ↓}^† c_{j, ↑}^†⟩
-    #     = ⟨c_{i, ↑} c_{j, ↑}^†⟩ ⟨c_{i+di, ↓} c_{j+dj, ↓}^†⟩ -
-    #       ⟨c_{i, ↑} c_{j+dj, ↓}^†⟩ ⟨c_{i+di, ↓} c_{j, ↑}^†⟩
+    #     = ⟨c_{i, ↑} c_{i+d, ↓} c_{j+d, ↓}^† c_{j, ↑}^†⟩
+    #     = ⟨c_{i, ↑} c_{j, ↑}^†⟩ ⟨c_{i+d, ↓} c_{j+d, ↓}^†⟩ -
+    #       ⟨c_{i, ↑} c_{j+d, ↓}^†⟩ ⟨c_{i+d, ↓} c_{j, ↑}^†⟩
 
     # Doesn't require IG
     mask_kernel!(m, m.mask, G, G, _pc_s_wave_kernel, m.temp)
@@ -454,28 +455,28 @@ function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
 end
 
 # m is the measurement for potential dispatch
-function mask_kernel!(
-        m::PairingCorrelationMeasurement,
-        mask::RawMask, IG, G, kernel::Function, output
-    )
-    for src1 in 1:size(mask, 1), src2 in 1:size(mask, 1)
-        for trg1 in 1:size(mask, 2), trg2 in 1:size(mask, 2)
-            output[src1, src2, trg1, trg2] += kernel(IG, G, src1, src2, trg1, trg2)
-        end
-    end
-    output
-end
+# function mask_kernel!(
+#         m::PairingCorrelationMeasurement,
+#         mask::RawMask, IG, G, kernel::Function, output
+#     )
+#     for src1 in 1:size(mask, 1), src2 in 1:size(mask, 1)
+#         for trg1 in 1:size(mask, 2), trg2 in 1:size(mask, 2)
+#             output[src1, src2, trg1, trg2] += kernel(IG, G, src1, src2, trg1, trg2)
+#         end
+#     end
+#     output
+# end
 function mask_kernel!(
         m::PairingCorrelationMeasurement,
         mask::DistanceMask, IG, G, kernel::Function, output
     )
     output .= zero(eltype(output))
+    # Sum of Δ_v(r_1) Δ_v^†(r_2) over r_1, r_2 (synced direction) 
     for src1 in 1:size(mask, 1)
-        for (dir_idx1, trg1) in getorder(mask, src1)
+        for (dir_idx, trg1) in getorder(mask, src1)
             for src2 in 1:size(mask, 1)
-                for (dir_idx2, trg2) in getorder(mask, src2)
-                    output[dir_idx1, dir_idx2] += kernel(IG, G, src1, src2, trg1, trg2)
-                end
+                trg2 = mask[src2, dir_idx]
+                output[dir_idx] += kernel(IG, G, src1, src2, trg1, trg2)
             end
         end
     end

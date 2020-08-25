@@ -191,16 +191,16 @@ end
     @testset "Pairing Correlation" begin
         PC = mean(dqmc.measurements[:PC])
         N = MonteCarlo.nsites(model)
-        for offset1 in 1:N, offset2 in 1:N
+        for offset in 1:N
             ED_PC = 0.0
             for site1 in 1:N, site2 in 1:N
                 ED_PC += expectation_value(
                     pairing_correlation(
-                        mask[site2, offset2], site2, mask[site1, offset1], site1
+                        mask[site2, offset], site2, mask[site1, offset], site1
                     ), H, beta = 1.0, N_sites = N
                 )
             end
-            @test ED_PC/N^2 ≈ PC[offset1, offset2] atol=atol rtol=rtol
+            @test ED_PC/N^2 ≈ PC[offset] atol=atol rtol=rtol
         end
     end
     end
