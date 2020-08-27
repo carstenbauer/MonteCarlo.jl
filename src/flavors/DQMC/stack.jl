@@ -281,6 +281,7 @@ end
 # Faster version of calculate_greens_and_logdet from testfunctions.jl
 @bm function calculate_greens(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult)
     copyto!(mc.s.curr_U, I)
+    copyto!(mc.s.Ur, I)
     mc.s.Dr .= one(eltype(mc.s.Dr))
     copyto!(mc.s.Tr, I)
 
@@ -310,6 +311,7 @@ end
 
 
     copyto!(mc.s.curr_U, I)
+    copyto!(mc.s.Ul, I)
     mc.s.Dl .= one(eltype(mc.s.Dl))
     copyto!(mc.s.Tl, I)
 
