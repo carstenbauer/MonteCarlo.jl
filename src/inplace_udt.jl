@@ -125,7 +125,7 @@ end
 ################################################################################
 
 
-@inline function reflector!(x::Matrix, normu, j=1, n=size(x, 1))
+@inline function reflector!(x::AbstractArray, normu, j=1, n=size(x, 1))
     @inbounds begin
         ξ1 = x[j, j]
         if iszero(normu)
@@ -143,7 +143,8 @@ end
 end
 
 
-@bm function indmaxcolumn(A::Matrix{T}, j=1, n=size(A, 1)) where T
+@bm function indmaxcolumn(A, j=1, n=size(A, 1))
+    T = eltype(A)
     max = zero(T)
     @avx for k in j:n
         max += conj(A[k, j]) * A[k, j]
@@ -183,14 +184,14 @@ function udt_AVX_pivot!(
     # - all matrices same size
     # - input can be fucked up (input becomes T)
 
-    @bm "reset pivot" begin
+    # @bm "reset pivot" begin
         n = size(input, 1)
         @inbounds for i in 1:n
             pivot[i] = i
         end
-    end
+    # end
 
-    @bm "QR decomposition" begin
+    # @bm "QR decomposition" begin
         @inbounds for j = 1:n
             # Find column with maximum norm in trailing submatrix
             # @bm "get jm" begin
@@ -226,9 +227,9 @@ function udt_AVX_pivot!(
                 MonteCarlo.reflectorApply!(x, τj, LinearAlgebra.view(input, j:n, j+1:n))
             # end
         end
-    end
+    # end
 
-    @bm "Calculate Q" begin
+    # @bm "Calculate Q" begin
         copyto!(U, I)
         @inbounds begin
             U[n, n] -= D[n]
@@ -247,15 +248,15 @@ function udt_AVX_pivot!(
             end
         end
         # U done
-    end
+    # end
 
-    @bm "Calculate D" begin
+    # @bm "Calculate D" begin
         @inbounds for i in 1:n
             D[i] = abs(real(input[i, i]))
         end
-    end
+    # end
 
-    @bm "pivoted zeroed T w/ inv(D)" begin
+    # @bm "pivoted zeroed T w/ inv(D)" begin
         @inbounds for i in 1:n
             d = 1.0 / D[i]
             @inbounds for j in 1:i-1
@@ -268,7 +269,7 @@ function udt_AVX_pivot!(
                 input[i, j] = temp[j]
             end
         end
-    end
+    # end
 
     nothing
 end
@@ -293,6 +294,7 @@ function calculate_greens_AVX!(
     # NOTE `inv!` still allocates (Thanks BLAS)
 
     # @bm "B1" begin
+        # formula: [I + Ul Dl Tl Tr^† Dr Ur^†]^-1
         # Requires: Ul, Dl, Tl, Ur, Dr, Tr
         vmul!(G, Tl, adjoint(Tr))
         rvmul!(G, Diagonal(Dr))
@@ -302,15 +304,19 @@ function calculate_greens_AVX!(
     # end
 
     # @bm "B2" begin
+        # [I + Ul Tr Dr G Ur^†]^-1 with Tr unitary, G pivoted triangular
         # Requires: G, Ul, Ur, G, Tr, Dr
         vmul!(Tl, Ul, Tr)
         vmul!(Ul, G, adjoint(Ur))
+        # [I + Tl Dr Ul] with Tl unitary
         copyto!(Tr, Ul)
         LinearAlgebra.inv!(RecursiveFactorization.lu!(Tr, pivot))
         vmul!(G, adjoint(Tl), Tr)
+        # G = Tl^† Tr = Tl^-1 Ul^-1
     # end
 
     # @bm "B3" begin
+        # [Tl (Tl^-1 Ul^-1 + Dr) Ul]^-1
         # Requires: G, Dr, Ul, Tl
         @avx for i in 1:length(Dr)
             G[i, i] = G[i, i] + Dr[i]
@@ -321,8 +327,10 @@ function calculate_greens_AVX!(
         # Requires: G, Ul, Tl
         # udt_AVX!(Ur, Dr, G)
         udt_AVX_pivot!(Ur, Dr, G, pivot, temp) # Dl available
+        # [Tl (Ur Dr G) Ul]^-1  note: Tl unitary
         vmul!(Tr, G, Ul)
         vmul!(Ul, Tl, Ur)
+        # [Ul Dr Tr]^-1 Ul unitary
     # end
 
     # @bm "B5" begin
@@ -333,10 +341,12 @@ function calculate_greens_AVX!(
         @avx for i in eachindex(Dr)
             Dl[i] = 1.0 / Dr[i]
         end
+        # Ur = Tr^-1, Dl = Dl^-1
     # end
 
     # @bm "B6" begin
         # Requires: Dl, Ur, Ul
+        # Tr^-1 Dr^-1 Ul^-1 = Ur Dl Ul^† 
         rvmul!(Ur, Diagonal(Dl))
         vmul!(G, Ur, adjoint(Ul))
     # end
