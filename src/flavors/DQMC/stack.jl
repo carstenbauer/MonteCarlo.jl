@@ -81,7 +81,7 @@ geltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = geltype(S)
 heltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = heltype(S)
 
 # type initialization
-function initialize_stack(mc::DQMC)
+function initialize_stack(mc::DQMC, s::DQMCStack)
     GreensEltype = geltype(mc)
     HoppingEltype = heltype(mc)
     N = length(mc.model.l)
@@ -214,7 +214,7 @@ end
 """
 Build stack from scratch.
 """
-function build_stack(mc::DQMC)
+function build_stack(mc::DQMC, s::DQMCStack)
     @views copyto!(mc.s.u_stack[:, :, 1], I)
     @views mc.s.d_stack[:, 1] .= one(eltype(mc.s.d_stack))
     @views copyto!(mc.s.t_stack[:, :, 1], I)

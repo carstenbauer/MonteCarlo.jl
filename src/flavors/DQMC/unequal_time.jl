@@ -1,4 +1,4 @@
-mutable struct UnequalTimeStack{GT}
+mutable struct UnequalTimeStack{GT} <: AbstractDQMCStack
     forward_u_stack::Array{GT, 3}
     forward_d_stack::Matrix{Float64}
     forward_t_stack::Array{GT, 3}
@@ -57,12 +57,11 @@ function UnequalTimeStack(mc)
     @views s.backward_d_stack[:, end] .= 1
     @views copyto!(s.backward_t_stack[:, :, end], I)
 
-    s
+    mc.ut_stack = s
 end
 
 function build_stack(mc::DQMC, s::UnequalTimeStack)
-    # TODO 
-    mc.last_sweep == s.last_update && return
+    mc.last_sweep == s.last_update && return nothing
 
     # stack = [0, Δτ, 2Δτ, ..., β]
 
@@ -117,11 +116,15 @@ function build_stack(mc::DQMC, s::UnequalTimeStack)
     nothing
 end
 
-@bm function __greens!(mc, s::UnequalTimeStack, slice1, slice2)
+greens(mc::DQMC, slice1::Int64, slice2::Int64) = greens!(mc, slice1, slice2)
+@bm function greens!(mc::DQMC, slice1::Int64, slice2::Int64)
     @assert slice1 >= slice2
+    s = mc.ut_stack
     # stack = [0, Δτ, 2Δτ, ..., β]
     #       = [0, safe_mult, 2safe_mult, ... N]
-    @bm "build" begin build_stack(mc, s) end
+    @bm "build" begin 
+        build_stack(mc, mc.ut_stack) 
+    end
 
     # k ≥ l or slice1 ≥ slice2
     # B_{l+1}^-1 B_{l+2}^-1 ⋯ B_{k-1}^-1 B_k^-1
@@ -247,3 +250,20 @@ end
 
     s.greens
 end
+
+
+
+################################################################################
+### Measurements
+################################################################################
+
+
+abstract type UnequalTimeMeasurement <: AbstractMeasurement end
+
+
+# TODO
+# - figure out how to intialize UnequalTimeStack nicely
+#   - needs to work from `resume!(filename)`, from `DQMC()` and `push!(dqmc, m)`
+# - test DQMC stack
+# - add unequal time Measurements
+# - test those too

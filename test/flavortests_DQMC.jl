@@ -34,8 +34,8 @@ end
     mc2.conf = deepcopy(mc1.conf)
     MonteCarlo.init_hopping_matrices(mc1, m)
     MonteCarlo.init_hopping_matrices(mc2, m)
-    MonteCarlo.build_stack(mc1)
-    MonteCarlo.build_stack(mc2)
+    MonteCarlo.build_stack(mc1, mc1.s)
+    MonteCarlo.build_stack(mc2, mc2.s)
     @test MonteCarlo.slice_matrix(mc1, m, 1, 1.) == MonteCarlo.slice_matrix(mc2, m, 1, 1.)
 
     mc = DQMC(m, beta=5.0, checkerboard=true, delta_tau=0.1)
@@ -47,7 +47,7 @@ end
 
     # initial greens test
     mc = DQMC(m, beta=5.0, safe_mult=1)
-    MonteCarlo.build_stack(mc)
+    MonteCarlo.build_stack(mc, mc.s)
     MonteCarlo.propagate(mc)
     # With this we effectively test calculate_greens without wrap_greens
     greens, = MonteCarlo.calculate_greens_and_logdet(mc, mc.s.current_slice+1)
@@ -80,4 +80,36 @@ end
     end
 
     include("slice_matrices.jl")
+end
+
+@testset "Unequal Time Stack" begin
+    m = HubbardModelAttractive(dims=1, L=6);
+    dqmc = DQMC(m; beta=5.0)
+    dqmc.ut_stack = MonteCarlo.UnequalTimeStack(dqmc)
+
+    MonteCarlo.build_stack(dqmc, dqmc.ut_stack)
+    MonteCarlo.build_stack(dqmc, dqmc.s)
+        
+    # test B(τ, 1) / B_l1 stacks
+    @test dqmc.s.u_stack ≈ dqmc.ut_stack.forward_u_stack
+    @test dqmc.s.d_stack ≈ dqmc.ut_stack.forward_d_stack
+    @test dqmc.s.t_stack ≈ dqmc.ut_stack.forward_t_stack
+
+    # generate B(β, τ) / B_Nl stacks
+    while dqmc.s.direction == -1
+        MonteCarlo.propagate(dqmc)
+    end
+
+    # test B(β, τ) / B_Nl stacks
+    # Note: dqmc.s doesn't generate the full stack here
+    @test dqmc.s.u_stack[:, :, 2:end] ≈ dqmc.ut_stack.backward_u_stack[:, :, 2:end]
+    @test dqmc.s.d_stack[:, 2:end]    ≈ dqmc.ut_stack.backward_d_stack[:, 2:end]
+    @test dqmc.s.t_stack[:, :, 2:end] ≈ dqmc.ut_stack.backward_t_stack[:, :, 2:end]
+
+    # Check equal time greens functions against each other
+    for slice in 1:MonteCarlo.nslices(dqmc)
+        G1 = MonteCarlo.calculate_greens(dqmc, slice)
+        G2 = MonteCarlo.greens!(dqmc, slice, slice)
+        @test G1 ≈ G2
+    end
 end

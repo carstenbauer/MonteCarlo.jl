@@ -125,23 +125,37 @@ end
 """
 Determinant quantum Monte Carlo (DQMC) simulation
 """
-mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any,
-        Stack<:AbstractDQMCStack} <: MonteCarloFlavor
+mutable struct DQMC{
+        M <: Model, 
+        CB <: Checkerboard, 
+        ConfType <: Any,
+        Stack <: AbstractDQMCStack,
+        UTStack <: AbstractDQMCStack
+    } <: MonteCarloFlavor
+    
     model::M
     conf::ConfType
     last_sweep::Int
-    s::Stack
 
+    s::Stack
+    ut_stack::UTStack
     p::DQMCParameters
     a::DQMCAnalysis
+
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 
-    DQMC{M, CB, ConfType, Stack}() where {M<:Model, CB<:Checkerboard,
-        ConfType<:Any, Stack<:AbstractDQMCStack} = new()
+    DQMC{M, CB, ConfType, Stack, UTStack}() where {
+        M <: Model, 
+        CB <: Checkerboard,
+        ConfType <: Any, 
+        Stack <: AbstractDQMCStack,
+        UTStack <: AbstractDQMCStack
+    } = new()
 end
 
 include("stack.jl")
+include("unequal_time.jl")
 include("slice_matrices.jl")
 
 """
@@ -189,7 +203,7 @@ function DQMC(m::M;
     heltype = hoppingeltype(DQMC, m)
     conf = rand(DQMC, m, p.slices)
     mc = DQMC{M, checkerboard ? CheckerboardTrue : CheckerboardFalse,
-        typeof(conf), DQMCStack{geltype, heltype}}()
+        typeof(conf), DQMCStack{geltype, heltype}, UnequalTimeStack{geltype}}()
     mc.model = m
     mc.p = p
     mc.a = DQMCAnalysis()
@@ -257,7 +271,7 @@ function init!(mc::DQMC;
     mc.conf = conf
 
     init_hopping_matrices(mc, mc.model)
-    initialize_stack(mc)
+    initialize_stack(mc, mc.s)
 
     mc.thermalization_measurements = thermalization_measurements
     if measurements isa Dict{Symbol, AbstractMeasurement}
@@ -272,6 +286,10 @@ function init!(mc::DQMC;
         mc.measurements = Dict{Symbol, AbstractMeasurement}()
     end
 
+    if any(m isa UnequalTimeMeasurement for m in mc.measurements)
+        mc.ut_stack = UnequalTimeStack(mc)
+    end
+
     nothing
 end
 
@@ -280,7 +298,10 @@ end
 # Everything else is loaded from the save file.
 function resume_init!(mc::DQMC)
     init_hopping_matrices(mc, mc.model)
-    initialize_stack(mc)
+    initialize_stack(mc, mc.s)
+    if any(m isa UnequalTimeMeasurement for m in values(mc.measurements))
+        mc.ut_stack = UnequalTimeStack(mc)
+    end
     nothing
 end
 
@@ -353,8 +374,8 @@ See also: [`resume!`](@ref)
 
     # fresh stack
     verbose && println("Preparing Green's function stack")
-    initialize_stack(mc) # redundant ?!
-    build_stack(mc)
+    initialize_stack(mc, mc.s) # redundant ?!
+    build_stack(mc, mc.s)
     propagate(mc)
 
     _time = time()
@@ -604,8 +625,8 @@ function replay!(
 
     verbose && println("Preparing Green's function stack")
     resume_init!(mc)
-    initialize_stack(mc) # redundant ?!
-    build_stack(mc)
+    initialize_stack(mc, mc.s) # redundant ?!
+    build_stack(mc, mc.s)
     propagate(mc)
 
     _time = time()
