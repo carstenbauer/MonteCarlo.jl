@@ -35,17 +35,21 @@ for (d, lattype) in enumerate((
                     l.lattice |> CartesianIndices .|> Tuple .|> collect
                 end
                 mask = MonteCarlo.DistanceMask(l)
-                for i in 1:length(l)
-                    @test allunique(mask[i, :])
-                    @test allunique(mask[:, i])
-                end
+                @test allunique(MonteCarlo.getorder(mask))
+                # for i in 1:length(l)
+                #     @test allunique(mask[i, :])
+                #     @test allunique(mask[:, i])
+                # end
                 # The point of DistanceMask is for all i -> mask[i, j] to point
                 # in the same direction
-                for j in 1:length(l)
-                    dirs = map(enumerate(mask[:, j])) do (src, trg)
-                        mod1.(positions[trg] .- positions[src], L)
-                    end
-                    @test all(dirs[1] == d for d in dirs)
+                dirs = MonteCarlo.directions(mask, l)
+                for dir_idx in 1:length(mask)
+                    _dirs = [
+                        mod.(positions[trg] .- positions[src], L) 
+                        for (src, trg) in MonteCarlo.getdirorder(mask, dir_idx)
+                    ]
+                    @test all(==(first(_dirs)), _dirs)
+                    @test mod.(dirs[dir_idx], L) == _dirs[1]
                 end
             end
         end
@@ -75,16 +79,17 @@ function MonteCarlo.DistanceMask(lattice::HoneycombTestLattice)
 end
 function MonteCarlo.directions(mask::MonteCarlo.VerboseDistanceMask, lattice::HoneycombTestLattice)
     pos = MonteCarlo.positions(lattice)
-    marked = Set{Int64}()
-    dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
-    for src in 1:size(mask.targets, 1)
-        for (idx, trg) in mask.targets[src, :]
-            if !(idx in marked)
-                push!(marked, idx)
-                dirs[idx] = pos[trg] - pos[src]
-            end
-        end
-    end
+    dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
+    # marked = Set{Int64}()
+    # dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
+    # for src in 1:size(mask.targets, 1)
+    #     for (idx, trg) in mask.targets[src, :]
+    #         if !(idx in marked)
+    #             push!(marked, idx)
+    #             dirs[idx] = pos[trg] - pos[src]
+    #         end
+    #     end
+    # end
     L = 3
     wrap = MonteCarlo.generate_combinations(
         [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
@@ -107,20 +112,20 @@ end
     positions = MonteCarlo.positions(l)
     mask = MonteCarlo.DistanceMask(l)
     @test mask isa MonteCarlo.VerboseDistanceMask
-    @test size(mask) == (18, 27)
-    @test size(mask, 2) == 27
-    for i in 1:length(l)
-        @test allunique(mask[i, :])
-        @test allunique(mask[:, i])
-    end
+    @test length(mask) == 27
+    @test allunique(MonteCarlo.getorder(mask))
+    # for i in 1:length(l)
+    #     @test allunique(mask[i, :])
+    #     @test allunique(mask[:, i])
+    # end
     wrap = MonteCarlo.generate_combinations(
         [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
     )
 
     # in the same direction
     dirs = MonteCarlo.directions(mask, l)
-    for src in 1:length(l)
-        for (idx, trg) in MonteCarlo.getorder(mask, src)
+    for dir_idx in 1:length(mask)
+        _dirs = map(MonteCarlo.getdirorder(mask, dir_idx)) do (src, trg)
             d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
             for v in wrap[2:end]
                 new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
@@ -128,9 +133,22 @@ end
                     d .= new_d
                 end
             end
-            @test dirs[idx] ≈ d
+            d
         end
+        @test all(==(dirs[dir_idx]), _dirs)
     end
+    # for src in 1:length(l)
+    #     for (idx, trg) in MonteCarlo.getorder(mask, src)
+    #         d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
+    #         for v in wrap[2:end]
+    #             new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
+    #             if norm(new_d) < norm(d)
+    #                 d .= new_d
+    #             end
+    #         end
+    #         @test dirs[idx] ≈ d
+    #     end
+    # end
 end
 
 # @testset "2D Honeycomb" begin

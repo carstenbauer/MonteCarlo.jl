@@ -112,7 +112,7 @@ end
 
 _get_shape(model) = (nsites(model),)
 _get_shape(mask::RawMask) = (mask.nsites, mask.nsites)
-_get_shape(mask::DistanceMask) = (size(mask, 2),)
+_get_shape(mask::DistanceMask) = length(mask)
 
 # m is the measurement for potential dispatch
 function mask_kernel!(m, mask::RawMask, IG, G, kernel::Function, output)
@@ -125,10 +125,8 @@ function mask_kernel!(m, mask::RawMask, IG, G, kernel::Function, output)
 end
 function mask_kernel!(m, mask::DistanceMask, IG, G, kernel::Function, output)
     output .= zero(eltype(output))
-    for src in 1:size(mask, 1)
-        for (dir_idx, trg) in getorder(mask, src)
-            output[dir_idx] += kernel(IG, G, src, trg)
-        end
+    for (dir_idx, src, trg) in getorder(mask)
+        output[dir_idx] += kernel(IG, G, src, trg)
     end
     output
 end
@@ -472,12 +470,9 @@ function mask_kernel!(
     )
     output .= zero(eltype(output))
     # Sum of Δ_v(r_1) Δ_v^†(r_2) over r_1, r_2 (synced direction) 
-    for src1 in 1:size(mask, 1)
-        for (dir_idx, trg1) in getorder(mask, src1)
-            for src2 in 1:size(mask, 1)
-                trg2 = mask[src2, dir_idx]
-                output[dir_idx] += kernel(IG, G, src1, src2, trg1, trg2)
-            end
+    for (dir_idx, src1, trg1) in getorder(mask)
+        for (src2, trg2) in getdirorder(mask, dir_idx)
+            output[dir_idx] += kernel(IG, G, src1, src2, trg1, trg2)
         end
     end
     output

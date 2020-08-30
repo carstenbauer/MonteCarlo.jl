@@ -68,16 +68,17 @@ end
 
 function directions(mask::VerboseDistanceMask, lattice::LatPhysLattice)
     pos = MonteCarlo.positions(lattice)
-    marked = Set{Int64}()
-    dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
-    for src in 1:size(mask.targets, 1)
-        for (idx, trg) in mask.targets[src, :]
-            if !(idx in marked)
-                push!(marked, idx)
-                dirs[idx] = pos[trg] - pos[src]
-            end
-        end
-    end
+    dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
+    # marked = Set{Int64}()
+    # dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
+    # for src in 1:size(mask.targets, 1)
+    #     for (idx, trg) in mask.targets[src, :]
+    #         if !(idx in marked)
+    #             push!(marked, idx)
+    #             dirs[idx] = pos[trg] - pos[src]
+    #         end
+    #     end
+    # end
     wrap = MonteCarlo.generate_combinations(latticeVectors(lattice.lattice))
     map(dirs) do _d
         d = round.(_d .+ wrap[1], digits=6)
