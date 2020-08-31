@@ -59,6 +59,7 @@ end
 
 # Implement AbstractLattice interface: mandatory
 @inline Base.length(s::SquareLattice) = s.sites
+@inline Base.size(s::SquareLattice) = (s.L, s.L)
 
 # Implement AbstractLattice interface: optional
 @inline neighbors_lookup_table(s::SquareLattice) = copy(s.neighs)
@@ -66,3 +67,6 @@ end
 # HasNeighborsTable and HasBondsTable traits
 has_neighbors_table(::SquareLattice) = HasNeighborsTable()
 has_bonds_table(::SquareLattice) = HasBondsTable()
+
+positions(l::SquareLattice) = l.lattice |> CartesianIndices .|> Tuple .|> collect
+DistanceMask(lattice::SquareLattice) = default_distance_mask(lattice)

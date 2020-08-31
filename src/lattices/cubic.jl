@@ -56,6 +56,7 @@ end
 
 # Implement AbstractLattice interface: mandatory
 @inline Base.length(c::CubicLattice) = c.sites
+@inline Base.size(c::CubicLattice) = tuple((c.L for _ in 1:l.dims)...)
 
 # Implement AbstractLattice interface: optional
 @inline neighbors_lookup_table(c::CubicLattice) = copy(c.neighs)
@@ -63,3 +64,6 @@ end
 # HasNeighborsTable and HasBondsTable traits
 has_neighbors_table(::CubicLattice) = HasNeighborsTable()
 has_bonds_table(::CubicLattice) = HasBondsTable()
+
+positions(l::CubicLattice) = l.lattice |> CartesianIndices .|> Tuple .|> collect
+DistanceMask(lattice::CubicLattice) = default_distance_mask(lattice)

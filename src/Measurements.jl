@@ -6,6 +6,11 @@
 abstract type AbstractMeasurement end
 
 
+###################################
+# You must implement
+###################################
+
+
 """
     measure!(measurement, mc, model, sweep_index)
 
@@ -17,7 +22,8 @@ end
 
 
 ###################################
-# You may also implement
+# You may implement
+###################################
 
 
 """
@@ -45,8 +51,7 @@ The default implementation searches for all fields `<: AbstractObservable` and
 builds a dictionary pairs `name(obs) => obs`.
 """
 function observables(m::AbstractMeasurement)
-    fns = fieldnames(typeof(m))
-    os = [getfield(m, fn) for fn in fns if getfield(m, fn) isa AbstractObservable]
+    os = [getfield(m, n) for n in obs_fieldnames_from_obj(m)]
     Dict{String, AbstractObservable}(MonteCarloObservable.name(o) => o for o in os)
 end
 
@@ -88,6 +93,42 @@ function load_measurement(data, ::Type{T}) where {T}
     data["data"]
 end
 
+
+
+# Statistics forwarded from MonteCarloObservable/BinningAnalysis
+# Generates functions
+#   mean(measurement)       - returns the mean/expectation value of a measurement
+#   var(measurement)        - returns the variance of a measurement
+#   std_error(measurement)  - returns the standard error of the mean of a measurement
+#   tau(measurement)        - return the autocorrelation time of a measurement
+for (func, name) in zip(
+        (:mean, :var, :std_error, :tau),
+        ("mean", "variance", "standard error", "autocorrelation time")
+    )
+    docstring = """
+        $func(measurement)
+
+    Returns the $name of a given `measurement`.
+
+    The default implementation searches for all fields `<: AbstractObservable`
+    and returns `$func(x)` for each field `x`. If there are multiple fields
+    with type `<: AbstractObservable` a dictionary will be return.
+    """
+    @eval begin
+        @doc $docstring $func
+        function MonteCarloObservable.$(func)(m::AbstractMeasurement)
+            fn = obs_fieldnames_from_obj(m)
+            os = [getfield(m, n) for n in fn]
+            if isempty(os)
+                throw(error("Did not find any observables in $m."))
+            elseif length(os) == 1
+                return $(func)(os[1])
+            else
+                return Dict(MonteCarloObservable.name(o) => $(func)(o) for o in os)
+            end
+        end
+    end
+end
 
 
 ################################################################################
@@ -162,13 +203,30 @@ end
 # other convenience functions
 
 
+# Searches `obj` for fields which <: AbstractObservables
+# if get_all_names = false, return array of fieldnames <: AbstractObservable
+# if get_all_names = true, also return other fieldnames
+function obs_fieldnames_from_obj(obj, get_all_names=false)
+    fnames = fieldnames(typeof(obj))
+    obs_names = [
+        s for s in fnames if getfield(obj, s) isa AbstractObservable
+    ]
+    if get_all_names
+        other_names = [
+            s for s in fnames if !(getfield(obj, s) isa AbstractObservable)
+        ]
+        return obs_names, other_names
+    else
+        return obs_names
+    end
+end
+
+
 # printing
 function Base.show(io::IO, m::AbstractMeasurement)
     #  no parametrization -v    v- no MonteCarlo.
     typename = typeof(m).name.name
-    fnames = fieldnames(typeof(m))
-    observables = [s for s in fnames if getfield(m, s) isa AbstractObservable]
-    other = [s for s in fnames if !(getfield(m, s) isa AbstractObservable)]
+    observables, other = obs_fieldnames_from_obj(m, true)
     println(io, typename)
     for obs_fieldname in observables
         o = getfield(m, obs_fieldname)
@@ -186,8 +244,7 @@ function Base.show(io::IO, ::MIME"text/plain", m::AbstractMeasurement)
     #small
     #  no parametrization -v    v- no MonteCarlo.
     typename = typeof(m).name.name
-    fnames = fieldnames(typeof(m))
-    temp = [s for s in fnames if getfield(m, s) isa AbstractObservable]
+    temp = obs_fieldnames_from_obj(m)
     observable_names = map(temp) do obs_fieldname
         MonteCarloObservable.name(getfield(m, obs_fieldname))
     end
@@ -197,45 +254,115 @@ end
 
 
 """
-    measurements(mc)
+    measurements(mc, stage = :ME)
 
-Returns a nested dictionary of all measurements used in a given Monte Carlo
-simulation `mc`. The thermalization stage is accessed by `:TH`, the measurement
-stage by `:ME`.
+Returns a nested dictionary of measurements used in a given Monte Carlo
+simulation `mc`.
+By default, only measurements from the measurement stage (`:ME`) are returned.
+To get measurements from the thermalization stage, use `stage = :TH`. To get all
+measurements, use `stage = :all`.
+
+```julia
+julia> julia> measurements(dqmc)
+Dict{Symbol,MonteCarlo.AbstractMeasurement} with 3 entries:
+  :conf              => ConfigurationMeasurement…
+  :Greens            => GreensMeasurement…
+  :BosonEnergy       => BosonEnergyMeasurement…
+```
 """
-function measurements(mc::MonteCarloFlavor)
-    return Dict(
-        :TH => mc.thermalization_measurements,
-        :ME => mc.measurements
-    )
+function measurements(mc::MonteCarloFlavor, stage = :ME)
+    measurement_stage = (:ME, :me, :Measurement, :measurement)
+    thermalization_stage = (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
+    all_stages = (:all, :ALL)
+
+    if stage in measurement_stage
+        return mc.measurements
+    elseif stage in thermalization_stage
+        return mc.thermalization_measurements
+    elseif stage in all_stages
+        return Dict(
+            :TH => mc.thermalization_measurements,
+            :ME => mc.measurements
+        )
+    else
+        throw(error(
+            "The given stage `$stage` was not recognized. Try one of (" *
+            join(string.([
+                measurement_stage...,
+                thermalization_stage...,
+                all_stages...
+            ]), ", ") * ")"
+        ))
+    end
 end
 
 
 """
-    observables(mc::MonteCarloFlavor)
+    observables(mc::MonteCarloFlavor, stage = :ME)
 
-Returns a nested dictionary of all observables used in a given Monte Carlo
-simulation `mc`. The result `obs` is indexed as `obs[stage][measurement][name]`,
-where `stage` is `:TH` (thermalization stage) or `:ME` (measurement stage),
-`measurement::Symbol` is the name of the measurement and `name::String` is the
-name of the observable.
+Returns a nested dictionary of all observables used during a given `stage` of
+the given Monte Carlo simulation `mc`. By default the resulting dictionary will
+contain measurements from the measurement (`:ME`) stage.
+
+The thermalization stage can be accessed with `stage = :TH` and both stages can
+be retrieved together using `stage = :all`.
+
+The dictionary is generated by calling `observables(measurement)` for each
+`measurement` in the given `stage` of the Monte Carlo simulation `mc`. By
+default this will generate a nested dictionary indexed as
+`observables(mc)[measurement_name][observable_name]`.
+
+```julia
+julia> observables(dqmc)
+Dict{Symbol,Dict{String,MonteCarloObservable.AbstractObservable}} with 3 entries:
+  :BosonEnergy       => Dict{String,MonteCarloObservable.AbstractObservable}("Bosonic Energy"=>LightObservable{Float64,20}())
+  :conf              => Dict{String,MonteCarloObservable.AbstractObservable}("Configurations"=>Array{Int8,2} Observable…
+  :Greens            => Dict{String,MonteCarloObservable.AbstractObservable}("Equal-times Green's function"=>LightObservable{Array{Complex{Float64},2},20}())
+```
 """
-function observables(mc::MonteCarloFlavor)
-    th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
-        k => observables(m) for (k, m) in mc.thermalization_measurements
-    )
-    me_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
-        k => observables(m) for (k, m) in mc.measurements
-    )
+function observables(mc::MonteCarloFlavor, stage = :ME)
+    measurement_stage = (:ME, :me, :Measurement, :measurement)
+    thermalization_stage = (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
+    all_stages = (:all, :ALL)
 
-    return Dict(:TH => th_obs, :ME => me_obs)
+    if stage in measurement_stage
+        me_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+            k => observables(m) for (k, m) in mc.measurements
+        )
+        return me_obs
+
+    elseif stage in thermalization_stage
+        th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+            k => observables(m) for (k, m) in mc.thermalization_measurements
+        )
+        return th_obs
+
+    elseif stage in all_stages
+        th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+            k => observables(m) for (k, m) in mc.thermalization_measurements
+        )
+        me_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+            k => observables(m) for (k, m) in mc.measurements
+        )
+        return Dict(:TH => th_obs, :ME => me_obs)
+
+    else
+        throw(error(
+            "The given stage `$stage` was not recognized. Try one of (" *
+            join(string.([
+                measurement_stage...,
+                thermalization_stage...,
+                all_stages...
+            ]), ", ") * ")"
+        ))
+    end
 end
 
 
 """
-    push!(mc, tag::Symbol => MT::Type{<:AbstractMeasurement}[, stage=:ME])
+    push!(mc, tag::Symbol => MT::Type{<:AbstractMeasurement}[, stage=:ME; paassthrough...])
 
-Adds a new pair `tag => MT(mc, model)`, where `MT` is a type
+Adds a new pair `tag => MT(mc, model; passthorugh...)`, where `MT` is a type
 `<: AbstractMeasurement`, to either the thermalization or measurement `stage`
 (`:TH` or `:ME`) of the simulation `mc`.
 
@@ -247,14 +374,14 @@ push!(mc, :conf => ConfigurationMeasurement, stage=:ME)
 
 See also: [`unsafe_push!`](@ref)
 """
-function Base.push!(mc::MonteCarloFlavor, p::Pair{Symbol, T}, stage=:ME) where T
+function Base.push!(mc::MonteCarloFlavor, p::Pair{Symbol, T}, stage=:ME; passthrough...) where T
     tag, MT = p
     p[2] <: AbstractMeasurement || throw(ErrorException(
         "The given `tag => MT` pair should be of type " *
         "`Pair{Symbol, Type(<: AbstractMeasurement)}`, but is " *
         "`Pair{Symbol, Type{$(p[2])}}`."
     ))
-    unsafe_push!(mc, tag => MT(mc, mc.model), stage)
+    unsafe_push!(mc, tag => MT(mc, mc.model; passthrough...), stage)
 end
 
 """
@@ -275,12 +402,26 @@ push!(mc, :conf => ConfigurationMeasurement(mc, model), stage=:ME)
 See also: [`MonteCarlo.push!`](@ref)
 """
 function unsafe_push!(mc::MonteCarloFlavor, p::Pair{Symbol, <:AbstractMeasurement}, stage=:ME)
-    if stage in (:ME, :me, :Measurement, :measurement)
+    measurement_stage = (:ME, :me, :Measurement, :measurement)
+    thermalization_stage = (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
+    all_stages = (:all, :ALL)
+
+    if stage in measurement_stage
         push!(mc.measurements, p)
-    elseif stage in (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
+    elseif stage in thermalization_stage
         push!(mc.thermalization_measurements, p)
+    elseif stage in all_stages
+        push!(mc.thermalization_measurements, p)
+        push!(mc.measurements, p)
     else
-        throw(ErrorException("`stage = $stage` is not valid."))
+        throw(error(
+            "The given stage `$stage` was not recognized. Try one of (" *
+            join(string.([
+                measurement_stage...,
+                thermalization_stage...,
+                all_stages...
+            ]), ", ") * ")"
+        ))
     end
 end
 
@@ -302,17 +443,29 @@ delete!(mc, ConfigurationMeasurement, stage=:ME)
 ```
 """
 function Base.delete!(mc::MonteCarloFlavor, key::Symbol, stage=:ME)
-    if stage in (:ME, :me, :Measurement, :measurement)
+    measurement_stage = (:ME, :me, :Measurement, :measurement)
+    thermalization_stage = (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
+
+    if stage in measurement_stage
         delete!(mc.measurements, key)
-    elseif stage in (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
+    elseif stage in thermalization_stage
         delete!(mc.thermalization_measurements, key)
     else
-        throw(ErrorException("`stage = $stage` is not valid."))
+        throw(error(
+            "The given stage `$stage` was not recognized. Try one of (" *
+            join(string.([
+                measurement_stage...,
+                thermalization_stage...
+            ]), ", ") * ")"
+        ))
     end
 end
 
 function Base.delete!(mc::MonteCarloFlavor, MT::Type{<: AbstractMeasurement}, stage=:ME)
-    if stage in (:ME, :me, :Measurement, :measurement)
+    measurement_stage = (:ME, :me, :Measurement, :measurement)
+    thermalization_stage = (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
+
+    if stage in measurement_stage
         ks = collect(keys(mc.measurements))
         for k in ks
             if typeof(mc.measurements[k]) <: MT
@@ -320,7 +473,7 @@ function Base.delete!(mc::MonteCarloFlavor, MT::Type{<: AbstractMeasurement}, st
             end
         end
         mc.measurements
-    elseif stage in (:TH, :th, :Thermalization, :thermalization, :thermalization_measurements)
+    elseif stage in thermalization_stage
         ks = collect(keys(mc.thermalization_measurements))
         for k in ks
             if typeof(mc.thermalization_measurements[k]) <: MT
@@ -329,7 +482,13 @@ function Base.delete!(mc::MonteCarloFlavor, MT::Type{<: AbstractMeasurement}, st
         end
         mc.thermalization_measurements
     else
-        throw(ErrorException("`stage = $stage` is not valid."))
+        throw(error(
+            "The given stage `$stage` was not recognized. Try one of (" *
+            join(string.([
+                measurement_stage...,
+                thermalization_stage...
+            ]), ", ") * ")"
+        ))
     end
 end
 
@@ -370,7 +529,7 @@ end
 function save_measurements(file::JLD.JldFile, mc::MonteCarloFlavor, entryname::String="")
     !isempty(entryname) && !endswith(entryname, "/") && (entryname *= "/")
     write(file, entryname * "VERSION", 1)
-    measurement_dict = measurements(mc)
+    measurement_dict = measurements(mc, :all)
     for (k0, v0) in measurement_dict # :TH or :ME
         for (k1, meas) in v0 # Measurement name
             _entryname = entryname * "$k0/$k1"

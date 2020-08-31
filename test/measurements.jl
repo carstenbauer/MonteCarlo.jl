@@ -85,19 +85,28 @@ end
     @test haskey(mc.measurements, :conf) && mc.measurements[:conf] isa ConfigurationMeasurement
     @test haskey(mc.measurements, :Greens) && mc.measurements[:Greens] isa GreensMeasurement
     @test haskey(mc.measurements, :BosonEnergy) && mc.measurements[:BosonEnergy] isa BosonEnergyMeasurement
+
+    @test measurements(mc) == mc.measurements
+    @test measurements(mc, :ME) == mc.measurements
+    @test measurements(mc, :TH) == mc.thermalization_measurements
+    @test measurements(mc, :ALL)[:ME] == mc.measurements
+    @test measurements(mc, :ALL)[:TH] == mc.thermalization_measurements
+
+    _obs = observables(mc, :all)
+    @test observables(mc, :ME) == _obs[:ME]
+    @test observables(mc, :TH) == _obs[:TH]
 end
 
 @testset "Retrieving Measurements" begin
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=1.0)
 
-    ms = MonteCarlo.measurements(mc)
-    @test mc.thermalization_measurements == ms[:TH]
-    @test mc.measurements == ms[:ME]
+    @test mc.thermalization_measurements == MonteCarlo.measurements(mc, :TH)
+    @test mc.measurements == MonteCarlo.measurements(mc)
 
-    obs = MonteCarlo.observables(mc)
-    @test keys(obs[:TH]) == keys(ms[:TH])
-    @test keys(obs[:ME]) == keys(ms[:ME])
+    obs = MonteCarlo.observables(mc, :all)
+    @test keys(obs[:TH]) == keys(MonteCarlo.measurements(mc, :TH))
+    @test keys(obs[:ME]) == keys(MonteCarlo.measurements(mc))
 
     @test haskey(obs[:ME][:conf], "Configurations")
     @test typeof(obs[:ME][:conf]["Configurations"]) <: AbstractObservable
@@ -159,13 +168,28 @@ end
     @test !haskey(mc.thermalization_measurements, :TH)
 end
 
+@testset "Statistics of measurements" begin
+    m = IsingModel(dims=2, L=4);
+    mc = MC(m, beta=1.0);
+    run!(mc, sweeps=100, thermalization=0, verbose=false);
+
+    ms = measurements(mc)[:Energy]
+    obs = observables(mc)[:Energy]
+
+    @test mean(ms)["Total energy"] == mean(obs["Total energy"])
+    @test var(ms)["Total energy"] == var(obs["Total energy"])
+    @test std_error(ms)["Total energy"] == std_error(obs["Total energy"])
+    # This wont work because we're not using LightObservables
+    # @test tau(ms)["Total energy"] == tau(obs["Total energy"])
+end
+
 @testset "Saving and Loading" begin
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=1.0)
     run!(mc, thermalization=10, sweeps=10, verbose=false)
     push!(mc, :conf => ConfigurationMeasurement, :TH)
 
-    meas = measurements(mc)
+    meas = measurements(mc, :all)
     MonteCarlo.save_measurements("testfile.jld", mc, force_overwrite=true)
     _meas = MonteCarlo.load_measurements("testfile.jld")
     for (k, v) in meas
@@ -176,4 +200,56 @@ end
         end
     end
     rm("testfile.jld")
+end
+
+function calc_measured_greens(mc::DQMC, G::Matrix)
+    eThalfminus = mc.s.hopping_matrix_exp
+    eThalfplus = mc.s.hopping_matrix_exp_inv
+
+    eThalfplus * G * eThalfminus
+end
+
+@testset "Measured Greens function" begin
+    m = HubbardModelAttractive(dims=2, L=8, mu=0.5)
+    mc = DQMC(m, beta=5.0, safe_mult=1)
+    MonteCarlo.build_stack(mc)
+    MonteCarlo.propagate(mc)
+
+    # greens(mc) matches expected output
+    @test greens(mc) ≈ calc_measured_greens(mc, mc.s.greens)
+
+    # wrap greens test
+    for k in 0:9
+        MonteCarlo.wrap_greens!(mc, mc.s.greens, mc.s.current_slice - k, -1)
+    end
+    # greens(mc) matches expected output
+    @test greens(mc) ≈ calc_measured_greens(mc, mc.s.greens)
+end
+
+@testset "Uniform Fourier" begin
+    A = rand(64, 64)
+    @test uniform_fourier(A, 64) == sum(A) / 64
+    @test uniform_fourier(A, 10) == sum(A) / 10
+
+    m = HubbardModelAttractive(dims=2, L=8)
+    mc = DQMC(m, beta=5.0)
+    @test uniform_fourier(A, mc) == sum(A) / 64
+
+    mask = MonteCarlo.DistanceMask(MonteCarlo.lattice(m))
+    MonteCarlo.unsafe_push!(mc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement(mc, m, mask=mask))
+    MonteCarlo.unsafe_push!(mc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement(mc, m, mask=mask))
+    MonteCarlo.unsafe_push!(mc, :PC => MonteCarlo.PairingCorrelationMeasurement(mc, m, mask=mask))
+    run!(mc, verbose=false)
+    measured = measurements(mc)
+
+    @test uniform_fourier(measured[:CDC]) isa MonteCarlo.UniformFourierWrapped
+    @test_throws MethodError uniform_fourier(measured[:SDC])
+    @test uniform_fourier(measured[:SDC], :x) isa MonteCarlo.UniformFourierWrapped
+    @test uniform_fourier(measured[:SDC].y) isa MonteCarlo.UniformFourierWrapped
+    @test uniform_fourier(measured[:PC]) isa MonteCarlo.UniformFourierWrapped
+
+    @test mean(uniform_fourier(measured[:CDC])) == sum(mean(measured[:CDC])) / 64
+    @test var(uniform_fourier(measured[:SDC], :x)) == sum(var(measured[:SDC].x)) / 64
+    @test std_error(uniform_fourier(measured[:SDC].z)) == sum(std_error(measured[:SDC].z)) / 64
+    @test tau(uniform_fourier(measured[:PC])) == maximum(tau(measured[:PC]))
 end

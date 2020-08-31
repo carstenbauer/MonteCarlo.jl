@@ -68,6 +68,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 
 # implement `Model` interface
 @inline nsites(m::HubbardModelAttractive) = length(m.l)
+@inline lattice(m::HubbardModelAttractive) = m.l
 
 
 # implement `DQMC` interface: mandatory
@@ -183,6 +184,13 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
     return lambda * sum(hsfield)
 end
 
+
+
+function greens(mc::DQMC, model::HubbardModelAttractive)
+    G = greens(mc)
+    vcat(hcat(G, zeros(size(G))), hcat(zeros(size(G)), G))
+end
+prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing
 
 function save_model(
         file::JLD.JldFile,

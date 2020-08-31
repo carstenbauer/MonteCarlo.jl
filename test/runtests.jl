@@ -1,6 +1,6 @@
 using MonteCarlo, MonteCarloObservable
 using Test
-using Random, Dates
+using LinearAlgebra, Random, Dates
 using MonteCarlo: @bm, TimerOutputs
 
 # In case some test failed and left behind a .jld file

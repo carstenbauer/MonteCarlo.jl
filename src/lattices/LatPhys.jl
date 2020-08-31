@@ -1,3 +1,7 @@
+using LatPhysBase: from, to, numSites, bonds, sites, latticeVectors, unitcell,
+                   point, AbstractSite
+import LatPhysBase
+
 struct LatPhysLattice{LT <: LatPhysBase.AbstractLattice} <: AbstractLattice
     lattice::LT
     neighs::Matrix{Int}
@@ -25,7 +29,19 @@ function LatPhysLattice(lattice::LatPhysBase.AbstractLattice)
     LatPhysLattice(lattice, neighs)
 end
 
-@inline Base.length(l::LatPhysLattice) = LatPhysBase.numSites(l.lattice)
+@inline Base.length(l::LatPhysLattice) = numSites(l.lattice)
+@inline Base.ndims(l::LatPhysLattice) = ndims(l.lattice)
+function Base.size(l::LatPhysLattice)
+    N = numSites(l.lattice)
+    D = ndims(l)
+    @warn "Guessing size of LatPhys Lattice."
+    if N % D == 0
+        return tuple((div(N, D) for _ in 1:D)...)
+    else
+        error("Failed to guess size of LatPhys Lattice.")
+    end
+end
+
 @inline function neighbors(l::LatPhysLattice, directed::Val{true})
     ((LatPhysBase.from(b), LatPhysBase.to(b)) for b in LatPhysBase.bonds(l.lattice))
 end
@@ -41,6 +57,40 @@ end
 end
 
 @inline neighbors_lookup_table(l::LatPhysLattice) = copy(l.neighs)
+
+
+positions(lattice::LatPhysLattice) = point.(sites(lattice.lattice))
+
+function DistanceMask(lattice::LatPhysLattice)
+    wrap = generate_combinations(latticeVectors(lattice.lattice))
+    VerboseDistanceMask(lattice, wrap)
+end
+
+function directions(mask::VerboseDistanceMask, lattice::LatPhysLattice)
+    pos = MonteCarlo.positions(lattice)
+    dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
+    # marked = Set{Int64}()
+    # dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
+    # for src in 1:size(mask.targets, 1)
+    #     for (idx, trg) in mask.targets[src, :]
+    #         if !(idx in marked)
+    #             push!(marked, idx)
+    #             dirs[idx] = pos[trg] - pos[src]
+    #         end
+    #     end
+    # end
+    wrap = MonteCarlo.generate_combinations(latticeVectors(lattice.lattice))
+    map(dirs) do _d
+        d = round.(_d .+ wrap[1], digits=6)
+        for v in wrap[2:end]
+            new_d = round.(_d .+ v, digits=6)
+            if norm(new_d) < norm(d)
+                d .= new_d
+            end
+        end
+        d
+    end
+end
 
 
 # Saving & Loading
