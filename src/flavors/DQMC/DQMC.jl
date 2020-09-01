@@ -125,8 +125,11 @@ end
 """
 Determinant quantum Monte Carlo (DQMC) simulation
 """
-mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any,
-        Stack<:AbstractDQMCStack} <: MonteCarloFlavor
+mutable struct DQMC{
+        M <: Model, CB <: Checkerboard, ConfType <: Any, 
+        CAT <: AbstractConfiguartionAccumulator, Stack <: AbstractDQMCStack
+    } <: MonteCarloFlavor
+
     model::M
     conf::ConfType
     last_sweep::Int
@@ -134,11 +137,14 @@ mutable struct DQMC{M<:Model, CB<:Checkerboard, ConfType<:Any,
 
     p::DQMCParameters
     a::DQMCAnalysis
+    configs::CAT
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 
-    DQMC{M, CB, ConfType, Stack}() where {M<:Model, CB<:Checkerboard,
-        ConfType<:Any, Stack<:AbstractDQMCStack} = new()
+    DQMC{M, CB, ConfType, CAT, Stack}() where {
+        M <: Model, CB <: Checkerboard, ConfType <: Any, 
+        CAT <: AbstractConfiguartionAccumulator, Stack <: AbstractDQMCStack
+    } = new()
 end
 
 include("stack.jl")
@@ -179,21 +185,26 @@ function DQMC(m::M;
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
         measurements = :default,
         last_sweep = 0,
+        recorder = Configurations,
+        measure_rate = 10,
+        recording_rate = measure_rate,
         kwargs...
     ) where M<:Model
     # default params
     # paramskwargs = filter(kw->kw[1] in fieldnames(DQMCParameters), kwargs)
-    p = DQMCParameters(; kwargs...)
+    p = DQMCParameters(measure_rate = measure_rate; kwargs...)
 
     geltype = greenseltype(DQMC, m)
     heltype = hoppingeltype(DQMC, m)
     conf = rand(DQMC, m, p.slices)
     mc = DQMC{M, checkerboard ? CheckerboardTrue : CheckerboardFalse,
-        typeof(conf), DQMCStack{geltype, heltype}}()
+        typeof(conf), recorder, DQMCStack{geltype, heltype}}()
+    mc.conf = conf
     mc.model = m
     mc.p = p
     mc.a = DQMCAnalysis()
     mc.s = DQMCStack{geltype, heltype}()
+    mc.configs = recorder(mc, m, rate=recording_rate)
     mc.last_sweep = last_sweep
 
     init!(
@@ -223,6 +234,7 @@ DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
 @inline conf(mc::DQMC) = mc.conf
 @inline current_slice(mc::DQMC) = mc.s.current_slice
 @inline last_sweep(mc::DQMC) = mc.last_sweep
+@inline configurations(mc::DQMC) = mc.configs
 
 
 # cosmetics
@@ -376,9 +388,11 @@ See also: [`resume!`](@ref)
                 do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
                 do_me_measurements && prepare!(mc.measurements, mc, mc.model)
             end
-            if current_slice(mc) == nslices(mc) && mc.s.direction == -1 && i > thermalization &&
-                    iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
-                measure!(mc.measurements, mc, mc.model, i)
+            if current_slice(mc) == nslices(mc) && mc.s.direction == -1 && i > thermalization
+                push!(mc.configs, mc, mc.model, i)
+                if iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
+                    measure!(mc.measurements, mc, mc.model, i)
+                end
             end
         end
         mc.last_sweep = i
@@ -448,8 +462,11 @@ See also: [`resume!`](@ref)
     end
 
     end_time = now()
-    verbose && println("\nEnded: ", Dates.format(end_time, "d.u yyyy HH:MM"))
-    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
+    if verbose
+        println("\nEnded: ", Dates.format(end_time, "d.u yyyy HH:MM"))
+        @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
+        println()
+    end
 
     return true
 end
@@ -522,24 +539,10 @@ imaginary time slice.
 end
 
 """
-    replay(
-        mc::DQMC[;
-        configs::ConfigurationMeasurement = mc.measurements[:conf],
-        reset_measurements = true,
-        measure_rate = 1,
-        kwargs...]
-    )
-    replay(mc::DQMC, configs::AbstractArray[; kwargs...])
+    replay(mc::DQMC[; configurations::Iterable = mc.configs; kwargs...])
 
 Replays previously generated configurations and measures observables along the
 way.
-
-By default, the first method will search `mc` for a ConfigurationMeasurement,
-remove it from the active measurements and replay it. If
-`reset_measurements = true` it will also reset every active measurement before
-replaying configurations.
-The second method replays configurations directly, i.e. it does not modify any
-measurements beforehand.
 
 ### Keyword Arguments (both):
 - `verbose = true`: If true, print progress messaged to stdout.
@@ -552,45 +555,23 @@ The time required to generate a save file should be included here.
 `resume!(save_file)`.
 - `ignore`: A collection of measurement keys to ignore. Defaults to the key of
 the configuration measurement.
+- `measure_rate = 1`: Rate at which measurements are taken. Note that this is 
+based on the recorded configurations, not actual sweeps.
 """
 function replay!(
-        mc::DQMC;
-        configs::ConfigurationMeasurement = try
-            k = findfirst(v -> v isa ConfigurationMeasurement, mc.measurements)
-            mc.measurements[k]
-        catch e
-            @error(
-                "Failed to find a ConfigurationMeasurement in the given " *
-                "DQMC Simulation. Try supplying it manually."
-            )
-            rethrow(e)
-        end,
-        ignore = (findfirst(v -> v isa ConfigurationMeasurement, mc.measurements),),
-        # reset_measurements = true,
-        measure_rate = 1,
-        kwargs...
-    )
-    mc.p = DQMCParameters(
-        mc.p.global_moves, mc.p.global_rate,
-        mc.p.thermalization, mc.p.sweeps,
-        mc.p.silent, mc.p.check_sign_problem,mc.p.check_propagation_error,
-        mc.p.safe_mult, mc.p.delta_tau, mc.p.beta, mc.p.slices,
-        measure_rate
-    )
-    replay!(mc, timeseries(configs.obs); ignore=ignore, kwargs...)
-end
-
-
-function replay!(
-        mc::DQMC,
-        configs::AbstractArray;
+        mc::DQMC, configurations = mc.configs;
         ignore = tuple(),
         verbose::Bool = true,
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false
+        force_overwrite = false,
+        measure_rate = 1
     )
+    start_time = now()
+    max_sweep_duration = 0.0
+    verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
+
     # Check for measurements
     isempty(mc.thermalization_measurements) && @debug(
         "There is no thermalization process in a replayed simulation."
@@ -599,22 +580,29 @@ function replay!(
         "There are no measurements set up for this simulation!"
     )
 
-    start_time = now()
-    max_sweep_duration = 0.0
-    verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
+    if measure_rate != mc.p.measure_rate
+        mc.p = DQMCParameters(
+            mc.p.global_moves, mc.p.global_rate,
+            mc.p.thermalization, mc.p.sweeps,
+            mc.p.silent, mc.p.check_sign_problem,mc.p.check_propagation_error,
+            mc.p.safe_mult, mc.p.delta_tau, mc.p.beta, mc.p.slices,
+            measure_rate
+        )
+    end
 
     verbose && println("Preparing Green's function stack")
     resume_init!(mc)
     initialize_stack(mc) # redundant ?!
     build_stack(mc)
     propagate(mc)
+    mc.conf = rand(DQMC, mc.model, nslices(mc))
 
     _time = time()
-    verbose && println("\n\nReplaying measurement stage - ", length(configs))
+    verbose && println("\n\nReplaying measurement stage - ", length(configurations))
     prepare!(mc.measurements, mc, mc.model)
-    for i in mc.last_sweep+1:mc.p.measure_rate:length(configs)
-        mc.conf = configs[i]
-        mc.s.greens = calculate_greens(mc, nslices(mc))
+    for i in mc.last_sweep+1:mc.p.measure_rate:length(configurations)
+        mc.conf .= decompress(mc, mc.model, configurations[i])
+        mc.s.greens .= calculate_greens(mc, nslices(mc))
         for (k, m) in mc.measurements
             k in ignore && continue
             measure!(m, mc, mc.model, i)
@@ -710,6 +698,7 @@ function save_mc(file::JLD.JldFile, mc::DQMC, entryname::String="MC")
     save_parameters(file, mc.p, entryname * "/Parameters")
     save_analysis(file, mc.a, entryname * "/Analysis")
     write(file, entryname * "/conf", mc.conf)
+    _save(file, mc.configs, entryname * "/Configurations")
     write(file, entryname * "/last_sweep", mc.last_sweep)
     save_measurements(file, mc, entryname * "/Measurements")
     save_model(file, mc.model, entryname * "/Model")
@@ -728,6 +717,7 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     mc.p = load_parameters(data["Parameters"], data["Parameters"]["type"])
     mc.a = load_analysis(data["Analysis"], data["Analysis"]["type"])
     mc.conf = data["conf"]
+    mc.configs = _load(data["Configurations"], data["Configurations"]["type"])
     mc.last_sweep = data["last_sweep"]
     mc.model = load_model(data["Model"], data["Model"]["type"])
 

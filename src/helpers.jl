@@ -1,3 +1,5 @@
+abstract type AbstractConfiguartionAccumulator end
+
 """
     sparsity(A)
 

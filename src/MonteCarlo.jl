@@ -31,9 +31,10 @@ include("flavors/DQMC/DQMC.jl")
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
 
+include("configurations.jl")
 include("FileIO.jl")
 export save, load, resume!
-include("../test/testfunctions.jl")
+# include("../test/testfunctions.jl")
 
 export reset!
 export run!, resume!, replay!

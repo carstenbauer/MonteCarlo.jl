@@ -1,18 +1,7 @@
 const p = "temp_dir"
 isdir(p) || mkdir(p)
 
-@testset "MC" begin
-    model = IsingModel(dims=2, L=2)
-    mc = MC(model, beta=0.66, thermalization=33, sweeps=123)
-    run!(mc, verbose=false)
-    MonteCarlo.save("$p/testfile.jld", mc)
-    x = MonteCarlo.load("$p/testfile.jld")
-    rm("$p/testfile.jld")
-
-    # Repeat these tests once with x being replayed rather than loaded
-    replay_done = false
-    @label all_checks
-
+function test_mc(mc, x)
     # Check if loaded/replayed mc matches original
     for f in fieldnames(typeof(mc.p))
         @test getfield(mc.p, f) == getfield(x.p, f)
@@ -27,21 +16,34 @@ isdir(p) || mkdir(p)
     @test mc.model.energy[] == x.model.energy[]
     for (k, v) in mc.thermalization_measurements
         for f in fieldnames(typeof(v))
-            @test getfield(v, f) == getfield(x.thermalization_measurements[k], f)
+            r = getfield(v, f) == getfield(x.thermalization_measurements[k], f)
+            r != true && @info "Check failed for $k -> $f"
+            @test r
         end
     end
     for (k, v) in mc.measurements
         for f in fieldnames(typeof(v))
-            @test getfield(v, f) == getfield(x.measurements[k], f)
+            r = getfield(v, f) == getfield(x.measurements[k], f)
+            r != true && @info "Check failed for $k -> $f"
+            @test r
         end
     end
+    nothing
+end
 
-    # Check everything again with x being a replayed simulation
-    if !replay_done
-        replay!(x, verbose=false)
-        replay_done = true
-        @goto all_checks
-    end
+@testset "MC" begin
+    model = IsingModel(dims=2, L=2)
+    mc = MC(model, beta=0.66, thermalization=33, sweeps=123, recorder=MonteCarlo.Configurations)
+    run!(mc, verbose=false)
+    MonteCarlo.save("$p/testfile.jld", mc)
+    x = MonteCarlo.load("$p/testfile.jld")
+    rm("$p/testfile.jld")
+    test_mc(mc, x)
+
+    x.measurements = MonteCarlo.default_measurements(mc, model) 
+    x.last_sweep = 0
+    replay!(x, verbose=false)
+    test_mc(mc, x)
 
     # Test resume
 
@@ -49,7 +51,7 @@ isdir(p) || mkdir(p)
     rm.(joinpath.(p, readdir(p)))
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=1000)
+    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=1000, recorder=MonteCarlo.Configurations)
     state = run!(
         mc, verbose = false,
         safe_before = now() + Second(1),
@@ -58,9 +60,9 @@ isdir(p) || mkdir(p)
     )
 
     @test state == false
-    ts = deepcopy(timeseries(mc.measurements[:conf].obs))
-    @assert length(ts) > 1 "No measurements have been taken. Test with more time!"
-    L = length(ts)
+    cs = deepcopy(mc.configs)
+    @assert length(cs) > 1 "No measurements have been taken. Test with more time!"
+    L = length(cs)
 
     # Test whether safe file gets overwritten correctly
     mc, state = resume!(
@@ -73,35 +75,23 @@ isdir(p) || mkdir(p)
     )
 
     @test state == false
-    ts = deepcopy(timeseries(mc.measurements[:conf].obs))
-    @assert length(ts) - L > 1 "No new measurements have been taken. Test with more time!"
+    cs = deepcopy(mc.configs)
+    @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
     @test length(readdir(p)) == 1
 
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, sweeps=1000length(ts), measure_rate=1000)
+    mc = MC(model, beta=1.0, sweeps=1000length(cs), measure_rate=1000, recorder=MonteCarlo.Configurations)
     state = run!(mc, verbose = false)
-    @test timeseries(mc.measurements[:conf].obs) == ts
+    @test mc.configs.configs == cs.configs
+    @test mc.configs.rate == cs.rate
 end
 
 
 rm.(joinpath.(p, readdir(p)))
 
-@testset "DQMC" begin
-    model = HubbardModelAttractive(dims=2, L=4, t = 1.7, U = 5.5)
-    mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
-    t = time()
-    run!(mc, verbose=false)
-    t = time() - t
-    MonteCarlo.save("$p/testfile.jld", mc)
-    x = MonteCarlo.load("$p/testfile.jld")
-    rm("$p/testfile.jld")
-
-    # Repeat these tests once with x being replayed rather than loaded
-    replay_done = false
-    @label all_checks
-
+function test_dqmc(mc, x)
     for f in fieldnames(typeof(mc.p))
         @test getfield(mc.p, f) == getfield(x.p, f)
     end
@@ -117,34 +107,62 @@ rm.(joinpath.(p, readdir(p)))
     @test mc.model.flv == x.model.flv
     for (k, v) in mc.thermalization_measurements
         for f in fieldnames(typeof(v))
-            if getfield(v, f) isa LightObservable
+            r = if getfield(v, f) isa LightObservable
                 # TODO
                 # implement == for LightObservable in MonteCarloObservable
-                @test getfield(v, f).B == getfield(x.measurements[k], f).B
+                getfield(v, f).B == getfield(x.measurements[k], f).B
             else
-                @test getfield(v, f) == getfield(x.measurements[k], f)
+                getfield(v, f) == getfield(x.measurements[k], f)
             end
+            r != true && @info "Check failed for $k -> $f"
+            @test r
         end
     end
     for (k, v) in mc.measurements
         for f in fieldnames(typeof(v))
-            if getfield(v, f) isa LightObservable
+            r = if getfield(v, f) isa LightObservable
                 # TODO
                 # implement == for LightObservable in MonteCarloObservable
-                @test getfield(v, f).B == getfield(x.measurements[k], f).B
+                # TODO: implement ≈ for LightObservable, LogBinner, etc
+                r = true
+                a = getfield(v, f)
+                b = getfield(x.measurements[k], f)
+                for i in eachindex(getfield(v, f).B.compressors)
+                    r = r && (a.B.compressors[i].value ≈ b.B.compressors[i].value)
+                    r = r && (a.B.compressors[i].switch ≈ b.B.compressors[i].switch)
+                end
+                r = r && (a.B.x_sum ≈ b.B.x_sum)
+                r = r && (a.B.x2_sum ≈ b.B.x2_sum)
+                r = r && (a.B.count ≈ b.B.count)
             else
-                @test getfield(v, f) == getfield(x.measurements[k], f)
+                getfield(v, f) == getfield(x.measurements[k], f)
             end
+            r != true && @info "Check failed for $k -> $f"
+            @test r
         end
     end
+    nothing
+end
+
+@testset "DQMC" begin
+    model = HubbardModelAttractive(dims=2, L=4, t = 1.7, U = 5.5)
+    mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
+    t = time()
+    run!(mc, verbose=false)
+    t = time() - t
+    MonteCarlo.save("$p/testfile.jld", mc)
+    x = MonteCarlo.load("$p/testfile.jld")
+    rm("$p/testfile.jld")
+
+    # Repeat these tests once with x being replayed rather than loaded
+    test_dqmc(mc, x)    
 
     # Check everything again with x being a replayed simulation
-    if !replay_done
-        replay!(x, verbose=false)
-        replay_done = true
-        @goto all_checks
-    end
-
+    x.measurements = MonteCarlo.default_measurements(mc, model) 
+    x.last_sweep = 0
+    replay!(x, verbose=false)
+    test_dqmc(mc, x)
+    
 
     # Test resume
 
@@ -162,9 +180,9 @@ rm.(joinpath.(p, readdir(p)))
     )
 
     @test state == false
-    ts = deepcopy(timeseries(mc.measurements[:conf].obs))
-    @assert length(ts) > 1 "No measurements have been taken. Test with more time!"
-    L = length(ts)
+    cs = deepcopy(mc.configs)
+    @assert length(cs) > 1 "No measurements have been taken. Test with more time!"
+    L = length(cs)
 
     # Test whether safe file gets overwritten correctly
     mc, state = resume!(
@@ -177,16 +195,17 @@ rm.(joinpath.(p, readdir(p)))
     )
 
     @test state == false
-    ts = deepcopy(timeseries(mc.measurements[:conf].obs))
-    @assert length(ts) - L > 1 "No new measurements have been taken. Test with more time!"
+    cs = deepcopy(mc.configs)
+    @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
     @test length(readdir(p)) == 1
 
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
     model = HubbardModelAttractive(dims=2, L=2, t = 1.7, U = 5.5)
-    mc = DQMC(model, beta=1.0, sweeps=100length(ts), measure_rate=100)
+    mc = DQMC(model, beta=1.0, sweeps=100length(cs), measure_rate=100)
     state = run!(mc, verbose = false)
-    @test timeseries(mc.measurements[:conf].obs) == ts
+    @test mc.configs.configs == cs.configs
+    @test mc.configs.rate == cs.rate
 end
 
 isdir(p) && rm(p, recursive=true)

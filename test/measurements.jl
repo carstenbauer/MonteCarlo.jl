@@ -1,5 +1,4 @@
 AbstractMeasurement = MonteCarlo.AbstractMeasurement
-ConfigurationMeasurement = MonteCarlo.ConfigurationMeasurement
 
 IsingMeasurement = MonteCarlo.IsingMeasurement
 IsingEnergyMeasurement = MonteCarlo.IsingEnergyMeasurement
@@ -40,10 +39,6 @@ end
     defaults = MonteCarlo.default_measurements(mc, model)
     @test !isempty(defaults)
 
-    @test haskey(defaults, :conf) && defaults[:conf] isa ConfigurationMeasurement
-    obs = observables(defaults[:conf])
-    @test haskey(obs, "Configurations") && obs["Configurations"] isa AbstractObservable
-
     @test haskey(defaults, :Magn) && defaults[:Magn] isa IsingMagnetizationMeasurement
     obs = observables(defaults[:Magn])
     @test haskey(obs, "Magnetization per site") && obs["Magnetization per site"] isa AbstractObservable
@@ -61,7 +56,6 @@ end
 
     @test isempty(mc.thermalization_measurements)
     @test !isempty(mc.measurements)
-    @test haskey(mc.measurements, :conf) && mc.measurements[:conf] isa ConfigurationMeasurement
     @test haskey(mc.measurements, :Magn) && mc.measurements[:Magn] isa IsingMagnetizationMeasurement
     @test haskey(mc.measurements, :Energy) && mc.measurements[:Energy] isa IsingEnergyMeasurement
 
@@ -70,8 +64,6 @@ end
 
     defaults = MonteCarlo.default_measurements(mc, model)
     @test !isempty(defaults)
-    @test haskey(defaults, :conf) && defaults[:conf] isa ConfigurationMeasurement
-
     @test haskey(defaults, :Greens) && defaults[:Greens] isa GreensMeasurement
     obs = observables(defaults[:Greens])
     @test haskey(obs, "Equal-times Green's function") && obs["Equal-times Green's function"] isa AbstractObservable
@@ -82,7 +74,6 @@ end
 
     @test isempty(mc.thermalization_measurements)
     @test !isempty(mc.measurements)
-    @test haskey(mc.measurements, :conf) && mc.measurements[:conf] isa ConfigurationMeasurement
     @test haskey(mc.measurements, :Greens) && mc.measurements[:Greens] isa GreensMeasurement
     @test haskey(mc.measurements, :BosonEnergy) && mc.measurements[:BosonEnergy] isa BosonEnergyMeasurement
 end
@@ -98,9 +89,6 @@ end
     obs = MonteCarlo.observables(mc)
     @test keys(obs[:TH]) == keys(ms[:TH])
     @test keys(obs[:ME]) == keys(ms[:ME])
-
-    @test haskey(obs[:ME][:conf], "Configurations")
-    @test typeof(obs[:ME][:conf]["Configurations"]) <: AbstractObservable
 
     @test haskey(obs[:ME][:Energy], "Total energy")
     @test typeof(obs[:ME][:Energy]["Total energy"]) <: AbstractObservable
@@ -125,21 +113,21 @@ end
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=1.0)
 
-    @test length(mc.measurements) == 3
+    @test length(mc.measurements) == 2
     delete!(mc, AbstractMeasurement)
     @test isempty(mc.measurements)
 
-    @test_throws ErrorException push!(mc, :conf => Int64)
-    @test_throws MethodError MonteCarlo.unsafe_push!(mc, :conf => 1.0)
-    @test_throws ErrorException push!(mc, :conf => ConfigurationMeasurement, :bad_stage)
-    @test_throws ErrorException MonteCarlo.unsafe_push!(mc, :conf => ConfigurationMeasurement(mc, model), :bad_stage)
-    @test_throws ErrorException delete!(mc, :conf, :bad_stage)
-    @test_throws ErrorException delete!(mc, ConfigurationMeasurement, :bad_stage)
+    @test_throws ErrorException push!(mc, :E => Int64)
+    @test_throws MethodError MonteCarlo.unsafe_push!(mc, :E => 1.0)
+    @test_throws ErrorException push!(mc, :E => IsingEnergyMeasurement, :bad_stage)
+    @test_throws ErrorException MonteCarlo.unsafe_push!(mc, :E => IsingEnergyMeasurement(mc, model), :bad_stage)
+    @test_throws ErrorException delete!(mc, :E, :bad_stage)
+    @test_throws ErrorException delete!(mc, IsingEnergyMeasurement, :bad_stage)
 
-    push!(mc, :conf => ConfigurationMeasurement)
-    @test haskey(mc.measurements, :conf) && mc.measurements[:conf] isa ConfigurationMeasurement
-    delete!(mc, :conf)
-    @test !haskey(mc.measurements, :conf)
+    push!(mc, :E => IsingEnergyMeasurement)
+    @test haskey(mc.measurements, :E) && mc.measurements[:E] isa IsingEnergyMeasurement
+    delete!(mc, :E)
+    @test !haskey(mc.measurements, :E)
 
     MonteCarlo.unsafe_push!(mc, :Magn => IsingMagnetizationMeasurement(mc, model))
     @test haskey(mc.measurements, :Magn) && mc.measurements[:Magn] isa IsingMagnetizationMeasurement
@@ -147,15 +135,15 @@ end
     @test !haskey(mc.measurements, :Magn)
 
     @test isempty(mc.thermalization_measurements)
-    push!(mc, :conf => ConfigurationMeasurement, :TH)
-    @test haskey(mc.thermalization_measurements, :conf) &&
-        mc.thermalization_measurements[:conf] isa ConfigurationMeasurement
-    delete!(mc, :conf, :TH)
+    push!(mc, :E => IsingEnergyMeasurement, :TH)
+    @test haskey(mc.thermalization_measurements, :E) &&
+        mc.thermalization_measurements[:E] isa IsingEnergyMeasurement
+    delete!(mc, :E, :TH)
 
-    MonteCarlo.unsafe_push!(mc, :conf => ConfigurationMeasurement(mc, model), :TH)
-    @test haskey(mc.thermalization_measurements, :conf) &&
-        mc.thermalization_measurements[:conf] isa ConfigurationMeasurement
-    delete!(mc, ConfigurationMeasurement, :TH)
+    MonteCarlo.unsafe_push!(mc, :E => IsingEnergyMeasurement(mc, model), :TH)
+    @test haskey(mc.thermalization_measurements, :E) &&
+        mc.thermalization_measurements[:E] isa IsingEnergyMeasurement
+    delete!(mc, IsingEnergyMeasurement, :TH)
     @test !haskey(mc.thermalization_measurements, :TH)
 end
 
@@ -163,7 +151,7 @@ end
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=1.0)
     run!(mc, thermalization=10, sweeps=10, verbose=false)
-    push!(mc, :conf => ConfigurationMeasurement, :TH)
+    push!(mc, :E => IsingEnergyMeasurement, :TH)
 
     meas = measurements(mc)
     MonteCarlo.save_measurements("testfile.jld", mc, force_overwrite=true)
