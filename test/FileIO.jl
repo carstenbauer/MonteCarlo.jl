@@ -68,7 +68,7 @@ end
     mc, state = resume!(
         "$p/resumable_testfile.jld",
         verbose = false,
-        safe_before = now() + Second(8),
+        safe_before = now() + Second(12),
         grace_period = Millisecond(0),
         force_overwrite = true,
         resumable_filename = "$p/resumable_testfile.jld"
