@@ -88,7 +88,6 @@ end
 
 function default_measurements(mc::MC, model::IsingModel)
     Dict(
-        :conf => ConfigurationMeasurement(mc, model),
         :Magn => IsingMagnetizationMeasurement(mc, model),
         :Energy => IsingEnergyMeasurement(mc, model)
     )

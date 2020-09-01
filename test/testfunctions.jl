@@ -1,4 +1,7 @@
 include("linalg/old_linalg.jl")
+# Just in case
+using MonteCarlo, LinearAlgebra, SparseArrays
+using StableDQMC
 
 # Calculate Ul, Dl, Tl =B(stop) ... B(start)
 """
@@ -10,8 +13,8 @@ function calculate_slice_matrix_chain(mc::DQMC, start::Int, stop::Int, safe_mult
     @assert start <= stop
 
     flv = mc.model.flv
-    N = nsites(mc.model)
-    GreensType = geltype(mc)
+    N = MonteCarlo.nsites(mc.model)
+    GreensType = MonteCarlo.geltype(mc)
 
     U = Matrix{GreensType}(I, flv*N, flv*N)
     D = ones(Float64, flv*N)
@@ -22,14 +25,14 @@ function calculate_slice_matrix_chain(mc::DQMC, start::Int, stop::Int, safe_mult
     svc = 1
     for k in start:stop
         if mod(k,safe_mult) == 0
-            multiply_slice_matrix_left!(mc, mc.model, k, U)
+            MonteCarlo.multiply_slice_matrix_left!(mc, mc.model, k, U)
             U *= spdiagm(0 => D)
             U, D, Tnew = decompose_udt(U)
             T = Tnew * T
             svs[:,svc] = log.(D)
             svc += 1
         else
-            multiply_slice_matrix_left!(mc, mc.model, k, U)
+            MonteCarlo.multiply_slice_matrix_left!(mc, mc.model, k, U)
         end
     end
     U *= spdiagm(0 => D)
@@ -45,8 +48,8 @@ function calculate_slice_matrix_chain_dagger(mc::DQMC, start::Int, stop::Int, sa
     @assert start <= stop
 
     flv = mc.model.flv
-    N = nsites(mc.model)
-    GreensType = geltype(mc)
+    N = MonteCarlo.nsites(mc.model)
+    GreensType = MonteCarlo.geltype(mc)
 
     U = Matrix{GreensType}(I, flv*N, flv*N)
     D = ones(Float64, flv*N)
@@ -57,14 +60,14 @@ function calculate_slice_matrix_chain_dagger(mc::DQMC, start::Int, stop::Int, sa
     svc = 1
     for k in reverse(start:stop)
         if mod(k,safe_mult) == 0
-            multiply_daggered_slice_matrix_left!(mc, mc.model, k, U)
+            MonteCarlo.multiply_daggered_slice_matrix_left!(mc, mc.model, k, U)
             U *= spdiagm(0 => D)
             U, D, Tnew = decompose_udt(U)
             T = Tnew * T
             svs[:,svc] = log.(D)
             svc += 1
         else
-            multiply_daggered_slice_matrix_left!(mc, mc.model, k, U)
+            MonteCarlo.multiply_daggered_slice_matrix_left!(mc, mc.model, k, U)
         end
     end
     U *= spdiagm(0 => D)
@@ -75,13 +78,13 @@ end
 
 # Calculate G(slice) = [1+B(slice-1)...B(1)B(M) ... B(slice)]^(-1) and its singular values in a stable manner
 function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult)
-    GreensType = geltype(mc)
+    GreensType = MonteCarlo.geltype(mc)
     flv = mc.model.flv
-    N = nsites(mc.model)
+    N = MonteCarlo.nsites(mc.model)
 
     # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
     if slice <= mc.p.slices
-        Ur, Dr, Tr = MonteCarlo.calculate_slice_matrix_chain_dagger(mc,slice,mc.p.slices, safe_mult)
+        Ur, Dr, Tr = calculate_slice_matrix_chain_dagger(mc,slice,mc.p.slices, safe_mult)
     else
         Ur = Matrix{GreensType}(I, flv * N, flv * N)
         Dr = ones(Float64, flv * N)
