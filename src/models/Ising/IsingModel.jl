@@ -21,6 +21,8 @@ with linear system size `L`.
     energy::Ref{Float64} = Ref(0.0)
 end
 
+init!(mc::MC, m::IsingModel) = energy(mc, m, mc.conf)
+
 function choose_lattice(::Type{IsingModel}, dims::Int, L::Int)
     if dims == 1
         return Chain(L)
@@ -69,11 +71,13 @@ Base.rand(::Type{MC}, m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m
     @inbounds for trg in neighbors(m.l, i)
         field += conf[trg]
     end
-    delta_E = 2. * conf[i] * field
+    delta_E = 2.0 * conf[i] * field
     return delta_E, nothing
 end
 
-@propagate_inbounds @bm function accept_local!(mc::MC, m::IsingModel, i::Int, conf::IsingConf, delta_i, delta_E::Float64)
+@propagate_inbounds @bm function accept_local!(
+        mc::MC, m::IsingModel, i::Int, conf::IsingConf, delta_E::Float64, passthrough
+    )
     m.energy[] += delta_E
     conf[i] *= -1
     nothing
@@ -82,7 +86,7 @@ end
 # optimized for 2D case
 @propagate_inbounds @bm function propose_local(mc::MC, m::IsingModel{SquareLattice}, i::Int, conf::IsingConf)
     neighs = m.l.neighs
-    @inbounds delta_E = 2. * conf[i] * (
+    @inbounds delta_E = 2.0 * conf[i] * (
         conf[neighs[1, i]] + conf[neighs[2, i]] +
         conf[neighs[3, i]] + conf[neighs[4, i]]
     )
@@ -140,6 +144,7 @@ function energy(mc::MC, m::IsingModel, conf::IsingConf)
     for (src, trg) in neighbors(m.l)
         E -= conf[src]*conf[trg]
     end
+    m.energy[] = E
     return E
 end
 
@@ -150,6 +155,7 @@ function energy(mc::MC, m::IsingModel{LT}, conf::IsingConf) where {
     @inbounds for (src, trg) in neighbors(m.l, Val(false))
         E -= conf[src]*conf[trg]
     end
+    m.energy[] = E
     return E
 end
 
@@ -167,6 +173,7 @@ function energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
     @inbounds @simd for i in 1:nsites(m)
         E -= conf[i]*conf[neighs[1,i]] + conf[i]*conf[neighs[2,i]]
     end
+    m.energy[] = E
     return E
 end
 

@@ -33,7 +33,7 @@
     # propose, accept
     @test MonteCarlo.propose_local(mc, m, 13, conff) == (1352.0, nothing)
     @test conf == conff
-    @test MonteCarlo.accept_local!(mc, m, 13, conff, 2, 1352.0) == nothing
+    @test MonteCarlo.accept_local!(mc, m, 13, conff, 1352.0, 2) == nothing
     conff[13] *= -1
     @test conf == conff
 end

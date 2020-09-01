@@ -10,7 +10,8 @@ abstract type AbstractLattice end
 
 Number of lattice sites.
 """
-@inline Base.length(l::AbstractLattice) = error("Lattice $(typeof(l)) doesn't implement `length`.")
+@inline Base.length(l::AbstractLattice) = MethodError(length, (l))
+
 
 """
     size(l::AbstractLattice)
