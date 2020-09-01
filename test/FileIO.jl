@@ -33,7 +33,7 @@ end
 
 @testset "MC" begin
     model = IsingModel(dims=2, L=2)
-    mc = MC(model, beta=0.66, thermalization=33, sweeps=123, recorder=MonteCarlo.Configurations)
+    mc = MC(model, beta=0.66, thermalization=33, sweeps=123, recorder=MonteCarlo.ConfigRecorder)
     run!(mc, verbose=false)
     MonteCarlo.save("$p/testfile.jld", mc)
     x = MonteCarlo.load("$p/testfile.jld")
@@ -51,7 +51,7 @@ end
     rm.(joinpath.(p, readdir(p)))
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=1000, recorder=MonteCarlo.Configurations)
+    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=1000, recorder=MonteCarlo.ConfigRecorder)
     state = run!(
         mc, verbose = false,
         safe_before = now() + Second(1),
@@ -82,7 +82,7 @@ end
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, sweeps=1000length(cs), measure_rate=1000, recorder=MonteCarlo.Configurations)
+    mc = MC(model, beta=1.0, sweeps=1000length(cs), measure_rate=1000, recorder=MonteCarlo.ConfigRecorder)
     state = run!(mc, verbose = false)
     @test mc.configs.configs == cs.configs
     @test mc.configs.rate == cs.rate

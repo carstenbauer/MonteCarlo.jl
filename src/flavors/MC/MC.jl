@@ -27,10 +27,10 @@ end
 """
 Monte Carlo simulation
 """
-mutable struct MC{M<:Model, C, CAT<:AbstractConfiguartionAccumulator} <: MonteCarloFlavor
+mutable struct MC{M<:Model, C, RT<:AbstractRecorder} <: MonteCarloFlavor
     model::M
     conf::C
-    configs::CAT
+    configs::RT
     last_sweep::Int
 
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
@@ -38,7 +38,7 @@ mutable struct MC{M<:Model, C, CAT<:AbstractConfiguartionAccumulator} <: MonteCa
     p::MCParameters
     a::MCAnalysis
 
-    MC{M,C,CAT}() where {M,C,CAT} = new()
+    MC{M,C,RT}() where {M,C,RT} = new()
 end
 
 
@@ -52,7 +52,7 @@ function MC(m::M;
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
         measurements = :default,
         last_sweep = 0,
-        recorder = Void,
+        recorder = Discarder,
         measure_rate = 1,
         recording_rate = measure_rate,
         kwargs...
@@ -69,7 +69,7 @@ function MC(m::M;
     end
     mc.p = MCParameters(measure_rate = measure_rate; kwdict...)
     mc.last_sweep = last_sweep
-    mc.configs = recorder(mc, m, rate=recording_rate)
+    mc.configs = recorder(mc, m, recording_rate)
 
     init!(
         mc, seed = seed, conf = conf,
@@ -108,6 +108,9 @@ function Base.show(io::IO, mc::MC)
 end
 Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 
+function ConfigRecorder(mc::MC, model::Model, rate = 10)
+    ConfigRecorder{typeof(compress(mc, model, conf(mc)))}(rate)
+end
 
 
 
@@ -446,7 +449,7 @@ function save_mc(file::JLD.JldFile, mc::MC, entryname::String="MC")
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.p, entryname * "/parameters")
     write(file, entryname * "/conf", mc.conf)
-    _save(file, mc.configs, entryname * "/configurations")
+    _save(file, mc.configs, entryname * "/configs")
     write(file, entryname * "/last_sweep", mc.last_sweep)
     save_measurements(file, mc, entryname * "/Measurements")
     save_model(file, mc.model, entryname * "/Model")
@@ -463,7 +466,7 @@ function load_mc(data, ::Type{T}) where {T <: MC}
     mc = data["type"]()
     mc.p = load_parameters(data["parameters"], data["parameters"]["type"])
     mc.conf = data["conf"]
-    mc.configs = _load(data["configurations"], data["configurations"]["type"])
+    mc.configs = _load(data["configs"], data["configs"]["type"])
     mc.last_sweep = data["last_sweep"]
     mc.model = load_model(data["Model"], data["Model"]["type"])
 

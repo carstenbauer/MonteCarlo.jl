@@ -16,6 +16,7 @@ include("flavors/abstract.jl")
 include("models/abstract.jl")
 include("lattices/abstract.jl")
 
+include("configurations.jl")
 include("Measurements.jl")
 export measurements, observables
 
@@ -31,7 +32,6 @@ include("flavors/DQMC/DQMC.jl")
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
 
-include("configurations.jl")
 include("FileIO.jl")
 export save, load, resume!
 # include("../test/testfunctions.jl")

@@ -184,6 +184,13 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
     return lambda * sum(hsfield)
 end
 
+# See configurations.jl - compression of configurations
+compress(::DQMC, ::HubbardModelAttractive, c) = BitArray(c .== 1)
+function decompress(
+        mc::DQMC{M, CB, CT}, ::HubbardModelAttractive, c
+    ) where {M, CB, CT}
+    CT(2c .- 1)
+end
 
 function save_model(
         file::JLD.JldFile,

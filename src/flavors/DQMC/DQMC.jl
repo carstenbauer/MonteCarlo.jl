@@ -127,7 +127,7 @@ Determinant quantum Monte Carlo (DQMC) simulation
 """
 mutable struct DQMC{
         M <: Model, CB <: Checkerboard, ConfType <: Any, 
-        CAT <: AbstractConfiguartionAccumulator, Stack <: AbstractDQMCStack
+        RT <: AbstractRecorder, Stack <: AbstractDQMCStack
     } <: MonteCarloFlavor
 
     model::M
@@ -137,13 +137,13 @@ mutable struct DQMC{
 
     p::DQMCParameters
     a::DQMCAnalysis
-    configs::CAT
+    configs::RT
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 
-    DQMC{M, CB, ConfType, CAT, Stack}() where {
+    DQMC{M, CB, ConfType, RT, Stack}() where {
         M <: Model, CB <: Checkerboard, ConfType <: Any, 
-        CAT <: AbstractConfiguartionAccumulator, Stack <: AbstractDQMCStack
+        RT <: AbstractRecorder, Stack <: AbstractDQMCStack
     } = new()
 end
 
@@ -164,6 +164,10 @@ decomposition.
 of measurements run during the thermalization stage. By default, none are used.
 - `measurements::Dict{Symbol, AbstractMeasurement}`: A collection of measurements
 run during the measurement stage. Calls `default_measurements` if not specified.
+- `recorder = ConfigRecorder`: Type of recorder used for saving configurations
+generated during the simulation. Used (by default) when `replay!`ing simulations.
+ (`Discarder` or `ConfigRecorder`)
+- `recording_rate = measure_rate`: Rate at which configurations are recorded.
 - `thermalization = 100`: Number of thermalization sweeps
 - `sweeps`: Number of measurement sweeps
 - `all_checks = true`: Check for Propagation instabilities and sign problems.
@@ -185,7 +189,7 @@ function DQMC(m::M;
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
         measurements = :default,
         last_sweep = 0,
-        recorder = Configurations,
+        recorder = ConfigRecorder,
         measure_rate = 10,
         recording_rate = measure_rate,
         kwargs...
@@ -204,7 +208,7 @@ function DQMC(m::M;
     mc.p = p
     mc.a = DQMCAnalysis()
     mc.s = DQMCStack{geltype, heltype}()
-    mc.configs = recorder(mc, m, rate=recording_rate)
+    mc.configs = recorder(mc, m, recording_rate)
     mc.last_sweep = last_sweep
 
     init!(
@@ -250,6 +254,11 @@ function Base.show(io::IO, mc::DQMC)
     print(io, "Measurements: ", N_th_meas + N_me_meas, " ($N_th_meas + $N_me_meas)")
 end
 Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
+
+function ConfigRecorder(mc::DQMC, model::Model, rate = 10)
+    ConfigRecorder{typeof(compress(mc, model, conf(mc)))}(rate)
+end
+
 
 
 """
@@ -698,7 +707,7 @@ function save_mc(file::JLD.JldFile, mc::DQMC, entryname::String="MC")
     save_parameters(file, mc.p, entryname * "/Parameters")
     save_analysis(file, mc.a, entryname * "/Analysis")
     write(file, entryname * "/conf", mc.conf)
-    _save(file, mc.configs, entryname * "/Configurations")
+    _save(file, mc.configs, entryname * "/configs")
     write(file, entryname * "/last_sweep", mc.last_sweep)
     save_measurements(file, mc, entryname * "/Measurements")
     save_model(file, mc.model, entryname * "/Model")
@@ -717,7 +726,7 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     mc.p = load_parameters(data["Parameters"], data["Parameters"]["type"])
     mc.a = load_analysis(data["Analysis"], data["Analysis"]["type"])
     mc.conf = data["conf"]
-    mc.configs = _load(data["Configurations"], data["Configurations"]["type"])
+    mc.configs = _load(data["configs"], data["configs"]["type"])
     mc.last_sweep = data["last_sweep"]
     mc.model = load_model(data["Model"], data["Model"]["type"])
 
