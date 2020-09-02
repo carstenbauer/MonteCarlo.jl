@@ -265,6 +265,7 @@ struct UTGreensMeasurement{OT} <: UnequalTimeMeasurement
     l1::Int64
     l2::Int64
 end
+
 """
     UTGreensMeasurement(mc, model[; capacity, τ1, τ2, slice1 = τ1/Δτ, slice2 = τ2/Δτ])
 

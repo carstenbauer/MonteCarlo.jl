@@ -68,13 +68,7 @@ end
     # Check greens reconstruction used in replay
     mc = DQMC(m, beta=5.0, safe_mult=5)
     # Make sure this works with any values
-    mc.s.Ul .= rand(eltype(mc.s.Ul), size(mc.s.Ul))
-    mc.s.Dl .= rand(eltype(mc.s.Dl), size(mc.s.Dl))
-    mc.s.Tl .= rand(eltype(mc.s.Tl), size(mc.s.Tl))
-    mc.s.Ur .= rand(eltype(mc.s.Ur), size(mc.s.Ur))
-    mc.s.Dr .= rand(eltype(mc.s.Dr), size(mc.s.Dr))
-    mc.s.Tr .= rand(eltype(mc.s.Tr), size(mc.s.Tr))
-    for k in 1:MonteCarlo.nslices(mc)
+    for k in shuffle(1:MonteCarlo.nslices(mc))
         G1, _ = calculate_greens_and_logdet(mc, k)
         G2 = MonteCarlo.calculate_greens(mc, k)
         @test G1 ≈ G2

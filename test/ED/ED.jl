@@ -1,4 +1,6 @@
 using LinearAlgebra, SparseArrays
+using MonteCarlo
+using MonteCarlo: @bm
 
 # State ∈ [0, up, down, updown] = [00, 10, 01, 11]
 # 2x2 lattice -> 4 (exponent) -> 4^4 states = 256
@@ -336,14 +338,13 @@ end
 scalarproduct(lstate::BitArray, value, state::BitArray) = (lstate == state) * value
 
 
-function expectation_value(
+@bm function expectation_value(
         observable::Function,
         H::Eigen;
         T=1.0, beta = 1.0 / T,
         N_sites = 4,
         N_substates = 2
     )
-
     vals, vecs = H
     Z = 0.0
     O = 0.0
@@ -404,58 +405,61 @@ end
 
 
 
-function expectation_value(
-        obsτ::Function, obs0::Function, H::Eigen, tau;
+@bm function expectation_value(
+        obsτ2::Function, obsτ1::Function, H::Eigen, τ2, τ1;
         T=1.0, beta = 1.0 / T, N_sites = 4, N_substates = 2
     )
+    @bm "init" begin
+        O = 0.0
+        # vals sorted small to large
+        vals, vecs = H
+        lstate = state_from_integer(0, N_sites)
+        rstate = state_from_integer(0, N_sites)
+        vals1, _ = obsτ1(rstate)
+        vals2, _ = obsτ2(rstate)
+        T = typeof(first(vals1) * first(vals2))
+        obsτ1_mat = zeros(T, size(vecs))
+        obsτ2_mat = zeros(T, size(vecs))
+    end
 
-    O = 0.0
-    # vals sorted small to large
-    vals, vecs = H
-    lstate = state_from_integer(0, N_sites)
-    rstate = state_from_integer(0, N_sites)
-    vals1, _ = obsτ(rstate)
-    vals2, _ = obs0(rstate)
-    T = typeof(first(vals1) * first(vals2))
-    obs0_mat = zeros(T, size(vecs))
-    obsτ_mat = zeros(T, size(vecs))
+    @bm "obs mat" begin
+        @inbounds for i in eachindex(vals)
+            state_from_integer!(lstate, i-1)
+            for j in eachindex(vals)
+                state_from_integer!(rstate, j-1)
+                values, states = obsτ2(rstate)
+                obsτ2_mat[i, j] = scalarproduct(lstate, values, states)
 
-    @inbounds for i in eachindex(vals)
-        state_from_integer!(lstate, i-1)
-        for j in eachindex(vals)
-            state_from_integer!(rstate, j-1)
-            values, states = obsτ(rstate)
-            obsτ_mat[i, j] = scalarproduct(lstate, values, states)
-
-            state_from_integer!(rstate, j-1)
-            values, states = obs0(rstate)
-            obs0_mat[i, j] = scalarproduct(lstate, values, states)
+                state_from_integer!(rstate, j-1)
+                values, states = obsτ1(rstate)
+                obsτ1_mat[i, j] = scalarproduct(lstate, values, states)
+            end
         end
     end
 
-    obsτ_mat = vecs' * obsτ_mat * vecs
-    obs0_mat = vecs' * obs0_mat * vecs
+    @bm "prepare O" begin
+        # A bit faster with allocations ¯\_(ツ)_/¯
+        obsτ2_mat = vecs' * obsτ2_mat * vecs
+        obsτ1_mat = vecs' * obsτ1_mat * vecs
 
-    Z = mapreduce(E -> exp(-beta * E), +, vals)
-
-    for i in eachindex(vals), j in eachindex(vals)
-        O += (
-            exp(-(beta - tau) * vals[i]) *
-            obsτ_mat[i, j] *
-            exp(-tau * vals[j]) *
-            obs0_mat[j, i]
-        )
+        Z = mapreduce(E -> exp(-beta * E), +, vals)
     end
 
-    # <e^{-(\beta-\tau) H} c_i exp(-\tau H) c^\dagger_j>
+    @bm "compute O" begin
+        # This seems to run much faster if "prepare O" allocates ¯\_(ツ)_/¯
+        v = obsτ1_mat * exp.(-τ1 * vals)
+        v .*= exp.(-(τ2 - τ1) * vals)
+        w = obsτ2_mat * v
+        O = dot(exp.(-(beta - τ2) * vals), w)
+    end
 
-
+    # <e^{-(β - τ2) H} c_i exp(-(τ2 - τ1) H) c^\dagger_j exp(-τ1 H)>
 
     O / Z
 end
 
 
-function calculate_Greens_matrix(H::Eigen, tau, lattice; beta=1.0, N_substates=2)
+function calculate_Greens_matrix(H::Eigen, tau2, tau1, lattice; beta=1.0, N_substates=2)
     G = Matrix{Float64}(
         undef,
         lattice.sites*N_substates,
@@ -469,7 +473,7 @@ function calculate_Greens_matrix(H::Eigen, tau, lattice; beta=1.0, N_substates=2
             ] = expectation_value(
                 s -> annihilate!(s, site2, substate2),
                 s -> create!(s, site1, substate1),
-                H, tau,
+                H, tau2, tau1,
                 beta = beta,
                 N_sites = lattice.sites,
                 N_substates = N_substates

@@ -89,6 +89,20 @@ end
     push!(dqmc, :Magn => MonteCarlo.MagnetizationMeasurement)
     MonteCarlo.unsafe_push!(dqmc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement(dqmc, model, mask=mask))
     MonteCarlo.unsafe_push!(dqmc, :PC => MonteCarlo.PairingCorrelationMeasurement(dqmc, model, mask=mask))
+    
+    # Unequal time
+    # N = MonteCarlo.nslices(dqmc) # 10
+    l1s = [1, 4, 5, 6, 1]
+    l2s = [3, 5, 4, 7, 10]
+    dqmc.ut_stack = MonteCarlo.UnequalTimeStack(dqmc)
+    # Why is UTGreensMeasurement not defined?
+    # UTG = MonteCarlo.UTGreensMeasurement
+    # MonteCarlo.unsafe_push!(dqmc, :UTG1 => UTG(dqmc, model, slice1=l1s[1], slice2=l2s[1]))
+    # MonteCarlo.unsafe_push!(dqmc, :UTG2 => UTG(dqmc, model, slice1=l1s[2], slice2=l2s[2]))
+    # MonteCarlo.unsafe_push!(dqmc, :UTG3 => UTG(dqmc, model, slice1=l1s[3], slice2=l2s[3]))
+    # MonteCarlo.unsafe_push!(dqmc, :UTG4 => UTG(dqmc, model, slice1=l1s[4], slice2=l2s[4]))
+    # MonteCarlo.unsafe_push!(dqmc, :UTG5 => UTG(dqmc, model, slice1=l1s[5], slice2=l2s[5]))
+
     @time run!(dqmc, thermalization = 10_000, sweeps = 50_000, verbose=false)
 
     @info "Running ED"
@@ -206,4 +220,15 @@ end
         end
     end
     end
+    # @info "Unequal time, oh boy"
+    # @time begin
+    #     for (i, tau1, tau2) in zip(1:5, 0.1l1s, 0.1l2s)
+    #         UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
+    #         N = MonteCarlo.nsites(model)
+    #         ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l)
+    #         for i in 1:size(UTG, 1), j in 1:size(UTG, 2)
+    #             @test isapprox(UTG[i, j], ED_UTG[i, j], atol=atol, rtol=rtol)
+    #         end
+    #     end
+    # end
 end
