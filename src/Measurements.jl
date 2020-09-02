@@ -159,6 +159,13 @@ measurements can be reduced with `rate`. (e.g. `rate=10` means 1 measurement per
 struct ConfigurationMeasurement{OT <: Observable} <: AbstractMeasurement
     obs::OT
     rate::Int64
+    function ConfigurationMeasurement{OT}(obs, rate) where {OT <: Observable}
+        @warn(
+            "`ConfigurationMeasurement` is deprecated. Configurations can now " *
+            "be collected in `mc.configs` using an `<: AbstractConfiguartionAccumulator`"
+        )
+        new{OT}(obs, rate)
+    end
 end
 function ConfigurationMeasurement(mc::MonteCarloFlavor, model::Model, rate=1)
     o = Observable(typeof(mc.conf), "Configurations")
@@ -168,6 +175,7 @@ end
     (i % m.rate == 0) && push!(m.obs, conf(mc))
     nothing
 end
+
 
 
 ################################################################################

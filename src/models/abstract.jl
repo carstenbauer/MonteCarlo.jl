@@ -12,3 +12,7 @@ abstract type Model end
 Number of lattice sites of the given model.
 """
 nsites(m::Model) = error("Model $(typeof(m)) doesn't implement `nsites`!")
+
+
+# Optional
+init!(mc::MonteCarloFlavor, m::Model) = nothing

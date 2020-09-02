@@ -4,7 +4,7 @@ using Reexport
 # Loading the RNG will fail if Random is nto exported
 @reexport using MonteCarloObservable, Random
 import MonteCarloObservable.AbstractObservable
-using StableDQMC, LightXML, Parameters, Requires
+using Parameters, Requires
 using JLD, TimerOutputs
 using LoopVectorization, RecursiveFactorization
 
@@ -17,6 +17,7 @@ include("flavors/abstract.jl")
 include("models/abstract.jl")
 include("lattices/abstract.jl")
 
+include("configurations.jl")
 include("Measurements.jl")
 export measurements, observables
 
@@ -37,7 +38,7 @@ include("models/HubbardAttractive/HubbardModelAttractive.jl")
 
 include("FileIO.jl")
 export save, load, resume!
-include("../test/testfunctions.jl")
+# include("../test/testfunctions.jl")
 
 export reset!
 export run!, resume!, replay!
@@ -49,6 +50,7 @@ export greens
 
 function __init__()
     @require LatPhysBase="eec5c15a-e8bd-11e8-0d23-6799ca40c963" include("lattices/LatPhys.jl")
+    @require LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179" include("lattices/ALPS.jl")
 end
 
 end # module

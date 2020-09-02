@@ -138,9 +138,10 @@ end
     return detratio, ΔE_boson, γ
 end
 
-@inline @bm function accept_local!(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, delta, detratio, ΔE_boson::Float64)
+@inline @bm function accept_local!(
+        mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, 
+        detratio, ΔE_boson, γ)
     greens = mc.s.greens
-    γ = delta
 
     # Unoptimized Version
     # u = -greens[:, i]
@@ -184,6 +185,13 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
     return lambda * sum(hsfield)
 end
 
+# See configurations.jl - compression of configurations
+compress(::DQMC, ::HubbardModelAttractive, c) = BitArray(c .== 1)
+function decompress(
+        mc::DQMC{M, CB, CT}, ::HubbardModelAttractive, c
+    ) where {M, CB, CT}
+    CT(2c .- 1)
+end
 
 
 function greens(mc::DQMC, model::HubbardModelAttractive)

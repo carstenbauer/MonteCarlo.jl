@@ -1,3 +1,4 @@
+include("testfunctions.jl")
 @testset "DQMC Parameters" begin
     P1 = MonteCarlo.DQMCParameters(beta=5.0) #defaults to delta_tau = 0.1
     @test all((P1.beta, P1.delta_tau, P1.slices) .== (5.0, 0.1, 50))
@@ -50,18 +51,18 @@ end
     MonteCarlo.build_stack(mc, mc.s)
     MonteCarlo.propagate(mc)
     # With this we effectively test calculate_greens without wrap_greens
-    greens, = MonteCarlo.calculate_greens_and_logdet(mc, mc.s.current_slice+1)
+    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice+1)
     MonteCarlo.wrap_greens!(mc, greens, mc.s.current_slice+1, -1)
     @test greens ≈ mc.s.greens
     # here with a single implied wrap
-    greens, = MonteCarlo.calculate_greens_and_logdet(mc, mc.s.current_slice)
+    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice)
     @test maximum(MonteCarlo.absdiff(greens, mc.s.greens)) < 1e-12
 
     # wrap greens test
     for k in 0:9
         MonteCarlo.wrap_greens!(mc, mc.s.greens, mc.s.current_slice - k, -1)
     end
-    greens, = MonteCarlo.calculate_greens_and_logdet(mc, mc.s.current_slice-10)
+    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice-10)
     @test maximum(MonteCarlo.absdiff(greens, mc.s.greens)) < 1e-9
 
     # Check greens reconstruction used in replay
@@ -74,7 +75,7 @@ end
     mc.s.Dr .= rand(eltype(mc.s.Dr), size(mc.s.Dr))
     mc.s.Tr .= rand(eltype(mc.s.Tr), size(mc.s.Tr))
     for k in 1:MonteCarlo.nslices(mc)
-        G1, _ = MonteCarlo.calculate_greens_and_logdet(mc, k)
+        G1, _ = calculate_greens_and_logdet(mc, k)
         G2 = MonteCarlo.calculate_greens(mc, k)
         @test G1 ≈ G2
     end

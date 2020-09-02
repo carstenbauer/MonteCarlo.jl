@@ -1,6 +1,5 @@
 function default_measurements(mc::DQMC, model)
     Dict(
-        :conf => ConfigurationMeasurement(mc, model),
         :Greens => GreensMeasurement(mc, model),
         :BosonEnergy => BosonEnergyMeasurement(mc, model)
     )

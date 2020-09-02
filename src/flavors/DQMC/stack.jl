@@ -77,8 +77,8 @@ end
 # type helpers
 geltype(::Type{DQMCStack{G,H}}) where {G,H} = G
 heltype(::Type{DQMCStack{G,H}}) where {G,H} = H
-geltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = geltype(S)
-heltype(mc::DQMC{M, CB, CT, S}) where {M, CB, CT, S} = heltype(S)
+geltype(mc::DQMC{M, CB, CT, CAT, S}) where {M, CB, CT, CAT, S} = geltype(S)
+heltype(mc::DQMC{M, CB, CT, CAT, S}) where {M, CB, CT, CAT, S} = heltype(S)
 
 # type initialization
 function initialize_stack(mc::DQMC, s::DQMCStack)

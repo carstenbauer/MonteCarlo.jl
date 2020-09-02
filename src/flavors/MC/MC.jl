@@ -27,9 +27,10 @@ end
 """
 Monte Carlo simulation
 """
-mutable struct MC{M<:Model, C} <: MonteCarloFlavor
+mutable struct MC{M<:Model, C, RT<:AbstractRecorder} <: MonteCarloFlavor
     model::M
     conf::C
+    configs::RT
     last_sweep::Int
 
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
@@ -37,7 +38,7 @@ mutable struct MC{M<:Model, C} <: MonteCarloFlavor
     p::MCParameters
     a::MCAnalysis
 
-    MC{M,C}() where {M,C} = new()
+    MC{M,C,RT}() where {M,C,RT} = new()
 end
 
 
@@ -51,19 +52,24 @@ function MC(m::M;
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
         measurements = :default,
         last_sweep = 0,
+        recorder = Discarder,
+        measure_rate = 1,
+        recording_rate = measure_rate,
         kwargs...
     ) where M<:Model
 
     conf = rand(MC, m)
-    mc = MC{M, typeof(conf)}()
+    mc = MC{M, typeof(conf), recorder}()
+    mc.conf = conf
     mc.model = m
     kwdict = Dict(kwargs)
     if :T in keys(kwargs)
         kwdict[:beta] = 1/kwargs[:T]
         delete!(kwdict, :T)
     end
-    mc.p = MCParameters(; kwdict...)
+    mc.p = MCParameters(measure_rate = measure_rate; kwdict...)
     mc.last_sweep = last_sweep
+    mc.configs = recorder(mc, m, recording_rate)
 
     init!(
         mc, seed = seed, conf = conf,
@@ -88,6 +94,7 @@ MC(m::Model, params::NamedTuple) = MC(m; params...)
 @inline model(mc::MC) = mc.model
 @inline conf(mc::MC) = mc.conf
 @inline last_sweep(mc::MC) = mc.last_sweep
+@inline configurations(mc::MC) = mc.configs
 
 # cosmetics
 Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
@@ -101,6 +108,9 @@ function Base.show(io::IO, mc::MC)
 end
 Base.show(io::IO, m::MIME"text/plain", mc::MC) = print(io, mc)
 
+function ConfigRecorder(mc::MC, model::Model, rate = 10)
+    ConfigRecorder{typeof(compress(mc, model, conf(mc)))}(rate)
+end
 
 
 
@@ -134,12 +144,14 @@ function init!(mc::MC;
         )
         mc.measurements = Dict{Symbol, AbstractMeasurement}()
     end
+    init!(mc, mc.model)
 
     nothing
 end
 
 function resume_init!(mc::MC)
     mc.a = MCAnalysis()
+    init!(mc, mc.model)
     nothing
 end
 
@@ -228,6 +240,7 @@ See also: [`resume!`](@ref)
         if i > thermalization && iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
             measure!(mc.measurements, mc, mc.model, i)
         end
+        (i > thermalization) && push!(mc.configs, mc, mc.model, i)
 
 
         print_rate = mc.p.print_rate
@@ -290,8 +303,11 @@ See also: [`resume!`](@ref)
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
 
     end_time = now()
-    verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
-    verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
+    if verbose
+        println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
+        @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
+        println()
+    end
 
     return true
 end
@@ -306,104 +322,84 @@ Performs a sweep of local moves.
     m = model(mc)
     β = beta(mc)
     @inbounds for i in eachindex(c)
-        ΔE, Δsite = propose_local(mc, m, i, c)
+        ΔE, passthrough = propose_local(mc, m, i, c)
         mc.a.prop_local += 1
         # Metropolis
         if ΔE <= 0 || rand() < exp(- β*ΔE)
-            accept_local!(mc, m, i, c, Δsite, ΔE)
-            mc.a.acc_rate += 1/nsites(m)
+            accept_local!(mc, m, i, c, ΔE, passthrough)
+            mc.a.acc_rate += 1.0
             mc.a.acc_local += 1
         end
     end
-
+    mc.a.acc_rate /= length(c)
     nothing
 end
 
 
 
 """
-    replay(
-        mc::MC[;
-        configs::ConfigurationMeasurement = mc.measurements[:conf],
-        reset_measurements = true,
-        measure_rate = 1,
-        kwargs...]
-    )
-    replay(mc::DQMC, configs::AbstractArray[; kwargs...])
+    replay(mc::MC[, configurations::Iterable = mc.configs; kwargs...])
 
 Replays previously generated configurations and measures observables along the
 way.
 
-By default, the first method will search `mc` for a ConfigurationMeasurement,
-remove it from the active measurements and replay it. If
-`reset_measurements = true` it will also reset every active measurement before
-replaying configurations.
-The second method replays configurations directly, i.e. it does not modify any
-measurements beforehand.
-
-### Keyword Arguments (both):
+### Keyword Arguments:
 - `verbose = true`: If true, print progress messaged to stdout.
 - `safe_before::Date`: If this date is passed, `replay!` will generate a
 resumable save file and exit
 - `grace_period = Minute(5)`: Buffer between the current time and `safe_before`.
 The time required to generate a save file should be included here.
 - `filename`: Name of the save file. The default is based on `safe_before`.
+- `measure_rate = 1`: Rate at which measurements are taken. Note that this is 
+based on the recorded configurations, not actual sweeps.
 """
 function replay!(
-        mc::MC;
-        configs::ConfigurationMeasurement = let
-            for (k, v) in mc.measurements
-                v isa ConfigurationMeasurement && return v
-            end
-            throw(ArgumentError(
-                "Could not find a `ConfigurationMeasurement` in the given " *
-                "mc::MC. Try supplying it manually."
-            ))
-        end,
-        reset_measurements = true,
-        measure_rate = 1,
-        kwargs...
+        mc::MC, configurations = mc.configs;
+        verbose::Bool=true,
+        safe_before::TimeType = now() + Year(100),
+        grace_period::TimePeriod = Minute(5),
+        filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        force_overwrite = false,
+        measure_rate = 1
     )
-    delete!(mc, ConfigurationMeasurement)
-    reset_measurements && for (k, v) in mc.measurements
-        mc.measurements[k] = typeof(v)(mc, mc.model)
+    if isempty(configurations)
+        println("Nothin to replay (configurations empty). Exiting")    
+        return true
     end
-    mc.p.measure_rate = measure_rate
-    replay(mc, timeseries(configs.obs); kwargs...)
-end
-
-function replay!(
-            mc::MC,
-            configs::AbstractArray;
-            verbose::Bool=true,
-            safe_before::TimeType = now() + Year(100),
-            grace_period::TimePeriod = Minute(5),
-            filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-            force_overwrite = false
-        )
-
-    # Check for measurements
-    !isempty(mc.thermalization_measurements) && @warn(
-        "There is no thermalization process in a replayed simulation."
-    )
-    !isempty(mc.measurements) && @warn(
-        "There are no measurements set up for this simulation!"
-    )
 
     start_time = now()
     max_sweep_duration = 0.0
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
-    mc.a = MCAnalysis()
+    # Check for measurements
+    !isempty(mc.thermalization_measurements) && @warn(
+        "There is no thermalization process in a replayed simulation."
+    )
+    isempty(mc.measurements) && @warn(
+        "There are no measurements set up for this simulation!"
+    )
+
+    mc.p = MCParameters(
+        global_moves = mc.p.global_moves,
+        global_rate = mc.p.global_rate,
+        thermalization = mc.p.thermalization,
+        sweeps = mc.p.sweeps,
+        measure_rate = measure_rate,
+        print_rate = mc.p.print_rate,
+        beta = mc.p.beta
+    )
+    mc.conf = copy(decompress(mc, mc.model, configurations[1]))
+    resume_init!(mc)
 
     _time = time()
-    verbose && println("\n\nReplaying measurement stage - ", length(configs))
+    verbose && println("\n\nReplaying measurement stage - ", length(configurations))
     prepare!(mc.measurements, mc, mc.model)
-    for i in mc.last_sweep+1:mc.p.measure_rate:length(configs)
-        mc.config = configs[i]
-        # maybe calculate total Energy?
-        measure!(mc.measurements, mc, mc.model, i)
+    for i in mc.last_sweep+1:mc.p.measure_rate:length(configurations)
+        mc.conf .= decompress(mc, mc.model, configurations[i])
         mc.last_sweep = i
+
+        energy(mc, mc.model, mc.conf)
+        measure!(mc.measurements, mc, mc.model, i)
 
         if mc.p.print_rate != 0 && iszero(mod(i, mc.p.print_rate))
             sweep_dur = (time() - _time)/print_rate
@@ -453,6 +449,7 @@ function save_mc(file::JLD.JldFile, mc::MC, entryname::String="MC")
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.p, entryname * "/parameters")
     write(file, entryname * "/conf", mc.conf)
+    _save(file, mc.configs, entryname * "/configs")
     write(file, entryname * "/last_sweep", mc.last_sweep)
     save_measurements(file, mc, entryname * "/Measurements")
     save_model(file, mc.model, entryname * "/Model")
@@ -469,6 +466,7 @@ function load_mc(data, ::Type{T}) where {T <: MC}
     mc = data["type"]()
     mc.p = load_parameters(data["parameters"], data["parameters"]["type"])
     mc.conf = data["conf"]
+    mc.configs = _load(data["configs"], data["configs"]["type"])
     mc.last_sweep = data["last_sweep"]
     mc.model = load_model(data["Model"], data["Model"]["type"])
 

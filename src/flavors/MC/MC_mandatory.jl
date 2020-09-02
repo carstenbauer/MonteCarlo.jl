@@ -3,27 +3,28 @@
 
 Draw random configuration.
 """
-Base.rand(::Type{MC}, m::Model) = error("Model $(typeof(m)) doesn't implement `rand(::Type{MC}, m::Model)`!")
+Base.rand(::Type{MC}, m::Model) = MethodError(rand, (MC, m))
 
 """
-    propose_local(mc::MC, m::Model, i::Int, conf) -> delta_E, delta_i
+    propose_local(mc::MC, m::Model, i::Int, conf) -> delta_E, passthrough
 
 Propose a local move for lattice site `i` of current configuration `conf`.
-Returns local move information `delta_i` (e.g. `new[i] - conf[i]`, will be
-forwarded to `accept_local!`) and energy difference `delta_E = E_new - E_old`.
+Returns local energy difference `delta_E = E_new - E_old` alongside some 
+additional information `passthrough` which is passed to `accept_local!`.
 
 See also [`accept_local!`](@ref).
 """
-propose_local(mc::MC, m::Model, i::Int, conf) = error("Model has no implementation of `propose_local(mc::MC, m::Model, i::Int, conf)`!")
+propose_local(mc::MC, m::Model, i::Int, conf) = MethodError(propose_local, (mc, m, i, conf))
 
 
 """
-    accept_local(mc::MC, m::Model, i::Int, conf, delta_i, delta_E::Float64)
+    accept_local(mc::MC, m::Model, i::Int, conf, delta_E::Float64, passthrough)
 
 Accept a local move for site `i` of current configuration `conf`.
-Arguments `delta_i` and `delta_E` correspond to output of `propose_local()`
+Arguments `delta_E` and `passthrough` correspond to output of `propose_local()`
 for that local move.
 
 See also [`propose_local`](@ref).
 """
-accept_local!(mc::MC, m::Model, i::Int, conf, delta_i, delta_E::Float64) = error("Model has no implementation of `accept_local!(m::Model, i::Int, conf, delta_i, delta_E::Float64)`!")
+accept_local!(mc::MC, m::Model, i::Int, conf, delta_E::Float64, passthrough) = 
+    MethodError(accept_local!, (mc, m, i, conf, delta_E, passthrough))
