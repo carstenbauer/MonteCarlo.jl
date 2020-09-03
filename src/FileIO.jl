@@ -25,7 +25,8 @@ will be created. If neither are true an error will be thrown.
 """
 function save(
         filename, mc::MonteCarloFlavor; 
-        force_overwrite=false, allow_rename=true, compress=true, kwargs...
+        force_overwrite=false, allow_rename=true, compress=true, 
+        backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
     )
     # endswith(filename, ".jld") || (filename *= ".jld")
 
@@ -47,7 +48,8 @@ function save(
     end
 
     mode = isfile(filename) ? "r+" : "w"
-    file = jldopen(filename, mode, compress=compress; kwargs...)
+    file = backend.jldopen(filename, mode, compress=compress; kwargs...)
+
     write(file, "VERSION", 1)
     save_mc(file, mc, "MC")
     save_rng(file)
@@ -81,8 +83,8 @@ end
 
 Loads a MonteCarlo simulation from the given JLD-file `filename`.
 """
-function load(filename)
-    data = _load(filename)
+function load(filename; loadfunc = endswith(filename, "jld2") ? jld2load : jldload)
+    data = loadfunc(filename)
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $filename version $(data["VERSION"])"))
     end
@@ -100,8 +102,11 @@ returned by `run!`.
 
 See also: [`run!`](@ref)
 """
-function resume!(filename; kwargs...)
-    data = _load(filename)
+function resume!(
+        filename;
+        loadfunc = endswith(filename, "jld2") ? jld2load : jldload, kwargs...
+    )
+    data = loadfunc(filename)
 
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $filename version $(data["VERSION"])"))
@@ -119,9 +124,13 @@ function resume!(filename; kwargs...)
 end
 
 
-function save_mc(filename::String, mc::MonteCarloFlavor, entryname::String="MC"; kwargs...)
+function save_mc(
+        filename::String, mc::MonteCarloFlavor, entryname::String="MC"; 
+        backend = endswith(filename, "jld2") ? JLD2 : JLD,
+        kwargs...
+    )
     mode = isfile(filename) ? "r+" : "w"
-    file = jldopen(filename, mode; kwargs...)
+    file = backend.jldopen(filename, mode; kwargs...)
     save_mc(file, mc, entryname)
     close(file)
     nothing
@@ -141,9 +150,12 @@ load_mc(_, ::Type{UnknownType}) = throw(ErrorException(
 #
 # By default the full model object is saved. When saving a simulation, the
 # entryname defaults to `MC/Model`.
-function save_model(filename::String, model, entryname::String; kwargs...)
+function save_model(
+        filename::String, model, entryname::String; 
+        backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
+    )
     mode = isfile(filename) ? "r+" : "w"
-    file = jldopen(filename, mode; kwargs...)
+    file = backend.jldopen(filename, mode; kwargs...)
     save_model(file, model, entryname)
     close(file)
     nothing
@@ -173,9 +185,12 @@ end
 #
 # By default the full lattice object is saved. When saving a simulation, the
 # entryname defaults to `MC/Model/Lattice`.
-function save_lattice(filename::String, lattice::AbstractLattice, entryname::String; kwargs...)
+function save_lattice(
+        filename::String, lattice::AbstractLattice, entryname::String; 
+        backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
+    )
     mode = isfile(filename) ? "r+" : "w"
-    file = jldopen(filename, mode; kwargs...)
+    file = backend.jldopen(filename, mode; kwargs...)
     save_lattice(file, lattice, entryname)
     close(file)
     nothing
@@ -204,9 +219,12 @@ const _GLOBAL_RNG = VERSION < v"1.3.0" ? Random.GLOBAL_RNG : Random.default_rng(
 Saves the current state of Julia's random generator (`Random.GLOBAL_RNG`) to the
 given `filename`.
 """
-function save_rng(filename::String; rng = _GLOBAL_RNG, entryname::String="RNG", kwargs...)
+function save_rng(
+        filename::String; rng = _GLOBAL_RNG, entryname::String="RNG", 
+        backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
+    )
     mode = isfile(filename) ? "r+" : "w"
-    file = jldopen(filename, mode; kwargs...)
+    file = backend.jldopen(filename, mode; kwargs...)
     save_rng(file, rng=rng, entryname=entryname)
     close(file)
 end

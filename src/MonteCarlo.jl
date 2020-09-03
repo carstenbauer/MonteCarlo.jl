@@ -14,36 +14,21 @@ import JLD, JLD2
 # To allow switching between JLD and JLD2:
 const UnknownType = Union{JLD.UnsupportedType, JLD2.UnknownType}
 const JLDFile = Union{JLD.JldFile, JLD2.JLDFile}
-jldopen(args...; kwargs...) = JLD.jldopen(args...; kwargs...)
-_load(args...; kwargs...) = JLD.load(args...; kwargs...)
-
-function enable(m::Module)
-    if m == JLD
-        @eval MonteCarlo begin
-            jldopen(args...; kwargs...) = JLD.jldopen(args...; kwargs...)
-            _load(args...; kwargs...) = JLD.load(args...; kwargs...)
+jldload(args...; kwargs...) = JLD.load(args...; kwargs...)
+function jld2load(args...; kwargs...)
+    flatdict = JLD2.FileIO.load(args...; kwargs...)
+    # Rebuild structure from JLD
+    output = Dict{String, Any}()
+    for (k, v) in flatdict
+        dict = output
+        dirs = splitpath(k)
+        for dir in dirs[1:end-1]
+            haskey(dict, dir) || (dict[dir] = Dict{String, Any}())
+            dict = dict[dir]
         end
-    elseif m == JLD2
-        @eval MonteCarlo begin
-            jldopen(args...; kwargs...) = JLD2.jldopen(args...; kwargs...)
-            function _load(args...; kwargs...)
-                flatdict = JLD2.FileIO.load(args...; kwargs...)
-                # Rebuild structure from JLD
-                output = Dict{String, Any}()
-                for (k, v) in flatdict
-                    dict = output
-                    dirs = splitpath(k)
-                    for dir in dirs[1:end-1]
-                        haskey(dict, dir) || (dict[dir] = Dict{String, Any}())
-                        dict = dict[dir]
-                    end
-                    dict[dirs[end]] = v
-                end
-                output
-            end
-        end
+        dict[dirs[end]] = v
     end
-    nothing
+    output
 end
 
 
