@@ -27,7 +27,7 @@ function save(
         filename, mc::MonteCarloFlavor; 
         force_overwrite=false, allow_rename=true, compress=true, kwargs...
     )
-    endswith(filename, ".jld") || (filename *= ".jld")
+    # endswith(filename, ".jld") || (filename *= ".jld")
 
     # handle ranming and overwriting
     isfile(filename) && !force_overwrite && !allow_rename && throw(ErrorException(
@@ -82,7 +82,7 @@ end
 Loads a MonteCarlo simulation from the given JLD-file `filename`.
 """
 function load(filename)
-    data = JLD.load(filename)
+    data = _load(filename)
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $filename version $(data["VERSION"])"))
     end
@@ -101,7 +101,7 @@ returned by `run!`.
 See also: [`run!`](@ref)
 """
 function resume!(filename; kwargs...)
-    data = JLD.load(filename)
+    data = _load(filename)
 
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $filename version $(data["VERSION"])"))
@@ -127,8 +127,8 @@ function save_mc(filename::String, mc::MonteCarloFlavor, entryname::String="MC";
     nothing
 end
 load_mc(data) = load_mc(data["MC"], data["MC"]["type"])
-load_mc(_, ::Type{JLD.UnsupportedType}) = throw(ErrorException(
-    "Got JLD.UnsupportedType instead of a MonteCarloFlavor. This may be " * 
+load_mc(_, ::Type{UnknownType}) = throw(ErrorException(
+    "Got UnknownType instead of a MonteCarloFlavor. This may be " * 
     "caused by missing imports."
 ))
 
@@ -148,7 +148,7 @@ function save_model(filename::String, model, entryname::String; kwargs...)
     close(file)
     nothing
 end
-function save_model(file::JLD.JldFile, model, entryname::String)
+function save_model(file::JLDFile, model, entryname::String)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/type", typeof(model))
     write(file, entryname * "/data", model)
@@ -180,7 +180,7 @@ function save_lattice(filename::String, lattice::AbstractLattice, entryname::Str
     close(file)
     nothing
 end
-function save_lattice(file::JLD.JldFile, lattice::AbstractLattice, entryname::String)
+function save_lattice(file::JLDFile, lattice::AbstractLattice, entryname::String)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/type", typeof(lattice))
     write(file, entryname * "/data", lattice)
@@ -210,7 +210,7 @@ function save_rng(filename::String; rng = _GLOBAL_RNG, entryname::String="RNG", 
     save_rng(file, rng=rng, entryname=entryname)
     close(file)
 end
-function save_rng(file::JLD.JldFile; rng = _GLOBAL_RNG, entryname::String="RNG")
+function save_rng(file::JLDFile; rng = _GLOBAL_RNG, entryname::String="RNG")
     try
         write(file, entryname, rng)
     catch e

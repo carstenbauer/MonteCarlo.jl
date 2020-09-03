@@ -201,7 +201,7 @@ end
 prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing
 
 function save_model(
-        file::JLD.JldFile,
+        file::JLDFile,
         m::HubbardModelAttractive,
         entryname::String="Model"
     )

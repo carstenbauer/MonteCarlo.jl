@@ -96,14 +96,14 @@ end
 # Saving & Loading
 
 
-function save_lattice(file::JLD.JldFile, lattice::LatPhysLattice, entryname::String)
+function save_lattice(file::JLDFile, lattice::LatPhysLattice, entryname::String)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/type", typeof(lattice))
     _save_lattice(file, lattice.lattice, entryname * "/lattice")
     write(file, entryname * "/neighs", lattice.neighs)
     nothing
 end
-function _save_lattice(file::JLD.JldFile, lattice::LatPhysBase.AbstractLattice, entryname::String)
+function _save_lattice(file::JLDFile, lattice::LatPhysBase.AbstractLattice, entryname::String)
     write(file, entryname * "/type", typeof(lattice))
     write(file, entryname * "/lv/N", length(lattice.lattice_vectors))
     for (i, v) in enumerate(lattice.lattice_vectors)
@@ -120,7 +120,7 @@ function _save_lattice(file::JLD.JldFile, lattice::LatPhysBase.AbstractLattice, 
     save_unitcell(file, lattice.unitcell, entryname * "/unitcell")
     nothing
 end
-function save_unitcell(file::JLD.JldFile, uc::LatPhysBase.AbstractUnitcell, entryname::String)
+function save_unitcell(file::JLDFile, uc::LatPhysBase.AbstractUnitcell, entryname::String)
     write(file, entryname * "/type", typeof(uc))
     write(file, entryname * "/lv/N", length(uc.lattice_vectors))
     for (i, v) in enumerate(uc.lattice_vectors)
@@ -136,7 +136,7 @@ function save_unitcell(file::JLD.JldFile, uc::LatPhysBase.AbstractUnitcell, entr
     end
     nothing
 end
-function save_bond(file::JLD.JldFile, b::LatPhysBase.AbstractBond, entryname::String)
+function save_bond(file::JLDFile, b::LatPhysBase.AbstractBond, entryname::String)
     write(file, entryname * "/type", typeof(b))
     write(file, entryname * "/from", b.from)
     write(file, entryname * "/to", b.to)
@@ -144,7 +144,7 @@ function save_bond(file::JLD.JldFile, b::LatPhysBase.AbstractBond, entryname::St
     write(file, entryname * "/wrap", b.wrap)
     nothing
 end
-function save_site(file::JLD.JldFile, s::LatPhysBase.AbstractSite, entryname::String)
+function save_site(file::JLDFile, s::LatPhysBase.AbstractSite, entryname::String)
     write(file, entryname * "/type", typeof(s))
     write(file, entryname * "/point", s.point)
     write(file, entryname * "/label", s.label)
