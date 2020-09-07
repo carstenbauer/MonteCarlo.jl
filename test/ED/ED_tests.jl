@@ -85,6 +85,7 @@ end
     Random.seed!(123)
     dqmc = DQMC(model, beta=1.0, delta_tau = 0.1, measurements = Dict{Symbol, AbstractMeasurement}())
     push!(dqmc, :Greens => MonteCarlo.GreensMeasurement)
+    push!(dqmc, :Occs => MonteCarlo.OccupationMeasurement)
     MonteCarlo.unsafe_push!(dqmc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement(dqmc, model, mask=mask))
     push!(dqmc, :Magn => MonteCarlo.MagnetizationMeasurement)
     MonteCarlo.unsafe_push!(dqmc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement(dqmc, model, mask=mask))
@@ -102,9 +103,17 @@ end
     # G_DQMC is smaller because it doesn't differentiate between spin up/down
     @testset "Greens" begin
         G_DQMC = mean(dqmc.measurements[:Greens].obs)
+        occs = mean(dqmc.measurements[:Occs].obs)                                   # measuring
+        occs2 = mean(MonteCarlo.occupations(dqmc.measurements[:Greens]))            # wrapping
+        occs3 = mean(MonteCarlo.OccupationMeasurement(dqmc.measurements[:Greens]))  # copying
         G_ED = calculate_Greens_matrix(H, model.l, beta=1.0)
         for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
             @test isapprox(G_DQMC[i, j], G_ED[i, j], atol=atol, rtol=rtol)
+        end
+        for i in 1:size(G_DQMC, 1)
+            @test isapprox(occs[i], G_ED[i, i], atol=atol, rtol=rtol)
+            @test isapprox(occs2[i], G_ED[i, i], atol=atol, rtol=rtol)
+            @test isapprox(occs3[i], G_ED[i, i], atol=atol, rtol=rtol)
         end
     end
 

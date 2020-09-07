@@ -75,7 +75,7 @@ end
 """
     BosonEnergyMeasurement(mc::DQMC, model)
 
-Measures the bosnic energy of the given DQMC simulation and model.
+Measures the bosonic energy of the given DQMC simulation and model.
 
 Note that this measurement requires `energy_boson(mc, model, conf)` to be
 implemented for the specific `model`.
@@ -97,6 +97,62 @@ function save_measurement(file::JLDFile, m::BosonEnergyMeasurement, entryname::S
     nothing
 end
 function load_measurement(data, ::Type{T}) where T <: BosonEnergyMeasurement
+    @assert data["VERSION"] == 1
+    data["type"](data["obs"])
+end
+
+
+"""
+    OccupationMeasurement(mc::DQMC, ::Model[; capacity=_default_capacity(mc)])
+
+Measures the average occupation per state (e.g. site and spin).
+"""
+struct OccupationMeasurement{OT <: AbstractObservable} <: AbstractMeasurement
+    obs::OT
+end
+function OccupationMeasurement(mc::DQMC, model; capacity=_default_capacity(mc))
+    N = model.flv * length(lattice(model))
+    o = LightObservable(
+        LogBinner(zeros(Float64, N), capacity=capacity),
+        "State resolved Occupation",
+        "Observables.jld",
+        "Occ"
+    )
+    OccupationMeasurement{typeof(o)}(o)
+end
+function OccupationMeasurement(m::GreensMeasurement{<: LightObservable}; capacity=capacity(m.obs.B))
+    N = size(m.obs)[1]
+    o = LightObservable(
+        LogBinner(zeros(Float64, N), capacity=capacity),
+        "State resolved Occupation",
+        "Observables.jld",
+        "Occ"
+    )
+
+    N = min(length(o.B.count), length(m.obs.B.count))
+    m.obs.B.count[N] > 1 && throw(OverflowError("OccupationMeasurement does not have enough capacity!"))
+    N = findlast(>(1), m.obs.B.count)
+    N === nothing && return OccupationMeasurement{typeof(o)}(o)
+    
+    for i in 1:N
+        o.B.x_sum[i]  .= diag(m.obs.B.x_sum[i])
+        o.B.x2_sum[i] .= diag(m.obs.B.x2_sum[i])
+        o.B.count[i]   = m.obs.B.count[i]
+        o.B.compressors[i].value .= diag(m.obs.B.compressors[i].value)
+        o.B.compressors[i].switch = m.obs.B.compressors[i].switch
+    end
+    OccupationMeasurement{typeof(o)}(o)
+end
+@bm function measure!(m::OccupationMeasurement, mc::DQMC, model, i::Int64)
+    push!(m.obs, diag(greens(mc)))
+end
+function save_measurement(file::JLDFile, m::OccupationMeasurement, entryname::String)
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/obs", m.obs)
+    nothing
+end
+function load_measurement(data, ::Type{T}) where T <: OccupationMeasurement
     @assert data["VERSION"] == 1
     data["type"](data["obs"])
 end
