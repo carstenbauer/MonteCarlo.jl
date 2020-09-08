@@ -404,9 +404,9 @@ end
 ################################################################################
 
 
-
+# ⟨a1(τ1) a2(τ2)⟩ w/ a1(τ1) = e^{τ1H} a1(τ1) e^{-τ2H}
 @bm function expectation_value(
-        obsτ2::Function, obsτ1::Function, H::Eigen, τ2, τ1;
+        obsτ1::Function, obsτ2::Function, H::Eigen, τ1, τ2;
         T=1.0, beta = 1.0 / T, N_sites = 4, N_substates = 2
     )
     @bm "init" begin
@@ -441,16 +441,25 @@ end
         # A bit faster with allocations ¯\_(ツ)_/¯
         obsτ2_mat = vecs' * obsτ2_mat * vecs
         obsτ1_mat = vecs' * obsτ1_mat * vecs
+        # Should be?
+        # obsτ2_mat = vecs * obsτ2_mat * vecs'
+        # obsτ1_mat = vecs * obsτ1_mat * vecs'
 
         Z = mapreduce(E -> exp(-beta * E), +, vals)
     end
 
     @bm "compute O" begin
         # This seems to run much faster if "prepare O" allocates ¯\_(ツ)_/¯
-        v = obsτ1_mat * exp.(-τ1 * vals)
-        v .*= exp.(-(τ2 - τ1) * vals)
-        w = obsτ2_mat * v
-        O = dot(exp.(-(beta - τ2) * vals), w)
+        # v = obsτ2_mat * exp.(-τ2 * vals)
+        # v .*= exp.(-(τ1 - τ2) * vals)
+        # w = obsτ1_mat * v
+        # O = dot(exp.(-(beta - τ1) * vals), w)
+
+        # Correct for τ1 = τ2
+        O = 0.0
+        for n in eachindex(vals), m in eachindex(vals)
+            O += exp(-(beta-τ1)*vals[n]) * obsτ1_mat[n, m] * exp(-(τ1-τ2)*vals[m]) * obsτ2_mat[m, n] * exp(-τ2*vals[n])
+        end
     end
 
     # <e^{-(β - τ2) H} c_i exp(-(τ2 - τ1) H) c^\dagger_j exp(-τ1 H)>
@@ -459,7 +468,7 @@ end
 end
 
 
-function calculate_Greens_matrix(H::Eigen, tau2, tau1, lattice; beta=1.0, N_substates=2)
+function calculate_Greens_matrix(H::Eigen, tau1, tau2, lattice; beta=1.0, N_substates=2)
     G = Matrix{Float64}(
         undef,
         lattice.sites*N_substates,
@@ -473,7 +482,7 @@ function calculate_Greens_matrix(H::Eigen, tau2, tau1, lattice; beta=1.0, N_subs
             ] = expectation_value(
                 s -> annihilate!(s, site2, substate2),
                 s -> create!(s, site1, substate1),
-                H, tau2, tau1,
+                H, tau1, tau2,
                 beta = beta,
                 N_sites = lattice.sites,
                 N_substates = N_substates

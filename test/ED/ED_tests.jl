@@ -66,6 +66,18 @@ include("ED.jl")
                 N_sites = model.l.sites,
             )
             @test G ≈ G_perm
+            UTG = expectation_value(
+                s -> annihilate!(s, site2, substate2),
+                s -> create!(s, site1, substate1),
+                H, 0.1, 0.1, N_sites=model.l.sites
+            )
+            @test UTG ≈ real(G) atol=1e-14
+            UTG = expectation_value(
+                s -> annihilate!(s, site2, substate2),
+                s -> create!(s, site1, substate1),
+                H, 0.7, 0.7, N_sites=model.l.sites
+            )
+            @test UTG ≈ real(G) atol=1e-14
         end
     end
 end
@@ -83,7 +95,7 @@ end
 
     @info "Running DQMC β=1.0, 10k + 50k sweeps, ≈4s"
     Random.seed!(123)
-    dqmc = DQMC(model, beta=1.0, delta_tau = 0.1, measurements = Dict{Symbol, AbstractMeasurement}())
+    dqmc = DQMC(model, beta=1.0, delta_tau = 0.1, safe_mult=5, measurements = Dict{Symbol, MonteCarlo.AbstractMeasurement}())
     push!(dqmc, :Greens => MonteCarlo.GreensMeasurement)
     push!(dqmc, :Occs => MonteCarlo.OccupationMeasurement)
     MonteCarlo.unsafe_push!(dqmc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement(dqmc, model, mask=mask))
@@ -93,10 +105,17 @@ end
     
     # Unequal time
     # N = MonteCarlo.nslices(dqmc) # 10
-    l1s = [1, 4, 5, 6, 1]
-    l2s = [3, 5, 4, 7, 10]
+    l1s = [0, 4, 5, 6, 3]
+    l2s = [1, 5, 5, 7, 10]
     dqmc.ut_stack = MonteCarlo.UnequalTimeStack(dqmc)
     # Why is UTGreensMeasurement not defined?
+    UTG = MonteCarlo.UTGreensMeasurement
+    MonteCarlo.unsafe_push!(dqmc, :UTG1 => UTG(dqmc, model, slice1=l1s[1], slice2=l2s[1]))
+    MonteCarlo.unsafe_push!(dqmc, :UTG2 => UTG(dqmc, model, slice1=l1s[2], slice2=l2s[2]))
+    MonteCarlo.unsafe_push!(dqmc, :UTG3 => UTG(dqmc, model, slice1=l1s[3], slice2=l2s[3]))
+    MonteCarlo.unsafe_push!(dqmc, :UTG4 => UTG(dqmc, model, slice1=l1s[4], slice2=l2s[4]))
+    MonteCarlo.unsafe_push!(dqmc, :UTG5 => UTG(dqmc, model, slice1=l1s[5], slice2=l2s[5]))
+
     # UTG = MonteCarlo.UTGreensMeasurement
     # MonteCarlo.unsafe_push!(dqmc, :UTG1 => UTG(dqmc, model, slice1=l1s[1], slice2=l2s[1]))
     # MonteCarlo.unsafe_push!(dqmc, :UTG2 => UTG(dqmc, model, slice1=l1s[2], slice2=l2s[2]))
@@ -230,14 +249,14 @@ end
     end
     end
     # @info "Unequal time, oh boy"
-    # @time begin
-    #     for (i, tau1, tau2) in zip(1:5, 0.1l1s, 0.1l2s)
-    #         UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
-    #         N = MonteCarlo.nsites(model)
-    #         ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l)
-    #         for i in 1:size(UTG, 1), j in 1:size(UTG, 2)
-    #             @test isapprox(UTG[i, j], ED_UTG[i, j], atol=atol, rtol=rtol)
-    #         end
-    #     end
-    # end
+    @time begin
+        @testset "Unequal Time Greens" begin
+            for (i, tau1, tau2) in zip(1:5, 0.1l1s, 0.1l2s)
+                UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
+                N = MonteCarlo.nsites(model)
+                ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l)
+                @test isapprox(UTG, ED_UTG[1:4, 1:4], atol=atol, rtol=rtol)
+            end
+        end
+    end
 end
