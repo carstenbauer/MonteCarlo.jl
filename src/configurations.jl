@@ -35,7 +35,7 @@ Base.getindex(c::ConfigRecorder, i) = c.configs[i]
 compress(mc, model, conf) = copy(conf)
 decompress(mc, model, conf) = conf
 
-function _save(file::JLD.JldFile, cs::ConfigRecorder, entryname::String="configs")
+function _save(file::JLDFile, cs::ConfigRecorder, entryname::String="configs")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(cs))
     write(file, entryname * "/data", cs.configs)
@@ -65,7 +65,7 @@ Base.isempty(::Discarder) = true
 Base.getindex(v::Discarder, i) = BoundsError(v, i)
 Base.iterate(c::Discarder, i=1) = nothing
 
-function _save(file::JLD.JldFile, ::Discarder, entryname::String="configs")
+function _save(file::JLDFile, ::Discarder, entryname::String="configs")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", Discarder)
 end

@@ -444,7 +444,7 @@ end
 # JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC`
-function save_mc(file::JLD.JldFile, mc::MC, entryname::String="MC")
+function save_mc(file::JLDFile, mc::MC, entryname::String="MC")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.p, entryname * "/parameters")
@@ -477,13 +477,13 @@ function load_mc(data, ::Type{T}) where {T <: MC}
 end
 
 
-#   save_parameters(file::JLD.JldFile, p::MCParameters, entryname="Parameters")
+#   save_parameters(file::JLDFile, p::MCParameters, entryname="Parameters")
 #
 # Saves (minimal) information necessary to reconstruct a given
 # `p::MCParameters` to a JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC/Parameters`
-function save_parameters(file::JLD.JldFile, p::MCParameters, entryname::String="Parameters")
+function save_parameters(file::JLDFile, p::MCParameters, entryname::String="Parameters")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(p))
 

@@ -69,7 +69,7 @@ measurement phase.
 
 See also [`save_measurements`](@ref), [`measurements`](@ref), [`load_measurements`](@ref)
 """
-function save_measurement(file::JLD.JldFile, m::AbstractMeasurement, entryname::String)
+function save_measurement(file::JLDFile, m::AbstractMeasurement, entryname::String)
     # NOTE: `VERSION` and `type` are necessary
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/type", typeof(m))
@@ -512,6 +512,7 @@ will be added to the filename until it becomes unique.
 """
 function save_measurements(
         filename::String, mc::MonteCarloFlavor, entryname::String="";
+        backend = endswith(filename, "jld2") ? JLD2 : JLD,
         force_overwrite = false, allow_rename = true
     )
     isfile(filename) && !force_overwrite && !allow_rename && throw(ErrorException(
@@ -529,12 +530,12 @@ function save_measurements(
     end
 
     mode = isfile(filename) ? "r+" : "w"
-    file = jldopen(filename, mode)
+    file = backend.jldopen(filename, mode)
     save_measurements(file, mc, entryname)
     close(file)
     filename
 end
-function save_measurements(file::JLD.JldFile, mc::MonteCarloFlavor, entryname::String="")
+function save_measurements(file::JLDFile, mc::MonteCarloFlavor, entryname::String="")
     !isempty(entryname) && !endswith(entryname, "/") && (entryname *= "/")
     write(file, entryname * "VERSION", 1)
     measurement_dict = measurements(mc, :all)
@@ -555,8 +556,8 @@ Loads recorded measurements for a given `filename`. The output is formated like
 
 See also [`measurements`](@ref), [`load_measurement`](@ref)
 """
-function load_measurements(filename::String)
-    input = JLD.load(filename)
+function load_measurements(filename::String; loadfunc = endswith(filename, "jld2") ? jld2load : jldload)
+    input = loadfunc(filename)
     if input["VERSION"] == 1
         if haskey(input, "MC") && haskey(input["MC"], "Measurements")
             return load_measurements(input["MC"]["Measurements"])

@@ -180,7 +180,7 @@ end
 
 
 function save_model(
-        file::JLD.JldFile,
+        file::JLDFile,
         m::IsingModel,
         entryname::String="Model"
     )

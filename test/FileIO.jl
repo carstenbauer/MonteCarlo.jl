@@ -35,9 +35,9 @@ end
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=0.66, thermalization=33, sweeps=123, recorder=MonteCarlo.ConfigRecorder)
     run!(mc, verbose=false)
-    MonteCarlo.save("$p/testfile.jld", mc)
-    x = MonteCarlo.load("$p/testfile.jld")
-    rm("$p/testfile.jld")
+    MonteCarlo.save("$p/testfile.jld2", mc)
+    x = MonteCarlo.load("$p/testfile.jld2")
+    rm("$p/testfile.jld2")
     test_mc(mc, x)
 
     x.measurements = MonteCarlo.default_measurements(mc, model) 
@@ -51,7 +51,7 @@ end
     rm.(joinpath.(p, readdir(p)))
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=1000, recorder=MonteCarlo.ConfigRecorder)
+    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=10_000, recorder=MonteCarlo.ConfigRecorder)
     state = run!(
         mc, verbose = false,
         safe_before = now() + Second(1),
@@ -82,7 +82,7 @@ end
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, sweeps=1000length(cs), measure_rate=1000, recorder=MonteCarlo.ConfigRecorder)
+    mc = MC(model, beta=1.0, sweeps=10_000length(cs), measure_rate=10_000, recorder=MonteCarlo.ConfigRecorder)
     state = run!(mc, verbose = false)
     @test mc.configs.configs == cs.configs
     @test mc.configs.rate == cs.rate
@@ -176,7 +176,7 @@ end
         mc, verbose = false,
         safe_before = now() + Second(1),
         grace_period = Millisecond(0),
-        resumable_filename = "$p/resumable_testfile.jld"
+        resumable_filename = "$p/resumable_testfile.jld2"
     )
 
     @test state == false
@@ -186,12 +186,12 @@ end
 
     # Test whether safe file gets overwritten correctly
     mc, state = resume!(
-        "$p/resumable_testfile.jld",
+        "$p/resumable_testfile.jld2",
         verbose = false,
         safe_before = now() + Second(8),
         grace_period = Millisecond(0),
         force_overwrite = true,
-        resumable_filename = "$p/resumable_testfile.jld"
+        resumable_filename = "$p/resumable_testfile.jld2"
     )
 
     @test state == false

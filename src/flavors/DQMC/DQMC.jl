@@ -713,7 +713,7 @@ end
 # JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC`
-function save_mc(file::JLD.JldFile, mc::DQMC, entryname::String="MC")
+function save_mc(file::JLDFile, mc::DQMC, entryname::String="MC")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.p, entryname * "/Parameters")
@@ -749,13 +749,13 @@ function load_mc(data::Dict, ::Type{T}) where T <: DQMC
     mc
 end
 
-#   save_parameters(file::JLD.JldFile, p::DQMCParameters, entryname="Parameters")
+#   save_parameters(file::JLDFile, p::DQMCParameters, entryname="Parameters")
 #
 # Saves (minimal) information necessary to reconstruct a given
 # `p::DQMCParameters` to a JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC/Parameters`
-function save_parameters(file::JLD.JldFile, p::DQMCParameters, entryname::String="Parameters")
+function save_parameters(file::JLDFile, p::DQMCParameters, entryname::String="Parameters")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(p))
 
@@ -800,7 +800,7 @@ function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
     )
 end
 
-function save_analysis(file::JLD.JldFile, a::DQMCAnalysis, entryname::String="Analysis")
+function save_analysis(file::JLDFile, a::DQMCAnalysis, entryname::String="Analysis")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(a))
 
@@ -808,7 +808,7 @@ function save_analysis(file::JLD.JldFile, a::DQMCAnalysis, entryname::String="An
     save_stats(file, a.negative_probability, entryname * "/neg_prob")
     save_stats(file, a.propagation_error, entryname * "/propagation")
 end
-function save_stats(file::JLD.JldFile, ms::MagnitudeStats, entryname::String="MStats")
+function save_stats(file::JLDFile, ms::MagnitudeStats, entryname::String="MStats")
     write(file, entryname * "/max", ms.max)
     write(file, entryname * "/min", ms.min)
     write(file, entryname * "/sum", ms.sum)

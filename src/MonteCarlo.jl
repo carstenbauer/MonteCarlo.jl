@@ -5,10 +5,32 @@ using Reexport
 @reexport using MonteCarloObservable, Random
 import MonteCarloObservable.AbstractObservable
 using Parameters, Requires
-using JLD, TimerOutputs
+using TimerOutputs
 using LoopVectorization, RecursiveFactorization
-
 using Printf, SparseArrays, LinearAlgebra, Dates, Statistics
+
+
+import JLD, JLD2
+# To allow switching between JLD and JLD2:
+const UnknownType = Union{JLD.UnsupportedType, JLD2.UnknownType}
+const JLDFile = Union{JLD.JldFile, JLD2.JLDFile}
+jldload(args...; kwargs...) = JLD.load(args...; kwargs...)
+function jld2load(args...; kwargs...)
+    flatdict = JLD2.FileIO.load(args...; kwargs...)
+    # Rebuild structure from JLD
+    output = Dict{String, Any}()
+    for (k, v) in flatdict
+        dict = output
+        dirs = splitpath(k)
+        for dir in dirs[1:end-1]
+            haskey(dict, dir) || (dict[dir] = Dict{String, Any}())
+            dict = dict[dir]
+        end
+        dict[dirs[end]] = v
+    end
+    output
+end
+
 
 include("helpers.jl")
 include("inplace_udt.jl")
