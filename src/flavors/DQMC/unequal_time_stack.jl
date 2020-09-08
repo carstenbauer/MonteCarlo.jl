@@ -60,9 +60,7 @@ function UnequalTimeStack(mc)
     mc.ut_stack = s
 end
 
-function build_stack(mc::DQMC, s::UnequalTimeStack)
-    mc.last_sweep == s.last_update && return nothing
-
+@bm function build_stack(mc::DQMC, s::UnequalTimeStack)
     # stack = [0, Δτ, 2Δτ, ..., β]
 
     # forward
@@ -100,12 +98,12 @@ function build_stack(mc::DQMC, s::UnequalTimeStack)
     # inverse
     @bm "inverse build" begin
         @inbounds for idx in 1:length(mc.s.ranges)
-            @views copyto!(s.inv_u_stack[:, :, idx], I)
+            @views copyto!(s.inv_t_stack[:, :, idx], I)
             for slice in reverse(mc.s.ranges[idx])
-                @views multiply_slice_matrix_inv_left!(mc, mc.model, slice, s.inv_u_stack[:, :, idx])
+                @views multiply_slice_matrix_inv_left!(mc, mc.model, slice, s.inv_t_stack[:, :, idx])
             end
             @views udt_AVX_pivot!(
-                s.inv_u_stack[:, :, idx], s.inv_d_stack[:, idx], s.inv_u_stack[:, :, idx], 
+                s.inv_u_stack[:, :, idx], s.inv_d_stack[:, idx], s.inv_t_stack[:, :, idx], 
                 mc.s.pivot, mc.s.tempv
             )
         end
@@ -122,22 +120,28 @@ greens(mc::DQMC, slice1::Int64, slice2::Int64) = greens!(mc, slice1, slice2)
     s = mc.ut_stack
     # stack = [0, Δτ, 2Δτ, ..., β]
     #       = [0, safe_mult, 2safe_mult, ... N]
-    @bm "build" begin 
-        build_stack(mc, mc.ut_stack) 
-    end
+    mc.last_sweep == s.last_update || build_stack(mc, mc.ut_stack) 
+
+    # forward = [1:((i-1)*mc.p.safe_mult) for i in 1:mc.s.n_elements]
+    # backward = [mc.p.slices:-1:(1+(i-1)*mc.p.safe_mult) for i in 1:mc.s.n_elements]
+    # _inv = [((i-1)*mc.p.safe_mult)+1:(i*mc.p.safe_mult) for i in eachindex(mc.s.ranges)]
+
+    # @info forward
+    # @info backward
+    # @info _inv
 
     # k ≥ l or slice1 ≥ slice2
     # B_{l+1}^-1 B_{l+2}^-1 ⋯ B_{k-1}^-1 B_k^-1
+    inv_slices = Int64[]
     @bm "inverse pre-computed" begin
         lower = div(slice2+1 + mc.p.safe_mult - 2, mc.p.safe_mult) + 1
         upper = div(slice1, mc.p.safe_mult)
-        # @info "UDTs from $lower to $upper"
         copyto!(s.U, I)
         s.D .= 1
         copyto!(s.T, I)
         for idx in lower:upper
             # () is operation order, [] marks UDT decomposition
-            # U [(D (T stack_T)) stack_D] stack_T
+            # U [(D (T stack_U)) stack_D] stack_T
             # (U [U') D (T'] stack_T)
             # U D T
             @views vmul!(mc.s.curr_U, s.T, s.inv_u_stack[:, :, idx])
@@ -147,50 +151,56 @@ greens(mc::DQMC, slice1::Int64, slice2::Int64) = greens!(mc, slice1, slice2)
             @views vmul!(s.T, mc.s.curr_U, s.inv_t_stack[:, :, idx])
             vmul!(mc.s.curr_U, s.U, mc.s.tmp1)
             copyto!(s.U, mc.s.curr_U)
+            # append!(inv_slices, _inv[idx])
         end
     end
   
     @bm "inverse fine tuning" begin
         lower_slice = (lower-1) * mc.p.safe_mult + 1
         upper_slice = upper * mc.p.safe_mult
-        # @info "UDT borders: $lower_slice to $upper_slice"
-        # @info "left pad: $(slice2+1) to $(min(lower_slice-1, slice1))"
-        # @info "right pad: $(max(upper_slice+1, min(lower_slice-1, slice1)+1)) to $slice1"
 
-        for slice in slice2+1 : min(lower_slice-1, slice1)
+        for slice in min(lower_slice-1, slice1) : -1 : slice2+1
             multiply_slice_matrix_inv_left!(mc, mc.model, slice, s.U)
+            # inv_slices = [slice, inv_slices...]
         end
         for slice in max(upper_slice+1, min(lower_slice-1, slice1)+1) : slice1
             multiply_slice_matrix_inv_right!(mc, mc.model, slice, s.T)
+            # push!(inv_slices, slice)
         end
         # U D T = B_{l+1}^-1 B_{l+2}^-1 ⋯ B_{k-1}^-1 B_k^-1
-        # @info s.U * Diagonal(s.D) * s.T ≈ I
     end
+    # @info "               inv: $(inv_slices)"
 
     @bm "forward B" begin
         # B(slice1, 1) = Ul Dl Tl
-        idx = div(slice1-1, mc.p.safe_mult) # 0 based index into stack
+        idx = div(slice2-1, mc.p.safe_mult) # 0 based index into stack
+        # forward_slices = collect(forward[idx+1])
         copyto!(mc.s.curr_U, s.forward_u_stack[:, :, idx+1])
-        # @info "$slice1 || $(idx+1) || $(mc.p.safe_mult * idx + 1) : $(slice1-1)"
-        for slice in mc.p.safe_mult * idx + 1 : slice1-1
+        # @info "$slice2 || $(idx+1) || $(mc.p.safe_mult * idx + 1) : $(slice2)"
+        for slice in mc.p.safe_mult * idx + 1 : slice2
             multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+            # push!(forward_slices, slice)
         end
         @views rvmul!(mc.s.curr_U, Diagonal(s.forward_d_stack[:, idx+1]))
         @views udt_AVX_pivot!(mc.s.Ul, mc.s.Dl, mc.s.curr_U, mc.s.pivot, mc.s.tempv)
         @views vmul!(mc.s.Tl, mc.s.curr_U, s.forward_t_stack[:, :, idx+1])
+        # @info "               forward: $(reverse(forward_slices)) {$(idx+1)}"
     end
 
     @bm "backward B" begin
         # B(N, slice2) = (Ur Dr Tr)^† = Tr^† Dr^† Ur^†
-        idx = div.(slice2 + mc.p.safe_mult -2, mc.p.safe_mult) # 0 based index into stack
+        idx = div.(slice1 + mc.p.safe_mult - 1, mc.p.safe_mult) # 0 based index into stack
+        # backward_slices = collect(backward[idx+1])
         copyto!(mc.s.curr_U, s.backward_u_stack[:, :, idx+1])
-        # @info "$slice2 || $(idx+1) || $(mc.p.safe_mult * idx) : -1 : $(slice2-1)"
-        for slice in mc.p.safe_mult * idx : -1 : slice2
+        # @info "$slice1 || $(idx+1) || $(mc.p.safe_mult * idx) : -1 : $(slice1+1)"
+        for slice in mc.p.safe_mult * idx : -1 : slice1+1
             multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+            # push!(backward_slices, slice)
         end
         @views rvmul!(mc.s.curr_U, Diagonal(s.backward_d_stack[:, idx+1]))
         @views udt_AVX_pivot!(mc.s.Ur, mc.s.Dr, mc.s.curr_U, mc.s.pivot, mc.s.tempv)
         @views vmul!(mc.s.Tr, mc.s.curr_U, s.backward_t_stack[:, :, idx + 1])
+        # @info "               backward: $(backward_slices) {$(idx+1)}"
     end
 
     @bm "compute G" begin
@@ -250,20 +260,3 @@ greens(mc::DQMC, slice1::Int64, slice2::Int64) = greens!(mc, slice1, slice2)
 
     s.greens
 end
-
-
-
-################################################################################
-### Measurements
-################################################################################
-
-
-abstract type UnequalTimeMeasurement <: AbstractMeasurement end
-
-
-# TODO
-# - figure out how to intialize UnequalTimeStack nicely
-#   - needs to work from `resume!(filename)`, from `DQMC()` and `push!(dqmc, m)`
-# - test DQMC stack
-# - add unequal time Measurements
-# - test those too

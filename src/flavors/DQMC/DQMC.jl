@@ -150,7 +150,7 @@ mutable struct DQMC{
 end
 
 include("stack.jl")
-include("unequal_time.jl")
+include("unequal_time_stack.jl")
 include("slice_matrices.jl")
 
 """
@@ -833,4 +833,5 @@ end
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")
 include("measurements/equal_time_measurements.jl")
+include("measurements/unequal_time.jl")
 include("measurements/extensions.jl")
