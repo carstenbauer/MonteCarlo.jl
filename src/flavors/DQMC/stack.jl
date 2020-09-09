@@ -286,8 +286,8 @@ end
     copyto!(mc.s.Tr, I)
 
     # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
-    if slice <= mc.p.slices
-        start = slice
+    if slice+1 <= mc.p.slices
+        start = slice+1
         stop = mc.p.slices
         for k in reverse(start:stop)
             if mod(k,safe_mult) == 0
@@ -316,9 +316,9 @@ end
     copyto!(mc.s.Tl, I)
 
     # Calculate Ul,Dl,Tl=B(slice-1) ... B(1)
-    if slice-1 >= 1
+    if slice >= 1
         start = 1
-        stop = slice-1
+        stop = slice
         for k in start:stop
             if mod(k,safe_mult) == 0
                 multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)

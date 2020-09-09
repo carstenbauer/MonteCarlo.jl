@@ -51,24 +51,24 @@ end
     MonteCarlo.build_stack(mc, mc.s)
     MonteCarlo.propagate(mc)
     # With this we effectively test calculate_greens without wrap_greens
-    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice+1)
+    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice)
     MonteCarlo.wrap_greens!(mc, greens, mc.s.current_slice+1, -1)
     @test greens ≈ mc.s.greens
     # here with a single implied wrap
-    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice)
+    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice-1)
     @test maximum(MonteCarlo.absdiff(greens, mc.s.greens)) < 1e-12
 
     # wrap greens test
     for k in 0:9
         MonteCarlo.wrap_greens!(mc, mc.s.greens, mc.s.current_slice - k, -1)
     end
-    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice-10)
+    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice-11)
     @test maximum(MonteCarlo.absdiff(greens, mc.s.greens)) < 1e-9
 
     # Check greens reconstruction used in replay
     mc = DQMC(m, beta=5.0, safe_mult=5)
     # Make sure this works with any values
-    for k in shuffle(1:MonteCarlo.nslices(mc))
+    for k in shuffle(0:MonteCarlo.nslices(mc))
         G1, _ = calculate_greens_and_logdet(mc, k)
         G2 = MonteCarlo.calculate_greens(mc, k)
         @test G1 ≈ G2
@@ -102,9 +102,9 @@ end
     @test dqmc.s.t_stack[:, :, 2:end] ≈ dqmc.ut_stack.backward_t_stack[:, :, 2:end]
 
     # Check equal time greens functions against each other
-    for slice in 1:MonteCarlo.nslices(dqmc)
+    for slice in 0:MonteCarlo.nslices(dqmc)
         G1 = MonteCarlo.calculate_greens(dqmc, slice)
-        G2 = MonteCarlo.greens!(dqmc, slice, slice)
+        G2 = MonteCarlo.greens!(dqmc, slice, slice) # welp, annoying, needs to be fixed in MonteCarlo
         @test G1 ≈ G2
     end
 end

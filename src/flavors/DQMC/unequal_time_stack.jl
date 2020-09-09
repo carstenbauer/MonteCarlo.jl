@@ -1,12 +1,15 @@
 mutable struct UnequalTimeStack{GT} <: AbstractDQMCStack
+    forward_idx::Int64
     forward_u_stack::Array{GT, 3}
     forward_d_stack::Matrix{Float64}
     forward_t_stack::Array{GT, 3}
     
+    backward_idx::Int64
     backward_u_stack::Array{GT, 3}
     backward_d_stack::Matrix{Float64}
     backward_t_stack::Array{GT, 3}
     
+    inv_done::Vector{Bool}
     inv_u_stack::Array{GT, 3}
     inv_d_stack::Matrix{Float64}
     inv_t_stack::Array{GT, 3}
@@ -28,14 +31,17 @@ function UnequalTimeStack(mc)
     flv = mc.model.flv
 
     s = UnequalTimeStack(
+        1,
         zeros(GreensEltype, flv*N, flv*N, mc.s.n_elements),
         zeros(Float64, flv*N, mc.s.n_elements),
         zeros(GreensEltype, flv*N, flv*N, mc.s.n_elements),
 
+        length(mc.s.ranges),
         zeros(GreensEltype, flv*N, flv*N, mc.s.n_elements),
         zeros(Float64, flv*N, mc.s.n_elements),
         zeros(GreensEltype, flv*N, flv*N, mc.s.n_elements),
 
+        fill(false, length(mc.s.ranges)),
         zeros(GreensEltype, flv*N, flv*N, length(mc.s.ranges)),
         zeros(Float64, flv*N, length(mc.s.ranges)),
         zeros(GreensEltype, flv*N, flv*N, length(mc.s.ranges)),
@@ -62,6 +68,10 @@ end
 
 @bm function build_stack(mc::DQMC, s::UnequalTimeStack)
     # stack = [0, Δτ, 2Δτ, ..., β]
+    if mc.last_sweep == s.last_update && all(s.inv_done) && 
+        (s.forward_idx == length(mc.s.ranges)+1) && (s.backward_idx == 1)
+        return nothing
+    end
 
     # forward
     @bm "forward build" begin
@@ -109,18 +119,113 @@ end
         end
     end
 
+    s.inv_done .= true
+    s.forward_idx = length(mc.s.ranges)+1
+    s.backward_idx = 1
     s.last_update = mc.last_sweep
 
     nothing
 end
 
+@bm function lazy_build_forward!(mc::DQMC, s::UnequalTimeStack, upto)
+    # stack = [0, Δτ, 2Δτ, ..., β]
+    if s.last_update != mc.last_sweep
+        s.last_update = mc.last_sweep
+        s.inv_done .= false
+        s.forward_idx = 1
+        s.backward_idx = length(mc.s.ranges)+1
+    end
+
+    # forward
+    @bm "forward build" begin
+        @inbounds for idx in s.forward_idx:upto-1
+            copyto!(mc.s.curr_U, s.forward_u_stack[:, :, idx])
+            for slice in mc.s.ranges[idx]
+                multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+            end
+            @views rvmul!(mc.s.curr_U, Diagonal(s.forward_d_stack[:, idx]))
+            @views udt_AVX_pivot!(
+                s.forward_u_stack[:, :, idx+1], s.forward_d_stack[:, idx+1], 
+                mc.s.curr_U, mc.s.pivot, mc.s.tempv
+            )
+            @views vmul!(s.forward_t_stack[:, :, idx+1], mc.s.curr_U, s.forward_t_stack[:, :, idx])
+        end
+    end
+
+    s.forward_idx = upto
+    nothing
+end
+
+@bm function lazy_build_backward!(mc::DQMC, s::UnequalTimeStack, downto)
+    if s.last_update != mc.last_sweep
+        s.last_update = mc.last_sweep
+        s.inv_done .= false
+        s.forward_idx = 1
+        s.backward_idx = length(mc.s.ranges)+1
+    end
+
+    # backward
+    @bm "backward build" begin
+        @inbounds for idx in s.backward_idx-1:-1:downto
+            copyto!(mc.s.curr_U, s.backward_u_stack[:, :, idx + 1])
+            for slice in reverse(mc.s.ranges[idx])
+                multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+            end
+            @views rvmul!(mc.s.curr_U, Diagonal(s.backward_d_stack[:, idx + 1]))
+            @views udt_AVX_pivot!(
+                s.backward_u_stack[:, :, idx], s.backward_d_stack[:, idx], 
+                mc.s.curr_U, mc.s.pivot, mc.s.tempv
+            )
+            @views vmul!(s.backward_t_stack[:, :, idx], mc.s.curr_U, s.backward_t_stack[:, :, idx + 1])
+        end
+    end
+
+    s.backward_idx = downto
+end
+
+@bm function lazy_build_inv!(mc::DQMC, s::UnequalTimeStack, from, to)
+    if s.last_update != mc.last_sweep
+        s.last_update = mc.last_sweep
+        s.inv_done .= false
+        s.forward_idx = 1
+        s.backward_idx = length(mc.s.ranges)+1
+    end
+
+    # inverse
+    @bm "inverse build" begin
+        @inbounds for idx in from:to #length(mc.s.ranges)
+            s.inv_done[idx] && continue
+            @views copyto!(s.inv_t_stack[:, :, idx], I)
+            for slice in reverse(mc.s.ranges[idx])
+                @views multiply_slice_matrix_inv_left!(mc, mc.model, slice, s.inv_t_stack[:, :, idx])
+            end
+            @views udt_AVX_pivot!(
+                s.inv_u_stack[:, :, idx], s.inv_d_stack[:, idx], s.inv_t_stack[:, :, idx], 
+                mc.s.pivot, mc.s.tempv
+            )
+        end
+    end
+
+    nothing
+end
+
+"""
+    greens(mc::DQMC, k, l)
+
+Calculates the unequal-time Greens function 
+`greens(mc, k, l) = G(k <- l) = G(kΔτ <- lΔτ)` where `nslices(mc) ≥ k > l ≥ 0`.
+
+Note that `G(0, 0) = G(nslices, nslices) = G(β, β) = G(0, 0)`.
+"""
 greens(mc::DQMC, slice1::Int64, slice2::Int64) = greens!(mc, slice1, slice2)
 @bm function greens!(mc::DQMC, slice1::Int64, slice2::Int64)
-    @assert slice1 >= slice2
+    @assert 0 ≤ slice1 ≤ mc.p.slices
+    @assert 0 ≤ slice2 ≤ mc.p.slices
+    @assert slice2 ≤ slice1
     s = mc.ut_stack
-    # stack = [0, Δτ, 2Δτ, ..., β]
-    #       = [0, safe_mult, 2safe_mult, ... N]
-    mc.last_sweep == s.last_update || build_stack(mc, mc.ut_stack) 
+    # stack = [0, Δτ, 2Δτ, ..., β] = [0, safe_mult, 2safe_mult, ... N]
+    # Complete build (do this, or lazy builds for each)
+    # build_stack(mc, mc.ut_stack) 
 
     # forward = [1:((i-1)*mc.p.safe_mult) for i in 1:mc.s.n_elements]
     # backward = [mc.p.slices:-1:(1+(i-1)*mc.p.safe_mult) for i in 1:mc.s.n_elements]
@@ -136,6 +241,7 @@ greens(mc::DQMC, slice1::Int64, slice2::Int64) = greens!(mc, slice1, slice2)
     @bm "inverse pre-computed" begin
         lower = div(slice2+1 + mc.p.safe_mult - 2, mc.p.safe_mult) + 1
         upper = div(slice1, mc.p.safe_mult)
+        lazy_build_inv!(mc, s, lower, upper) # only if build_stack is commented out
         copyto!(s.U, I)
         s.D .= 1
         copyto!(s.T, I)
@@ -174,6 +280,7 @@ greens(mc::DQMC, slice1::Int64, slice2::Int64) = greens!(mc, slice1, slice2)
     @bm "forward B" begin
         # B(slice1, 1) = Ul Dl Tl
         idx = div(slice2-1, mc.p.safe_mult) # 0 based index into stack
+        lazy_build_forward!(mc, s, idx+1) # only if build_stack is commented out
         # forward_slices = collect(forward[idx+1])
         copyto!(mc.s.curr_U, s.forward_u_stack[:, :, idx+1])
         # @info "$slice2 || $(idx+1) || $(mc.p.safe_mult * idx + 1) : $(slice2)"
@@ -190,6 +297,7 @@ greens(mc::DQMC, slice1::Int64, slice2::Int64) = greens!(mc, slice1, slice2)
     @bm "backward B" begin
         # B(N, slice2) = (Ur Dr Tr)^† = Tr^† Dr^† Ur^†
         idx = div.(slice1 + mc.p.safe_mult - 1, mc.p.safe_mult) # 0 based index into stack
+        lazy_build_backward!(mc, s, idx+1) # only if build_stack is commented out
         # backward_slices = collect(backward[idx+1])
         copyto!(mc.s.curr_U, s.backward_u_stack[:, :, idx+1])
         # @info "$slice1 || $(idx+1) || $(mc.p.safe_mult * idx) : -1 : $(slice1+1)"

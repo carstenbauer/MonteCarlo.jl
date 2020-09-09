@@ -116,14 +116,12 @@ end
     MonteCarlo.unsafe_push!(dqmc, :UTG4 => UTG(dqmc, model, slice1=l1s[4], slice2=l2s[4]))
     MonteCarlo.unsafe_push!(dqmc, :UTG5 => UTG(dqmc, model, slice1=l1s[5], slice2=l2s[5]))
 
-    # UTG = MonteCarlo.UTGreensMeasurement
-    # MonteCarlo.unsafe_push!(dqmc, :UTG1 => UTG(dqmc, model, slice1=l1s[1], slice2=l2s[1]))
-    # MonteCarlo.unsafe_push!(dqmc, :UTG2 => UTG(dqmc, model, slice1=l1s[2], slice2=l2s[2]))
-    # MonteCarlo.unsafe_push!(dqmc, :UTG3 => UTG(dqmc, model, slice1=l1s[3], slice2=l2s[3]))
-    # MonteCarlo.unsafe_push!(dqmc, :UTG4 => UTG(dqmc, model, slice1=l1s[4], slice2=l2s[4]))
-    # MonteCarlo.unsafe_push!(dqmc, :UTG5 => UTG(dqmc, model, slice1=l1s[5], slice2=l2s[5]))
+    # MonteCarlo.enable_benchmarks()
 
     @time run!(dqmc, thermalization = 10_000, sweeps = 50_000, verbose=false)
+
+    # MonteCarlo.disable_benchmarks()
+    # MonteCarlo.print_timer()
 
     @info "Running ED"
     @time begin
