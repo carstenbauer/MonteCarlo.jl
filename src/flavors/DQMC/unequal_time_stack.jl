@@ -1,32 +1,50 @@
 mutable struct UnequalTimeStack{GT} <: AbstractDQMCStack
+    # B_{n*safe_mult} ... B_1
     forward_idx::Int64
     forward_u_stack::Array{GT, 3}
     forward_d_stack::Matrix{Float64}
     forward_t_stack::Array{GT, 3}
     
+    # B_{n*safe_mult+1}^† ... B_M^†
     backward_idx::Int64
     backward_u_stack::Array{GT, 3}
     backward_d_stack::Matrix{Float64}
     backward_t_stack::Array{GT, 3}
     
+    # B_{n*safe_mult+1}^-1 .. B_{(n+1)*safe_mult}^-1
     inv_done::Vector{Bool}
     inv_u_stack::Array{GT, 3}
     inv_d_stack::Matrix{Float64}
     inv_t_stack::Array{GT, 3}
 
-    # greens_base::Matrix{GT}
+    # Greens construction
     greens::Matrix{GT}
     U::Matrix{GT}
     D::Vector{Float64}
     T::Matrix{GT}
 
-    # sweep prolly
+    # To avoid recalculating
     last_update::Int64
+    last_slices::Tuple{Int64, Int64}
+end
+
+function Base.sizeof(::Type{UnequalTimeStack}, mc::DQMC)
+    GreensEltype =  MonteCarlo.geltype(mc)
+    N = length(mc.model.l)
+    flv = mc.model.flv
+    blocks = mc.s.n_elements
+
+    sizeof(GreensEltype) * flv*N * flv*N * blocks * 4 +         # forward+backward U, T
+    sizeof(GreensEltype) * flv*N * blocks * 2 +                 # forward+backward D
+    sizeof(GreensEltype) * flv*N * flv*N * (blocks-1) * 2 +     # inv U, T
+    sizeof(GreensEltype) * flv*N * (blocks-1) +                 # inv Dr
+    5*8 + sizeof(Bool) * (blocks-1) +                           # book-keeping/skipping
+    sizeof(GreensEltype) * flv*N * flv*N * 3 +                  # greens, U, Tr
+    sizeof(GreensEltype) * flv*N                                # D
 end
 
 function UnequalTimeStack(mc)
     GreensEltype =  MonteCarlo.geltype(mc)
-    HoppingEltype = MonteCarlo.heltype(mc)
     N = length(mc.model.l)
     flv = mc.model.flv
 
@@ -51,7 +69,7 @@ function UnequalTimeStack(mc)
         Matrix{GreensEltype}(undef, flv*N, flv*N),
         Vector{Float64}(undef, flv*N),
         Matrix{GreensEltype}(undef, flv*N, flv*N),
-        -1
+        -1, (-1, -1)
     )
 
     # maybe skip identities?
@@ -217,12 +235,25 @@ Calculates the unequal-time Greens function
 
 Note that `G(0, 0) = G(nslices, nslices) = G(β, β) = G(0, 0)`.
 """
-greens(mc::DQMC, slice1::Int64, slice2::Int64) = greens!(mc, slice1, slice2)
-@bm function greens!(mc::DQMC, slice1::Int64, slice2::Int64)
+greens(mc::DQMC, slice1::Int64, slice2::Int64) = copy(_greens!(mc, slice1, slice2))
+@bm function _greens!(mc::DQMC, slice1::Int64, slice2::Int64)
+    calculate_greens!(mc, slice1, slice2)
+    _greens!(mc, mc.s.Ul, mc.ut_stack.greens, mc.s.Ur)
+end
+@bm function calculate_greens!(mc::DQMC, slice1::Int64, slice2::Int64)
     @assert 0 ≤ slice1 ≤ mc.p.slices
     @assert 0 ≤ slice2 ≤ mc.p.slices
     @assert slice2 ≤ slice1
     s = mc.ut_stack
+    if s.last_slices != (slice1, slice2)
+        s.last_slices = (slice1, slice2)
+        calculate_greens_full!(mc, s, slice1, slice2)
+    end
+    s.greens
+end
+
+
+@bm function calculate_greens_full!(mc, s, slice1, slice2)
     # stack = [0, Δτ, 2Δτ, ..., β] = [0, safe_mult, 2safe_mult, ... N]
     # Complete build (do this, or lazy builds for each)
     # build_stack(mc, mc.ut_stack) 
@@ -368,3 +399,111 @@ greens(mc::DQMC, slice1::Int64, slice2::Int64) = greens!(mc, slice1, slice2)
 
     s.greens
 end
+
+
+
+################################################################################
+### Iterators
+################################################################################
+
+# I think these can skip ut_stack entirely
+# start with mc.s.greens
+# UDT
+# advance
+
+
+# Maybe split into multiple types?
+struct GreensIterator{slice1, slice2, T <: DQMC}
+    mc::T
+end
+
+"""
+    GreensIterator
+
+Prolly want this to start from slice2 = 1 :^)
+"""
+function GreensIterator(mc::T, slice1, slice2) where {T <: DQMC}
+    GreensIterator{slice1, slice2, T}(mc)
+end
+
+init!(it::GreensIterator) = it.mc.ut_stack = UnequalTimeStack(it.mc)
+init!(::GreensIterator{:, 0}) = nothing
+
+
+# Slower, versatile version:
+function Base.iterate(it::GreensIterator{:, i}) where {i}
+    s = it.mc.ut_stack
+    calculate_greens_full!(it.mc, s, i, i)
+    copyto!(s.T, s.greens)
+    udt_AVX_pivot!(s.U, s.D, s.T, it.mc.s.pivot, it.mc.s.tempv)
+    G = _greens!(it.mc, it.mc.s.Ul, s.greens, it.mc.s.Ur)
+    return (G, (i+1, i))
+end
+function Base.iterate(it::GreensIterator{:}, state)
+    s = it.mc.ut_stack
+    k, l = state
+    if k > it.mc.p.slices
+        return nothing
+    elseif k % it.mc.p.safe_mult == 0
+        # Slow advance
+        # G = calculate_greens_full!(it.mc, s, k, l)
+        # copyto!(s.T, G)
+
+        # Stabilization
+        multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.U)
+        vmul!(it.mc.s.curr_U, s.U, Diagonal(s.D))
+        vmul!(s.greens, it.mc.s.curr_U, s.T)
+        udt_AVX_pivot!(s.U, s.D, it.mc.s.curr_U, it.mc.s.pivot, it.mc.s.tempv)
+        vmul!(it.mc.s.Ul, it.mc.s.curr_U, s.T)
+        copyto!(s.T, it.mc.s.Ul)
+        G = _greens!(it.mc, it.mc.s.Ul, s.greens, it.mc.s.Ur)
+        return (G, (k+1, l))
+    else
+        # Quick advance
+        multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.U)
+        vmul!(it.mc.s.curr_U, s.U, Diagonal(s.D))
+        vmul!(s.greens, it.mc.s.curr_U, s.T)
+        G = _greens!(it.mc, it.mc.s.Ul, s.greens, it.mc.s.Ur)
+        return (G, (k+1, l))
+    end
+end
+Base.length(it::GreensIterator{:, i}) where {i} = it.mc.p.slices + 1 - i
+
+
+
+# Fast specialized version
+function Base.iterate(it::GreensIterator{:, 0})
+    # 2x Faster
+    # Avoids building the ut_stack
+    # Measurements take place at slice = nslices = 0
+    s = it.mc.s
+    copyto!(s.Tl, s.greens)
+    G = _greens!(it.mc, s.Ur, s.Tl, s.Tr) # just be careful here
+    udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, it.mc.s.pivot, it.mc.s.tempv)
+    return (G, (1, 0))
+end
+function Base.iterate(it::GreensIterator{:, 0}, state)
+    s = it.mc.s
+    k, l = state
+    if k > it.mc.p.slices
+        return nothing
+    elseif k % it.mc.p.safe_mult == 0
+        # Stabilization
+        multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ul)
+        vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
+        vmul!(s.Ur, s.curr_U, s.Tl)
+        udt_AVX_pivot!(s.Ul, s.Dl, s.curr_U, it.mc.s.pivot, it.mc.s.tempv)
+        vmul!(s.Tr, s.curr_U, s.Tl)
+        copyto!(s.Tl, s.Tr)
+        G = _greens!(it.mc, s.curr_U, s.Ur, s.Tr)
+        return (G, (k+1, l))
+    else
+        # Quick advance
+        multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ul)
+        vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
+        vmul!(s.Ur, s.curr_U, s.Tl)
+        G = _greens!(it.mc, s.curr_U, s.Ur, s.Tr)
+        return (G, (k+1, l))
+    end
+end
+

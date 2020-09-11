@@ -104,7 +104,19 @@ end
     # Check equal time greens functions against each other
     for slice in 0:MonteCarlo.nslices(dqmc)
         G1 = MonteCarlo.calculate_greens(dqmc, slice)
-        G2 = MonteCarlo.greens!(dqmc, slice, slice) # welp, annoying, needs to be fixed in MonteCarlo
+        G2 = MonteCarlo.calculate_greens!(dqmc, slice, slice)
         @test G1 ≈ G2
     end
+    
+    G2s = [MonteCarlo.greens(dqmc, slice, 0) for slice in 0:MonteCarlo.nslices(dqmc)]
+    it = MonteCarlo.GreensIterator(dqmc, :, 0)
+    for (i, G) in enumerate(it)
+        @test G ≈ G2s[i]
+    end
+    G2s = [MonteCarlo.greens(dqmc, slice, 1) for slice in 1:MonteCarlo.nslices(dqmc)]
+    it = MonteCarlo.GreensIterator(dqmc, :, 1)
+    for (i, G) in enumerate(it)
+        @test G ≈ G2s[i]
+    end
+end
 end
