@@ -101,22 +101,39 @@ end
     @test dqmc.s.d_stack[:, 2:end]    ≈ dqmc.ut_stack.backward_d_stack[:, 2:end]
     @test dqmc.s.t_stack[:, :, 2:end] ≈ dqmc.ut_stack.backward_t_stack[:, :, 2:end]
 
+    while !(
+            MonteCarlo.current_slice(dqmc) == 1 &&
+            dqmc.s.direction == -1
+        )
+        MonteCarlo.propagate(dqmc)
+    end
+
     # Check equal time greens functions against each other
     for slice in 0:MonteCarlo.nslices(dqmc)
-        G1 = MonteCarlo.calculate_greens(dqmc, slice)
-        G2 = MonteCarlo.calculate_greens!(dqmc, slice, slice)
+        G1 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice))
+        G2 = deepcopy(MonteCarlo.calculate_greens!(dqmc, slice, slice))
         @test G1 ≈ G2
     end
     
-    G2s = [MonteCarlo.greens(dqmc, slice, 0) for slice in 0:MonteCarlo.nslices(dqmc)]
+    # As in G(τ = Δτ * k, 0)
+    Gk0s = [deepcopy(MonteCarlo.greens(dqmc, slice, 0)) for slice in 0:MonteCarlo.nslices(dqmc)]
     it = MonteCarlo.GreensIterator(dqmc, :, 0)
     for (i, G) in enumerate(it)
-        @test G ≈ G2s[i]
+        @test G ≈ Gk0s[i]
     end
-    G2s = [MonteCarlo.greens(dqmc, slice, 1) for slice in 1:MonteCarlo.nslices(dqmc)]
-    it = MonteCarlo.GreensIterator(dqmc, :, 1)
+    it = MonteCarlo.FastGreensIterator(dqmc)
     for (i, G) in enumerate(it)
-        @test G ≈ G2s[i]
+        @test G ≈ Gk0s[i]
     end
-end
+
+    Gkks = map(0:MonteCarlo.nslices(dqmc)-1) do slice
+        g = MonteCarlo.calculate_greens(dqmc, slice)
+        deepcopy(MonteCarlo._greens!(dqmc, dqmc.s.greens_temp, g))
+    end
+    MonteCarlo.calculate_greens(dqmc, 0) # restore mc.s.greens
+    it = MonteCarlo.CombinedGreensIterator(dqmc)
+    for (i, (Gk0, Gkk)) in enumerate(it)
+        @test maximum(abs.(Gk0 .- Gk0s[i])) < 1e-7
+        @test maximum(abs.(Gkk .- Gkks[i])) < 1e-7
+    end
 end

@@ -353,12 +353,17 @@ function calculate_greens_AVX!(
 end
 
 
-function vmul!(C, A, B::Diagonal)
+function vmul!(C, A::Matrix, B::Diagonal)
     @avx for m in 1:size(A, 1), n in 1:size(A, 2)
         C[m,n] = A[m,n] * B[n,n]
     end
 end
-function vmul!(C, A, X::Adjoint)
+function vmul!(C, A::Diagonal, B::Matrix)
+    @avx for m in 1:size(B, 1), n in 1:size(B, 2)
+        C[m,n] = A[m,m] * B[m,n]
+    end
+end
+function vmul!(C, A::Matrix, X::Adjoint)
     B = X.parent
     @avx for m in 1:size(A, 1), n in 1:size(B, 2)
         Cmn = zero(eltype(C))
@@ -368,7 +373,7 @@ function vmul!(C, A, X::Adjoint)
         C[m,n] = Cmn
     end
 end
-function vmul!(C, X::Adjoint, B)
+function vmul!(C, X::Adjoint, B::Matrix)
     A = X.parent
     @avx for m in 1:size(A, 1), n in 1:size(B, 2)
         Cmn = zero(eltype(C))
@@ -378,12 +383,12 @@ function vmul!(C, X::Adjoint, B)
         C[m,n] = Cmn
     end
 end
-function rvmul!(A, B::Diagonal)
+function rvmul!(A::Matrix, B::Diagonal)
     @avx for m in 1:size(A, 1), n in 1:size(A, 2)
         A[m,n] = A[m,n] * B[n,n]
     end
 end
-function lvmul!(A::Diagonal, B)
+function lvmul!(A::Diagonal, B::Matrix)
     @avx for m in 1:size(B, 1), n in 1:size(B, 2)
         B[m,n] = A[m, m] * B[m, n]
     end

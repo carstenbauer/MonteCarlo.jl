@@ -16,11 +16,9 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
     greens::Matrix{GreensEltype}
     greens_temp::Matrix{GreensEltype}
 
-    # U::Matrix{GreensEltype}
-    # D::Vector{Float64}
-    # T::Matrix{GreensEltype}
     tmp1::Matrix{GreensEltype}
     tmp2::Matrix{GreensEltype}
+    tmp3::Matrix{GreensEltype}
 
     ranges::Array{UnitRange, 1}
     n_elements::Int

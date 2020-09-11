@@ -401,7 +401,7 @@ See also: [`resume!`](@ref)
 
             # For optimal performance whatever is most likely to fail should be
             # checked first.
-            if current_slice(mc) == nslices(mc) && i <= thermalization && mc.s.direction == -1 &&
+            if current_slice(mc) == 1 && i <= thermalization && mc.s.direction == -1 &&
                     iszero(mod(i, mc.p.measure_rate)) && do_th_measurements
                 measure!(mc.thermalization_measurements, mc, mc.model, i)
             end
@@ -409,7 +409,7 @@ See also: [`resume!`](@ref)
                 do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
                 do_me_measurements && prepare!(mc.measurements, mc, mc.model)
             end
-            if current_slice(mc) == nslices(mc) && mc.s.direction == -1 && i > thermalization
+            if current_slice(mc) == 1 && mc.s.direction == -1 && i > thermalization
                 push!(mc.configs, mc, mc.model, i)
                 if iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
                     measure!(mc.measurements, mc, mc.model, i)
@@ -623,7 +623,7 @@ function replay!(
     prepare!(mc.measurements, mc, mc.model)
     for i in mc.last_sweep+1:mc.p.measure_rate:length(configurations)
         mc.conf .= decompress(mc, mc.model, configurations[i])
-        mc.s.greens .= calculate_greens(mc, nslices(mc)-1)
+        mc.s.greens .= calculate_greens(mc, 0)
         for (k, m) in mc.measurements
             k in ignore && continue
             measure!(m, mc, mc.model, i)
@@ -676,7 +676,7 @@ exponentials from left and right.
 """
 @bm greens(mc::DQMC) = _greens!(mc)
 function _greens!(
-        mc::DQMC_CBFalse, target::Matrix = mc.s.Ul, 
+        mc::DQMC_CBFalse, target::Matrix = mc.s.greens_temp, 
         source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
     )
     eThalfminus = mc.s.hopping_matrix_exp
@@ -686,7 +686,7 @@ function _greens!(
     return target
 end
 function _greens!(
-        mc::DQMC_CBTrue, target::Matrix = mc.s.Ul, 
+        mc::DQMC_CBTrue, target::Matrix = mc.s.greens_temp, 
         source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
     )
     chkr_hop_half_minus = mc.s.chkr_hop_half

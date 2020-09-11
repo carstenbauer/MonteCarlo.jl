@@ -268,7 +268,7 @@ end
 
     # k ≥ l or slice1 ≥ slice2
     # B_{l+1}^-1 B_{l+2}^-1 ⋯ B_{k-1}^-1 B_k^-1
-    inv_slices = Int64[]
+    # inv_slices = Int64[]
     @bm "inverse pre-computed" begin
         lower = div(slice2+1 + mc.p.safe_mult - 2, mc.p.safe_mult) + 1
         upper = div(slice1, mc.p.safe_mult)
@@ -342,6 +342,11 @@ end
         # @info "               backward: $(backward_slices) {$(idx+1)}"
     end
 
+    # evaluated = "G_{$slice1, $slice2} = ["
+    # evaluated *= join(("B_$(i)⁻¹" for i in inv_slices), "⋅") * " + "
+    # evaluated *= join(("B_$i" for i in vcat(forward_slices, backward_slices)), "⋅") * "]⁻¹"
+    # println(evaluated)
+
     @bm "compute G" begin
         # [B_{l+1}^-1 B_{l+2}^-1 ⋯ B_k^-1 + B_l ⋯ B_1 B_N ⋯ B_{k+1}]^-1
         # [U D T + Ul Dl Tl Tr^† Dr Ur^†]^-1
@@ -411,24 +416,29 @@ end
 # UDT
 # advance
 
+abstract type AbstractGreensIterator end
+init!(::AbstractGreensIterator) = nothing
+
 
 # Maybe split into multiple types?
-struct GreensIterator{slice1, slice2, T <: DQMC}
+struct GreensIterator{slice1, slice2, T <: DQMC} <: AbstractGreensIterator
     mc::T
 end
 
 """
-    GreensIterator
+    GreensIterator(mc::DQMC, k, l)
 
-Prolly want this to start from slice2 = 1 :^)
+Given `k = :` and `l::Int64`, iterates through `[G[k, l] for k in l:nslices]`.
+
+Requires `U`, `D`, `T` in `UnequalTimeStack` to remain valid between iterations. 
+Mutates `Ur`, `Tr` and `curr_U` in `DQMCStack`.
+- `greens(mc::DQMC, k, l)` will invalidate iteration.
 """
 function GreensIterator(mc::T, slice1, slice2) where {T <: DQMC}
     GreensIterator{slice1, slice2, T}(mc)
 end
-
 init!(it::GreensIterator) = it.mc.ut_stack = UnequalTimeStack(it.mc)
-init!(::GreensIterator{:, 0}) = nothing
-
+Base.length(it::GreensIterator{:, i}) where {i} = it.mc.p.slices + 1 - i
 
 # Slower, versatile version:
 function Base.iterate(it::GreensIterator{:, i}) where {i}
@@ -467,43 +477,170 @@ function Base.iterate(it::GreensIterator{:}, state)
         return (G, (k+1, l))
     end
 end
-Base.length(it::GreensIterator{:, i}) where {i} = it.mc.p.slices + 1 - i
 
 
+
+"""
+    FastGreensIterator(mc::DQMC)
+
+Returns an iterator which iterates through `[G[k, 0] for k in 0:nslices-1]`. 
+This iterator doesn't require the `UnequalTimeStack` and therefore has much
+lower memory overhead and requires no setup (i.e it's faster).
+
+Requires `Ul`, `Dl` and `Tl` in the `DQMCStack` to remain valid between 
+iterations. Mutates `tmp1`, `tmp2` and `curr_U`. Outputs to `curr_U`.
+"""
+struct FastGreensIterator{T <: DQMC} <: AbstractGreensIterator
+    mc::T
+end
+Base.length(it::FastGreensIterator) = nslices(it.mc)
 
 # Fast specialized version
-function Base.iterate(it::GreensIterator{:, 0})
+function Base.iterate(it::FastGreensIterator)
     # 2x Faster
     # Avoids building the ut_stack
-    # Measurements take place at slice = nslices = 0
+    # Measurements take place at current_slice = 1 <> l = τ = 0
     s = it.mc.s
     copyto!(s.Tl, s.greens)
-    G = _greens!(it.mc, s.Ur, s.Tl, s.Tr) # just be careful here
+    G = _greens!(it.mc, s.curr_U, s.Tl, s.tmp1)
     udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, it.mc.s.pivot, it.mc.s.tempv)
-    return (G, (1, 0))
+    return (G, 1) # 1-based
 end
-function Base.iterate(it::GreensIterator{:, 0}, state)
+function Base.iterate(it::FastGreensIterator, k)
+    # k is 1-based
     s = it.mc.s
-    k, l = state
-    if k > it.mc.p.slices
+    if k >= it.mc.p.slices
         return nothing
     elseif k % it.mc.p.safe_mult == 0
         # Stabilization
         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ul)
         vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
-        vmul!(s.Ur, s.curr_U, s.Tl)
+        vmul!(s.tmp1, s.curr_U, s.Tl)
         udt_AVX_pivot!(s.Ul, s.Dl, s.curr_U, it.mc.s.pivot, it.mc.s.tempv)
-        vmul!(s.Tr, s.curr_U, s.Tl)
-        copyto!(s.Tl, s.Tr)
-        G = _greens!(it.mc, s.curr_U, s.Ur, s.Tr)
-        return (G, (k+1, l))
+        vmul!(s.tmp2, s.curr_U, s.Tl)
+        copyto!(s.Tl, s.tmp2)
+        G = _greens!(it.mc, s.curr_U, s.tmp1, s.tmp2)
+        return (G, k+1)
     else
         # Quick advance
         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ul)
         vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
-        vmul!(s.Ur, s.curr_U, s.Tl)
-        G = _greens!(it.mc, s.curr_U, s.Ur, s.Tr)
-        return (G, (k+1, l))
+        vmul!(s.tmp1, s.curr_U, s.Tl)
+        G = _greens!(it.mc, s.curr_U, s.tmp1, s.tmp2)
+        return (G, k+1)
+    end
+end
+
+
+
+"""
+    CombinedGreensIterator(mc::DQMC)
+
+Returns an iterator which iterates `[(G[k, 0], G[k, k]) for k in 0:nslices-1]`. 
+This iterator doesn't require the `UnequalTimeStack` and therefore has much
+lower memory overhead and requires no setup (i.e it's faster).
+
+Requires `Ul`, `Dl`, `Tl`, `Ur`, `Dr` and `Tr` in the `DQMCStack` to remain 
+valid between iterations. Writes results to `tmp3` and `tmp2`. Mutates `curr_U`
+and `tmp1`. 
+"""
+struct CombinedGreensIterator{T <: DQMC} <: AbstractGreensIterator
+    mc::T
+end
+Base.length(it::CombinedGreensIterator) = nslices(it.mc)
+
+# Fast specialized version
+function Base.iterate(it::CombinedGreensIterator)
+    # 2x Faster
+    # Avoids building the ut_stack
+    # Measurements take place at current_slice = 1 <> l = τ = 0
+    s = it.mc.s
+    copyto!(s.Tl, s.greens)
+    Gkl = _greens!(it.mc, s.tmp3, s.Tl, s.curr_U)
+    Gkk = copyto!(s.tmp2, s.tmp3)
+    udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, it.mc.s.pivot, it.mc.s.tempv)
+    copyto!(s.Ur, s.Ul)
+    copyto!(s.Dr, s.Dl)
+    copyto!(s.Tr, s.Tl)
+    return ((Gkl, Gkk), 1)
+end
+# Notes:
+# slightly worse accuracy when pivoting
+# (50 slices: 4.5e-8 vs 8.2e-8)
+# pivoting performance: 54.3/60.2/64.5µs, 40KiB, 295 allocs
+# normal   performance: 53.3/59.0/64.3µs, 40KiB, 299 allocs
+function Base.iterate(it::CombinedGreensIterator, k)
+    # k is 1-based
+    s = it.mc.s
+    Gkk = 0
+    if k >= it.mc.p.slices
+        return nothing
+    elseif k % it.mc.p.safe_mult == 0
+        # Stabilization
+        # Gkl
+        multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ul) # writes to tmp1 and tmp2
+        vmul!(s.tmp1, s.Ul, Diagonal(s.Dl))
+        vmul!(s.tmp2, s.tmp1, s.Tl)
+        udt_AVX_pivot!(s.Ul, s.Dl, s.tmp1, it.mc.s.pivot, it.mc.s.tempv)
+        vmul!(s.curr_U, s.tmp1, s.Tl)
+        copyto!(s.Tl, s.curr_U)
+        Gkl = _greens!(it.mc, s.tmp3, s.tmp2, s.curr_U)
+
+        # Gkk
+        # or do left/right UDT at different times? (0, div(safe_Mult, 2))
+        multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ur)
+        multiply_slice_matrix_inv_right!(it.mc, it.mc.model, k, s.Tr)
+        vmul!(s.tmp2, s.Ur, Diagonal(s.Dr))
+        vmul!(s.tmp1, s.tmp2, s.Tr)
+        udt_AVX_pivot!(s.curr_U, s.Dr, s.tmp2, it.mc.s.pivot, it.mc.s.tempv)
+        vmul!(s.Ur, s.tmp2, s.Tr)
+        vmul!(s.Tr, Diagonal(s.Dr), s.Ur)
+        udt_AVX_pivot!(s.tmp2, s.Dr, s.Tr, it.mc.s.pivot, it.mc.s.tempv)
+        vmul!(s.Ur, s.curr_U, s.tmp2)
+        Gkk = _greens!(it.mc, s.tmp2, s.tmp1, s.curr_U)
+
+        # pivoting Gkk
+        # multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ur)
+        # multiply_slice_matrix_inv_right!(it.mc, it.mc.model, k, s.Tr)
+        # vmul!(s.tmp2, s.Ur, Diagonal(s.Dr))
+        # vmul!(s.tmp1, s.tmp2, s.Tr)
+        # udt_AVX_pivot!(s.Ur, s.Dr, s.tmp2, it.mc.s.pivot, it.mc.s.tempv)
+        # vmul!(s.curr_U, s.tmp2, s.Tr)
+        # copyto!(s.Tr, s.curr_U)
+        # Gkk = _greens!(it.mc, s.tmp2, s.tmp1, s.curr_U)
+        return ((Gkl, Gkk), k+1)
+    # elseif k % it.mc.p.safe_mult == div(it.mc.p.safe_mult, 2)
+    #     # Quick advance Gkl
+    #     multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ul)
+    #     vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
+    #     vmul!(s.tmp2, s.curr_U, s.Tl)
+    #     Gkl = _greens!(it.mc, s.tmp3, s.tmp2, s.curr_U)
+
+    #     # pivoting Gkk
+    #     multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ur)
+    #     multiply_slice_matrix_inv_right!(it.mc, it.mc.model, k, s.Tr)
+    #     lvmul!(Diagonal(s.Dr), s.Tr)
+    #     vmul!(s.tmp1, s.Ur, s.Tr)
+    #     udt_AVX_pivot!(s.curr_U, s.Dr, s.Tr, it.mc.s.pivot, it.mc.s.tempv)
+    #     vmul!(s.tmp2, s.Ur, s.curr_U)
+    #     copyto!(s.Ur, s.tmp2)
+    #     Gkk = _greens!(it.mc, s.tmp2, s.tmp1, s.curr_U)
+    #     return ((Gkl, Gkk), k+1)
+    else
+        # Quick advance
+        # Gkl
+        multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ul)
+        vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
+        vmul!(s.tmp1, s.curr_U, s.Tl)
+        Gkl = _greens!(it.mc, s.tmp3, s.tmp1, s.curr_U)
+
+        # Gkk
+        multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ur)
+        multiply_slice_matrix_inv_right!(it.mc, it.mc.model, k, s.Tr)
+        vmul!(s.curr_U, s.Ur, Diagonal(s.Dr))
+        vmul!(s.tmp1, s.curr_U, s.Tr)
+        Gkk = _greens!(it.mc, s.tmp2, s.tmp1, s.curr_U)
+        return ((Gkl, Gkk), k+1)
     end
 end
 
