@@ -401,7 +401,7 @@ See also: [`resume!`](@ref)
 
             # For optimal performance whatever is most likely to fail should be
             # checked first.
-            if current_slice(mc) == 1 && i <= thermalization && mc.s.direction == -1 &&
+            if current_slice(mc) == 1 && i <= thermalization && mc.s.direction == 1 &&
                     iszero(mod(i, mc.p.measure_rate)) && do_th_measurements
                 measure!(mc.thermalization_measurements, mc, mc.model, i)
             end
@@ -409,7 +409,7 @@ See also: [`resume!`](@ref)
                 do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
                 do_me_measurements && prepare!(mc.measurements, mc, mc.model)
             end
-            if current_slice(mc) == 1 && mc.s.direction == -1 && i > thermalization
+            if current_slice(mc) == 1 && mc.s.direction == 1 && i > thermalization
                 push!(mc.configs, mc, mc.model, i)
                 if iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
                     measure!(mc.measurements, mc, mc.model, i)
@@ -616,14 +616,15 @@ function replay!(
     initialize_stack(mc, mc.s) # redundant ?!
     build_stack(mc, mc.s)
     propagate(mc)
+    mc.s.current_slice = 1
     mc.conf = rand(DQMC, mc.model, nslices(mc))
 
     _time = time()
     verbose && println("\n\nReplaying measurement stage - ", length(configurations))
     prepare!(mc.measurements, mc, mc.model)
     for i in mc.last_sweep+1:mc.p.measure_rate:length(configurations)
-        mc.conf .= decompress(mc, mc.model, configurations[i])
-        mc.s.greens .= calculate_greens(mc, 0)
+        copyto!(mc.conf, decompress(mc, mc.model, configurations[i]))
+        calculate_greens(mc, 0) # outputs to mc.s.greens
         for (k, m) in mc.measurements
             k in ignore && continue
             measure!(m, mc, mc.model, i)

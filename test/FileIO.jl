@@ -95,7 +95,7 @@ function test_dqmc(mc, x)
     for f in fieldnames(typeof(mc.p))
         @test getfield(mc.p, f) == getfield(x.p, f)
     end
-    @test mc.conf == x.conf
+    # @test mc.conf == x.conf
     @test mc.model.dims == x.model.dims
     @test mc.model.L == x.model.L
     @test mc.model.mu == x.model.mu
@@ -153,8 +153,7 @@ end
     MonteCarlo.save("$p/testfile.jld", mc)
     x = MonteCarlo.load("$p/testfile.jld")
     rm("$p/testfile.jld")
-
-    # Repeat these tests once with x being replayed rather than loaded
+    @test mc.conf == x.conf
     test_dqmc(mc, x)    
 
     # Check everything again with x being a replayed simulation
