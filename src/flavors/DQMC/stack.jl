@@ -109,6 +109,7 @@ function initialize_stack(mc::DQMC, s::DQMCStack)
     # can be changed anywhere
     mc.s.tmp1 = zeros(GreensEltype, flv*N, flv*N)
     mc.s.tmp2 = zeros(GreensEltype, flv*N, flv*N)
+    mc.s.tmp3 = zeros(GreensEltype, flv*N, flv*N)
 
 
     # # Global update backup
@@ -267,17 +268,19 @@ end
 Calculates G(slice) using mc.s.Ur,mc.s.Dr,mc.s.Tr=B(slice)' ... B(M)' and
 mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
 """
-@bm function calculate_greens(mc::DQMC)
+@bm function calculate_greens(mc::DQMC, output=mc.s.greens)
     calculate_greens_AVX!(
         mc.s.Ul, mc.s.Dl, mc.s.Tl,
         mc.s.Ur, mc.s.Dr, mc.s.Tr,
-        mc.s.greens, mc.s.pivot, mc.s.tempv
+        output, mc.s.pivot, mc.s.tempv
     )
-    mc.s.greens
+    output
 end
 
 # Faster version of calculate_greens_and_logdet from testfunctions.jl
-@bm function calculate_greens(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult)
+@bm function calculate_greens(
+        mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult, output=mc.s.greens
+    )
     copyto!(mc.s.curr_U, I)
     copyto!(mc.s.Ur, I)
     mc.s.Dr .= one(eltype(mc.s.Dr))
@@ -337,16 +340,17 @@ end
         vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp1)
     end
 
-    return calculate_greens(mc)
+    return calculate_greens(mc, output)
 end
-
 
 # Green's function propagation
 @inline @bm function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)
     if direction == -1
+        # @info "by applying B_$(curr_slice-1)^-1 G B_$(curr_slice-1)"
         multiply_slice_matrix_inv_left!(mc, mc.model, curr_slice - 1, gf)
         multiply_slice_matrix_right!(mc, mc.model, curr_slice - 1, gf)
     else
+        # @info "by applying B_$(curr_slice) G B_$(curr_slice)^-1"
         multiply_slice_matrix_left!(mc, mc.model, curr_slice, gf)
         multiply_slice_matrix_inv_right!(mc, mc.model, curr_slice, gf)
     end

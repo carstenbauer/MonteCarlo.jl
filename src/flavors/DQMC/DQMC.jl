@@ -674,7 +674,16 @@ Internally, `mc.s.greens` is an effective Green's function. This method
 transforms it to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
-@bm greens(mc::DQMC) = _greens!(mc)
+@bm greens(mc::DQMC) = copy(_greens!(mc))
+"""
+    greens!(mc::DQMC[; output=mc.s.greens_temp, input=mc.s.greens, temp=mc.s.Ur])
+"""
+@bm function greens!(mc::DQMC; output=mc.s.greens_temp, input=mc.s.greens, temp=mc.s.Ur)
+    _greens!(mc, output, input, temp)
+end
+"""
+    _greens!(mc::DQMC[, output=mc.s.greens_temp, input=mc.s.greens, temp=mc.s.Ur])
+"""
 function _greens!(
         mc::DQMC_CBFalse, target::Matrix = mc.s.greens_temp, 
         source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
@@ -704,6 +713,37 @@ function _greens!(
         end
     end
     return target
+end
+"""
+    greens(mc::DQMC, l::Integer)
+
+Calculates the equal-time greens function at a given slice index `l`, i.e. 
+`G_{ij}(l, l) = G_{ij}(l⋅Δτ, l⋅Δτ) = ⟨cᵢ(l⋅Δτ)cⱼ(l⋅Δτ)^†⟩`.
+
+Note: This internally overwrites the stack variables `Ul`, `Dl`, `Tl`, `Ur`, 
+`Dr`, `Tr`, `curr_U`, `tmp1` and `tmp2`. All of those can be used as temporary
+or output variables here, however keep in mind that other results may be 
+invalidated. (I.e. `G = greens!(mc)` would get overwritten.)
+"""
+@bm greens(mc::DQMC, slice::Integer) = copy(_greens!(mc, slice))
+"""
+    greens!(mc::DQMC, l::Integer[; output=mc.s.greens_temp, temp1=mc.s.tmp1, temp2=mc.s.tmp2])
+"""
+@bm function greens!(
+        mc::DQMC, slice::Integer; 
+        output=mc.s.greens_temp, temp1 = mc.s.tmp1, temp2 = mc.s.tmp2
+    ) 
+    _greens!(mc, slice, output, temp1, temp2)
+end
+"""
+    _greens!(mc::DQMC, l::Integer[, output=mc.s.greens_temp, temp1=mc.s.tmp1, temp2=mc.s.tmp2])
+"""
+function _greens!(
+        mc::DQMC, slice::Integer, 
+        output::Matrix=mc.s.greens_temp, temp1::Matrix=mc.s.tmp1, temp2::Matrix=mc.s.tmp2
+    )
+    _calculate_greens(mc, slice, mc.p.safe_mult, temp1)
+    _greens!(mc, output, temp1, temp2)
 end
 
 

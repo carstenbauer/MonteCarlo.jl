@@ -79,7 +79,7 @@ end
 
 @testset "Unequal Time Stack" begin
     m = HubbardModelAttractive(dims=1, L=6);
-    dqmc = DQMC(m; beta=5.0)
+    dqmc = DQMC(m; beta=15.0, safe_mult=5)
     dqmc.ut_stack = MonteCarlo.UnequalTimeStack(dqmc)
 
     MonteCarlo.build_stack(dqmc, dqmc.ut_stack)
@@ -108,22 +108,32 @@ end
         MonteCarlo.propagate(dqmc)
     end
 
-    # Check equal time greens functions against each other
+    # Check equal time greens functions from equal time and unequal time
+    # calculation against each other
     for slice in 0:MonteCarlo.nslices(dqmc)
         G1 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice))
         G2 = deepcopy(MonteCarlo.calculate_greens!(dqmc, slice, slice))
-        @test G1 ≈ G2
+        @test maximum(abs.(G1 .- G2)) < 1e-14
     end
+
+
+    # Check Iterators
+    # For some reason Gkl/Gk0 errors jump in the last 10 steps
+    # when using UnequalTimeStack
     
     # As in G(τ = Δτ * k, 0)
     Gk0s = [deepcopy(MonteCarlo.greens(dqmc, slice, 0)) for slice in 0:MonteCarlo.nslices(dqmc)]
-    it = MonteCarlo.GreensIterator(dqmc, :, 0)
+    
+    # Calculated from UnequalTimeStack (high precision)
+    it = MonteCarlo.GreensIterator(dqmc, :, 0, dqmc.p.safe_mult)
     for (i, G) in enumerate(it)
-        @test G ≈ Gk0s[i]
+        @test maximum(abs.(G .- Gk0s[i])) < 1e-14
     end
-    it = MonteCarlo.FastGreensIterator(dqmc)
+
+    # Calculated from mc.s.greens using UDT decompositions (lower precision)
+    it = MonteCarlo.GreensIterator(dqmc, :, 0, 4dqmc.p.safe_mult)
     for (i, G) in enumerate(it)
-        @test G ≈ Gk0s[i]
+        @test maximum(abs.(G .- Gk0s[i])) < 1e-11
     end
 
     Gkks = map(0:MonteCarlo.nslices(dqmc)-1) do slice
@@ -131,9 +141,18 @@ end
         deepcopy(MonteCarlo._greens!(dqmc, dqmc.s.greens_temp, g))
     end
     MonteCarlo.calculate_greens(dqmc, 0) # restore mc.s.greens
-    it = MonteCarlo.CombinedGreensIterator(dqmc)
+
+    # high precision
+    it = MonteCarlo.CombinedGreensIterator(dqmc, dqmc.p.safe_mult)
     for (i, (Gk0, Gkk)) in enumerate(it)
-        @test maximum(abs.(Gk0 .- Gk0s[i])) < 1e-7
-        @test maximum(abs.(Gkk .- Gkks[i])) < 1e-7
+        @test maximum(abs.(Gk0 .- Gk0s[i])) < 1e-14
+        @test maximum(abs.(Gkk .- Gkks[i])) < 1e-14
+    end
+
+    # low precision
+    it = MonteCarlo.CombinedGreensIterator(dqmc, 4dqmc.p.safe_mult)
+    for (i, (Gk0, Gkk)) in enumerate(it)
+        @test maximum(abs.(Gk0 .- Gk0s[i])) < 1e-10
+        @test maximum(abs.(Gkk .- Gkks[i])) < 1e-10
     end
 end

@@ -73,27 +73,3 @@ end
         include("FileIO.jl")
     end
 end
-
-using MonteCarlo
-using MonteCarlo: @bm
-using TimerOutputs
-@bm function test1(x, y)
-    sleep(x+y)
-end
-@bm test2(x, y) = sleep(x+y)
-macro benchmark_test(name, code)
-    TimerOutputs.timer_expr(MonteCarlo, true, name, code)
-end
-function test3(x, y)
-    @benchmark_test "test1" begin sleep(x+y) end
-end
-test4(x, y) = @benchmark_test "test2" begin sleep(x+y) end
-
-
-x = code_lowered(test1, Tuple{Float64, Float64})[1]
-y = code_lowered(test3, Tuple{Float64, Float64})[1]
-@test x.code == y.code
-
-x = code_lowered(test2, Tuple{Float64, Float64})[1]
-y = code_lowered(test4, Tuple{Float64, Float64})[1]
-@test x.code == y.code
