@@ -366,6 +366,11 @@ function observables(mc::MonteCarloFlavor, stage = :ME)
     end
 end
 
+# For `mc[:M]` instead of `measurements(mc)[:M]`. How convenient!
+Base.getindex(mc::MonteCarloFlavor, k) = getindex(measurements(mc), k)
+# Allow `mc[:M] = MagnetizationMeasurement(mc, model)` to add measurements
+Base.setindex!(mc::MonteCarloFlavor, v, k) = setindex!(measurements(mc), v, k)
+
 
 """
     push!(mc, tag::Symbol => MT::Type{<:AbstractMeasurement}[, stage=:ME; paassthrough...])
