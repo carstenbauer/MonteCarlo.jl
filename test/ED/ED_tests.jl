@@ -253,6 +253,7 @@ end
                 UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
                 N = MonteCarlo.nsites(model)
                 ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l, beta=dqmc.p.beta)
+                # @info maximum(abs.(UTG .- ED_UTG[1:4, 1:4]))
                 @test isapprox(UTG, ED_UTG[1:4, 1:4], atol=atol, rtol=rtol)
             end
         end

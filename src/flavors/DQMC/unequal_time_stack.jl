@@ -460,7 +460,7 @@ end
         end
         @bm "UDT" begin
             udt_AVX_pivot!(mc.s.Ur, s.D, s.greens, mc.s.pivot, mc.s.tempv)
-    end
+        end
         @bm "B6" begin
             vmul!(mc.s.Ul, mc.s.Tr, mc.s.Ur)
             vmul!(mc.s.Tl, s.greens, adjoint(s.U))
@@ -664,7 +664,7 @@ function Base.iterate(it::CombinedGreensIterator, k)
         vmul!(s.curr_U, s.tmp1, s.Tl)
         copyto!(s.Tl, s.curr_U)
         Gkl = _greens!(it.mc, it.mc.ut_stack.U, s.tmp2, s.curr_U)
-
+                
         # Gkk
         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ur)
         multiply_slice_matrix_inv_right!(it.mc, it.mc.model, k, s.Tr)
@@ -701,3 +701,168 @@ function accuracy(iter::CombinedGreensIterator)
     Gk0s = [deepcopy(greens(mc, k, 0)) for k in 0:nslices(mc)-1]
     [maximum(abs.(Gk0s[i] .- G)) for (i, G) in enumerate(iter)]
 end
+
+################################################################################
+
+# TO-DONE
+# - greens at arbitrary times with reasonably high precision
+# - iterators for efficient and save computation thereof
+
+# TODO
+# - measurements basically
+#   - implement some kind of Integrator
+#   - add a preparation step (or maybe in constructor?) that merges Integrators
+#   - Integrator runs through iterator
+#   - also figure out how to add masks to this, I guess?
+
+# Essentially we should end up with
+# function integrate!(...)
+#     for (Gk0, Gkk) in iterator
+#         for m in measurements
+#             # maybe also pass G = G00? that should be kept alive, I think
+#             kernel!(m, Gk0, Gkk, ...)
+#         end
+#     end
+# end
+
+
+
+################################################################################
+
+# 1
+# TODO
+# make slice indices match!
+# this file uses τ = l * Δτ
+# Carsten used: τ = (l-1) * Δτ
+
+
+
+
+
+# # TODO: check this, integrate this
+# struct EqualTimeIterator{T <: DQMC}
+#     mc::T
+# end
+
+
+# function EqualTimeIterator(mc::T, range=0:N-1) where {T <: DQMC}
+#     EqualTimeIterator{T}(mc)
+# end
+
+# function Base.iterate(it::EqualTimeIterator)
+#     # 2x Faster fuck yea!
+#     # Avoids building the ut_stack
+#     # Measurements take place at slice = nslices = 0
+#     s = it.mc.s
+#     copyto!(s.Tl, s.greens)
+#     G = _greens!(it.mc, s.Ur, s.Tl, s.Tr) # just be careful here
+#     udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, it.mc.s.pivot, it.mc.s.tempv)
+#     return (G, 1)
+# end
+# function Base.iterate(it::GreensIterator{:, 0}, state)
+#     s = it.mc.s
+#     k = state
+#     if k ≥ it.mc.p.slices
+#         return nothing
+#     elseif k % it.mc.p.safe_mult == 0
+#         # Stabilization
+#         # vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
+#         # vmul!(s.Ur, s.curr_U, s.Tl)
+#         # udt_AVX_pivot!(s.Tr, s.Dl, s.curr_U, it.mc.s.pivot, it.mc.s.tempv)
+#         # vmul!(s.Ul, s.Ul, s.Tr)
+#         # vmul!(s.Tr, s.curr_U, s.Tl)
+#         # copyto!(s.Tl, s.Tr)
+#         # G = _greens!(it.mc, s.curr_u, s.Ur, s.Tr)
+
+#         # Shouldn't these be here?
+#         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ul)
+#         multiply_slice_matrix_inv_rightt!(it.mc, it.mc.model, k, s.Tl)
+#         vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
+#         vmul!(s.Tr, s.curr_U, s.Tl)
+#         G = _greens!(it.mc, s.curr_u, s.Tr, s.Ur)
+#         udt_AVX_pivot!(s.Ul, s.Dl, s.Tr, it.mc.s.pivot, it.mc.s.tempv)
+#         copyto!(s.Tl, s.Tr)
+#         return (G, k+1)
+#     else
+#         # Quick advance
+#         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ul)
+#         multiply_slice_matrix_inv_rightt!(it.mc, it.mc.model, k, s.Tl)
+#         vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
+#         vmul!(s.Ur, s.curr_U, s.Tl)
+#         G = _greens!(it.mc, s.curr_U, s.Ur, s.Tr)
+#         return (G, k+1)
+#     end
+# end
+
+
+
+
+
+# # TODO
+# # - iterate (0, 0) -> (M-1, 0)  DONE
+# # - synchronize         CONCEPT done?
+# #   - define Integrator w/ a GreensIterator
+# #   - measurements use Integrator
+# #   - integrater depends on measurement kernels like similar to _measurement_kernels
+
+# # Sketch:
+
+# function measure!(m, ...)
+#     result = integrate!(m.Integrator, m, time_kernel)
+#     mask_kernel!(m, m.mask, result, mask_kernel)
+#     push!(m.obs, result)
+# end
+
+
+
+# # more planning
+# kernel!(IntegrationStep{range, range}(k, l), measurements, Gtau0, G0, Gtau, args...)
+# # or IterationStep?
+# kernel!(MaskIndex{Masktype}(i, j, dir maybe))
+
+# synchronize!(measurements) -> remake everything with identical Iterators
+
+
+# # -------
+
+# for (write_idxs, read_idxs) in mask
+#     for (tau, Greens) in enumerate(it)
+#         kernel!()
+#     end
+# end
+
+# # becomes
+# for step::MaskStep in mask
+#     kernel!(step, measurement)
+# end
+
+# kernel!(::MaskStep) = for step::TimeStep in iter; kernel!(step, ...) end
+
+# # this wouldn't synchronize easily though, because TimeStep is hidden in kernel!, no?
+
+# # Just combine them 4Head
+# # a bunch of setup
+# # like calculate Greens I-G, make it avaible in mask step somehow
+# for mask_step::MaskStep in mask
+#     for time_step::TimeStep in enumerate(it)
+#         # injected after the fact
+#         for measurement in values(mc.measurements)
+#             kernel!(mask_step, time_step, measurement, args...)
+#         end
+#     end
+# end
+
+# # but that requires skipping default measure!
+
+# function measure!(m::Measurement)
+#     compute!(m)
+#     push!(m.obs, m.temp)
+# end
+# function kernel!(measurement) end
+# function compute!(m)
+#     needs_computation && compute_all!()
+#     nothing
+# end
+
+# # We will also need G(l, l) btw
+
