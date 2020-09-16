@@ -38,7 +38,7 @@ function UTGreensMeasurement(
     UTGreensMeasurement{typeof(o)}(o, l1, l2)
 end
 @bm function measure!(m::UTGreensMeasurement, mc::DQMC, model, i::Int64)
-    push!(m.obs, calculate_greens!(mc, m.l2, m.l1))
+    push!(m.obs, greens!(mc, m.l2, m.l1))
 end
 
 

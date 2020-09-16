@@ -112,7 +112,7 @@ end
     # calculation against each other
     for slice in 0:MonteCarlo.nslices(dqmc)
         G1 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice))
-        G2 = deepcopy(MonteCarlo.calculate_greens!(dqmc, slice, slice))
+        G2 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice, slice))
         @test maximum(abs.(G1 .- G2)) < 1e-14
     end
 

@@ -743,7 +743,7 @@ function _greens!(
         mc::DQMC, slice::Integer, 
         output::Matrix=mc.s.greens_temp, temp1::Matrix=mc.s.tmp1, temp2::Matrix=mc.s.tmp2
     )
-    _calculate_greens(mc, slice, mc.p.safe_mult, temp1)
+    calculate_greens(mc, slice, temp1)
     _greens!(mc, output, temp1, temp2)
 end
 

@@ -18,7 +18,6 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
 
     tmp1::Matrix{GreensEltype}
     tmp2::Matrix{GreensEltype}
-    tmp3::Matrix{GreensEltype}
 
     ranges::Array{UnitRange, 1}
     n_elements::Int
@@ -109,7 +108,6 @@ function initialize_stack(mc::DQMC, s::DQMCStack)
     # can be changed anywhere
     mc.s.tmp1 = zeros(GreensEltype, flv*N, flv*N)
     mc.s.tmp2 = zeros(GreensEltype, flv*N, flv*N)
-    mc.s.tmp3 = zeros(GreensEltype, flv*N, flv*N)
 
 
     # # Global update backup
@@ -268,7 +266,7 @@ end
 Calculates G(slice) using mc.s.Ur,mc.s.Dr,mc.s.Tr=B(slice)' ... B(M)' and
 mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
 """
-@bm function calculate_greens(mc::DQMC, output=mc.s.greens)
+@bm function calculate_greens(mc::DQMC, output::Matrix=mc.s.greens)
     calculate_greens_AVX!(
         mc.s.Ul, mc.s.Dl, mc.s.Tl,
         mc.s.Ur, mc.s.Dr, mc.s.Tr,
@@ -279,7 +277,7 @@ end
 
 # Faster version of calculate_greens_and_logdet from testfunctions.jl
 @bm function calculate_greens(
-        mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult, output=mc.s.greens
+        mc::DQMC, slice::Int, output::Matrix=mc.s.greens, safe_mult::Int=mc.p.safe_mult
     )
     copyto!(mc.s.curr_U, I)
     copyto!(mc.s.Ur, I)

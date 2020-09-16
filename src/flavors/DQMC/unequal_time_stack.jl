@@ -1,3 +1,13 @@
+# We could technically wait with allocating the stacks until they are actually
+# needed. Gk0 doesn't need the forward stack, for example (though it does use it atm)
+
+# We can probably also use the normal stack here...
+# - If we assume calls to greens() to happen at a current_slice = 1 the normal
+#   stack should either be the forward or backward stack (need to check). So we
+#   could drop one of the stacks here completely.
+# - More generally, we could copy data from any current_slice instead of
+#   recalculating.
+
 mutable struct UnequalTimeStack{GT} <: AbstractDQMCStack
     # B_{n*safe_mult} ... B_1
     forward_idx::Int64
@@ -231,9 +241,12 @@ end
     nothing
 end
 
+
+
 ########################################
 # Calculating greens
 ########################################
+
 
 
 """
@@ -244,8 +257,8 @@ Calculates the unequal-time Greens function at slice `k` and `l`, i.e.
 
 Note that `G(0, 0) = G(nslices, nslices) = G(β, β) = G(0, 0)`.
 
-This method requires the `UnequalTimeStack` to be available. (...) The stack 
-variables `Ul`, `Dl`, `Tl`, `Ur`, `Dr`, `Tr`, `curr_U`, `tmp1` and `tmp2` will
+This method requires the `UnequalTimeStack` to be available. The stack 
+variables `Ul`, `Dl`, `Tl`, `Ur`, `Dr`, `Tr`, `curr_U` and `tmp1` will
 be overwritten (but are avaible as `output` and `temp`).
 """
 @bm greens(mc::DQMC, slice1::Int64, slice2::Int64) = copy(_greens!(mc, slice1, slice2))
@@ -262,13 +275,13 @@ end
     _greens!(mc::DQMC, k, l, output=mc.s.greens_temp, temp=mc.s.tmp1)
 """
 function _greens!(
-        mc::DQMC, slice1::Int64, slice2::Int64;
+        mc::DQMC, slice1::Int64, slice2::Int64,
         output = mc.s.greens_temp, temp = mc.s.tmp1
     )
-    calculate_greens!(mc, slice1, slice2)
+    calculate_greens(mc, slice1, slice2)
     _greens!(mc, output, mc.ut_stack.greens, temp)
 end
-@bm function calculate_greens!(mc::DQMC, slice1::Int64, slice2::Int64)
+@bm function calculate_greens(mc::DQMC, slice1::Int64, slice2::Int64)
     @assert 0 ≤ slice1 ≤ mc.p.slices
     @assert 0 ≤ slice2 ≤ mc.p.slices
     @assert slice2 ≤ slice1
@@ -305,6 +318,7 @@ end
         copyto!(s.U, I)
         s.D .= 1
         copyto!(s.T, I)
+        # UDT combining style
         for idx in lower:upper
             # () is operation order, [] marks UDT decomposition
             # U [(D (T stack_U)) stack_D] stack_T
@@ -459,9 +473,12 @@ end
 end
 
 
+
 ################################################################################
 ### Iterators
 ################################################################################
+
+
 
 # The method above provides the unequal-time Greens function in a stable, 
 # general but expensive way. The idea of iterators is to provide what is needed
@@ -497,16 +514,24 @@ struct GreensIterator{slice1, slice2, T <: DQMC} <: AbstractGreensIterator
 end
 
 """
-    GreensIterator(mc::DQMC, k, l, recalculate=4mc.p.safe_mult)
+    GreensIterator(mc::DQMC[, ks=Colon(), ls=0, recalculate=4mc.p.safe_mult])
 
-Given `k = :` and `l::Int64`, iterates through `[G[k, l] for k in l:nslices]`.
-Does a full recalculation of `G[k, l]` if `k % recalculate == 0`.
+Creates an Iterator which calculates all `[G[k <- l] for l in ls for k in ks]`
+efficiently. Currently only allows `ks = :, ls::Integer`. 
 
-Requires `U`, `D`, `T` in `UnequalTimeStack` to remain valid between iterations. 
-Mutates `Ur`, `Tr` and `curr_U` in `DQMCStack`.
-- `greens(mc::DQMC, k, l)` will invalidate iteration.
+For stability it is necessary to fully recompute `G[k <- l]` every so often. one
+can adjust the frequency of recalculations via `recalculate`. To estimate the 
+resulting accuracy, one may use `accuracy(GreensIterator(...))`.
+
+This iterator requires the `UnequalTimeStack`. Iteration overwrites the 
+`DQMCStack` variables `curr_U`, `Ul`, `Dl`, `Tl`, `Ur`, `Dr`, `Tr`, `tmp1` and 
+`tmp2`, with `curr_U` acting as the output. For the iteration to remain valid, 
+the UnequalTimeStack must not be overwritten. As such:
+- `greens!(mc)` can be called and remains valid
+- `greens!(mc, slice)` can be called and remains valid
+- `greens!(mc, k, l)` will break iteration but remains valid (call before iterating)
 """
-function GreensIterator(mc::T, slice1, slice2, recalculate=4mc.p.safe_mult) where {T <: DQMC}
+function GreensIterator(mc::T, slice1=Colon(), slice2=0, recalculate=4mc.p.safe_mult) where {T <: DQMC}
     GreensIterator{slice1, slice2, T}(mc, recalculate)
 end
 init!(it::GreensIterator) = it.mc.ut_stack = UnequalTimeStack(it.mc)
@@ -518,7 +543,7 @@ function Base.iterate(it::GreensIterator{:, i}) where {i}
     calculate_greens_full!(it.mc, s, i, i)
     copyto!(s.T, s.greens)
     udt_AVX_pivot!(s.U, s.D, s.T, it.mc.s.pivot, it.mc.s.tempv)
-    G = _greens!(it.mc, it.mc.s.Ul, s.greens, it.mc.s.Ur)
+    G = _greens!(it.mc, it.mc.s.curr_U, s.greens, it.mc.s.Ur)
     return (G, (i+1, i))
 end
 function Base.iterate(it::GreensIterator{:}, state)
@@ -567,17 +592,20 @@ end
 
 
 
-
-
 """
     CombinedGreensIterator(mc::DQMC, recalculate=4mc.p.safe_mult)
 
 Returns an iterator which iterates `[(G[k, 0], G[k, k]) for k in 0:nslices-1]`. 
-Does a full recalculation of `G[k, 0]` if `k % recalculate == 0`.
+Does a full recalculation of `G[k, 0]` and `G[k, k]` if `k % recalculate == 0`.
 
-Requires `Ul`, `Dl`, `Tl`, `Ur`, `Dr` and `Tr` in the `DQMCStack` to remain 
-valid between iterations. Writes results to `tmp3` and `tmp2`. Mutates `curr_U`
-and `tmp1`. 
+
+This iterator requires the `UnequalTimeStack` and uses `U` and `T` as outputs. 
+For correct iteration it requires the `DQMCStack` variable `Ul`, `Dl`, `Tl`, 
+`Ur`, `Dr` and `Tr` to remain unchanged. Further, the stack variables `curr_U`,
+`tmp1` and `tmp2` are overwritten. As such
+- `greens!(mc)` will break iteration but remains valid (call before iterating)
+- `greens!(mc, slice)` will break iteration but remains valid
+- `greens!(mc, k, l)` will break iteration but remains valid
 """
 struct CombinedGreensIterator{T <: DQMC} <: AbstractGreensIterator
     mc::T
@@ -601,8 +629,8 @@ function Base.iterate(it::CombinedGreensIterator)
     @assert current_slice(it.mc) == 1
     s = it.mc.s
     copyto!(s.Tl, s.greens)
-    Gkl = _greens!(it.mc, s.tmp3, s.Tl, s.curr_U)
-    Gkk = copyto!(s.tmp2, s.tmp3)
+    Gkl = _greens!(it.mc, it.mc.ut_stack.U, s.Tl, s.curr_U)
+    Gkk = copyto!(it.mc.ut_stack.T, it.mc.ut_stack.U)
     udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, it.mc.s.pivot, it.mc.s.tempv)
     copyto!(s.Ur, s.Ul)
     copyto!(s.Dr, s.Dl)
@@ -616,14 +644,14 @@ function Base.iterate(it::CombinedGreensIterator, k)
         return nothing
     elseif k % it.recalculate == 0 
         # Recalculation will overwrite Ul, Dl, Tl, Ur, Dr, Tr, curr_U, tmp1, tmp2
-        copyto!(s.tmp3, calculate_greens_full!(it.mc, it.mc.ut_stack, k, k))
+        copyto!(s.tmp2, calculate_greens_full!(it.mc, it.mc.ut_stack, k, k))
         copyto!(s.Tl, calculate_greens_full!(it.mc, it.mc.ut_stack, k, 0))
+        copyto!(s.Tr, s.tmp2)
     
-        copyto!(s.Tr, s.tmp3)
-        Gkk = _greens!(it.mc, s.tmp2, s.tmp3, s.curr_U)
+        Gkk = _greens!(it.mc, it.mc.ut_stack.T, s.tmp2, s.curr_U)
         udt_AVX_pivot!(s.Ur, s.Dr, s.Tr, it.mc.s.pivot, it.mc.s.tempv)
 
-        Gkl = _greens!(it.mc, s.tmp3, s.Tl, s.curr_U)
+        Gkl = _greens!(it.mc, it.mc.ut_stack.U, s.Tl, s.curr_U)
         udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, it.mc.s.pivot, it.mc.s.tempv)
         return ((Gkl, Gkk), k+1)
     elseif k % it.mc.p.safe_mult == 0
@@ -635,7 +663,7 @@ function Base.iterate(it::CombinedGreensIterator, k)
         udt_AVX_pivot!(s.Ul, s.Dl, s.tmp1, it.mc.s.pivot, it.mc.s.tempv)
         vmul!(s.curr_U, s.tmp1, s.Tl)
         copyto!(s.Tl, s.curr_U)
-        Gkl = _greens!(it.mc, s.tmp3, s.tmp2, s.curr_U)
+        Gkl = _greens!(it.mc, it.mc.ut_stack.U, s.tmp2, s.curr_U)
 
         # Gkk
         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ur)
@@ -647,7 +675,7 @@ function Base.iterate(it::CombinedGreensIterator, k)
         vmul!(s.Tr, Diagonal(s.Dr), s.Ur)
         udt_AVX_pivot!(s.tmp2, s.Dr, s.Tr, it.mc.s.pivot, it.mc.s.tempv)
         vmul!(s.Ur, s.curr_U, s.tmp2)
-        Gkk = _greens!(it.mc, s.tmp2, s.tmp1, s.curr_U)
+        Gkk = _greens!(it.mc, it.mc.ut_stack.T, s.tmp1, s.curr_U)
 
         return ((Gkl, Gkk), k+1)
     else
@@ -656,14 +684,14 @@ function Base.iterate(it::CombinedGreensIterator, k)
         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ul)
         vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
         vmul!(s.tmp1, s.curr_U, s.Tl)
-        Gkl = _greens!(it.mc, s.tmp3, s.tmp1, s.curr_U)
+        Gkl = _greens!(it.mc, it.mc.ut_stack.U, s.tmp1, s.curr_U)
 
         # Gkk
         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.Ur)
         multiply_slice_matrix_inv_right!(it.mc, it.mc.model, k, s.Tr)
         vmul!(s.curr_U, s.Ur, Diagonal(s.Dr))
         vmul!(s.tmp1, s.curr_U, s.Tr)
-        Gkk = _greens!(it.mc, s.tmp2, s.tmp1, s.curr_U)
+        Gkk = _greens!(it.mc, it.mc.ut_stack.T, s.tmp1, s.curr_U)
         return ((Gkl, Gkk), k+1)
     end
 end
