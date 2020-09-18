@@ -324,7 +324,7 @@ save file and exit
 The time required to generate a save file should be included here.
 - `resumable_filename`: Name of the resumable save file. The default is based on
 `safe_before`.
-- `force_overwrite = false`: If set to true a file with the same name as
+- `overwrite = false`: If set to true a file with the same name as
 `resumable_filename` will be overwritten. (This will create a temporary backup)
 
 See also: [`resume!`](@ref)
@@ -337,7 +337,7 @@ See also: [`resume!`](@ref)
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false
+        overwrite = false
     )
 
     # Check for measurements
@@ -435,7 +435,7 @@ See also: [`resume!`](@ref)
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            save(resumable_filename, mc, force_overwrite = force_overwrite, allow_rename=false)
+            save(resumable_filename, mc, overwrite = overwrite, rename = false)
             verbose && println("\nEarly save finished")
 
             return false
@@ -574,7 +574,7 @@ function replay!(
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false,
+        overwrite = false,
         measure_rate = 1
     )
     start_time = now()
@@ -635,7 +635,7 @@ function replay!(
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            save(resumable_filename, mc, force_overwrite = force_overwrite, allow_rename=false)
+            save(resumable_filename, mc, overwrite = overwrite, rename = false)
             verbose && println("\nEarly save finished")
 
             return false

@@ -23,32 +23,32 @@
 
 
 """
-    save(filename, mc; force_overwrite=false, allow_rename=true)
+    save(filename, mc; overwrite=false, rename=true)
 
 Saves the given MonteCarlo simulation `mc` to a JLD-file `filename`.
 
-If `allow_rename = true` the filename will be adjusted if it already exists. If
-`force_overwrite = true` it will be overwritten. In this case a temporary backup
+If `rename = true` the filename will be adjusted if it already exists. If
+`overwrite = true` it will be overwritten. In this case a temporary backup
 will be created. If neither are true an error will be thrown.
 """
 function save(
         filename, mc::MonteCarloFlavor; 
-        force_overwrite=false, allow_rename=true, compress=true, 
+        overwrite = false, rename = false, compress = true, 
         backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
     )
     # endswith(filename, ".jld") || (filename *= ".jld")
 
     # handle ranming and overwriting
-    isfile(filename) && !force_overwrite && !allow_rename && throw(ErrorException(
+    isfile(filename) && !overwrite && !rename && throw(ErrorException(
         "Cannot save because \"$filename\" already exists. Consider setting " *
-        "`allow_rename = true` to adjust the filename or `force_overwrite = true`" *
+        "`rename = true` to adjust the filename or `overwrite = true`" *
         " to overwrite the file."
     ))
-    if isfile(filename) && !force_overwrite && allow_rename
+    if isfile(filename) && !overwrite && rename
         filename = _generate_unqiue_JLD_filename(filename)
     end
 
-    if force_overwrite
+    if overwrite
         parts = splitpath(filename)
         parts[end] = "." * parts[end]
         temp_filename = _generate_unqiue_JLD_filename(joinpath(parts...))
@@ -63,7 +63,7 @@ function save(
     save_rng(file)
     close(file)
 
-    if force_overwrite
+    if overwrite
         rm(temp_filename)
     end
 
