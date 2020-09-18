@@ -459,18 +459,18 @@ end
 #     load_mc(data, ::Type{<: MC})
 #
 # Loads a MC from a given `data` dictionary produced by `JLD.load(filename)`.
-function load_mc(data, ::Type{T}) where {T <: MC}
+function _load(data, ::Type{T}) where {T <: MC}
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
     mc = data["type"]()
-    mc.p = load_parameters(data["parameters"], data["parameters"]["type"])
+    mc.p = _load(data["parameters"], data["parameters"]["type"])
     mc.conf = data["conf"]
     mc.configs = _load(data["configs"], data["configs"]["type"])
     mc.last_sweep = data["last_sweep"]
-    mc.model = load_model(data["Model"], data["Model"]["type"])
+    mc.model = _load(data["Model"], data["Model"]["type"])
 
-    measurements = load_measurements(data["Measurements"])
+    measurements = _load(data["Measurements"], Measurements)
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
     mc
@@ -502,7 +502,7 @@ end
 #
 # Loads a MCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function load_parameters(data::Dict, ::Type{T}) where T <: MCParameters
+function _load(data, ::Type{T}) where T <: MCParameters
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end

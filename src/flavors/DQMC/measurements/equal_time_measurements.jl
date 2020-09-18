@@ -66,7 +66,7 @@ function save_measurement(file::JLDFile, m::GreensMeasurement, entryname::String
     write(file, entryname * "/obs", m.obs)
     nothing
 end
-function load_measurement(data, ::Type{T}) where T <: GreensMeasurement
+function _load(data, ::Type{T}) where T <: GreensMeasurement
     @assert data["VERSION"] == 1
     data["type"](data["obs"])
 end
@@ -96,7 +96,7 @@ function save_measurement(file::JLDFile, m::BosonEnergyMeasurement, entryname::S
     write(file, entryname * "/obs", m.obs)
     nothing
 end
-function load_measurement(data, ::Type{T}) where T <: BosonEnergyMeasurement
+function _load(data, ::Type{T}) where T <: BosonEnergyMeasurement
     @assert data["VERSION"] == 1
     data["type"](data["obs"])
 end
@@ -152,7 +152,7 @@ function save_measurement(file::JLDFile, m::OccupationMeasurement, entryname::St
     write(file, entryname * "/obs", m.obs)
     nothing
 end
-function load_measurement(data, ::Type{T}) where T <: OccupationMeasurement
+function _load(data, ::Type{T}) where T <: OccupationMeasurement
     @assert data["VERSION"] == 1
     data["type"](data["obs"])
 end

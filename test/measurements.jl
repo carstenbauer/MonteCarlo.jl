@@ -179,7 +179,7 @@ end
 
     meas = measurements(mc, :all)
     MonteCarlo.save_measurements("testfile.jld", mc, force_overwrite=true)
-    _meas = MonteCarlo.load_measurements("testfile.jld")
+    _meas = MonteCarlo.load("testfile.jld")
     for (k, v) in meas
         for (k2, v2) in v
             for f in fieldnames(typeof(v2))

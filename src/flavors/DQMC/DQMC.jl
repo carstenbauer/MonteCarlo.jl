@@ -717,20 +717,20 @@ end
 #     load_mc(data, ::Type{<: DQMC})
 #
 # Loads a DQMC from a given `data` dictionary produced by `JLD.load(filename)`.
-function load_mc(data::Dict, ::Type{T}) where T <: DQMC
+function _load(data, ::Type{T}) where T <: DQMC
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
 
     mc = data["type"]()
-    mc.p = load_parameters(data["Parameters"], data["Parameters"]["type"])
-    mc.a = load_analysis(data["Analysis"], data["Analysis"]["type"])
+    mc.p = _load(data["Parameters"], data["Parameters"]["type"])
+    mc.a = _load(data["Analysis"], data["Analysis"]["type"])
     mc.conf = data["conf"]
     mc.configs = _load(data["configs"], data["configs"]["type"])
     mc.last_sweep = data["last_sweep"]
-    mc.model = load_model(data["Model"], data["Model"]["type"])
+    mc.model = _load(data["Model"], data["Model"]["type"])
 
-    measurements = load_measurements(data["Measurements"])
+    measurements = _load(data["Measurements"], Measurements)
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
     mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
@@ -767,7 +767,7 @@ end
 #
 # Loads a DQMCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
+function _load(data, ::Type{T}) where T <: DQMCParameters
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
@@ -803,7 +803,7 @@ function save_stats(file::JLDFile, ms::MagnitudeStats, entryname::String="MStats
     write(file, entryname * "/count", ms.count)
 end
 
-function load_analysis(data::Dict, ::Type{T}) where T <: DQMCAnalysis
+function _load(data, ::Type{T}) where T <: DQMCAnalysis
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end

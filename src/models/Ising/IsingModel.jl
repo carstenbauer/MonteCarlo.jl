@@ -198,12 +198,12 @@ end
 #
 # Loads an IsingModel from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function load_model(data::Dict, ::Type{T}) where T <: IsingModel
+function _load(data, ::Type{T}) where T <: IsingModel
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load IsingModel version $(data["VERSION"])"))
     end
 
-    l = load_lattice(data["l"], data["l"]["type"])
+    l = _load(data["l"], data["l"]["type"])
     model = data["type"](
         L = data["L"],
         dims = data["dims"],

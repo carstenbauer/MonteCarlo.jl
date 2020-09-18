@@ -152,7 +152,7 @@ function save_site(file::JLDFile, s::LatPhysBase.AbstractSite, entryname::String
 end
 
 
-function load_lattice(data, ::Type{T}) where T <: LatPhysLattice
+function _load(data, ::Type{T}) where T <: LatPhysLattice
     @assert data["VERSION"] == 0
     data["type"](load_lattice(data["lattice"]), data["neighs"])
 end
