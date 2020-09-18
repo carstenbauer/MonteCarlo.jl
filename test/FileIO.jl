@@ -70,7 +70,7 @@ end
         verbose = false,
         safe_before = now() + Second(12),
         grace_period = Millisecond(0),
-        force_overwrite = true,
+        overwrite = true,
         resumable_filename = "$p/resumable_testfile.jld"
     )
 
@@ -190,7 +190,7 @@ end
         verbose = false,
         safe_before = now() + Second(8),
         grace_period = Millisecond(0),
-        force_overwrite = true,
+        overwrite = true,
         resumable_filename = "$p/resumable_testfile.jld2"
     )
 

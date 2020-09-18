@@ -271,7 +271,7 @@ See also: [`resume!`](@ref)
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            resumable_filename = save(resumable_filename, mc)
+            resumable_filename = save(resumable_filename, mc, overwrite=overwrite)
             verbose && println("\nEarly save finished")
 
             return false

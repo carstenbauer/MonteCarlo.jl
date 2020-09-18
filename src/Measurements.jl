@@ -498,25 +498,25 @@ struct Measurements end
 
 
 """
-    save_measurements!(mc, filename[, entryname=""; force_overwrite=false, allow_rename=true])
+    save_measurements!(mc, filename[, entryname=""; overwrite=false, rename=true])
 
 Saves all measurements to `filename`.
 
-If `force_overwrite = true` the file will
-be overwritten if it already exists. If `allow_rename = true` random characters
+If `overwrite = true` the file will
+be overwritten if it already exists. If `rename = true` random characters
 will be added to the filename until it becomes unique.
 """
 function save_measurements(
         filename::String, mc::MonteCarloFlavor, entryname::String="";
         backend = endswith(filename, "jld2") ? JLD2 : JLD,
-        force_overwrite = false, allow_rename = true
+        overwrite = false, rename = true
     )
-    isfile(filename) && !force_overwrite && !allow_rename && throw(ErrorException(
+    isfile(filename) && !overwrite && !rename && throw(ErrorException(
         "Cannot save because \"$filename\" already exists. Consider setting " *
-        "`allow_reanme = true` to adjust the filename or `force_overwrite = true`" *
+        "`reanme = true` to adjust the filename or `overwrite = true`" *
         " to overwrite the file."
     ))
-    if isfile(filename) && !force_overwrite && allow_rename
+    if isfile(filename) && !overwrite && rename
         while isfile(filename)
             # those map to 0-9, A-Z, a-z
             x = rand([(48:57)..., (65:90)..., (97:122)...])
