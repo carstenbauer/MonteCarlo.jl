@@ -138,61 +138,25 @@ function save_unitcell(file::JLDFile, uc::LatPhysBase.AbstractUnitcell, entrynam
     write(file, entryname * "/bonds/wraps",  [b.wrap  for b in uc.bonds])
     nothing
 end
-# function save_bond(file::JLDFile, b::LatPhysBase.AbstractBond, entryname::String)
-#     write(file, entryname * "/type", typeof(b))
-#     write(file, entryname * "/from", b.from)
-#     write(file, entryname * "/to", b.to)
-#     write(file, entryname * "/label", b.label)
-#     write(file, entryname * "/wrap", b.wrap)
-#     nothing
-# end
-# function save_site(file::JLDFile, s::LatPhysBase.AbstractSite, entryname::String)
-#     write(file, entryname * "/type", typeof(s))
-#     write(file, entryname * "/point", s.point)
-#     write(file, entryname * "/label", s.label)
-#     nothing
-# end
 
 
 function _load(data, ::Type{T}) where T <: LatPhysLattice
     @assert data["VERSION"] == 0
     data["type"](load_lattice(data["lattice"]), data["neighs"])
 end
-
-
-# NEW LOAD
-# function load_lattice(data)
-#     sites = load_sites(data["sites"])
-#     bonds = load_bonds(data["bonds"])
-#     lattice_vectors = [data["lv"]["$i"] for i in 1:data["lv"]["N"]]
-#     unitcell = load_unitcell(data["unitcell"])
-
-#     data["type"](lattice_vectors, sites, bonds, unitcell)
-# end
-# function load_unitcell(data)
-#     sites = load_sites(data["sites"])
-#     bonds = load_bonds(data["bonds"])
-#     lattice_vectors = data["lv"]
-#     data["type"](lattice_vectors, sites, bonds)
-# end
-# load_sites(data) = data["type"].(data["points"], data["labels"])
-# load_bonds(data) = data["type"].(data["froms"], data["tos"], data["labels"], data["wraps"])
-
-
 function load_lattice(data)
-    sites = [load_site(data["sites"]["$i"]) for i in 1:data["sites"]["N"]]
-    bonds = [load_bond(data["bonds"]["$i"]) for i in 1:data["bonds"]["N"]]
+    sites = load_sites(data["sites"])
+    bonds = load_bonds(data["bonds"])
     lattice_vectors = [data["lv"]["$i"] for i in 1:data["lv"]["N"]]
     unitcell = load_unitcell(data["unitcell"])
 
     data["type"](lattice_vectors, sites, bonds, unitcell)
 end
 function load_unitcell(data)
-    sites = [load_site(data["sites"]["$i"]) for i in 1:data["sites"]["N"]]
-    bonds = [load_bond(data["bonds"]["$i"]) for i in 1:data["bonds"]["N"]]
-    lattice_vectors = [data["lv"]["$i"] for i in 1:data["lv"]["N"]]
-
+    sites = load_sites(data["sites"])
+    bonds = load_bonds(data["bonds"])
+    lattice_vectors = data["lv"]
     data["type"](lattice_vectors, sites, bonds)
 end
-load_bond(data) = data["type"](data["from"], data["to"], data["label"], data["wrap"])
-load_site(data) = data["type"](data["point"], data["label"])
+load_sites(data) = data["type"].(data["points"], data["labels"])
+load_bonds(data) = data["type"].(data["froms"], data["tos"], data["labels"], data["wraps"])
