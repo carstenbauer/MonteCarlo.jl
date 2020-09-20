@@ -5,7 +5,7 @@ using Reexport
 import MonteCarloObservable.AbstractObservable
 using Parameters, Requires
 using JLD, TimerOutputs
-using LoopVectorization, RecursiveFactorization
+using LoopVectorization
 
 using Printf, SparseArrays, LinearAlgebra, Dates, Random, Statistics
 
