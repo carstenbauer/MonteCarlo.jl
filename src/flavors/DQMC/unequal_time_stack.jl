@@ -405,12 +405,15 @@ end
             lvmul!(Diagonal(mc.s.Dl), s.greens)
         end
         @bm "udt" begin
-            udt_AVX_pivot!(mc.s.Tr, mc.s.Dr, s.greens, mc.s.pivot, mc.s.tempv)
+            # udt_AVX_pivot!(mc.s.Tr, mc.s.Dr, s.greens, mc.s.pivot, mc.s.tempv)
+            udt_AVX_pivot!(mc.s.Tr, mc.s.Dr, s.greens, mc.s.pivot, mc.s.tempv, Val(false))
         end
         # [U D T + Ul Tr Dr G Ur^†]^-1
         @bm "B2" begin
             vmul!(mc.s.Tl, mc.s.Ul, mc.s.Tr)
-            vmul!(mc.s.Ul, s.greens, adjoint(mc.s.Ur))
+            # vmul!(mc.s.Ul, s.greens, adjoint(mc.s.Ur))
+            copyto!(mc.s.Tr, mc.s.Ur)
+            rdivp!(mc.s.Tr, s.greens, mc.s.Ul, mc.s.pivot)
             # [U D T + Tl Dr Ul]^-1  Ul is not unitary, Tl is
             # copyto!(mc.s.Tr, mc.s.Ul)
         end
@@ -426,11 +429,11 @@ end
             mc.s.Dl .= min.(1.0, mc.s.Dr)
             rvmul!(mc.s.Ur, Diagonal(mc.s.Dl))
         end
-        @bm "inv" begin
-            # Tr = Ul^-1
-            copyto!(mc.s.Tr, mc.s.Ul)
-            LinearAlgebra.inv!(RecursiveFactorization.lu!(mc.s.Tr, mc.s.pivot))
-        end
+        # @bm "inv" begin
+        #     # Tr = Ul^-1
+        #     copyto!(mc.s.Tr, mc.s.Ul)
+        #     LinearAlgebra.inv!(RecursiveFactorization.lu!(mc.s.Tr, mc.s.pivot))
+        # end
         @bm "B4" begin
             # D_min T Ul^-1 1/Dr_max = D_min T Tr 1/Dr_max
             vmul!(mc.s.Tl, s.T, mc.s.Tr)
@@ -442,21 +445,23 @@ end
         # [U D_max (Ur + Tl) Dr_max Ul]^-1
         @bm "sum, UDT" begin
             mc.s.Tl .+= mc.s.Ur
-            udt_AVX_pivot!(mc.s.Ur, mc.s.Dl, mc.s.Tl, mc.s.pivot, mc.s.tempv)
+            # udt_AVX_pivot!(mc.s.Ur, mc.s.Dl, mc.s.Tl, mc.s.pivot, mc.s.tempv)
+            udt_AVX_pivot!(mc.s.Ur, mc.s.Dl, mc.s.Tl, mc.s.pivot, mc.s.tempv, Val(false))
         end
         # [U D_max Ur Dl Tl Dr_max Ul]^-1 # Ul is not unitary
-        # Ul^-1 (Dr_max^-1 ((Tl^-1 Dl^-1) Ur^†) D_max^-1) U^† # Ul^-1 = Tr
+        # Ul^-1 ((((Dr_max^-1 Tl^-1) Dl^-1) Ur^†) D_max^-1) U^† # Ul^-1 = Tr
         @bm "B5" begin
-            LinearAlgebra.inv!(RecursiveFactorization.lu!(mc.s.Tl, mc.s.pivot))
+            # LinearAlgebra.inv!(RecursiveFactorization.lu!(mc.s.Tl, mc.s.pivot))
+            # This order seems to be fine
+            mc.s.Dr .= 1.0 ./ max.(1.0, mc.s.Dr)
+            rdivp!(mc.s.Ul, mc.s.Dr, mc.s.Tl, mc.s.pivot)
             @avx for i in eachindex(mc.s.Dl)
                 mc.s.Dl[i] = 1.0 / mc.s.Dl[i]
             end
-            rvmul!(mc.s.Tl, Diagonal(mc.s.Dl))
-            vmul!(s.greens, mc.s.Tl, adjoint(mc.s.Ur))
+            rvmul!(mc.s.Ul, Diagonal(mc.s.Dl))
+            vmul!(s.greens, mc.s.Ul, adjoint(mc.s.Ur))
             mc.s.Dl .= 1.0 ./ max.(1.0, s.D)
             rvmul!(s.greens, Diagonal(mc.s.Dl))
-            mc.s.Dl .= 1.0 ./ max.(1.0, mc.s.Dr)
-            lvmul!(Diagonal(mc.s.Dl), s.greens)
         end
         @bm "UDT" begin
             udt_AVX_pivot!(mc.s.Ur, s.D, s.greens, mc.s.pivot, mc.s.tempv)

@@ -145,7 +145,7 @@ end
 end
 
 
-function indmaxcolumn(A::Matrix{T}, j=1, n=size(A, 1)) where {T<:Real}
+function indmaxcolumn(A::AbstractArray{T}, j=1, n=size(A, 1)) where {T<:Real}
     max = zero(T)
     @avx for k in j:n
         max += conj(A[k, j]) * A[k, j]
@@ -275,7 +275,7 @@ function udt_AVX_pivot!(
     nothing
 end
 
-function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{true}) where {C<:Real}
+function _apply_pivot!(input::AbstractArray{C}, D, temp, pivot, ::Val{true}) where {C<:Real}
     n = size(input, 1)
     @inbounds for i in 1:n
         d = 1.0 / D[i]
@@ -290,7 +290,7 @@ function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{true}) where {C<:
         end
     end
 end
-function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{false}) where {C <: Real}
+function _apply_pivot!(input::AbstractArray{C}, D, temp, pivot, ::Val{false}) where {C <: Real}
     n = size(input, 1)
     @inbounds for i in 1:n
         d = 1.0 / D[i]
@@ -430,8 +430,7 @@ pivoted according to a pivoting vector `pivot`. `A`, `T` and `O` should all be
 square matrices of the same size. The result will be written to `A` without 
 changing `T`.
 """
-function rdivp!(A, T, O, pivot)
-    # assume Diagonal is ±1!
+function rdivp!(A::Matrix, T::Matrix, O::Matrix, pivot::Vector{<:Integer})
     @inbounds begin
         N = size(A, 1)
 
@@ -455,6 +454,40 @@ function rdivp!(A, T, O, pivot)
                 end
                 A[i, j] = x / T[j, j]
             end
+        end
+    end
+    A
+end
+
+# A <- D / T = D * T^-1 (D Diagonal in vector form)
+"""
+    rdivp!(A, D, T, pivot)
+
+Computes `D * T^-1` where `T` is an upper triangular matrix which should be 
+pivoted according to a pivoting vector `pivot`. `A` and `T` should both be
+square matrices of the same size. `D` should be Diagonal matrix, given as a 
+`Diagonal` or `Vector` with matching size. The result will be written to `A` 
+without changing `T` or `D`.
+"""
+rdivp!(A::Matrix, D::Diagonal, T::Matrix, pivot::Vector{<:Integer}) = inv!(A, D.diag, T, pivot)
+function rdivp!(A::Matrix, D::Vector, T::Matrix, pivot::Vector{<:Integer})
+    @inbounds begin
+        N = size(A, 1)
+
+        @avx for i in 1:N
+            A[i, 1] = 0.0
+        end
+        A[pivot[1], 1] += D[pivot[1]] / T[1, 1]
+        for j in 2:N
+            @avx for i in 1:N
+                x = 0.0
+                for k in 1:j-1
+                    x -= A[i, k] * T[k, j]
+                end
+                A[i, j] = x / T[j, j]
+            end
+            p = pivot[j]
+            A[p, j] = A[p, j] + D[p] / T[j, j]
         end
     end
     A
@@ -634,6 +667,29 @@ function rdivp!(A::Matrix{<: Complex}, T::Matrix{<: Complex}, O::Matrix{<: Compl
                 end
                 A[i, j] = x / T[j, j]
             end
+        end
+    end
+    A
+end
+
+function rdivp!(A::Matrix{<:Complex}, D::Vector, T::Matrix{<:ComplexF64}, pivot::Vector{<:Integer})
+    @inbounds begin
+        N = size(A, 1)
+
+        @simd for i in 1:N
+            A[i, 1] = ComplexF64(0.0)
+        end
+        A[pivot[1], 1] += D[pivot[1]] / T[1, 1]
+        for j in 2:N
+            for i in 1:N
+                x = ComplexF64(0.0)
+                @simd for k in 1:j-1
+                    x -= A[i, k] * T[k, j]
+                end
+                A[i, j] = x / T[j, j]
+            end
+            p = pivot[j]
+            A[p, j] = A[p, j] + D[p] / T[j, j]
         end
     end
     A
