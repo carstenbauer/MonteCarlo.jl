@@ -5,14 +5,14 @@ using Reexport
 @reexport using MonteCarloObservable, Random
 import MonteCarloObservable.AbstractObservable
 using Parameters, Requires
-using TimerOutputs
-using LoopVectorization, RecursiveFactorization
+using TimerOutputs, LoopVectorization
 using Printf, SparseArrays, LinearAlgebra, Dates, Statistics
 
 import JLD, JLD2
 # To allow switching between JLD and JLD2:
 const UnknownType = Union{JLD.UnsupportedType, JLD2.UnknownType}
 const JLDFile = Union{JLD.JldFile, JLD2.JLDFile}
+
 
 
 include("helpers.jl")
