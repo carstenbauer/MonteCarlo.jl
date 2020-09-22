@@ -105,7 +105,11 @@ end
 """
     OccupationMeasurement(mc::DQMC, ::Model[; capacity=_default_capacity(mc)])
 
-Measures the average occupation per state (e.g. site and spin).
+Measures the occupation per state (e.g. site and spin).
+
+The mean of this measurement corresponds to the expectation value of the 
+occupation number for the full partition function, i.e. including fermionic and 
+bosonic (auxiliary field) degrees of freedom.
 """
 struct OccupationMeasurement{OT <: AbstractObservable} <: AbstractMeasurement
     obs::OT
@@ -207,8 +211,8 @@ function prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model)
 end
 
 
-@doc raw"""
-    ChargeDensityCorrelationMeasurement(mc::DQMC, model)
+"""
+    ChargeDensityCorrelationMeasurement(mc::DQMC, model[; mask, capacity])
 
 Measures the fermionic expectation value of the charge density correlation
 matrix `⟨nᵢnⱼ⟩`.
@@ -450,14 +454,10 @@ end
 Measures the fermionic expectation value of generic pairing correlations.
 
 We define `Δᵢ = c_{i, ↑} c_{i+di, ↓}` s the pair-field operator and
-`P = ⟨ΔᵢΔⱼ^†⟩` as the pairing correlation matrix. If a `DistanceMask` is passed
-`P` is indexed by two direction `P[di, dj]`. For a `RawMask` the indices are
-`P[i, j, i+di, j+dj]` resulting in a much larger matrix. The matrix can be
-retrieved using the field `obs`.
-
-To get pairing correlations of different symmetries one needs to sum the results
-for specific directions with relevant weights. These weights can be determined
-by overlapping the symmetry with the lattice.
+`P = ⟨ΔᵢΔⱼ^†⟩` as the pairing correlation matrix. Currently the mask must be a 
+`DistanceMask`, as a `RawMask` has too high memory requirements. The measurement
+is indexed via directional indices `P[di, dj]` which correspond to 
+`directions(mask)[di]`. 
 
 See also:
 * [`mean`](@ref), [`std_error`](@ref), [`var`](@ref)

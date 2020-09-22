@@ -39,7 +39,10 @@ export directions
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")
-export mask, uniform_fourier, structure_factor
+export GreensMeasurement, BosonEnergyMeasurement, OccupationMeasurement,
+        ChargeDensityCorrelationMeasurement, SpinDensityCorrelationMeasurement,
+        MagnetizationMeasurement, PairingCorrelationMeasurement
+export mask, uniform_fourier, structure_factor, SymmetryWrapped
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
