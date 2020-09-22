@@ -178,8 +178,8 @@ end
     push!(mc, :E => IsingEnergyMeasurement, :TH)
 
     meas = measurements(mc, :all)
-    MonteCarlo.save_measurements("testfile.jld", mc, force_overwrite=true)
-    _meas = MonteCarlo.load_measurements("testfile.jld")
+    MonteCarlo.save_measurements("testfile.jld", mc, overwrite=true)
+    _meas = MonteCarlo.load("testfile.jld")
     for (k, v) in meas
         for (k2, v2) in v
             for f in fieldnames(typeof(v2))

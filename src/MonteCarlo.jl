@@ -5,31 +5,14 @@ using Reexport
 @reexport using MonteCarloObservable, Random
 import MonteCarloObservable.AbstractObservable
 using Parameters, Requires
-using TimerOutputs
-using LoopVectorization, RecursiveFactorization
+using TimerOutputs, LoopVectorization
 using Printf, SparseArrays, LinearAlgebra, Dates, Statistics
-
 
 import JLD, JLD2
 # To allow switching between JLD and JLD2:
 const UnknownType = Union{JLD.UnsupportedType, JLD2.UnknownType}
 const JLDFile = Union{JLD.JldFile, JLD2.JLDFile}
-jldload(args...; kwargs...) = JLD.load(args...; kwargs...)
-function jld2load(args...; kwargs...)
-    flatdict = JLD2.FileIO.load(args...; kwargs...)
-    # Rebuild structure from JLD
-    output = Dict{String, Any}()
-    for (k, v) in flatdict
-        dict = output
-        dirs = splitpath(k)
-        for dir in dirs[1:end-1]
-            haskey(dict, dir) || (dict[dir] = Dict{String, Any}())
-            dict = dict[dir]
-        end
-        dict[dirs[end]] = v
-    end
-    output
-end
+
 
 
 include("helpers.jl")
@@ -40,6 +23,7 @@ include("models/abstract.jl")
 include("lattices/abstract.jl")
 
 include("configurations.jl")
+export Discarder, ConfigRecorder
 include("Measurements.jl")
 export measurements, observables
 
@@ -50,10 +34,15 @@ include("lattices/cubic.jl")
 include("lattices/honeycomb.jl")
 include("lattices/triangular.jl")
 include("lattices/ALPS.jl")
+# export DistanceMask, RawMask # maybe?
+export directions
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")
-export uniform_fourier
+export GreensMeasurement, BosonEnergyMeasurement, OccupationMeasurement,
+        ChargeDensityCorrelationMeasurement, SpinDensityCorrelationMeasurement,
+        MagnetizationMeasurement, PairingCorrelationMeasurement
+export mask, uniform_fourier, structure_factor, SymmetryWrapped
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
@@ -64,11 +53,13 @@ export save, load, resume!
 
 export reset!
 export run!, resume!, replay!
-export IsingModel
-export HubbardModelAttractive
-export MC
-export DQMC
+export IsingModel, HubbardModelAttractive
+export MC, DQMC
 export greens
+
+# For extending
+export AbstractMeasurement, Model
+
 
 function __init__()
     @require LatPhysBase="eec5c15a-e8bd-11e8-0d23-6799ca40c963" include("lattices/LatPhys.jl")

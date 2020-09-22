@@ -1,6 +1,13 @@
 abstract type AbstractRecorder end
 
 
+
+################################################################################
+### ConfigRecorder
+################################################################################
+
+
+
 """
     ConfigRecorder(mc, model[; rate = 10])
 
@@ -41,7 +48,7 @@ function _save(file::JLDFile, cs::ConfigRecorder, entryname::String="configs")
     write(file, entryname * "/data", cs.configs)
     write(file, entryname * "/rate", cs.rate)
 end
-function _load(data::Dict, ::Type{T}) where T <: ConfigRecorder
+function _load(data, ::Type{T}) where T <: ConfigRecorder
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
@@ -49,7 +56,13 @@ function _load(data::Dict, ::Type{T}) where T <: ConfigRecorder
 end
 
 
-# For destroying configuration measurements
+
+################################################################################
+### Discarder
+################################################################################
+
+
+
 """
     Discarder(args...; kwargs...)
 
@@ -69,4 +82,4 @@ function _save(file::JLDFile, ::Discarder, entryname::String="configs")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", Discarder)
 end
-_load(data::Dict, ::Type{Discarder}) = Discarder()
+_load(data, ::Type{Discarder}) = Discarder()

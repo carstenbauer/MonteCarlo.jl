@@ -29,7 +29,6 @@ occupations(obs::AbstractObservable) = Greens2Occupation(obs)
 (::Greens2Occupation)(M::Matrix) = diag(M)
 
 
-
 ################################################################################
 ### Uniform Fourier
 ################################################################################
@@ -77,6 +76,21 @@ struct StructureFactorWrapped{T <: AbstractObservable, VT <: Vector} <: WrappedO
     dirs::Vector{VT}
 end
 
+"""
+    structure_factor(m, ::DQMC[, field])
+    structure_factor(m, ::Model[, field])
+    structure_factor(::AbstractMeasurement, ::Lattice[, field])
+    structure_factor(m, directions[, field])
+
+Returns a `StructureFactorWrapped` observable, given a Measurement or observable
+`m`. Calling `mean` (etc) on the output will produce a function `O(q)` which
+returns the `mean` (etc) of the given observable at a given momentum `q`.
+
+E.g. `mean(structure_factor(obs, dqmc))([0, 0])` will return the expectation 
+value of `obs` at `q=0`.
+
+This is equivalent to a discrete Fourier transform.
+"""
 structure_factor(m, dqmc::DQMC, args...) = structure_factor(m, dqmc.model, args...)
 structure_factor(m, model::Model, args...) = structure_factor(m, lattice(model), args...)
 
@@ -92,6 +106,46 @@ function structure_factor(obs::AbstractObservable, directions::Vector{<: Vector}
 end
 function (x::StructureFactorWrapped)(data)
     q -> mapreduce(+, eachindex(data)) do i
-        exp(1im * dot(q, x.dirs[i])) * data[i]
+        cis(dot(q, x.dirs[i])) * data[i]
     end / length(data)
 end
+
+# Gaussian error propagation? ¯\_(ツ)_/¯
+MonteCarloObservable.var(x::StructureFactorWrapped)  = sqrt(sum(var(x.obs) .^ 2))
+MonteCarloObservable.varN(x::StructureFactorWrapped) = sqrt(sum(varN(x.obs) .^ 2))
+MonteCarloObservable.std(x::StructureFactorWrapped)  = sqrt(sum(std(x.obs) .^ 2))
+MonteCarloObservable.std_error(x::StructureFactorWrapped) = sqrt(sum(std_error(x.obs) .^ 2))
+
+
+################################################################################
+### Symmetry Wrapped
+################################################################################
+
+
+"""
+    SymmetryWrapped(obs, formfactor)
+
+A SymmetryWrapped observable will calculate
+`sum(formfactor[i] * obs[i] for i in eachindex(formfactor))` where `obs[i]` is 
+the value of the observable in the i-th direction.
+    
+See also: [`directions(mask)`](@ref), [`mask(obs)`](@ref)
+"""
+struct SymmetryWrapped{OT, T} <: WrappedObservable
+    obs::OT
+    formfactor::Vector{T}
+end
+
+# TODO constructors?
+# i.e. swave(obs, lattice) -> ??? -> SymmetryWrapped(obs, ???)
+
+function (x::SymmetryWrapped)(data)
+    sum(x.formfactor[i] * data[i] for i in eachindex(x.formfactor))
+end
+
+# Gaussian error propagation? ¯\_(ツ)_/¯
+MonteCarloObservable.var(x::SymmetryWrapped)  = sqrt(sum(var(x.obs) .^ 2))
+MonteCarloObservable.varN(x::SymmetryWrapped) = sqrt(sum(varN(x.obs) .^ 2))
+MonteCarloObservable.std(x::SymmetryWrapped)  = sqrt(sum(std(x.obs) .^ 2))
+MonteCarloObservable.std_error(x::SymmetryWrapped) = sqrt(sum(std_error(x.obs) .^ 2))
+

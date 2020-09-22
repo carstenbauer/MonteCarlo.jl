@@ -336,7 +336,7 @@ save file and exit
 The time required to generate a save file should be included here.
 - `resumable_filename`: Name of the resumable save file. The default is based on
 `safe_before`.
-- `force_overwrite = false`: If set to true a file with the same name as
+- `overwrite = false`: If set to true a file with the same name as
 `resumable_filename` will be overwritten. (This will create a temporary backup)
 
 See also: [`resume!`](@ref)
@@ -349,7 +349,7 @@ See also: [`resume!`](@ref)
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false
+        overwrite = false
     )
 
     # Check for measurements
@@ -447,7 +447,7 @@ See also: [`resume!`](@ref)
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            save(resumable_filename, mc, force_overwrite = force_overwrite, allow_rename=false)
+            save(resumable_filename, mc, overwrite = overwrite, rename = false)
             verbose && println("\nEarly save finished")
 
             return false
@@ -586,7 +586,7 @@ function replay!(
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false,
+        overwrite = false,
         measure_rate = 1
     )
     start_time = now()
@@ -648,7 +648,7 @@ function replay!(
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            save(resumable_filename, mc, force_overwrite = force_overwrite, allow_rename=false)
+            save(resumable_filename, mc, overwrite = overwrite, rename = false)
             verbose && println("\nEarly save finished")
 
             return false
@@ -770,20 +770,20 @@ end
 #     load_mc(data, ::Type{<: DQMC})
 #
 # Loads a DQMC from a given `data` dictionary produced by `JLD.load(filename)`.
-function load_mc(data::Dict, ::Type{T}) where T <: DQMC
+function _load(data, ::Type{T}) where T <: DQMC
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
 
     mc = data["type"]()
-    mc.p = load_parameters(data["Parameters"], data["Parameters"]["type"])
-    mc.a = load_analysis(data["Analysis"], data["Analysis"]["type"])
+    mc.p = _load(data["Parameters"], data["Parameters"]["type"])
+    mc.a = _load(data["Analysis"], data["Analysis"]["type"])
     mc.conf = data["conf"]
     mc.configs = _load(data["configs"], data["configs"]["type"])
     mc.last_sweep = data["last_sweep"]
-    mc.model = load_model(data["Model"], data["Model"]["type"])
+    mc.model = _load(data["Model"], data["Model"]["type"])
 
-    measurements = load_measurements(data["Measurements"])
+    measurements = _load(data["Measurements"], Measurements)
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
     mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
@@ -820,7 +820,7 @@ end
 #
 # Loads a DQMCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
+function _load(data, ::Type{T}) where T <: DQMCParameters
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
@@ -856,7 +856,7 @@ function save_stats(file::JLDFile, ms::MagnitudeStats, entryname::String="MStats
     write(file, entryname * "/count", ms.count)
 end
 
-function load_analysis(data::Dict, ::Type{T}) where T <: DQMCAnalysis
+function _load(data, ::Type{T}) where T <: DQMCAnalysis
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end

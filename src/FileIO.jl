@@ -14,33 +14,41 @@
 #   `load_model(data, ::Type(HubbardModelAttractive))`
 
 
+# Loading:
+# load(filename[, groups]) 
+#   - loads from filename, maybe specific group
+#   - jumps into _load at fitting part
+# _load(data, ::Type{...})
+#   - loads from Dict or JLD2.JLDFile or JLD2.Group (data) to some type (for dispatch)
+
+
 """
-    save(filename, mc; force_overwrite=false, allow_rename=true)
+    save(filename, mc; overwrite=false, rename=true)
 
 Saves the given MonteCarlo simulation `mc` to a JLD-file `filename`.
 
-If `allow_rename = true` the filename will be adjusted if it already exists. If
-`force_overwrite = true` it will be overwritten. In this case a temporary backup
+If `rename = true` the filename will be adjusted if it already exists. If
+`overwrite = true` it will be overwritten. In this case a temporary backup
 will be created. If neither are true an error will be thrown.
 """
 function save(
         filename, mc::MonteCarloFlavor; 
-        force_overwrite=false, allow_rename=true, compress=true, 
+        overwrite = false, rename = false, compress = true, 
         backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
     )
     # endswith(filename, ".jld") || (filename *= ".jld")
 
     # handle ranming and overwriting
-    isfile(filename) && !force_overwrite && !allow_rename && throw(ErrorException(
+    isfile(filename) && !overwrite && !rename && throw(ErrorException(
         "Cannot save because \"$filename\" already exists. Consider setting " *
-        "`allow_rename = true` to adjust the filename or `force_overwrite = true`" *
+        "`rename = true` to adjust the filename or `overwrite = true`" *
         " to overwrite the file."
     ))
-    if isfile(filename) && !force_overwrite && allow_rename
+    if isfile(filename) && !overwrite && rename
         filename = _generate_unqiue_JLD_filename(filename)
     end
 
-    if force_overwrite
+    if overwrite
         parts = splitpath(filename)
         parts[end] = "." * parts[end]
         temp_filename = _generate_unqiue_JLD_filename(joinpath(parts...))
@@ -55,7 +63,7 @@ function save(
     save_rng(file)
     close(file)
 
-    if force_overwrite
+    if overwrite
         rm(temp_filename)
     end
 
@@ -79,18 +87,41 @@ function _generate_unqiue_JLD_filename(filename)
 end
 
 """
-    load(filename)
+    load(filename[, groups...])
 
-Loads a MonteCarlo simulation from the given JLD-file `filename`.
+Loads a MonteCarlo simulation (or part thereof) from the given JLD-file 
+`filename`.
 """
-function load(filename; loadfunc = endswith(filename, "jld2") ? jld2load : jldload)
-    data = loadfunc(filename)
+function load(filename, groups::String...)
+    data = if endswith(filename, "jld2")
+        JLD2.jldopen(filename, "r") else JLD.load(filename)
+    end
+    output = if haskey(data, "MC") && !("MC" in groups)
+        _load(data, "MC", groups...) else _load(data, groups...)
+    end
+    endswith(filename, "jld2") && close(data)
+    output
+end
+_load(data, g1::String, g2::String, gs::String...) = _load(data[g1], g2, gs...)
+function _load(data, g::String)
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $filename version $(data["VERSION"])"))
     end
-    load_rng!(data)
-    load_mc(data)
+
+    haskey(data[g], "RNG") && load_rng!(data)
+
+    # type nonsense for dispatch
+    T = if haskey(data[g], "type"); data[g]["type"] 
+    elseif g == "Measurements"; Measurements
+    else throw(ErrorException(
+        "Failed to defer type for group \"$g\". To fix this, add a group " *
+        "\"type\" under \"$g\" with the relevant type. To manually load this " *
+        "group, call `MonteCarlo._load(::JLD2.Group, type)`."
+    ))
+    end
+    _load(data[g], T)
 end
+_load(data) = _load(data, data["type"])
 
 
 """
@@ -102,23 +133,20 @@ returned by `run!`.
 
 See also: [`run!`](@ref)
 """
-function resume!(
-        filename;
-        loadfunc = endswith(filename, "jld2") ? jld2load : jldload, kwargs...
-    )
-    data = loadfunc(filename)
+function resume!(filename; kwargs...)
+    data = if endswith(filename, "jld2")
+        JLD2.jldopen(filename, "r") else JLD.load(filename)
+    end
 
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $filename version $(data["VERSION"])"))
     end
-    # @assert haskey(data, "last_sweep")
 
-    mc = load_mc(data)
-    # last_sweep = data["last_sweep"]
+    mc = _load(data["MC"], data["MC"]["type"])
     resume_init!(mc)
     load_rng!(data)
+    endswith(filename, "jld2") && close(data)
 
-    # state = run!(mc, start = last_sweep + 1; kwargs...)
     state = run!(mc; kwargs...)
     mc, state
 end
@@ -135,8 +163,7 @@ function save_mc(
     close(file)
     nothing
 end
-load_mc(data) = load_mc(data["MC"], data["MC"]["type"])
-load_mc(_, ::Type{UnknownType}) = throw(ErrorException(
+_load(_, ::Type{UnknownType}) = throw(ErrorException(
     "Got UnknownType instead of a MonteCarloFlavor. This may be " * 
     "caused by missing imports."
 ))
@@ -167,12 +194,19 @@ function save_model(file::JLDFile, model, entryname::String)
     nothing
 end
 
-#     load_model(data, ::Type{Model})
-#
-# Loads a model from a given `data` dictionary produced by `JLD.load(filename)`.
-# The second argument can be used for dispatch between different models.
-function load_model(data, ::DataType)
-    @assert data["VERSION"] == 0
+"""
+    _load(data, ::Type{...})
+
+Loads `data` where `data` is either a `JLD2.JLDFile`, `JLD2.Group` or a `Dict`.
+
+The default `_load` will check that `data["VERSION"] == 0` and simply return 
+`data["data"]`. You may implement `_load(data, ::Type{<: MyType})` to add
+specialized loading behavior.
+"""
+function _load(data, ::Type{T}) where T
+    data["VERSION"] == 0 || throw(ErrorException(
+        "Version $(data["VERSION"]) incompatabile with default _load for $T."
+    ))
     data["data"]
 end
 
@@ -200,14 +234,6 @@ function save_lattice(file::JLDFile, lattice::AbstractLattice, entryname::String
     write(file, entryname * "/type", typeof(lattice))
     write(file, entryname * "/data", lattice)
     nothing
-end
-
-#     load_lattice(data, ::Type{Lattice})
-#
-# Loads a lattice from a given `data` dictionary produced by `JLD.load(filename)`.
-function load_lattice(data, ::DataType)
-    @assert data["VERSION"] == 0
-    data["data"]
 end
 
 
@@ -241,7 +267,7 @@ end
 
 Loads an RNG from a given `data` dictinary generated by `JLD.load()` to `rng`.
 """
-function load_rng!(data::Dict; rng = _GLOBAL_RNG, entryname::String="RNG")
+function load_rng!(data; rng = _GLOBAL_RNG, entryname::String="RNG")
     try
         copy!(rng, data[entryname])
     catch e

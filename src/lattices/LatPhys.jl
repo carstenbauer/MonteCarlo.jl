@@ -109,69 +109,54 @@ function _save_lattice(file::JLDFile, lattice::LatPhysBase.AbstractLattice, entr
     for (i, v) in enumerate(lattice.lattice_vectors)
         write(file, entryname * "/lv/$i", v)
     end
-    write(file, entryname * "/sites/N", length(lattice.sites))
-    for (i, s) in enumerate(lattice.sites)
-        save_site(file, s, entryname * "/sites/$i")
-    end
-    write(file, entryname * "/bonds/N", length(lattice.bonds))
-    for (i, b) in enumerate(lattice.bonds)
-        save_bond(file, b, entryname * "/bonds/$i")
-    end
+
+    write(file, entryname * "/sites/type", typeof(lattice.sites[1])) # eltype of lattice
+    write(file, entryname * "/sites/points", [s.point for s in lattice.sites])
+    write(file, entryname * "/sites/labels", [s.label for s in lattice.sites])
+
+    write(file, entryname * "/bonds/type", typeof(lattice.bonds[1])) # eltype
+    write(file, entryname * "/bonds/froms",  [b.from for b in lattice.bonds])
+    write(file, entryname * "/bonds/tos",    [b.to for b in lattice.bonds])
+    write(file, entryname * "/bonds/labels", [b.label for b in lattice.bonds])
+    write(file, entryname * "/bonds/wraps",  [b.wrap for b in lattice.bonds])
+
     save_unitcell(file, lattice.unitcell, entryname * "/unitcell")
     nothing
 end
 function save_unitcell(file::JLDFile, uc::LatPhysBase.AbstractUnitcell, entryname::String)
     write(file, entryname * "/type", typeof(uc))
-    write(file, entryname * "/lv/N", length(uc.lattice_vectors))
-    for (i, v) in enumerate(uc.lattice_vectors)
-        write(file, entryname * "/lv/$i", v)
-    end
-    write(file, entryname * "/sites/N", length(uc.sites))
-    for (i, s) in enumerate(uc.sites)
-        save_site(file, s, entryname * "/sites/$i")
-    end
-    write(file, entryname * "/bonds/N", length(uc.bonds))
-    for (i, b) in enumerate(uc.bonds)
-        save_bond(file, b, entryname * "/bonds/$i")
-    end
-    nothing
-end
-function save_bond(file::JLDFile, b::LatPhysBase.AbstractBond, entryname::String)
-    write(file, entryname * "/type", typeof(b))
-    write(file, entryname * "/from", b.from)
-    write(file, entryname * "/to", b.to)
-    write(file, entryname * "/label", b.label)
-    write(file, entryname * "/wrap", b.wrap)
-    nothing
-end
-function save_site(file::JLDFile, s::LatPhysBase.AbstractSite, entryname::String)
-    write(file, entryname * "/type", typeof(s))
-    write(file, entryname * "/point", s.point)
-    write(file, entryname * "/label", s.label)
+    write(file, entryname * "/lv", uc.lattice_vectors)
+    
+    write(file, entryname * "/sites/type", typeof(uc.sites[1])) # eltype of lattice
+    write(file, entryname * "/sites/points", [s.point for s in uc.sites])
+    write(file, entryname * "/sites/labels", [s.label for s in uc.sites])
+
+    write(file, entryname * "/bonds/type", typeof(uc.bonds[1])) # eltype
+    write(file, entryname * "/bonds/froms",  [b.from  for b in uc.bonds])
+    write(file, entryname * "/bonds/tos",    [b.to    for b in uc.bonds])
+    write(file, entryname * "/bonds/labels", [b.label for b in uc.bonds])
+    write(file, entryname * "/bonds/wraps",  [b.wrap  for b in uc.bonds])
     nothing
 end
 
 
-function load_lattice(data, ::Type{T}) where T <: LatPhysLattice
+function _load(data, ::Type{T}) where T <: LatPhysLattice
     @assert data["VERSION"] == 0
     data["type"](load_lattice(data["lattice"]), data["neighs"])
 end
-
-
 function load_lattice(data)
-    sites = [load_site(data["sites"]["$i"]) for i in 1:data["sites"]["N"]]
-    bonds = [load_bond(data["bonds"]["$i"]) for i in 1:data["bonds"]["N"]]
+    sites = load_sites(data["sites"])
+    bonds = load_bonds(data["bonds"])
     lattice_vectors = [data["lv"]["$i"] for i in 1:data["lv"]["N"]]
     unitcell = load_unitcell(data["unitcell"])
 
     data["type"](lattice_vectors, sites, bonds, unitcell)
 end
 function load_unitcell(data)
-    sites = [load_site(data["sites"]["$i"]) for i in 1:data["sites"]["N"]]
-    bonds = [load_bond(data["bonds"]["$i"]) for i in 1:data["bonds"]["N"]]
-    lattice_vectors = [data["lv"]["$i"] for i in 1:data["lv"]["N"]]
-
+    sites = load_sites(data["sites"])
+    bonds = load_bonds(data["bonds"])
+    lattice_vectors = data["lv"]
     data["type"](lattice_vectors, sites, bonds)
 end
-load_bond(data) = data["type"](data["from"], data["to"], data["label"], data["wrap"])
-load_site(data) = data["type"](data["point"], data["label"])
+load_sites(data) = data["type"].(data["points"], data["labels"])
+load_bonds(data) = data["type"].(data["froms"], data["tos"], data["labels"], data["wraps"])
