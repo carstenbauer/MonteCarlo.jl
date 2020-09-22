@@ -353,6 +353,8 @@ end
 Base.getindex(mc::MonteCarloFlavor, k) = getindex(measurements(mc), k)
 # Allow `mc[:M] = MagnetizationMeasurement(mc, model)` to add measurements
 Base.setindex!(mc::MonteCarloFlavor, v, k) = setindex!(measurements(mc), v, k)
+# Allow `keys(dqmc)` to get measurement keys
+Base.keys(mc::MonteCarloFlavor, k) = keys(measurements(mc))
 
 
 """
