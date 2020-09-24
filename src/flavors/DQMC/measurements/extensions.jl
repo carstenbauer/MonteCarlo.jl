@@ -136,8 +136,22 @@ struct SymmetryWrapped{OT, T} <: WrappedObservable
     formfactor::Vector{T}
 end
 
+function SymmetryWrapped(m::AbstractMeasurement, formfactor, field=:obs)
+    SymmetryWrapped(getfield(m, field), formfactor)
+end
+
 # TODO constructors?
-# i.e. swave(obs, lattice) -> ??? -> SymmetryWrapped(obs, ???)
+# higher order is depended on lattice symmetry and therefore rather complicated
+swave(obs, field=:obs) = SymmetryWrapped(obs, [1.0], field)
+function eswave(m::AbstractMeasurement, lattice::AbstractLattice, field=:obs)
+    _mask = mask(m)
+    dirs = directions(_mask, lattice)
+    j = 2; l = dot(dirs[j], dirs[j])
+    while (dot(dirs[j+1], dirs[j+1]) < l + 1e-3) && (j < length(dirs))
+        j += 1
+    end
+    SymmetryWrapped(obs, vcat(0, ones(j-1)), field)
+end
 
 function (x::SymmetryWrapped)(data)
     sum(x.formfactor[i] * data[i] for i in eachindex(x.formfactor))
