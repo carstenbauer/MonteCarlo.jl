@@ -45,13 +45,13 @@ function save(
         " to overwrite the file."
     ))
     if isfile(filename) && !overwrite && rename
-        filename = _generate_unqiue_JLD_filename(filename)
+        filename = _generate_unique_filename(filename)
     end
 
     if overwrite
         parts = splitpath(filename)
         parts[end] = "." * parts[end]
-        temp_filename = _generate_unqiue_JLD_filename(joinpath(parts...))
+        temp_filename = _generate_unique_filename(joinpath(parts...))
         mv(filename, temp_filename)
     end
 
@@ -72,18 +72,19 @@ end
 
 # Something like
 # existing_file.jld -> existing_file_aJ3c.jld
-function _generate_unqiue_JLD_filename(filename)
+function _generate_unique_filename(filename)
     isfile(filename) || return filename
     # those map to 0-9,    A-Z,        a-z
     x = rand("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
     s = "_$(Char(x))"
-    filename = filename[1:end-4] * s * ".jld"
-    while isfile(filename)
+    parts = split(filename, '.')
+    filename = join(paths, '.') * s
+    while isfile(filename * '.' * parts[end])
         x = rand("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
         s = string(Char(x))
-        filename = filename[1:end-4] * s * ".jld"
+        filename = filename * s
     end
-    filename
+    filename * '.' * parts[end]
 end
 
 """
