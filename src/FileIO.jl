@@ -33,7 +33,7 @@ will be created. If neither are true an error will be thrown.
 """
 function save(
         filename, mc::MonteCarloFlavor; 
-        overwrite = false, rename = false, compress = true, 
+        overwrite = false, rename = true, compress = true, 
         backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
     )
     # endswith(filename, ".jld") || (filename *= ".jld")
