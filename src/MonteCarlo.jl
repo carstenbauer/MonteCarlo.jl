@@ -49,13 +49,13 @@ include("models/HubbardAttractive/HubbardModelAttractive.jl")
 
 include("FileIO.jl")
 export save, load, resume!
-# include("../test/testfunctions.jl")
+
 
 export reset!
 export run!, resume!, replay!
 export IsingModel, HubbardModelAttractive
 export MC, DQMC
-export greens
+export greens, lattice, model, parameters
 
 # For extending
 export AbstractMeasurement, Model

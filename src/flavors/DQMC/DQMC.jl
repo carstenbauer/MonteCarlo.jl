@@ -239,7 +239,11 @@ DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
 @inline current_slice(mc::DQMC) = mc.s.current_slice
 @inline last_sweep(mc::DQMC) = mc.last_sweep
 @inline configurations(mc::DQMC) = mc.configs
-
+@inline lattice(mc::DQMC) = lattice(mc.model)
+@inline parameters(mc::DQMC) = merge(parameters(mc.p), parameters(mc.model))
+@inline parameters(p::DQMCParameters) = (
+    beta = p.beta, delta_tau = p.delta_tau, thermalization = p.thermalization, sweeps = p.sweeps
+)
 
 # cosmetics
 import Base.summary

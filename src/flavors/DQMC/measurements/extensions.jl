@@ -174,7 +174,7 @@ function eswave(m::AbstractMeasurement, lattice::AbstractLattice, field=:obs)
     while (dot(dirs[j+1], dirs[j+1]) < l + 1e-3) && (j < length(dirs))
         j += 1
     end
-    SymmetryWrapped(obs, vcat(0, ones(j-1)), field)
+    SymmetryWrapped(m, vcat(0, ones(j-1)), field)
 end
 
 function (x::SymmetryWrapped)(data)

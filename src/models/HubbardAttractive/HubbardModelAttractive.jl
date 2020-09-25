@@ -64,6 +64,8 @@ Base.show(io::IO, model::HubbardModelAttractive) = print(io, "$(model.dims)D att
 Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io, model)
 
 
+# Convenience
+@inline parameters(m::HubbardModelAttractive) = (L = m.L, t = m.t, U = m.U, mu = m.mu)
 
 
 # implement `Model` interface
