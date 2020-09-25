@@ -239,7 +239,11 @@ DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
 @inline current_slice(mc::DQMC) = mc.s.current_slice
 @inline last_sweep(mc::DQMC) = mc.last_sweep
 @inline configurations(mc::DQMC) = mc.configs
-
+@inline lattice(mc::DQMC) = lattice(mc.model)
+@inline parameters(mc::DQMC) = merge(parameters(mc.p), parameters(mc.model))
+@inline parameters(p::DQMCParameters) = (
+    beta = p.beta, delta_tau = p.delta_tau, thermalization = p.thermalization, sweeps = p.sweeps
+)
 
 # cosmetics
 import Base.summary
@@ -324,7 +328,7 @@ save file and exit
 The time required to generate a save file should be included here.
 - `resumable_filename`: Name of the resumable save file. The default is based on
 `safe_before`.
-- `force_overwrite = false`: If set to true a file with the same name as
+- `overwrite = false`: If set to true a file with the same name as
 `resumable_filename` will be overwritten. (This will create a temporary backup)
 
 See also: [`resume!`](@ref)
@@ -337,7 +341,7 @@ See also: [`resume!`](@ref)
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false
+        overwrite = false
     )
 
     # Check for measurements
@@ -435,7 +439,7 @@ See also: [`resume!`](@ref)
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            save(resumable_filename, mc, force_overwrite = force_overwrite, allow_rename=false)
+            save(resumable_filename, mc, overwrite = overwrite, rename = false)
             verbose && println("\nEarly save finished")
 
             return false
@@ -574,7 +578,7 @@ function replay!(
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false,
+        overwrite = false,
         measure_rate = 1
     )
     start_time = now()
@@ -635,7 +639,7 @@ function replay!(
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            save(resumable_filename, mc, force_overwrite = force_overwrite, allow_rename=false)
+            save(resumable_filename, mc, overwrite = overwrite, rename = false)
             verbose && println("\nEarly save finished")
 
             return false
@@ -701,7 +705,7 @@ end
 # JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC`
-function save_mc(file::JLD.JldFile, mc::DQMC, entryname::String="MC")
+function save_mc(file::JLDFile, mc::DQMC, entryname::String="MC")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.p, entryname * "/Parameters")
@@ -717,33 +721,33 @@ end
 #     load_mc(data, ::Type{<: DQMC})
 #
 # Loads a DQMC from a given `data` dictionary produced by `JLD.load(filename)`.
-function load_mc(data::Dict, ::Type{T}) where T <: DQMC
+function _load(data, ::Type{T}) where T <: DQMC
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
 
     mc = data["type"]()
-    mc.p = load_parameters(data["Parameters"], data["Parameters"]["type"])
-    mc.a = load_analysis(data["Analysis"], data["Analysis"]["type"])
+    mc.p = _load(data["Parameters"], data["Parameters"]["type"])
+    mc.a = _load(data["Analysis"], data["Analysis"]["type"])
     mc.conf = data["conf"]
     mc.configs = _load(data["configs"], data["configs"]["type"])
     mc.last_sweep = data["last_sweep"]
-    mc.model = load_model(data["Model"], data["Model"]["type"])
+    mc.model = _load(data["Model"], data["Model"]["type"])
 
-    measurements = load_measurements(data["Measurements"])
+    measurements = _load(data["Measurements"], Measurements)
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
     mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
     mc
 end
 
-#   save_parameters(file::JLD.JldFile, p::DQMCParameters, entryname="Parameters")
+#   save_parameters(file::JLDFile, p::DQMCParameters, entryname="Parameters")
 #
 # Saves (minimal) information necessary to reconstruct a given
 # `p::DQMCParameters` to a JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC/Parameters`
-function save_parameters(file::JLD.JldFile, p::DQMCParameters, entryname::String="Parameters")
+function save_parameters(file::JLDFile, p::DQMCParameters, entryname::String="Parameters")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(p))
 
@@ -767,7 +771,7 @@ end
 #
 # Loads a DQMCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
+function _load(data, ::Type{T}) where T <: DQMCParameters
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
@@ -788,7 +792,7 @@ function load_parameters(data::Dict, ::Type{T}) where T <: DQMCParameters
     )
 end
 
-function save_analysis(file::JLD.JldFile, a::DQMCAnalysis, entryname::String="Analysis")
+function save_analysis(file::JLDFile, a::DQMCAnalysis, entryname::String="Analysis")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(a))
 
@@ -796,14 +800,14 @@ function save_analysis(file::JLD.JldFile, a::DQMCAnalysis, entryname::String="An
     save_stats(file, a.negative_probability, entryname * "/neg_prob")
     save_stats(file, a.propagation_error, entryname * "/propagation")
 end
-function save_stats(file::JLD.JldFile, ms::MagnitudeStats, entryname::String="MStats")
+function save_stats(file::JLDFile, ms::MagnitudeStats, entryname::String="MStats")
     write(file, entryname * "/max", ms.max)
     write(file, entryname * "/min", ms.min)
     write(file, entryname * "/sum", ms.sum)
     write(file, entryname * "/count", ms.count)
 end
 
-function load_analysis(data::Dict, ::Type{T}) where T <: DQMCAnalysis
+function _load(data, ::Type{T}) where T <: DQMCAnalysis
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
@@ -820,4 +824,5 @@ end
 
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")
-include("measurements.jl")
+include("measurements/equal_time_measurements.jl")
+include("measurements/extensions.jl")

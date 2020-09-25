@@ -6,15 +6,15 @@
     @test m.L == 8 && m.dims == 2
     @test ndims(m) == 2
     @test MonteCarlo.nsites(m) == 64
-    @test typeof(m) == MonteCarlo.IsingModel{MonteCarlo.SquareLattice}
+    @test typeof(m) == IsingModel{SquareLattice}
     m = IsingModel(dims=1, L=10);
-    @test typeof(m) == MonteCarlo.IsingModel{MonteCarlo.Chain}
+    @test typeof(m) == IsingModel{Chain}
     @test m.L == 10 && m.dims == 1
     @test MonteCarlo.nsites(m) == 10
     @test ndims(m) == 1
     d = Dict(:dims=>3, :L=>3)
     m = IsingModel(d)
-    @test typeof(m) == MonteCarlo.IsingModel{MonteCarlo.CubicLattice{Array{Int64,3}}}
+    @test typeof(m) == IsingModel{CubicLattice{Array{Int64,3}}}
     @test m.L == 3 && m.dims == 3
 
     # energy, general
@@ -28,12 +28,12 @@
 
     # rand, conftype
     Random.seed!(123)
-    @test MonteCarlo.rand(MC, m) == IsingSpin[-1 -1 1 -1 1 1 1 -1; -1 1 1 -1 -1 1 1 1; -1 1 1 1 1 1 -1 1; -1 1 1 1 -1 -1 1 1; 1 1 1 -1 1 -1 -1 -1; 1 -1 -1 -1 1 1 -1 1; -1 -1 1 1 1 1 -1 1; 1 -1 1 -1 -1 -1 1 1]
+    @test rand(MC, m) == IsingSpin[-1 -1 1 -1 1 1 1 -1; -1 1 1 -1 -1 1 1 1; -1 1 1 1 1 1 -1 1; -1 1 1 1 -1 -1 1 1; 1 1 1 -1 1 -1 -1 -1; 1 -1 -1 -1 1 1 -1 1; -1 -1 1 1 1 1 -1 1; 1 -1 1 -1 -1 -1 1 1]
 
     # propose, accept
     @test MonteCarlo.propose_local(mc, m, 13, conff) == (1352.0, nothing)
     @test conf == conff
-    @test MonteCarlo.accept_local!(mc, m, 13, conff, 1352.0, 2) == nothing
+    @test MonteCarlo.accept_local!(mc, m, 13, conff, 1352.0, 2) === nothing
     conff[13] *= -1
     @test conf == conff
 end

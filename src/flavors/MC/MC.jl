@@ -95,6 +95,10 @@ MC(m::Model, params::NamedTuple) = MC(m; params...)
 @inline conf(mc::MC) = mc.conf
 @inline last_sweep(mc::MC) = mc.last_sweep
 @inline configurations(mc::MC) = mc.configs
+@inline lattice(mc::MC) = lattice(mc.model)
+@inline parameters(mc::MC) = merge(parameters(mc.p), parameters(mc.model))
+@inline parameters(p::MCParameters) = (beta = p.beta, thermalization = p.thermalization, sweeps = p.sweeps)
+
 
 # cosmetics
 Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"
@@ -175,7 +179,7 @@ save file and exit
 The time required to generate a save file should be included here.
 - `resumable_filename`: Name of the resumable save file. The default is based on
 `safe_before`.
-- `force_overwrite = false`: If set to true a file with the same name as
+- `overwrite = false`: If set to true a file with the same name as
 `resumable_filename` will be overwritten. (This will create a temporary backup)
 
 See also: [`resume!`](@ref)
@@ -188,7 +192,7 @@ See also: [`resume!`](@ref)
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false
+        overwrite = false
     )
 
     do_th_measurements = !isempty(mc.thermalization_measurements)
@@ -271,27 +275,7 @@ See also: [`resume!`](@ref)
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-
-            if force_overwrite
-                parts = splitpath(resumable_filename)
-                parts[end] = "." * parts[end]
-                temp_filename = _generate_unqiue_JLD_filename(joinpath(parts...))
-                mv(resumable_filename, temp_filename)
-            end
-
-            # We create a backup manually here because we save extra stuff
-            # In either case there should be no conflicting file, so there
-            # should be nothing to overwrite.
-            resumable_filename = save(resumable_filename, mc)
-            # save_rng(resumable_filename)
-            # jldopen(resumable_filename, "r+") do f
-            #     write(f, "last_sweep", i)
-            # end
-
-            if force_overwrite
-                rm(temp_filename)
-            end
-
+            resumable_filename = save(resumable_filename, mc, overwrite=overwrite)
             verbose && println("\nEarly save finished")
 
             return false
@@ -359,7 +343,7 @@ function replay!(
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
         filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
-        force_overwrite = false,
+        overwrite = false,
         measure_rate = 1
     )
     if isempty(configurations)
@@ -418,11 +402,7 @@ function replay!(
             println("Early save initiated for sweep #$i.\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
-            filename = save(filename, mc, force_overwrite = force_overwrite)
-            # save_rng(filename)
-            # jldopen(filename, "r+") do f
-            #     write(f, "last_sweep", i)
-            # end
+            filename = save(filename, mc, overwrite = overwrite)
             verbose && println("\nEarly save finished")
 
             return false
@@ -444,7 +424,7 @@ end
 # JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC`
-function save_mc(file::JLD.JldFile, mc::MC, entryname::String="MC")
+function save_mc(file::JLDFile, mc::MC, entryname::String="MC")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.p, entryname * "/parameters")
@@ -459,31 +439,31 @@ end
 #     load_mc(data, ::Type{<: MC})
 #
 # Loads a MC from a given `data` dictionary produced by `JLD.load(filename)`.
-function load_mc(data, ::Type{T}) where {T <: MC}
+function _load(data, ::Type{T}) where {T <: MC}
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
     mc = data["type"]()
-    mc.p = load_parameters(data["parameters"], data["parameters"]["type"])
+    mc.p = _load(data["parameters"], data["parameters"]["type"])
     mc.conf = data["conf"]
     mc.configs = _load(data["configs"], data["configs"]["type"])
     mc.last_sweep = data["last_sweep"]
-    mc.model = load_model(data["Model"], data["Model"]["type"])
+    mc.model = _load(data["Model"], data["Model"]["type"])
 
-    measurements = load_measurements(data["Measurements"])
+    measurements = _load(data["Measurements"], Measurements)
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
     mc
 end
 
 
-#   save_parameters(file::JLD.JldFile, p::MCParameters, entryname="Parameters")
+#   save_parameters(file::JLDFile, p::MCParameters, entryname="Parameters")
 #
 # Saves (minimal) information necessary to reconstruct a given
 # `p::MCParameters` to a JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC/Parameters`
-function save_parameters(file::JLD.JldFile, p::MCParameters, entryname::String="Parameters")
+function save_parameters(file::JLDFile, p::MCParameters, entryname::String="Parameters")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(p))
 
@@ -502,7 +482,7 @@ end
 #
 # Loads a MCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function load_parameters(data::Dict, ::Type{T}) where T <: MCParameters
+function _load(data, ::Type{T}) where T <: MCParameters
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end

@@ -87,6 +87,15 @@ end
 
 # Implement AbstractLattice interface: mandatory
 @inline Base.length(l::ALPSLattice) = l.sites
+function Base.size(l::ALPSLattice)
+    @warn "Guessing size of ALPSLattice"
+    if l.sites % l.ndims == 0
+        return tuple((div(l.sites, l.ndims) for _ in 1:l.ndims)...)
+    else
+        error("Failed to guess size of ALPSLattice")
+    end
+end
+
 
 # Implement AbstractLattice interface: optional
 @inline neighbors_lookup_table(l::ALPSLattice) = copy(l.neighs)

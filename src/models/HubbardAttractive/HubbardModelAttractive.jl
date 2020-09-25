@@ -64,10 +64,13 @@ Base.show(io::IO, model::HubbardModelAttractive) = print(io, "$(model.dims)D att
 Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io, model)
 
 
+# Convenience
+@inline parameters(m::HubbardModelAttractive) = (L = m.L, t = m.t, U = m.U, mu = m.mu)
 
 
 # implement `Model` interface
 @inline nsites(m::HubbardModelAttractive) = length(m.l)
+@inline lattice(m::HubbardModelAttractive) = m.l
 
 
 # implement `DQMC` interface: mandatory
@@ -192,8 +195,15 @@ function decompress(
     CT(2c .- 1)
 end
 
+
+function greens(mc::DQMC, model::HubbardModelAttractive)
+    G = greens(mc)
+    vcat(hcat(G, zeros(size(G))), hcat(zeros(size(G)), G))
+end
+prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing
+
 function save_model(
-        file::JLD.JldFile,
+        file::JLDFile,
         m::HubbardModelAttractive,
         entryname::String="Model"
     )
@@ -215,12 +225,12 @@ end
 #
 # Loads a DQMCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function load_model(data::Dict, ::Type{T}) where T <: HubbardModelAttractive
+function _load(data, ::Type{T}) where T <: HubbardModelAttractive
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load HubbardModelAttractive version $(data["VERSION"])"))
     end
 
-    l = load_lattice(data["l"], data["l"]["type"])
+    l = _load(data["l"], data["l"]["type"])
     data["type"](
         dims = data["dims"],
         L = data["L"],

@@ -1,5 +1,3 @@
-const p = "temp_dir"
-isdir(p) || mkdir(p)
 
 function test_mc(mc, x)
     # Check if loaded/replayed mc matches original
@@ -33,11 +31,11 @@ end
 
 @testset "MC" begin
     model = IsingModel(dims=2, L=2)
-    mc = MC(model, beta=0.66, thermalization=33, sweeps=123, recorder=MonteCarlo.ConfigRecorder)
+    mc = MC(model, beta=0.66, thermalization=33, sweeps=123, recorder=ConfigRecorder)
     run!(mc, verbose=false)
-    MonteCarlo.save("$p/testfile.jld", mc)
-    x = MonteCarlo.load("$p/testfile.jld")
-    rm("$p/testfile.jld")
+    save("testfile.jld2", mc)
+    x = load("testfile.jld2")
+    rm("testfile.jld2")
     test_mc(mc, x)
 
     x.measurements = MonteCarlo.default_measurements(mc, model) 
@@ -48,15 +46,14 @@ end
     # Test resume
 
     # Run for 1s with known RNG
-    rm.(joinpath.(p, readdir(p)))
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=1000, recorder=MonteCarlo.ConfigRecorder)
+    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=10_000, recorder=ConfigRecorder)
     state = run!(
         mc, verbose = false,
         safe_before = now() + Second(1),
         grace_period = Millisecond(0),
-        resumable_filename = "$p/resumable_testfile.jld"
+        resumable_filename = "resumable_testfile.jld"
     )
 
     @test state == false
@@ -66,30 +63,29 @@ end
 
     # Test whether safe file gets overwritten correctly
     mc, state = resume!(
-        "$p/resumable_testfile.jld",
+        "resumable_testfile.jld",
         verbose = false,
         safe_before = now() + Second(15),
         grace_period = Millisecond(0),
-        force_overwrite = true,
-        resumable_filename = "$p/resumable_testfile.jld"
+        overwrite = true,
+        resumable_filename = "resumable_testfile.jld"
     )
 
     @test state == false
     cs = deepcopy(mc.configs)
     @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
-    @test length(readdir(p)) == 1
+    @test isfile("resumable_testfile.jld")
 
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, sweeps=1000length(cs), measure_rate=1000, recorder=MonteCarlo.ConfigRecorder)
+    mc = MC(model, beta=1.0, sweeps=10_000length(cs), measure_rate=10_000, recorder=ConfigRecorder)
     state = run!(mc, verbose = false)
     @test mc.configs.configs == cs.configs
     @test mc.configs.rate == cs.rate
+    rm("resumable_testfile.jld")
 end
 
-
-rm.(joinpath.(p, readdir(p)))
 
 function test_dqmc(mc, x)
     for f in fieldnames(typeof(mc.p))
@@ -150,9 +146,9 @@ end
     t = time()
     run!(mc, verbose=false)
     t = time() - t
-    MonteCarlo.save("$p/testfile.jld", mc)
-    x = MonteCarlo.load("$p/testfile.jld")
-    rm("$p/testfile.jld")
+    save("testfile.jld", mc)
+    x = load("testfile.jld")
+    rm("testfile.jld")
 
     # Repeat these tests once with x being replayed rather than loaded
     test_dqmc(mc, x)    
@@ -167,7 +163,6 @@ end
     # Test resume
 
     # Run for 1s with known RNG
-    rm.(joinpath.(p, readdir(p)))
     Random.seed!(123)
     model = HubbardModelAttractive(dims=2, L=2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, sweeps=10_000_000, measure_rate=100)
@@ -176,7 +171,7 @@ end
         mc, verbose = false,
         safe_before = now() + Second(1),
         grace_period = Millisecond(0),
-        resumable_filename = "$p/resumable_testfile.jld"
+        resumable_filename = "resumable_testfile.jld2"
     )
 
     @test state == false
@@ -186,18 +181,18 @@ end
 
     # Test whether safe file gets overwritten correctly
     mc, state = resume!(
-        "$p/resumable_testfile.jld",
+        "resumable_testfile.jld2",
         verbose = false,
         safe_before = now() + Second(10),
         grace_period = Millisecond(0),
-        force_overwrite = true,
-        resumable_filename = "$p/resumable_testfile.jld"
+        overwrite = true,
+        resumable_filename = "resumable_testfile.jld2"
     )
 
     @test state == false
     cs = deepcopy(mc.configs)
     @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
-    @test length(readdir(p)) == 1
+    @test isfile("resumable_testfile.jld2")
 
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
@@ -206,6 +201,5 @@ end
     state = run!(mc, verbose = false)
     @test mc.configs.configs == cs.configs
     @test mc.configs.rate == cs.rate
+    rm("resumable_testfile.jld2")
 end
-
-isdir(p) && rm(p, recursive=true)

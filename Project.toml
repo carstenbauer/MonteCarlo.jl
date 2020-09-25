@@ -7,6 +7,7 @@ authors = ["Carsten Bauer <crstnbr@gmail.com>"]
 BinningAnalysis = "b7192094-8e58-5052-a244-180a858778ee"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 JLD = "4138dd39-2aa7-5051-a626-17a0bb65d9c8"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
 MonteCarloObservable = "8a675f2c-1eea-59ef-99a5-5eebc71d1519"
