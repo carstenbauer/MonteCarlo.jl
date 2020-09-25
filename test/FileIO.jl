@@ -65,7 +65,7 @@ end
     mc, state = resume!(
         "resumable_testfile.jld",
         verbose = false,
-        safe_before = now() + Second(18),
+        safe_before = now() + Second(20),
         grace_period = Millisecond(0),
         overwrite = true,
         resumable_filename = "resumable_testfile.jld"

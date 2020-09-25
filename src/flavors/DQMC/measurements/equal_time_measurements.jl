@@ -150,7 +150,7 @@ function OccupationMeasurement(m::GreensMeasurement{<: LightObservable}; capacit
     OccupationMeasurement{typeof(o)}(o)
 end
 @bm function measure!(m::OccupationMeasurement, mc::DQMC, model, i::Int64)
-    push!(m.obs, diag(greens(mc)))
+    push!(m.obs, diag(greens!(mc)))
 end
 function save_measurement(file::JLDFile, m::OccupationMeasurement, entryname::String)
     write(file, entryname * "/VERSION", 1)

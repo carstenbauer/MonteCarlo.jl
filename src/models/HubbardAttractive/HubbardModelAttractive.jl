@@ -203,7 +203,7 @@ end
 
 
 function greens(mc::DQMC, model::HubbardModelAttractive)
-    G = greens(mc)
+    G = greens!(mc)
     vcat(hcat(G, zeros(size(G))), hcat(zeros(size(G)), G))
 end
 prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing
