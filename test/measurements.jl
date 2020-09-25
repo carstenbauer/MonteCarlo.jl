@@ -1,15 +1,7 @@
-AbstractMeasurement = MonteCarlo.AbstractMeasurement
-
 IsingMeasurement = MonteCarlo.IsingMeasurement
-IsingEnergyMeasurement = MonteCarlo.IsingEnergyMeasurement
-IsingMagnetizationMeasurement = MonteCarlo.IsingMagnetizationMeasurement
-
-GreensMeasurement = MonteCarlo.GreensMeasurement
-BosonEnergyMeasurement = MonteCarlo.BosonEnergyMeasurement
-
 AbstractObservable = MonteCarloObservable.AbstractObservable
 
-struct DummyModel <: MonteCarlo.Model end
+struct DummyModel <: Model end
 struct DummyMeasurement <: AbstractMeasurement end
 
 @testset "Type Hierarchy" begin
@@ -92,12 +84,12 @@ end
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=1.0)
 
-    @test mc.thermalization_measurements == MonteCarlo.measurements(mc, :TH)
-    @test mc.measurements == MonteCarlo.measurements(mc)
+    @test mc.thermalization_measurements == measurements(mc, :TH)
+    @test mc.measurements == measurements(mc)
 
-    obs = MonteCarlo.observables(mc, :all)
-    @test keys(obs[:TH]) == keys(MonteCarlo.measurements(mc, :TH))
-    @test keys(obs[:ME]) == keys(MonteCarlo.measurements(mc))
+    obs = observables(mc, :all)
+    @test keys(obs[:TH]) == keys(measurements(mc, :TH))
+    @test keys(obs[:ME]) == keys(measurements(mc))
 
     @test haskey(obs[:ME][:Energy], "Total energy")
     @test typeof(obs[:ME][:Energy]["Total energy"]) <: AbstractObservable
@@ -179,7 +171,7 @@ end
 
     meas = measurements(mc, :all)
     MonteCarlo.save_measurements("testfile.jld", mc, overwrite=true)
-    _meas = MonteCarlo.load("testfile.jld")
+    _meas = load("testfile.jld")
     for (k, v) in meas
         for (k2, v2) in v
             for f in fieldnames(typeof(v2))
@@ -224,9 +216,9 @@ end
     @test uniform_fourier(A, mc) == sum(A) / 64
 
     mask = MonteCarlo.DistanceMask(MonteCarlo.lattice(m))
-    MonteCarlo.unsafe_push!(mc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement(mc, m, mask=mask))
-    MonteCarlo.unsafe_push!(mc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement(mc, m, mask=mask))
-    MonteCarlo.unsafe_push!(mc, :PC => MonteCarlo.PairingCorrelationMeasurement(mc, m, mask=mask))
+    MonteCarlo.unsafe_push!(mc, :CDC => ChargeDensityCorrelationMeasurement(mc, m, mask=mask))
+    MonteCarlo.unsafe_push!(mc, :SDC => SpinDensityCorrelationMeasurement(mc, m, mask=mask))
+    MonteCarlo.unsafe_push!(mc, :PC => PairingCorrelationMeasurement(mc, m, mask=mask))
     run!(mc, verbose=false)
     measured = measurements(mc)
 

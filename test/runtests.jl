@@ -5,7 +5,7 @@ using MonteCarlo: @bm, TimerOutputs
 
 # In case some test failed and left behind a .jld file
 for f in readdir()
-    if endswith(f, ".jld")
+    if endswith(f, ".jld") || endswith(f, "jld2")
         @warn "Removing $f"
         rm(f)
     end

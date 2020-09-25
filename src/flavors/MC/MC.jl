@@ -95,6 +95,10 @@ MC(m::Model, params::NamedTuple) = MC(m; params...)
 @inline conf(mc::MC) = mc.conf
 @inline last_sweep(mc::MC) = mc.last_sweep
 @inline configurations(mc::MC) = mc.configs
+@inline lattice(mc::MC) = lattice(mc.model)
+@inline parameters(mc::MC) = merge(parameters(mc.p), parameters(mc.model))
+@inline parameters(p::MCParameters) = (beta = p.beta, thermalization = p.thermalization, sweeps = p.sweeps)
+
 
 # cosmetics
 Base.summary(mc::MC) = "MC simulation of $(summary(mc.model))"

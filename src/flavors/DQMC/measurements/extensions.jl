@@ -58,6 +58,8 @@ etc) of the uniform Fourier transform of that observable.
 `mean(uniform_fourier(m))` is equivalent to
 `uniform_fourier(mean(m.obs), nsites(model))` where `obs` may differ between
 measurements.
+
+See also: [`structure_factor`](@ref)
 """
 uniform_fourier(m::PairingCorrelationMeasurement) = UniformFourierWrapped(m.obs)
 uniform_fourier(m::ChargeDensityCorrelationMeasurement) = UniformFourierWrapped(m.obs)
@@ -90,6 +92,8 @@ E.g. `mean(structure_factor(obs, dqmc))([0, 0])` will return the expectation
 value of `obs` at `q=0`.
 
 This is equivalent to a discrete Fourier transform.
+
+See also: [`SymmetryWrapped`](@ref), [`swave`](@ref), [`eswave`](@ref)
 """
 structure_factor(m, dqmc::DQMC, args...) = structure_factor(m, dqmc.model, args...)
 structure_factor(m, model::Model, args...) = structure_factor(m, lattice(model), args...)
@@ -123,21 +127,55 @@ MonteCarloObservable.std_error(x::StructureFactorWrapped) = sqrt(sum(std_error(x
 
 
 """
-    SymmetryWrapped(obs, formfactor)
+    SymmetryWrapped(m, formfactor[, field=:obs])
 
 A SymmetryWrapped observable will calculate
 `sum(formfactor[i] * obs[i] for i in eachindex(formfactor))` where `obs[i]` is 
-the value of the observable in the i-th direction.
+the value of the observable in the i-th direction. It may be constructed from
+either an observable or measurement `m`, where the relevant field can be 
+specified via `field` for the latter.
     
-See also: [`directions(mask)`](@ref), [`mask(obs)`](@ref)
+Quick constructors: [`swave`](@ref), [`eswave`](@ref)
+See also: [`directions`](@ref), [`mask`](@ref)
 """
-struct SymmetryWrapped{OT, T} <: WrappedObservable
+struct SymmetryWrapped{OT<:AbstractObservable, T} <: WrappedObservable
     obs::OT
     formfactor::Vector{T}
 end
 
+function SymmetryWrapped(m::AbstractMeasurement, formfactor, field=:obs)
+    SymmetryWrapped(getfield(m, field), formfactor)
+end
+
 # TODO constructors?
-# i.e. swave(obs, lattice) -> ??? -> SymmetryWrapped(obs, ???)
+# higher order is depended on lattice symmetry and therefore rather complicated
+"""
+    swave(m[, field=:obs])
+
+Creates a SymmetryWrapped observable that computes the s-wave version of a 
+measurement or observable `m`.
+
+See also: [`eswave`](@ref), [`SymmetryWrapped`](@ref)
+"""
+swave(obs, args...) = SymmetryWrapped(obs, [1.0], args...)
+
+"""
+    eswave(measurement, lattice[, field=:obs])
+
+Creates a SymmetryWrapped observable that computes the extended s-wave version 
+of a measurement or observable `m`.
+
+See also: [`swave`](@ref), [`SymmetryWrapped`](@ref)
+"""
+function eswave(m::AbstractMeasurement, lattice::AbstractLattice, field=:obs)
+    _mask = mask(m)
+    dirs = directions(_mask, lattice)
+    j = 2; l = dot(dirs[j], dirs[j])
+    while (dot(dirs[j+1], dirs[j+1]) < l + 1e-3) && (j < length(dirs))
+        j += 1
+    end
+    SymmetryWrapped(m, vcat(0, ones(j-1)), field)
+end
 
 function (x::SymmetryWrapped)(data)
     sum(x.formfactor[i] * data[i] for i in eachindex(x.formfactor))

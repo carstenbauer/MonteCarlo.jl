@@ -46,6 +46,7 @@ IsingModel(params::NamedTuple) = IsingModel(; params...)
 # convenience
 @inline Base.ndims(m::IsingModel) = m.dims
 
+
 # cosmetics
 import Base.summary
 import Base.show
@@ -60,6 +61,7 @@ Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 
 # implement `Model` interface
 @inline nsites(m::IsingModel) = length(m.l)
+@inline lattice(m::IsingModel) = m.l
 
 
 

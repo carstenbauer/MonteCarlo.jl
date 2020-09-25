@@ -34,28 +34,30 @@ include("lattices/cubic.jl")
 include("lattices/honeycomb.jl")
 include("lattices/triangular.jl")
 include("lattices/ALPS.jl")
-# export DistanceMask, RawMask # maybe?
-export directions
+export directions, RawMask, DistanceMask # maybe getorder?
+export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
+export neighbors
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")
 export GreensMeasurement, BosonEnergyMeasurement, OccupationMeasurement,
         ChargeDensityCorrelationMeasurement, SpinDensityCorrelationMeasurement,
         MagnetizationMeasurement, PairingCorrelationMeasurement
-export mask, uniform_fourier, structure_factor, SymmetryWrapped
+export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
+export IsingEnergyMeasurement, IsingMagnetizationMeasurement
 
 include("FileIO.jl")
 export save, load, resume!
-# include("../test/testfunctions.jl")
+
 
 export reset!
 export run!, resume!, replay!
-export IsingModel, HubbardModelAttractive
-export MC, DQMC
-export greens
+export Model, IsingModel, HubbardModelAttractive
+export MonteCarloFlavor, MC, DQMC
+export greens, lattice, model, parameters
 
 # For extending
 export AbstractMeasurement, Model
