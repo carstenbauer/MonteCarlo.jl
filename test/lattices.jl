@@ -1,7 +1,7 @@
 for (d, lattype) in enumerate((
-        MonteCarlo.Chain,
-        MonteCarlo.SquareLattice,
-        MonteCarlo.CubicLattice
+        Chain,
+        SquareLattice,
+        CubicLattice
     ))
     constructor = d < 3 ? L -> lattype(L) : L -> lattype(d, L)
 
@@ -10,7 +10,7 @@ for (d, lattype) in enumerate((
             l = constructor(L)
             @test length(l) == L^d
 
-            bonds = collect(MonteCarlo.neighbors(l, Val(true)))
+            bonds = collect(neighbors(l, Val(true)))
             @test length(bonds) == 2*d*L^d
             @test allunique(bonds)
             for i in 0:length(l)-1
@@ -20,7 +20,7 @@ for (d, lattype) in enumerate((
                 @test allunique(x[2] for x in bonds[2d*i .+ (1:2d)])
             end
 
-            reduced_bonds = collect(MonteCarlo.neighbors(l, Val(false)))
+            reduced_bonds = collect(neighbors(l, Val(false)))
             @test length(reduced_bonds) == d*L^d
             # If directed is false, only one of (i, j) and (j, i)
             # should be kept.
@@ -29,12 +29,12 @@ for (d, lattype) in enumerate((
             @test sort(all_bonds) == sort(bonds)
 
             if L == 4
-                positions = if lattype == MonteCarlo.Chain
+                positions = if lattype == Chain
                     [[i] for i in 1:L]
                 else
                     l.lattice |> CartesianIndices .|> Tuple .|> collect
                 end
-                mask = MonteCarlo.DistanceMask(l)
+                mask = DistanceMask(l)
                 @test allunique(MonteCarlo.getorder(mask))
                 # for i in 1:length(l)
                 #     @test allunique(mask[i, :])
@@ -42,7 +42,7 @@ for (d, lattype) in enumerate((
                 # end
                 # The point of DistanceMask is for all i -> mask[i, j] to point
                 # in the same direction
-                dirs = MonteCarlo.directions(mask, l)
+                dirs = directions(mask, l)
                 for dir_idx in 1:length(mask)
                     _dirs = [
                         mod.(positions[trg] .- positions[src], L) 
@@ -59,7 +59,7 @@ end
 
 
 # L = 3 hardcoded Honeycomb
-struct HoneycombTestLattice <: MonteCarlo.AbstractLattice
+struct HoneycombTestLattice <: AbstractLattice
     positions::Vector{Vector{Float64}}
 end
 
@@ -110,7 +110,7 @@ end
     l = HoneycombTestLattice()
     L = 3
     positions = MonteCarlo.positions(l)
-    mask = MonteCarlo.DistanceMask(l)
+    mask = DistanceMask(l)
     @test mask isa MonteCarlo.VerboseDistanceMask
     @test length(mask) == 27
     @test allunique(MonteCarlo.getorder(mask))

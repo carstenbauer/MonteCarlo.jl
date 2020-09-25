@@ -31,10 +31,10 @@ end
     m = HubbardModelAttractive(dims=2, L=4);
     N = 4*4
     mc = DQMC(m, beta=1.0);
-    mask = MonteCarlo.DistanceMask(MonteCarlo.lattice(m))
-    MonteCarlo.unsafe_push!(mc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement(mc, m, mask=mask))
-    MonteCarlo.unsafe_push!(mc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement(mc, m, mask=mask))
-    MonteCarlo.unsafe_push!(mc, :PC => MonteCarlo.PairingCorrelationMeasurement(mc, m, mask=mask))
+    mask = DistanceMask(lattice(m))
+    MonteCarlo.unsafe_push!(mc, :CDC => ChargeDensityCorrelationMeasurement(mc, m, mask=mask))
+    MonteCarlo.unsafe_push!(mc, :SDC => SpinDensityCorrelationMeasurement(mc, m, mask=mask))
+    MonteCarlo.unsafe_push!(mc, :PC => PairingCorrelationMeasurement(mc, m, mask=mask))
     run!(mc, sweeps=1000, thermalization=10, verbose=false);
 
     # Check measurements

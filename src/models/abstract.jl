@@ -16,3 +16,4 @@ nsites(m::Model) = error("Model $(typeof(m)) doesn't implement `nsites`!")
 
 # Optional
 init!(mc::MonteCarloFlavor, m::Model) = nothing
+@inline parameters(m::Model) = NamedTuple{}()
