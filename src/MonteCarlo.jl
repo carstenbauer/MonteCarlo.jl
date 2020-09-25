@@ -42,7 +42,7 @@ include("flavors/DQMC/DQMC.jl")
 export GreensMeasurement, BosonEnergyMeasurement, OccupationMeasurement,
         ChargeDensityCorrelationMeasurement, SpinDensityCorrelationMeasurement,
         MagnetizationMeasurement, PairingCorrelationMeasurement
-export mask, uniform_fourier, structure_factor, SymmetryWrapped
+export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
