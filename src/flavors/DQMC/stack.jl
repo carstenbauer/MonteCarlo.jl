@@ -229,7 +229,7 @@ end
 Updates stack[idx+1] based on stack[idx]
 """
 @bm function add_slice_sequence_left(mc::DQMC, idx::Int)
-    copyto!(mc.s.curr_U, mc.s.u_stack[:, :, idx])
+    @views copyto!(mc.s.curr_U, mc.s.u_stack[:, :, idx])
 
     # println("Adding slice seq left $idx = ", mc.s.ranges[idx])
     for slice in mc.s.ranges[idx]
@@ -247,7 +247,7 @@ end
 Updates stack[idx] based on stack[idx+1]
 """
 @bm function add_slice_sequence_right(mc::DQMC, idx::Int)
-    copyto!(mc.s.curr_U, mc.s.u_stack[:, :, idx + 1])
+    @views copyto!(mc.s.curr_U, mc.s.u_stack[:, :, idx + 1])
 
     for slice in reverse(mc.s.ranges[idx])
         multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)

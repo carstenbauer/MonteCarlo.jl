@@ -95,14 +95,17 @@ end
 
     @info "Running DQMC β=1.0, 10k + 50k sweeps, ≈4s"
     Random.seed!(123)
-    dqmc = DQMC(model, beta=5.0, delta_tau = 0.1, safe_mult=5, measurements = Dict{Symbol, MonteCarlo.AbstractMeasurement}())
-    push!(dqmc, :Greens => MonteCarlo.GreensMeasurement)
-    push!(dqmc, :Occs => MonteCarlo.OccupationMeasurement)
-    MonteCarlo.unsafe_push!(dqmc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement(dqmc, model, mask=mask))
-    push!(dqmc, :Magn => MonteCarlo.MagnetizationMeasurement)
-    MonteCarlo.unsafe_push!(dqmc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement(dqmc, model, mask=mask))
-    MonteCarlo.unsafe_push!(dqmc, :PC => MonteCarlo.PairingCorrelationMeasurement(dqmc, model, mask=mask))
-    
+    dqmc = DQMC(
+        model, beta=5.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
+        measurements = Dict{Symbol, MonteCarlo.AbstractMeasurement}()
+    )
+    dqmc[:Greens] = GreensMeasurement(dqmc, model)
+    dqmc[:Occs] = OccupationMeasurement(dqmc, model)
+    dqmc[:CDC] = ChargeDensityCorrelationMeasurement(dqmc, model, mask=mask)
+    dqmc[:Magn] = MagnetizationMeasurement(dqmc, model)
+    dqmc[:SDC] = SpinDensityCorrelationMeasurement(dqmc, model, mask=mask)
+    dqmc[:PC] = PairingCorrelationMeasurement(dqmc, model, mask=mask)
+
     # Unequal time
     # N = MonteCarlo.nslices(dqmc) # 10
     l1s = [0, 4, 5, 6, 0]
@@ -110,11 +113,11 @@ end
     dqmc.ut_stack = MonteCarlo.UnequalTimeStack(dqmc)
     # Why is UTGreensMeasurement not defined?
     UTG = MonteCarlo.UTGreensMeasurement
-    MonteCarlo.unsafe_push!(dqmc, :UTG1 => UTG(dqmc, model, slice1=l1s[1], slice2=l2s[1]))
-    MonteCarlo.unsafe_push!(dqmc, :UTG2 => UTG(dqmc, model, slice1=l1s[2], slice2=l2s[2]))
-    MonteCarlo.unsafe_push!(dqmc, :UTG3 => UTG(dqmc, model, slice1=l1s[3], slice2=l2s[3]))
-    MonteCarlo.unsafe_push!(dqmc, :UTG4 => UTG(dqmc, model, slice1=l1s[4], slice2=l2s[4]))
-    MonteCarlo.unsafe_push!(dqmc, :UTG5 => UTG(dqmc, model, slice1=l1s[5], slice2=l2s[5]))
+    dqmc[:UTG1] = UTG(dqmc, model, slice1=l1s[1], slice2=l2s[1])
+    dqmc[:UTG2] = UTG(dqmc, model, slice1=l1s[2], slice2=l2s[2])
+    dqmc[:UTG3] = UTG(dqmc, model, slice1=l1s[3], slice2=l2s[3])
+    dqmc[:UTG4] = UTG(dqmc, model, slice1=l1s[4], slice2=l2s[4])
+    dqmc[:UTG5] = UTG(dqmc, model, slice1=l1s[5], slice2=l2s[5])
 
     # MonteCarlo.enable_benchmarks()
 
