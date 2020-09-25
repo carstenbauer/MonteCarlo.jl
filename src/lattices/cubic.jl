@@ -5,7 +5,8 @@ struct CubicLattice{T<:AbstractArray{Int}} <: AbstractLattice
     L::Int
     dim::Int
     sites::Int
-    neighs::Matrix{Int} # row = first half uprights, second half downlefts, D in total; col = siteidx
+    # row = first half uprights, second half downlefts, D in total; col = siteidx
+    neighs::Matrix{Int} 
     lattice::T
 
     # generic checkerboard

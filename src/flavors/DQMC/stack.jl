@@ -364,20 +364,28 @@ end
         if mod(mc.s.current_slice, mc.p.safe_mult) == 0
             mc.s.current_slice +=1 # slice we are going to
             if mc.s.current_slice == 1
-                mc.s.Ur[:, :], mc.s.Dr[:], mc.s.Tr[:, :] = mc.s.u_stack[:, :, 1], mc.s.d_stack[:, 1], mc.s.t_stack[:, :, 1]
+                @views copyto!(mc.s.Ur, mc.s.u_stack[:, :, 1])
+                @views copyto!(mc.s.Dr, mc.s.d_stack[:, 1])
+                @views copyto!(mc.s.Tr, mc.s.t_stack[:, :, 1])
                 @views copyto!(mc.s.u_stack[:, :, 1], I)
                 @views mc.s.d_stack[:, 1] .= one(eltype(mc.s.d_stack))
                 @views copyto!(mc.s.t_stack[:, :, 1], I)
-                mc.s.Ul[:,:], mc.s.Dl[:], mc.s.Tl[:,:] = mc.s.u_stack[:, :, 1], mc.s.d_stack[:, 1], mc.s.t_stack[:, :, 1]
+                @views copyto!(mc.s.Ul, mc.s.u_stack[:, :, 1])
+                @views copyto!(mc.s.Dl, mc.s.d_stack[:, 1])
+                @views copyto!(mc.s.Tl, mc.s.t_stack[:, :, 1])
 
                 calculate_greens(mc) # greens_1 ( === greens_{m+1} )
 
             elseif 1 < mc.s.current_slice <= mc.p.slices
                 idx = Int((mc.s.current_slice - 1)/mc.p.safe_mult)
 
-                mc.s.Ur[:, :], mc.s.Dr[:], mc.s.Tr[:, :] = mc.s.u_stack[:, :, idx+1], mc.s.d_stack[:, idx+1], mc.s.t_stack[:, :, idx+1]
+                @views copyto!(mc.s.Ur, mc.s.u_stack[:, :, idx+1])
+                @views copyto!(mc.s.Dr, mc.s.d_stack[:, idx+1])
+                @views copyto!(mc.s.Tr, mc.s.t_stack[:, :, idx+1])
                 add_slice_sequence_left(mc, idx)
-                mc.s.Ul[:,:], mc.s.Dl[:], mc.s.Tl[:,:] = mc.s.u_stack[:, :, idx+1], mc.s.d_stack[:, idx+1], mc.s.t_stack[:, :, idx+1]
+                @views copyto!(mc.s.Ul, mc.s.u_stack[:, :, idx+1])
+                @views copyto!(mc.s.Dl, mc.s.d_stack[:, idx+1])
+                @views copyto!(mc.s.Tl, mc.s.t_stack[:, :, idx+1])
 
                 if mc.p.check_propagation_error
                     copyto!(mc.s.greens_temp, mc.s.greens)
@@ -390,7 +398,8 @@ end
                 calculate_greens(mc) # greens_{slice we are propagating to}
 
                 if mc.p.check_propagation_error
-                    greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
+                    # OPT: could probably be optimized through explicit loop
+                    greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) 
                     if greensdiff > 1e-7
                         push!(mc.a.propagation_error, greensdiff)
                         mc.p.silent || @printf(
@@ -418,11 +427,15 @@ end
         if mod(mc.s.current_slice-1, mc.p.safe_mult) == 0
             mc.s.current_slice -= 1 # slice we are going to
             if mc.s.current_slice == mc.p.slices
-                mc.s.Ul[:, :], mc.s.Dl[:], mc.s.Tl[:, :] = mc.s.u_stack[:, :, end], mc.s.d_stack[:, end], mc.s.t_stack[:, :, end]
+                @views copyto!(mc.s.Ul, mc.s.u_stack[:, :, end])
+                @views copyto!(mc.s.Dl, mc.s.d_stack[:, end])
+                @views copyto!(mc.s.Tl, mc.s.t_stack[:, :, end])
                 @views copyto!(mc.s.u_stack[:, :, end], I)
                 @views mc.s.d_stack[:, end] .= one(eltype(mc.s.d_stack))
                 @views copyto!(mc.s.t_stack[:, :, end], I)
-                mc.s.Ur[:,:], mc.s.Dr[:], mc.s.Tr[:,:] = mc.s.u_stack[:, :, end], mc.s.d_stack[:, end], mc.s.t_stack[:, :, end]
+                @views copyto!(mc.s.Ur, mc.s.u_stack[:, :, end])
+                @views copyto!(mc.s.Dr, mc.s.d_stack[:, end])
+                @views copyto!(mc.s.Tr, mc.s.t_stack[:, :, end])
 
                 calculate_greens(mc) # greens_{mc.p.slices+1} === greens_1
 
@@ -431,9 +444,13 @@ end
 
             elseif 0 < mc.s.current_slice < mc.p.slices
                 idx = Int(mc.s.current_slice / mc.p.safe_mult) + 1
-                mc.s.Ul[:, :], mc.s.Dl[:], mc.s.Tl[:, :] = mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.t_stack[:, :, idx]
+                @views copyto!(mc.s.Ul, mc.s.u_stack[:, :, idx])
+                @views copyto!(mc.s.Dl, mc.s.d_stack[:, idx])
+                @views copyto!(mc.s.Tl, mc.s.t_stack[:, :, idx])
                 add_slice_sequence_right(mc, idx)
-                mc.s.Ur[:,:], mc.s.Dr[:], mc.s.Tr[:,:] = mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.t_stack[:, :, idx]
+                @views copyto!(mc.s.Ur, mc.s.u_stack[:, :, idx])
+                @views copyto!(mc.s.Dr, mc.s.d_stack[:, idx])
+                @views copyto!(mc.s.Tr, mc.s.t_stack[:, :, idx])
 
                 if mc.p.check_propagation_error
                     copyto!(mc.s.greens_temp, mc.s.greens)
@@ -442,7 +459,8 @@ end
                 calculate_greens(mc)
 
                 if mc.p.check_propagation_error
-                    greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
+                    # OPT: could probably be optimized through explicit loop
+                    greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) 
                     if greensdiff > 1e-7
                         push!(mc.a.propagation_error, greensdiff)
                         mc.p.silent || @printf(

@@ -88,7 +88,10 @@ function DQMCParameters(;
         delta_tau, beta = nt.delta_tau, nt.beta
         slices = round(Int, beta/delta_tau)
         if slices != nt.slices
-            error("Given slices ($(nt.slices)) does not match calculated slices beta/delta_tau ≈ $(slices)")
+            error(
+                "Given slices ($(nt.slices)) does not match calculated slices" * 
+                " beta/delta_tau ≈ $(slices)"
+            )
         end
     elseif (Set ∘ keys)(nt) == Set([:beta, :slices])
         beta, slices = nt.beta, nt.slices
@@ -99,7 +102,9 @@ function DQMCParameters(;
     elseif (Set ∘ keys)(nt) == Set([:delta_tau, :beta])
         delta_tau, beta = nt.delta_tau, nt.beta
         slices = round(beta/delta_tau)
-        warn_round && !(slices ≈ beta/delta_tau) && @warn "beta/delta_tau = $(beta/delta_tau) not an integer. Rounded to $slices"
+        if warn_round && !(slices ≈ beta/delta_tau)
+            @warn "beta/delta_tau = $(beta/delta_tau) not an integer. Rounded to $slices"
+        end
     else
         error("Invalid keyword arguments to DQMCParameters $nt")
     end
@@ -296,8 +301,8 @@ function init!(mc::DQMC;
         mc.measurements = default_measurements(mc, mc.model)
     else
         @warn(
-            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}, but is " *
-            "$(typeof(measurements)). No measurements have been set."
+            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}" *
+            ", but is $(typeof(measurements)). No measurements have been set."
         )
         mc.measurements = Dict{Symbol, AbstractMeasurement}()
     end
@@ -352,7 +357,7 @@ See also: [`resume!`](@ref)
         thermalization = mc.p.thermalization,
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
-        resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        resumable_filename::String = "resumable_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld",
         overwrite = false
     )
 
@@ -589,7 +594,7 @@ function replay!(
         verbose::Bool = true,
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
-        resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        resumable_filename::String = "resumable_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld",
         overwrite = false,
         measure_rate = 1
     )

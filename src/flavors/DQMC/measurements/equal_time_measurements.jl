@@ -134,7 +134,9 @@ function OccupationMeasurement(m::GreensMeasurement{<: LightObservable}; capacit
     )
 
     N = min(length(o.B.count), length(m.obs.B.count))
-    m.obs.B.count[N] > 1 && throw(OverflowError("OccupationMeasurement does not have enough capacity!"))
+    if m.obs.B.count[N] > 1
+        throw(OverflowError("OccupationMeasurement does not have enough capacity!"))
+    end
     N = findlast(>(1), m.obs.B.count)
     N === nothing && return OccupationMeasurement{typeof(o)}(o)
     

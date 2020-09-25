@@ -60,7 +60,9 @@ HubbardModelAttractive(params::NamedTuple) = HubbardModelAttractive(; params...)
 import Base.summary
 import Base.show
 Base.summary(model::HubbardModelAttractive) = "$(model.dims)D attractive Hubbard model"
-Base.show(io::IO, model::HubbardModelAttractive) = print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(length(model.l)) sites)")
+function Base.show(io::IO, model::HubbardModelAttractive)
+    print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(length(model.l)) sites)")
+end
 Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io, model)
 
 
@@ -74,7 +76,9 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 
 
 # implement `DQMC` interface: mandatory
-@inline Base.rand(::Type{DQMC}, m::HubbardModelAttractive, nslices::Int) = rand(HubbardDistribution, nsites(m), nslices)
+@inline function Base.rand(::Type{DQMC}, m::HubbardModelAttractive, nslices::Int)
+    rand(HubbardDistribution, nsites(m), nslices)
+end
 
 
 """
@@ -127,7 +131,9 @@ This is a performance critical method.
 end
 
 
-@inline @bm function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf)
+@inline @bm function propose_local(
+        mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf
+    )
     # see for example dos Santos (2002)
     greens = mc.s.greens
     dtau = mc.p.delta_tau

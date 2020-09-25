@@ -108,7 +108,7 @@ end
     # forward
     @bm "forward build" begin
         @inbounds for idx in 1:length(mc.s.ranges)
-            copyto!(mc.s.curr_U, s.forward_u_stack[:, :, idx])
+            @views copyto!(mc.s.curr_U, s.forward_u_stack[:, :, idx])
             for slice in mc.s.ranges[idx]
                 multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
             end
@@ -124,7 +124,7 @@ end
     # backward
     @bm "backward build" begin
         @inbounds for idx in length(mc.s.ranges):-1:1
-            copyto!(mc.s.curr_U, s.backward_u_stack[:, :, idx + 1])
+            @views copyto!(mc.s.curr_U, s.backward_u_stack[:, :, idx + 1])
             for slice in reverse(mc.s.ranges[idx])
                 multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
             end
@@ -133,7 +133,7 @@ end
                 s.backward_u_stack[:, :, idx], s.backward_d_stack[:, idx], 
                 mc.s.curr_U, mc.s.pivot, mc.s.tempv
             )
-            @views vmul!(s.backward_t_stack[:, :, idx], mc.s.curr_U, s.backward_t_stack[:, :, idx + 1])
+            @views vmul!(s.backward_t_stack[:,:,idx], mc.s.curr_U, s.backward_t_stack[:,:,idx+1])
         end
     end
 
@@ -142,7 +142,7 @@ end
         @inbounds for idx in 1:length(mc.s.ranges)
             @views copyto!(s.inv_t_stack[:, :, idx], I)
             for slice in reverse(mc.s.ranges[idx])
-                @views multiply_slice_matrix_inv_left!(mc, mc.model, slice, s.inv_t_stack[:, :, idx])
+                @views multiply_slice_matrix_inv_left!(mc, mc.model, slice, s.inv_t_stack[:,:,idx])
             end
             @views udt_AVX_pivot!(
                 s.inv_u_stack[:, :, idx], s.inv_d_stack[:, idx], s.inv_t_stack[:, :, idx], 
@@ -171,7 +171,7 @@ end
     # forward
     @bm "forward build" begin
         @inbounds for idx in s.forward_idx:upto-1
-            copyto!(mc.s.curr_U, s.forward_u_stack[:, :, idx])
+            @views copyto!(mc.s.curr_U, s.forward_u_stack[:, :, idx])
             for slice in mc.s.ranges[idx]
                 multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
             end
@@ -199,7 +199,7 @@ end
     # backward
     @bm "backward build" begin
         @inbounds for idx in s.backward_idx-1:-1:downto
-            copyto!(mc.s.curr_U, s.backward_u_stack[:, :, idx + 1])
+            @views copyto!(mc.s.curr_U, s.backward_u_stack[:, :, idx + 1])
             for slice in reverse(mc.s.ranges[idx])
                 multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
             end
@@ -208,7 +208,7 @@ end
                 s.backward_u_stack[:, :, idx], s.backward_d_stack[:, idx], 
                 mc.s.curr_U, mc.s.pivot, mc.s.tempv
             )
-            @views vmul!(s.backward_t_stack[:, :, idx], mc.s.curr_U, s.backward_t_stack[:, :, idx + 1])
+            @views vmul!(s.backward_t_stack[:,:,idx], mc.s.curr_U, s.backward_t_stack[:,:,idx+1])
         end
     end
 
@@ -229,7 +229,7 @@ end
             s.inv_done[idx] && continue
             @views copyto!(s.inv_t_stack[:, :, idx], I)
             for slice in reverse(mc.s.ranges[idx])
-                @views multiply_slice_matrix_inv_left!(mc, mc.model, slice, s.inv_t_stack[:, :, idx])
+                @views multiply_slice_matrix_inv_left!(mc, mc.model, slice, s.inv_t_stack[:,:,idx])
             end
             @views udt_AVX_pivot!(
                 s.inv_u_stack[:, :, idx], s.inv_d_stack[:, idx], s.inv_t_stack[:, :, idx], 
@@ -362,7 +362,7 @@ end
         idx = div(slice2-1, mc.p.safe_mult) # 0 based index into stack
         lazy_build_forward!(mc, s, idx+1) # only if build_stack is commented out
         # forward_slices = collect(forward[idx+1])
-        copyto!(mc.s.curr_U, s.forward_u_stack[:, :, idx+1])
+        @views copyto!(mc.s.curr_U, s.forward_u_stack[:, :, idx+1])
         # @info "$slice2 || $(idx+1) || $(mc.p.safe_mult * idx + 1) : $(slice2)"
         for slice in mc.p.safe_mult * idx + 1 : slice2
             multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
@@ -379,7 +379,7 @@ end
         idx = div.(slice1 + mc.p.safe_mult - 1, mc.p.safe_mult) # 0 based index into stack
         lazy_build_backward!(mc, s, idx+1) # only if build_stack is commented out
         # backward_slices = collect(backward[idx+1])
-        copyto!(mc.s.curr_U, s.backward_u_stack[:, :, idx+1])
+        @views copyto!(mc.s.curr_U, s.backward_u_stack[:, :, idx+1])
         # @info "$slice1 || $(idx+1) || $(mc.p.safe_mult * idx) : -1 : $(slice1+1)"
         for slice in mc.p.safe_mult * idx : -1 : slice1+1
             multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
@@ -536,7 +536,9 @@ the UnequalTimeStack must not be overwritten. As such:
 - `greens!(mc, slice)` can be called and remains valid
 - `greens!(mc, k, l)` will break iteration but remains valid (call before iterating)
 """
-function GreensIterator(mc::T, slice1=Colon(), slice2=0, recalculate=4mc.p.safe_mult) where {T <: DQMC}
+function GreensIterator(
+        mc::T, slice1 = Colon(), slice2 = 0, recalculate = 4mc.p.safe_mult
+    ) where {T <: DQMC}
     GreensIterator{slice1, slice2, T}(mc, recalculate)
 end
 init!(it::GreensIterator) = it.mc.ut_stack = UnequalTimeStack(it.mc)

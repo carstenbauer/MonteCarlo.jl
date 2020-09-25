@@ -104,7 +104,9 @@ function getorder(mask::SimpleDistanceMask)
                      for (dir, trg) in enumerate(mask.targets[src, :])
     )
 end
-getdirorder(mask::SimpleDistanceMask, dir) = ((src, mask.targets[src, dir]) for src in 1:size(mask.targets, 1))
+function getdirorder(mask::SimpleDistanceMask, dir)
+    ((src, mask.targets[src, dir]) for src in 1:size(mask.targets, 1))
+end
 # getsrcorder(mask, src) = ((dir, src, mask.targets[src, dir]) for (dir, trg) in enumerate(mask.targets[src, :]))
 # Number of directions
 Base.length(mask::SimpleDistanceMask) = size(mask.targets, 1)

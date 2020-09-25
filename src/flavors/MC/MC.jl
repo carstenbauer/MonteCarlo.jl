@@ -97,7 +97,9 @@ MC(m::Model, params::NamedTuple) = MC(m; params...)
 @inline configurations(mc::MC) = mc.configs
 @inline lattice(mc::MC) = lattice(mc.model)
 @inline parameters(mc::MC) = merge(parameters(mc.p), parameters(mc.model))
-@inline parameters(p::MCParameters) = (beta = p.beta, thermalization = p.thermalization, sweeps = p.sweeps)
+@inline function parameters(p::MCParameters)
+    (beta = p.beta, thermalization = p.thermalization, sweeps = p.sweeps)
+end
 
 
 # cosmetics
@@ -143,8 +145,8 @@ function init!(mc::MC;
         mc.measurements = default_measurements(mc, mc.model)
     else
         @warn(
-            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}, but are " *
-            "$(typeof(measurements)). No measurements have been set."
+            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}" *
+            ", but are $(typeof(measurements)). No measurements have been set."
         )
         mc.measurements = Dict{Symbol, AbstractMeasurement}()
     end
@@ -191,7 +193,7 @@ See also: [`resume!`](@ref)
         thermalization = mc.p.thermalization,
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
-        resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        resumable_filename::String = "resumable_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld",
         overwrite = false
     )
 
@@ -259,7 +261,10 @@ See also: [`resume!`](@ref)
                 @printf("\t\tacc rate (local) : %.1f%%\n", mc.a.acc_rate*100)
                 if mc.p.global_moves
                     @printf("\t\tacc rate (global): %.1f%%\n", mc.a.acc_rate_global*100)
-                    @printf("\t\tacc rate (global, overall): %.1f%%\n", mc.a.acc_global/mc.a.prop_global*100)
+                    @printf(
+                        "\t\tacc rate (global, overall): %.1f%%\n", 
+                        mc.a.acc_global/mc.a.prop_global*100
+                    )
                 end
             end
 
@@ -342,7 +347,7 @@ function replay!(
         verbose::Bool=true,
         safe_before::TimeType = now() + Year(100),
         grace_period::TimePeriod = Minute(5),
-        filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        filename::String = "resumable_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld",
         overwrite = false,
         measure_rate = 1
     )
