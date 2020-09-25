@@ -48,7 +48,7 @@ end
     # Run for 1s with known RNG
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=1_000, recorder=ConfigRecorder)
+    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=10_000, recorder=ConfigRecorder)
     state = run!(
         mc, verbose = false,
         safe_before = now() + Second(1),
