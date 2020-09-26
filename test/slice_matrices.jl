@@ -129,3 +129,65 @@ end
         @test maximum(abs, input .- result) < 2dqmc.p.delta_tau
     end
 end
+
+
+@testset "Custom Linear Algebra" begin
+    @testset "avx multiplications" begin
+        A = rand(16, 16)
+        B = rand(16, 16)
+        C = rand(16, 16)
+        
+        MonteCarlo.vmul!(C, A, B)
+        @test A * B ≈ C
+        
+        MonteCarlo.vmul!(C, A, B')
+        @test A * B' ≈ C
+        
+        MonteCarlo.vmul!(C, A', B)
+        @test A' * B ≈ C
+        
+        D = Diagonal(rand(16))
+        MonteCarlo.vmul!(C, A, D)
+        @test A * D ≈ C
+        
+        copyto!(C, A)
+        MonteCarlo.rvmul!(C, D)
+        @test A * D ≈ C
+
+        copyto!(C, A)
+        MonteCarlo.lvmul!(D, C)
+        @test D * A ≈ C
+    end
+
+    @testset "UDT transformations + rdivp!" begin
+        U = Matrix{Float64}(undef, 16, 16)
+        D = Vector{Float64}(undef, 16)
+        T = rand(16, 16)
+        X = copy(T)
+        MonteCarlo.udt_AVX!(U, D, T)
+        @test U * Diagonal(D) * T ≈ X
+
+        copyto!(T, X)
+        pivot = Vector{Int64}(undef, 16)
+        tempv = Vector{Float64}(undef, 16)
+        MonteCarlo.udt_AVX_pivot!(U, D, T)
+        @test U * Diagonal(D) * T ≈ X
+
+        copyto!(T, X)
+        pivot = Vector{Int64}(undef, 16)
+        tempv = Vector{Float64}(undef, 16)
+        MonteCarlo.udt_AVX_pivot!(U, D, T, pivot, tempv, Val(false))
+        # pivoting matrix
+        P = zeros(length(pivot), length(pivot))
+        for (i, j) in enumerate(pivot)
+            P[i, j] = 1.0
+        end
+        @test U * Diagonal(D) * UpperTriangular(T) * P ≈ X
+
+        u = copy(U)
+        t = copy(T)
+        tmp = similar(T)
+        MonteCarlo.rdivp!(u, t, tmp, pivot)
+        @test u ≈ U * P' / UpperTriangular(T)
+    end
+end
