@@ -108,6 +108,8 @@ getdirorder(mask::SimpleDistanceMask, dir) = ((src, mask.targets[src, dir]) for 
 # getsrcorder(mask, src) = ((dir, src, mask.targets[src, dir]) for (dir, trg) in enumerate(mask.targets[src, :]))
 # Number of directions
 Base.length(mask::SimpleDistanceMask) = size(mask.targets, 1)
+dirlength(mask::SimpleDistanceMask, dir_idx) = size(mask.targets, 1)
+dirlengths(mask::SimpleDistanceMask) = (size(mask.targets, 1) for _ in 1:size(mask.targets, 1))
 """
     directions(mask, lattice)
 
@@ -129,8 +131,6 @@ struct VerboseDistanceMask <: DistanceMask
     # targets::Matrix{Tuple{Int64, Int64}}
     targets::Vector{Vector{Tuple{Int64, Int64}}}
 end
-# NOTE Does this definition makes sense?
-# This would be (number of source sites, number of directions)
 function getorder(mask::VerboseDistanceMask)
     ((dir, src, trg) for dir in eachindex(mask.targets)
                      for (src, trg) in mask.targets[dir]
@@ -139,6 +139,8 @@ end
 getdirorder(mask::VerboseDistanceMask, dir) = ((src, trg) for (src, trg) in mask.targets[dir])
 # getsrcorder(mask, src) = ((dir, src, mask.targets[src, dir]) for (dir, trg) in enumerate(mask.targets[src, :]))
 Base.length(mask::VerboseDistanceMask) = length(mask.targets)
+dirlength(mask::DistanceMask, dir_idx) = length(mask.targets[dir_idx])
+dirlengths(mask::DistanceMask) = length.(mask.targets)
 function directions(mask::VerboseDistanceMask, lattice::AbstractLattice)
     pos = MonteCarlo.positions(lattice)
     dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]

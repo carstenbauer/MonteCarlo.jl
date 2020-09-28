@@ -178,7 +178,7 @@ function eswave(m::AbstractMeasurement, lattice::AbstractLattice, field=:obs)
 end
 
 function (x::SymmetryWrapped)(data)
-    sum(x.formfactor[i] * data[i] for i in eachindex(x.formfactor))
+    sum(x.formfactor[i] * data[i] for i in eachindex(x.formfactor)) / length(x.formfactor)
 end
 
 # Gaussian error propagation? ¯\_(ツ)_/¯

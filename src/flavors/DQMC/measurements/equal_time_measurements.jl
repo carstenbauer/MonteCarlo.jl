@@ -187,6 +187,7 @@ function mask_kernel!(m, mask::DistanceMask, IG, G, kernel::Function, output)
     for (dir_idx, src, trg) in getorder(mask)
         output[dir_idx] += kernel(IG, G, src, trg)
     end
+    output ./= dirlengths(mask)
     output
 end
 
@@ -250,7 +251,7 @@ function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::In
 
     mask_kernel!(m, m.mask, IG, G, _cdc_kernel, m.temp)
 
-    push!(m.obs, m.temp / N)
+    push!(m.obs, m.temp)
 end
 function _cdc_kernel(IG, G, i, j)
     N = div(size(IG, 1), 2)
@@ -415,13 +416,13 @@ function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int6
 
     # Spin Density Correlation
     mask_kernel!(m, m.mask, IG, G, _sdc_x_kernel, m.temp)
-    push!(m.x, m.temp / N)
+    push!(m.x, m.temp)
 
     mask_kernel!(m, m.mask, IG, G, _sdc_y_kernel, m.temp)
-    push!(m.y, m.temp / N)
+    push!(m.y, m.temp)
 
     mask_kernel!(m, m.mask, IG, G, _sdc_z_kernel, m.temp)
-    push!(m.z, m.temp / N)
+    push!(m.z, m.temp)
 end
 function _sdc_x_kernel(IG, G, i, j)
     N = div(size(IG, 1), 2)
@@ -504,7 +505,7 @@ function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
 
     # Doesn't require IG
     mask_kernel!(m, m.mask, G, G, _pc_s_wave_kernel, m.temp)
-    push!(m.obs, m.temp / N^2)
+    push!(m.obs, m.temp)
 end
 
 # m is the measurement for potential dispatch
@@ -530,6 +531,7 @@ function mask_kernel!(
             output[dir_idx] += kernel(IG, G, src1, src2, trg1, trg2)
         end
     end
+    output ./= dirlengths(mask).^2
     output
 end
 function _pc_s_wave_kernel(IG, G, src1, src2, trg1, trg2)
