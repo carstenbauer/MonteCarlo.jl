@@ -139,16 +139,16 @@ function OccupationMeasurement(m::GreensMeasurement{<: LightObservable}; capacit
     N === nothing && return OccupationMeasurement{typeof(o)}(o)
     
     for i in 1:N
-        o.B.x_sum[i]  .= diag(m.obs.B.x_sum[i])
-        o.B.x2_sum[i] .= diag(m.obs.B.x2_sum[i])
+        o.B.x_sum[i]  .= m.obs.B.count[i] .- diag(m.obs.B.x_sum[i])
+        o.B.x2_sum[i] .= m.obs.B.count[i] .- 2diag(m.obs.B.x_sum[i]) .+ diag(m.obs.B.x2_sum[i])
         o.B.count[i]   = m.obs.B.count[i]
-        o.B.compressors[i].value .= diag(m.obs.B.compressors[i].value)
+        o.B.compressors[i].value .= 1 .- diag(m.obs.B.compressors[i].value)
         o.B.compressors[i].switch = m.obs.B.compressors[i].switch
     end
     OccupationMeasurement{typeof(o)}(o)
 end
 @bm function measure!(m::OccupationMeasurement, mc::DQMC, model, i::Int64)
-    push!(m.obs, diag(greens(mc)))
+    push!(m.obs, 1 .- diag(greens(mc)))
 end
 function save_measurement(file::JLDFile, m::OccupationMeasurement, entryname::String)
     write(file, entryname * "/VERSION", 1)

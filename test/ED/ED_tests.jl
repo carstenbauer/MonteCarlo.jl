@@ -111,9 +111,9 @@ end
             @test isapprox(G_DQMC[i, j], G_ED[i, j], atol=atol, rtol=rtol)
         end
         for i in 1:size(G_DQMC, 1)
-            @test isapprox(occs[i], G_ED[i, i], atol=atol, rtol=rtol)
-            @test isapprox(occs2[i], G_ED[i, i], atol=atol, rtol=rtol)
-            @test isapprox(occs3[i], G_ED[i, i], atol=atol, rtol=rtol)
+            @test isapprox(occs[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
+            @test isapprox(occs2[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
+            @test isapprox(occs3[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
         end
     end
 
