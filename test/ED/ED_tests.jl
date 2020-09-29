@@ -211,7 +211,7 @@ end
                     )
                 end
             end
-            @test ED_PC/N^2 ≈ PC[offset] atol=atol rtol=rtol
+            @test ED_PC/N ≈ PC[offset] atol=atol rtol=rtol
         end
     end
     end
