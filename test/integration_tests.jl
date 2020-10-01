@@ -197,7 +197,7 @@ end
             (-1.2, 0.48, 1.50, 5.0, 4),
             ( 0.0, 0.88, 0.95, 5.0, 4),
             ( 1.2, 1.25, 1.55, 5.0, 4),
-            ( 2.0, 2.00, 0.0,  5.0, 4)
+            ( 2.0, 2.00, 0.0,  5.0, 4),
 
             # (-2.0, 0.12, 1.0,  8.0, 4),
             # (-1.2, 0.48, 1.82, 8.0, 4),
@@ -211,7 +211,7 @@ end
             # ( 1.2, 1.40, 2.0,  5.0, 6),
             # ( 2.0, 2.00, 0.0,  5.0, 6)
         ])
-        @info "[$(k)/5] μ = $mu (literature check)"
+        @info "[$(k)/15] μ = $mu   L = $L   β = $beta (literature check)"
         m = HubbardModelAttractive(
             dims=2, L=L, l = MonteCarlo.TriangularLattice(L),
             t = 1.0, U = 4.0, mu = mu
@@ -226,7 +226,7 @@ end
                 thermalization=2000, sweeps=2000, measure_rate=1,
                 measurements = Dict{Symbol, MonteCarlo.AbstractMeasurement}()
             )
-            push!(mc, :G => MonteCarlo.GreensMeasurement)
+            push!(mc, :occ => MonteCarlo.OccupationMeasurement)
             push!(mc, :PC => MonteCarlo.PairingCorrelationMeasurement)
             run!(mc, verbose=false)
             measured = measurements(mc)
@@ -234,15 +234,17 @@ end
             # mean(measured[:G]) = MC mean
             # diag gets c_i c_i^† terms
             # 2 (1 - mean(c_i c_i^†)) = 2 mean(c_i^† c_i) where 2 follows from 2 spins
-            occupation = 2 - 2(measured[:G].obs |> mean |> diag |> mean)
+            occupation = 2 - 2(measured[:occ].obs |> mean |> mean)
             push!(OC_sample, occupation)
-            push!(OC_errors, 2(measured[:G].obs |> std_error |> diag |> mean))
-            push!(PC_sample, measured[:PC].uniform_fourier |> mean)
-            push!(PC_errors, measured[:PC].uniform_fourier |> std_error)
+            push!(OC_errors, 2(measured[:occ].obs |> std_error |> mean))
+            push!(PC_sample, measured[:PC] |> swave |> mean)
+            push!(PC_errors, measured[:PC] |> swave |> std_error)
         end
         # min_error should compensate read-of errors & errors in the results
         # dos Santos used rather few sweeps, which seems to affect PC peaks strongly
+        @info "Occupation"
         @test stat_equal(lit_oc, OC_sample, OC_errors, min_error=0.025)
+        @info "Pairing Correlation"
         @test stat_equal(lit_pc, PC_sample, PC_errors, min_error=0.05)
     end
 end
