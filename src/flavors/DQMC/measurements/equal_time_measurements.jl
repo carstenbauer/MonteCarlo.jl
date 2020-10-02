@@ -291,14 +291,17 @@ struct MagnetizationMeasurement{
         OTx <: AbstractObservable,
         OTy <: AbstractObservable,
         OTz <: AbstractObservable,
-        AT <: AbstractArray
+        AT <: AbstractArray,
+        ATy <: AbstractArray
     } <: SpinOneHalfMeasurement
 
     x::OTx
     y::OTy
     z::OTz
     temp::AT
+    tempy::ATy
 end
+
 function MagnetizationMeasurement(mc::DQMC, model; capacity=_default_capacity(mc))
     N = nsites(model)
     T = greenseltype(DQMC, model)
@@ -318,7 +321,9 @@ function MagnetizationMeasurement(mc::DQMC, model; capacity=_default_capacity(mc
         "Magnetization z", "Observables.jld", "Mz"
     )
 
-    MagnetizationMeasurement(m1x, m1y, m1z, [zero(T) for _ in 1:N])
+    MagnetizationMeasurement(
+        m1x, m1y, m1z, [zero(T) for _ in 1:N], [zero(Ty) for _ in 1:N]
+    )
 end
 function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     N = nsites(model)
@@ -338,8 +343,9 @@ function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
 
     # -i [c_{i, up}^† c_{i, down} - c_{i, down}^† c_{i, up}]
     # my = [-1im * (G[i, i+N] - G[i+N, i])    for i in 1:N]
-    map!(i -> -1im *(G[i+N, i] - G[i, i+N]), m.temp, 1:N)
-    push!(m.y, m.temp)
+    map!(i -> (G[i+N, i] - G[i, i+N]), m.tempy, 1:N)
+    push!(m.y, m.tempy)
+
     # c_{i, up}^† c_{i, up} - c_{i, down}^† c_{i, down}
     # mz = [G[i+N, i+N] - G[i, i]             for i in 1:N]
     map!(i -> G[i+N, i+N] - G[i, i], m.temp, 1:N)
