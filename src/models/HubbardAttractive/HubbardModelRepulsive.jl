@@ -11,7 +11,7 @@ with linear system size `L`. Additional allowed `kwargs` are:
  * `U::Float64=1.0`: onsite interaction strength, "Hubbard U"
  * `t::Float64=1.0`: hopping energy
 """
-@with_kw_noshow struct HubbardModelRepulsive{LT<:AbstractLattice} <: Model
+@with_kw_noshow struct HubbardModelRepulsive{LT<:AbstractLattice} <: HubbardModel
     # user mandatory
     dims::Int
     L::Int
@@ -34,16 +34,6 @@ with linear system size `L`. Additional allowed `kwargs` are:
 end
 
 
-function choose_lattice(::Type{HubbardModelRepulsive}, dims::Int, L::Int)
-    if dims == 1
-        return Chain(L)
-    elseif dims == 2
-        return SquareLattice(L)
-    else
-        return CubicLattice(dims, L)
-    end
-end
-
 """
     HubbardModelRepulsive(params::Dict)
     HubbardModelRepulsive(params::NamedTuple)
@@ -63,17 +53,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelRepulsive) = print(io,
 
 
 # Convenience
-@inline parameters(m::HubbardModelRepulsive) = (L = m.L, t = m.t, U = m.U, mu = m.mu)
-
-
-# implement `Model` interface
-# rename this to nstates!, maybe remove flavor?
-@inline nsites(m::HubbardModelRepulsive) = length(m.l)
-@inline lattice(m::HubbardModelRepulsive) = m.l
-
-
-# implement `DQMC` interface: mandatory
-@inline Base.rand(::Type{DQMC}, m::HubbardModelRepulsive, nslices::Int) = rand(HubbardDistribution, nsites(m), nslices)
+@inline parameters(m::HubbardModelRepulsive) = (L = m.L, t = m.t, U = m.U)
 
 
 """
@@ -223,13 +203,6 @@ end
 end
 
 
-
-
-# implement DQMC interface: optional
-# Green's function is real for the repulsive Hubbard model.
-@inline greenseltype(::Type{DQMC}, m::HubbardModelRepulsive) = Float64
-
-
 """
 Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
 """
@@ -240,20 +213,7 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
     0.0
 end
 
-# See configurations.jl - compression of configurations
-compress(::DQMC, ::HubbardModelRepulsive, c) = BitArray(c .== 1)
-function decompress(
-        mc::DQMC{M, CB, CT}, ::HubbardModelRepulsive, c
-    ) where {M, CB, CT}
-    CT(2c .- 1)
-end
-
-
-function greens(mc::DQMC, model::HubbardModelRepulsive)
-    G = greens(mc)
-    vcat(hcat(G, zeros(size(G))), hcat(zeros(size(G)), G))
-end
-prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model::HubbardModelRepulsive) = nothing
+greens(mc::DQMC, model::HubbardModelRepulsive) = greens(mc)
 
 function save_model(
         file::JLDFile,
@@ -265,7 +225,6 @@ function save_model(
 
     write(file, entryname * "/dims", m.dims)
     write(file, entryname * "/L", m.L)
-    write(file, entryname * "/mu", m.mu)
     write(file, entryname * "/U", m.U)
     write(file, entryname * "/t", m.t)
     save_lattice(file, m.l, entryname * "/l")
@@ -287,7 +246,6 @@ function _load(data, ::Type{T}) where T <: HubbardModelRepulsive
     data["type"](
         dims = data["dims"],
         L = data["L"],
-        mu = data["mu"],
         U = data["U"],
         t = data["t"],
         l = l,
