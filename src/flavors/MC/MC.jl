@@ -173,6 +173,7 @@ false if it cancelled early to generate a resumable save-file.
 `DQMC` by default.
 - `sweeps`: Number of measurement sweeps. Uses the value passed to `DQMC` by
 default.
+- `safe_every::TimePeriod`: Set the interval for regularly scheduled saves.
 - `safe_before::Date`: If this date is passed, `run!` will generate a resumable
 save file and exit
 - `grace_period = Minute(5)`: Buffer between the current time and `safe_before`.
@@ -190,6 +191,7 @@ See also: [`resume!`](@ref)
         sweeps::Int = mc.p.sweeps,
         thermalization = mc.p.thermalization,
         safe_before::TimeType = now() + Year(100),
+        safe_every::TimePeriod = Hour(10000),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
         overwrite = false
@@ -218,6 +220,7 @@ See also: [`resume!`](@ref)
     total_sweeps = sweeps + thermalization
 
     start_time = now()
+    last_checkpoint = now()
     max_sweep_duration = 0.0
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
@@ -279,6 +282,10 @@ See also: [`resume!`](@ref)
             verbose && println("\nEarly save finished")
 
             return false
+        elseif (now() - last_checkpoint) > safe_every
+            verbose && println("Performing scheduled save.")
+            last_checkpoint = now()
+            save(resumable_filename, mc, overwrite = overwrite, rename = false)
         end
     end
     do_me_measurements && finish!(mc.measurements, mc, mc.model)
@@ -329,6 +336,7 @@ way.
 
 ### Keyword Arguments:
 - `verbose = true`: If true, print progress messaged to stdout.
+- `safe_every::TimePeriod`: Set the interval for regularly scheduled saves.
 - `safe_before::Date`: If this date is passed, `replay!` will generate a
 resumable save file and exit
 - `grace_period = Minute(5)`: Buffer between the current time and `safe_before`.
@@ -341,6 +349,7 @@ function replay!(
         mc::MC, configurations = mc.configs;
         verbose::Bool=true,
         safe_before::TimeType = now() + Year(100),
+        safe_every::TimePeriod = Hour(10000),
         grace_period::TimePeriod = Minute(5),
         filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
         overwrite = false,
@@ -352,6 +361,7 @@ function replay!(
     end
 
     start_time = now()
+    last_checkpoint = now()
     max_sweep_duration = 0.0
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
@@ -406,6 +416,10 @@ function replay!(
             verbose && println("\nEarly save finished")
 
             return false
+        elseif (now() - last_checkpoint) > safe_every
+            verbose && println("Performing scheduled save.")
+            last_checkpoint = now()
+            save(resumable_filename, mc, overwrite = overwrite, rename = false)
         end
     end
     finish!(mc.measurements, mc, mc.model)
