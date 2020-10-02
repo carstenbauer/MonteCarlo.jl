@@ -49,7 +49,7 @@ end
 
     @testset "Models" begin
         include("modeltests_IsingModel.jl")
-        include("modeltests_HubbardModelAttractive.jl")
+        include("modeltests_HubbardModel.jl")
     end
 
     @testset "Flavors" begin

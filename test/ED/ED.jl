@@ -59,11 +59,11 @@ end
 
 
 
-function HamiltonMatrix(model::HubbardModelAttractive)
+function HamiltonMatrix(model::T) where {T <: HubbardModel}
     lattice = model.l
     t = model.t
-    U = -abs(model.U)
-    mu = model.mu
+    U = T <: HubbardModelAttractive ? -abs(model.U) : model.U
+    mu = T <: HubbardModelAttractive ? model.mu : 0.0
 
     H = zeros(Float64, 4^lattice.sites, 4^lattice.sites)
 
