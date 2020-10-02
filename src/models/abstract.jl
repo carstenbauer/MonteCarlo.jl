@@ -6,14 +6,23 @@ abstract type Model end
 
 
 # Model interface: mandatory
-"""
-    nsites(m::Model)
 
-Number of lattice sites of the given model.
 """
-nsites(m::Model) = error("Model $(typeof(m)) doesn't implement `nsites`!")
+    lattice(model)
+
+Returns the lattice of a given model.
+"""
+lattice(::T) where {T <: Model} = error("lattice() not implemented for $T")
 
 
 # Optional
-init!(mc::MonteCarloFlavor, m::Model) = nothing
-@inline parameters(m::Model) = NamedTuple{}()
+
+"""
+    parameters(model)
+
+Collects relevant parametrs of a model into a named tuple.
+"""
+@inline parameters(::Model) = NamedTuple{}()
+
+# See configurations.jl - compression of configurations
+# compress, decompress

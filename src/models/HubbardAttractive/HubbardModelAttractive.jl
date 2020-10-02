@@ -1,6 +1,3 @@
-const HubbardConf = Array{Int8, 2} # conf === hsfield === discrete Hubbard Stratonovich field (Hirsch field)
-const HubbardDistribution = Int8[-1,1]
-
 """
 Famous attractive (negative U) Hubbard model on a cubic lattice.
 Discrete Hubbard Stratonovich transformation (Hirsch transformation) in the density/charge channel,
@@ -15,7 +12,7 @@ with linear system size `L`. Additional allowed `kwargs` are:
  * `U::Float64=1.0`: onsite interaction strength, "Hubbard U"
  * `t::Float64=1.0`: hopping energy
 """
-@with_kw_noshow struct HubbardModelAttractive{LT<:AbstractLattice} <: Model
+@with_kw_noshow struct HubbardModelAttractive{LT<:AbstractLattice} <: HubbardModel
     # user mandatory
     dims::Int
     L::Int
@@ -35,16 +32,6 @@ with linear system size `L`. Additional allowed `kwargs` are:
     G::Vector{Float64} = Vector{Float64}(undef, length(l))
 end
 
-
-function choose_lattice(::Type{HubbardModelAttractive}, dims::Int, L::Int)
-    if dims == 1
-        return Chain(L)
-    elseif dims == 2
-        return SquareLattice(L)
-    else
-        return CubicLattice(dims, L)
-    end
-end
 
 """
     HubbardModelAttractive(params::Dict)
@@ -68,15 +55,6 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 @inline parameters(m::HubbardModelAttractive) = (L = m.L, t = m.t, U = m.U, mu = m.mu)
 
 
-# implement `Model` interface
-@inline nsites(m::HubbardModelAttractive) = length(m.l)
-@inline lattice(m::HubbardModelAttractive) = m.l
-
-
-# implement `DQMC` interface: mandatory
-@inline Base.rand(::Type{DQMC}, m::HubbardModelAttractive, nslices::Int) = rand(HubbardDistribution, nsites(m), nslices)
-
-
 """
 Calculates the hopping matrix \$T_{i, j}\$ where \$i, j\$ are
 site indices.
@@ -89,7 +67,7 @@ This isn't a performance critical method as it is only used once before the
 actual simulation.
 """
 function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:AbstractLattice}
-    N = nsites(m)
+    N = length(m.l)
     T = diagm(0 => fill(-m.mu, N))
 
     # Nearest neighbor hoppings
@@ -170,14 +148,6 @@ end
 end
 
 
-
-
-# implement DQMC interface: optional
-"""
-Green's function is real for the attractive Hubbard model.
-"""
-@inline greenseltype(::Type{DQMC}, m::HubbardModelAttractive) = Float64
-
 """
 Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
 """
@@ -185,14 +155,6 @@ Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch fie
     dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
-end
-
-# See configurations.jl - compression of configurations
-compress(::DQMC, ::HubbardModelAttractive, c) = BitArray(c .== 1)
-function decompress(
-        mc::DQMC{M, CB, CT}, ::HubbardModelAttractive, c
-    ) where {M, CB, CT}
-    CT(2c .- 1)
 end
 
 
