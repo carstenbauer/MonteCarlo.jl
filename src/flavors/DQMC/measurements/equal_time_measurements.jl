@@ -169,7 +169,7 @@ end
 
 
 
-_get_shape(model) = (nsites(model),)
+_get_shape(model) = (length(lattice(model)),)
 _get_shape(mask::RawMask) = (mask.nsites, mask.nsites)
 _get_shape(mask::DistanceMask) = length(mask)
 
@@ -235,7 +235,6 @@ function ChargeDensityCorrelationMeasurement(
         mc::DQMC, model; 
         mask=DistanceMask(lattice(model)), capacity=_default_capacity(mc)
     )
-    N = nsites(model)
     T = greenseltype(DQMC, model)
     obs = LightObservable(
         LogBinner(zeros(T, _get_shape(mask)), capacity=capacity),
@@ -245,7 +244,6 @@ function ChargeDensityCorrelationMeasurement(
     ChargeDensityCorrelationMeasurement(obs, temp, mask)
 end
 function measure!(m::ChargeDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
-    N = nsites(model)
     G = greens(mc, model)
     IG = I - G
 
@@ -303,7 +301,7 @@ struct MagnetizationMeasurement{
 end
 
 function MagnetizationMeasurement(mc::DQMC, model; capacity=_default_capacity(mc))
-    N = nsites(model)
+    N = length(lattice(model))
     T = greenseltype(DQMC, model)
     Ty = T <: Complex ? T : Complex{T}
 
@@ -326,7 +324,7 @@ function MagnetizationMeasurement(mc::DQMC, model; capacity=_default_capacity(mc
     )
 end
 function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
-    N = nsites(model)
+    N = length(lattice(model))
     G = greens(mc, model)
     IG = I - G
 
@@ -389,7 +387,6 @@ function SpinDensityCorrelationMeasurement(
         mc::DQMC, model; 
         mask=DistanceMask(lattice(model)), capacity=_default_capacity(mc)
     )
-    N = nsites(model)
     T = greenseltype(DQMC, model)
     Ty = T <: Complex ? T : Complex{T}
 
@@ -410,7 +407,6 @@ function SpinDensityCorrelationMeasurement(
     SpinDensityCorrelationMeasurement(sdc2x, sdc2y, sdc2z, temp, mask)
 end
 function measure!(m::SpinDensityCorrelationMeasurement, mc::DQMC, model, i::Int64)
-    N = nsites(model)
     G = greens(mc, model)
     IG = I - G
 
@@ -489,7 +485,6 @@ function PairingCorrelationMeasurement(
         " (Estimate: $(ceil(Int64, log2(capacity))*3*length(lattice(model))^4*8 / 1024 / 1024)MB)"
     )
     T = greenseltype(DQMC, model)
-    N = nsites(model)
     shape = _get_shape(mask)
 
     obs1 = LightObservable(
@@ -503,7 +498,6 @@ function PairingCorrelationMeasurement(
 end
 function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
     G = greens(mc, model)
-    N = nsites(model)
     # Pᵢⱼ = ⟨ΔᵢΔⱼ^†⟩
     #     = ⟨c_{i, ↑} c_{i+d, ↓} c_{j+d, ↓}^† c_{j, ↑}^†⟩
     #     = ⟨c_{i, ↑} c_{j, ↑}^†⟩ ⟨c_{i+d, ↓} c_{j+d, ↓}^†⟩ -

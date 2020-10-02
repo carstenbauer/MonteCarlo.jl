@@ -5,12 +5,12 @@
     m = IsingModel(L=8,dims=2);
     @test m.L == 8 && m.dims == 2
     @test ndims(m) == 2
-    @test MonteCarlo.nsites(m) == 64
+    @test length(lattice(m)) == 64
     @test typeof(m) == IsingModel{SquareLattice}
     m = IsingModel(dims=1, L=10);
     @test typeof(m) == IsingModel{Chain}
     @test m.L == 10 && m.dims == 1
-    @test MonteCarlo.nsites(m) == 10
+    @test length(lattice(m)) == 10
     @test ndims(m) == 1
     d = Dict(:dims=>3, :L=>3)
     m = IsingModel(d)

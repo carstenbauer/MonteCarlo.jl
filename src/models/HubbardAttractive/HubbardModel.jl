@@ -32,7 +32,7 @@ end
 
 
 # deprecate this? maybe add nstates instead to avoid accessing model.flv?
-@inline nsites(m::HubbardModel) = length(m.l)
+@inline nflavors(m::HubbardModel) = m.flv
 @inline lattice(m::HubbardModel) = m.l
 
 # implement `DQMC` interface: mandatory

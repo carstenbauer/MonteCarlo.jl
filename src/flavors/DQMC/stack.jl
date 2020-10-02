@@ -142,8 +142,8 @@ function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerbo
     nothing
 end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
-    N = length(m.l)
-    flv = m.flv
+    N = length(lattice(m))
+    flv = nflavors(m)
     dtau = mc.p.delta_tau
 
     T = hopping_matrix(mc, m)
@@ -160,8 +160,8 @@ end
 rem_eff_zeros!(X::AbstractArray) = map!(e -> abs.(e)<1e-15 ? zero(e) : e,X,X)
 function init_checkerboard_matrices(mc::DQMC, m::Model)
     s = mc.s
-    l = m.l
-    flv = m.flv
+    l = lattice(m)
+    flv = nflavors(m)
     H = heltype(mc)
     N = length(l)
     dtau = mc.p.delta_tau

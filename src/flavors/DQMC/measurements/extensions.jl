@@ -40,7 +40,7 @@ occupations(obs::AbstractObservable) = Greens2Occupation(obs)
 
 Computes the uniform Fourier transform of matrix `M` in a system with `N` sites.
 """
-uniform_fourier(M::AbstractArray, mc::DQMC) = sum(M) / nsites(mc.model)
+uniform_fourier(M::AbstractArray, mc::DQMC) = sum(M) / length(lattice(mc))
 uniform_fourier(M::AbstractArray, N::Integer) = sum(M) / N
 
 
@@ -56,7 +56,7 @@ Calling `mean` (`var`, etc) on a wrapped observable returns the `mean` (`var`,
 etc) of the uniform Fourier transform of that observable.
 
 `mean(uniform_fourier(m))` is equivalent to
-`uniform_fourier(mean(m.obs), nsites(model))` where `obs` may differ between
+`uniform_fourier(mean(m.obs), length(lattice(model)))` where `obs` may differ between
 measurements.
 
 See also: [`structure_factor`](@ref)

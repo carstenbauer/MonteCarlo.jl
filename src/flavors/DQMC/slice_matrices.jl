@@ -81,7 +81,8 @@ const DQMC_CBTrue = DQMC{M, CheckerboardTrue} where M
 
 @bm function slice_matrix(mc::DQMC_CBTrue, m::Model, slice::Int,
                     power::Float64=1.)
-    M = Matrix{heltype(mc)}(I, m.flv*m.l.sites, m.flv*m.l.sites)
+    N = length(lattice(m)) * nflavors(m)
+    M = Matrix{heltype(mc)}(I, N, N)
     if power > 0
         multiply_slice_matrix_left!(mc, m, slice, M)
     else

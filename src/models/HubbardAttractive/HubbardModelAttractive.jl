@@ -67,7 +67,7 @@ This isn't a performance critical method as it is only used once before the
 actual simulation.
 """
 function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:AbstractLattice}
-    N = nsites(m)
+    N = length(m.l)
     T = diagm(0 => fill(-m.mu, N))
 
     # Nearest neighbor hoppings
