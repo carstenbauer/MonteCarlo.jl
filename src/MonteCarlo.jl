@@ -47,6 +47,7 @@ export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardAttractive/HubbardModelAttractive.jl")
+include("models/HubbardAttractive/HubbardModelRepulsive.jl")
 export IsingEnergyMeasurement, IsingMagnetizationMeasurement
 
 include("FileIO.jl")
@@ -55,7 +56,7 @@ export save, load, resume!
 
 export reset!
 export run!, resume!, replay!
-export Model, IsingModel, HubbardModelAttractive
+export Model, IsingModel, HubbardModelAttractive, HubbardModelRepulsive
 export MonteCarloFlavor, MC, DQMC
 export greens, lattice, model, parameters
 
