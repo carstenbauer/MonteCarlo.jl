@@ -11,7 +11,7 @@ end
 MagnitudeStats() = MagnitudeStats(-Inf, +Inf, 0.0, 0)
 
 function Base.push!(stat::MagnitudeStats, value)
-    v = log10(value)
+    v = log10(abs(value))
     stat.max = max(stat.max, v)
     stat.min = min(stat.min, v)
     stat.sum += v
