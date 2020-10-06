@@ -349,7 +349,23 @@ function measure!(m::MagnetizationMeasurement, mc::DQMC, model, i::Int64)
     map!(i -> G[i+N, i+N] - G[i, i], m.temp, 1:N)
     push!(m.z, m.temp)
 end
-
+function save_measurement(file::JLDFile, m::MagnetizationMeasurement, entryname::String)
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", MagnetizationMeasurement)
+    write(file, entryname * "/x", m.x)
+    write(file, entryname * "/y", m.y)
+    write(file, entryname * "/z", m.z)
+    nothing
+end
+function _load(data, ::Type{T}) where T <: MagnetizationMeasurement
+    @assert data["VERSION"] == 1
+    x = data["x"]
+    y = data["y"]
+    z = data["z"]
+    temp = similar(x.B.x_sum[1])
+    tempy = similar(y.B.x_sum[1])
+    data["type"](x, y, z, temp, tempy)
+end
 
 
 """
