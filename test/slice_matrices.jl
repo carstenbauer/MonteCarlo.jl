@@ -37,7 +37,7 @@ end
     m = HubbardModelAttractive(dims=1, L=8)
     dqmc = DQMC(m, beta=5.0)
     eT = dqmc.s.hopping_matrix_exp
-    eV = similar(eT)
+    eV = similar(dqmc.s.eV)
     A = similar(eT)
 
 

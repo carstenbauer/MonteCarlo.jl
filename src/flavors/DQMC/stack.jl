@@ -1,5 +1,8 @@
-# type
-mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: AbstractDQMCStack
+mutable struct DQMCStack{
+        GreensEltype <: Number, 
+        HoppingEltype <: Number,
+        InteractionMatType <: AbstractArray
+    } <: AbstractDQMCStack
     u_stack::Array{GreensEltype, 3}
     d_stack::Matrix{Float64}
     t_stack::Array{GreensEltype, 3}
@@ -41,7 +44,7 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
 
     # preallocated, reused arrays
     curr_U::Matrix{GreensEltype}
-    eV::Matrix{GreensEltype}
+    eV::InteractionMatType
 
     # hopping matrices (mu included)
     hopping_matrix_exp::Matrix{HoppingEltype}
@@ -65,18 +68,21 @@ mutable struct DQMCStack{GreensEltype<:Number, HoppingEltype<:Number} <: Abstrac
     chkr_mu_inv::SparseMatrixCSC{HoppingEltype, Int64}
 
 
-    DQMCStack{GreensEltype, HoppingEltype}() where {GreensEltype<:Number, HoppingEltype<:Number} = begin
+    function DQMCStack{GreensEltype, HoppingEltype, IntMatType}() where {
+            GreensEltype<:Number, HoppingEltype<:Number, IntMatType <: AbstractArray
+        }
         # @assert isleaftype(GreensEltype);
         # @assert isleaftype(HoppingEltype);
         @assert isconcretetype(GreensEltype);
         @assert isconcretetype(HoppingEltype);
+        @assert isconcretetype(IntMatType);
         new()
     end
 end
 
 # type helpers
-geltype(::Type{DQMCStack{G,H}}) where {G,H} = G
-heltype(::Type{DQMCStack{G,H}}) where {G,H} = H
+geltype(::Type{<: DQMCStack{G,H}}) where {G,H} = G
+heltype(::Type{<: DQMCStack{G,H}}) where {G,H} = H
 geltype(mc::DQMC{M, CB, CT, CAT, S}) where {M, CB, CT, CAT, S} = geltype(S)
 heltype(mc::DQMC{M, CB, CT, CAT, S}) where {M, CB, CT, CAT, S} = heltype(S)
 
@@ -128,7 +134,7 @@ function initialize_stack(mc::DQMC)
     end
 
     mc.s.curr_U = zeros(GreensEltype, flv*N, flv*N)
-    mc.s.eV = zeros(GreensEltype, flv*N, flv*N)
+    mc.s.eV = init_interaction_matrix(mc.model)
 
     # mc.s.hopping_matrix_exp = zeros(HoppingEltype, flv*N, flv*N)
     # mc.s.hopping_matrix_exp_inv = zeros(HoppingEltype, flv*N, flv*N)

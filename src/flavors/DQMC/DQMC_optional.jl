@@ -13,6 +13,25 @@ Returns the type of the elements of the hopping matrix. Defaults to `Float64`.
 hoppingeltype(::Type{DQMC}, m::Model) = Float64
 
 """
+    interaction_matrix_type(T::Type{DQMC}, m::Model)
+
+Returns the (matrix) type of the interaction matrix. Defaults to 
+`Matrix{greenseltype(T, m)}`.
+"""
+interaction_matrix_type(T::Type{DQMC}, m::Model) = Matrix{greenseltype(T, m)}
+
+"""
+    init_interaction_matrix(m::Model)
+
+Initializes the interaction matrix.
+"""
+function init_interaction_matrix(m::Model)
+    N = length(lattice(m))
+    flv = nflavors(m)
+    zeros(greenseltype(DQMC, m), N*flv, N*flv)
+end
+
+"""
     energy(mc::DQMC, m::Model, conf)
 
 Calculate bosonic part (non-Green's function determinant part) of energy for configuration `conf` for Model `m`.

@@ -98,20 +98,27 @@ and store it in `result::Matrix`.
 This is a performance critical method.
 """
 @inline @bm function interaction_matrix_exp!(mc::DQMC, model::HubbardModelRepulsive,
-            result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
+            result, conf::HubbardConf, slice::Int, power::Float64=1.)
     dtau = mc.p.delta_tau
     lambda = acosh(exp(0.5 * model.U * dtau))
 
-    z = zero(eltype(result))
-    @inbounds for j in eachindex(result)
-        result[j] = z
-    end
+    # z = zero(eltype(result))
+    # @inbounds for j in eachindex(result)
+    #     result[j] = z
+    # end
+    # N = length(lattice(model))
+    # @inbounds for i in 1:N
+    #     result[i, i] = exp(sign(power) * lambda * conf[i, slice])
+    # end
+    # @inbounds for i in 1:N
+    #     result[i+N, i+N] = exp(-sign(power) * lambda * conf[i, slice])
+    # end
     N = length(lattice(model))
     @inbounds for i in 1:N
-        result[i, i] = exp(sign(power) * lambda * conf[i, slice])
+        result.diag[i] = exp(sign(power) * lambda * conf[i, slice])
     end
     @inbounds for i in 1:N
-        result[i+N, i+N] = exp(-sign(power) * lambda * conf[i, slice])
+        result.diag[i+N] = exp(-sign(power) * lambda * conf[i, slice])
     end
     nothing
 end

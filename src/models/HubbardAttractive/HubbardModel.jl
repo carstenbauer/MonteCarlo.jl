@@ -30,6 +30,13 @@ function choose_lattice(::Type{<: HubbardModel}, dims, L)
     end
 end
 
+interaction_matrix_type(::Type{DQMC}, ::HubbardModel) = Diagonal{Float64, Vector{Float64}}
+
+function init_interaction_matrix(m::HubbardModel)
+    N = length(lattice(m))
+    flv = nflavors(m)
+    Diagonal(zeros(Float64, N*flv))
+end
 
 # deprecate this? maybe add nstates instead to avoid accessing model.flv?
 @inline nflavors(m::HubbardModel) = m.flv

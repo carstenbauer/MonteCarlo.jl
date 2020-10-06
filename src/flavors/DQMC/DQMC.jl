@@ -145,7 +145,7 @@ mutable struct DQMC{
         M <: Model, CB <: Checkerboard, ConfType <: Any, 
         RT <: AbstractRecorder, Stack <: AbstractDQMCStack
     } = new()
-end
+    end
 
 include("stack.jl")
 include("slice_matrices.jl")
@@ -200,14 +200,15 @@ function DQMC(m::M;
 
     geltype = greenseltype(DQMC, m)
     heltype = hoppingeltype(DQMC, m)
+    intmattype = interaction_matrix_type(DQMC, m)
     conf = rand(DQMC, m, p.slices)
     mc = DQMC{M, checkerboard ? CheckerboardTrue : CheckerboardFalse,
-        typeof(conf), recorder, DQMCStack{geltype, heltype}}()
+        typeof(conf), recorder, DQMCStack{geltype, heltype, intmattype}}()
     mc.conf = conf
     mc.model = m
     mc.p = p
     mc.a = DQMCAnalysis()
-    mc.s = DQMCStack{geltype, heltype}()
+    mc.s = DQMCStack{geltype, heltype, intmattype}()
     mc.configs = recorder(mc, m, recording_rate)
     mc.last_sweep = last_sweep
 
@@ -713,6 +714,13 @@ function _greens!(
 end
 
 
+
+################################################################################
+### FileIO
+################################################################################
+
+
+
 #     save_mc(filename, mc, entryname)
 #
 # Saves (minimal) information necessary to reconstruct a given `mc::DQMC` to a
@@ -751,7 +759,9 @@ function _load(data, ::Type{T}) where T <: DQMC
     measurements = _load(data["Measurements"], Measurements)
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
-    mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
+    mc.s = MonteCarlo.DQMCStack{
+        geltype(mc), heltype(mc), interaction_matrix_type(DQMC, mc.model)
+    }()
     mc
 end
 
