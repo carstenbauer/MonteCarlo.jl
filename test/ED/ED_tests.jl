@@ -88,7 +88,7 @@ end
             MonteCarlo.unsafe_push!(dqmc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement(dqmc, model, mask=mask))
             push!(dqmc, :Magn => MonteCarlo.MagnetizationMeasurement)
             MonteCarlo.unsafe_push!(dqmc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement(dqmc, model, mask=mask))
-            MonteCarlo.unsafe_push!(dqmc, :PC => MonteCarlo.PairingCorrelationMeasurement(dqmc, model, mask=mask))
+            MonteCarlo.unsafe_push!(dqmc, :PC => MonteCarlo.PairingCorrelationMeasurement(dqmc, model, mask=mask, directions=4))
             @time run!(dqmc, thermalization = 10_000, sweeps = 50_000, verbose=false)
         
             @info "Running ED"
@@ -198,19 +198,22 @@ end
 
                 @testset "Pairing Correlation" begin
                     PC = mean(dqmc.measurements[:PC])
+                    rsm = dqmc[:PC].rsm
                     N = length(lattice(model))
-                    for offset in 1:length(mask)
-                        ED_PC = 0.0
-                        for (src1, trg1) in MonteCarlo.getdirorder(mask, offset)
-                            for (src2, trg2) in MonteCarlo.getdirorder(mask, offset)
-                                ED_PC += expectation_value(
+                    ED_PC = zeros(size(dqmc[:PC].temp))
+                    for (dir_idx, src1, src2) in MonteCarlo.getorder(mask)
+                        for (i, trg1) in MonteCarlo.getorder(rsm, src1)
+                            for (j, trg2) in MonteCarlo.getorder(rsm, src2)
+                                ED_PC[dir_idx, i, j] += expectation_value(
                                     pairing_correlation(
-                                        trg2, src2, trg1, src1
+                                        src1, trg1, src2, trg2
                                     ), H, beta = 1.0, N_sites = N
                                 )
                             end
                         end
-                        @test ED_PC/N ≈ PC[offset] atol=atol rtol=rtol
+                    end
+                    for i in eachindex(ED_PC)
+                        @test ED_PC[i]/N ≈ PC[i] atol=atol rtol=rtol
                     end
                 end
             end

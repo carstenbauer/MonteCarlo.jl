@@ -40,6 +40,10 @@ function directions(mask::RawMask, lattice::AbstractLattice)
 end
 
 
+################################################################################
+### dir -> (src, trg) masks
+################################################################################
+
 
 """
     DistanceMask(lattice) <: AbstractMask
@@ -61,10 +65,13 @@ Warning: For this to work correctly the lattice must provide the neighbors in
 order. Furthermore each bond is assumed to be of equal length.
 """
 abstract type DistanceMask <: AbstractMask end
+DistanceMask(lattice::AbstractLattice) = MethodError(DistanceMask, (lattice))
+
+# SimpleDistanceMask deals with lattices where each distance vector exists for
+# every site in the lattice (assuming periodic bonds)
 struct SimpleDistanceMask <: DistanceMask
     targets::Matrix{Int64}
 end
-DistanceMask(lattice::AbstractLattice) = MethodError(DistanceMask, (lattice))
 function default_distance_mask(lattice::AbstractLattice)
     targets = Array{Int64}(undef, length(lattice), length(lattice))
     for origin in 1:length(lattice)
@@ -97,19 +104,24 @@ function mark_unmarked(lattice, marked, from)
     end
     new_sites
 end
-# Base.getindex(mask::DistanceMask, source, target_idx) = mask.targets[source, target_idx]
-# TODO name?
+
+# All (dir, src, trg) in mask
 function getorder(mask::SimpleDistanceMask)
     ((dir, src, trg) for src in 1:size(mask.targets, 1)
                      for (dir, trg) in enumerate(mask.targets[src, :])
     )
 end
-getdirorder(mask::SimpleDistanceMask, dir) = ((src, mask.targets[src, dir]) for src in 1:size(mask.targets, 1))
-# getsrcorder(mask, src) = ((dir, src, mask.targets[src, dir]) for (dir, trg) in enumerate(mask.targets[src, :]))
-# Number of directions
+# All (src, trg) in dir
+function getdirorder(mask::SimpleDistanceMask, dir)
+    ((src, mask.targets[src, dir]) for src in 1:size(mask.targets, 1))
+end
+
+# Number of source sites
+nsources(mask::SimpleDistanceMask) = size(mask.targets, 1)
 Base.length(mask::SimpleDistanceMask) = size(mask.targets, 1)
 dirlength(mask::SimpleDistanceMask, dir_idx) = size(mask.targets, 1)
 dirlengths(mask::SimpleDistanceMask) = (size(mask.targets, 1) for _ in 1:size(mask.targets, 1))
+
 """
     directions(mask, lattice)
 
@@ -127,8 +139,10 @@ function directions(mask::SimpleDistanceMask, lattice::AbstractLattice)
 end
 
 
+
+# VerboseDistanceMask can deal with lattices that have different bond 
+# directions. 
 struct VerboseDistanceMask <: DistanceMask
-    # targets::Matrix{Tuple{Int64, Int64}}
     targets::Vector{Vector{Tuple{Int64, Int64}}}
 end
 function getorder(mask::VerboseDistanceMask)
@@ -137,23 +151,22 @@ function getorder(mask::VerboseDistanceMask)
     )
 end
 getdirorder(mask::VerboseDistanceMask, dir) = ((src, trg) for (src, trg) in mask.targets[dir])
-# getsrcorder(mask, src) = ((dir, src, mask.targets[src, dir]) for (dir, trg) in enumerate(mask.targets[src, :]))
+
+# Number of source sites
+function nsources(mask::VerboseDistanceMask)
+    out = -1
+    for xs in mask.targets
+        out = max(out, mapreduce(first, max, xs))
+    end
+    out
+end
 Base.length(mask::VerboseDistanceMask) = length(mask.targets)
 dirlength(mask::DistanceMask, dir_idx) = length(mask.targets[dir_idx])
 dirlengths(mask::DistanceMask) = length.(mask.targets)
+
 function directions(mask::VerboseDistanceMask, lattice::AbstractLattice)
     pos = MonteCarlo.positions(lattice)
     dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
-    # marked = Set{Int64}()
-    # dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
-    # for src in 1:size(mask.targets, 1)
-    #     for (idx, trg) in mask.targets[src, :]
-    #         if !(idx in marked)
-    #             push!(marked, idx)
-    #             dirs[idx] = pos[trg] - pos[src]
-    #         end
-    #     end
-    # end
     dirs
 end
 # For shifting sites across periodic bounds
@@ -169,8 +182,6 @@ function VerboseDistanceMask(lattice, wrap)
     directions = Vector{Float64}[]
     # (src, trg), first index is dir, second index irrelevant
     bonds = [Tuple{Int64, Int64}[] for _ in 1:length(lattice)]
-    # distance_idx, src, trg
-    # bonds = [Tuple{Int64, Int64}[] for _ in 1:length(lattice)]
 
     for origin in 1:length(lattice)
         for (trg, p) in enumerate(_positions)
@@ -183,31 +194,50 @@ function VerboseDistanceMask(lattice, wrap)
             end
             # I think the rounding will allow us to use == here
             idx = findfirst(dir -> dir == d, directions)
-            if idx == nothing
+            if idx === nothing
                 push!(directions, d)
                 if length(bonds) < length(directions)
                     push!(bonds, Tuple{Int64, Int64}[])
                 end
                 push!(bonds[length(directions)], (origin, trg))
-                # push!(bonds[origin], (length(directions), trg))
             else
                 push!(bonds[idx], (origin, trg))
-                # push!(bonds[origin], (idx, trg))
             end
         end
     end
 
-    # targets = Array{Tuple{Int64, Int64}}(undef, length(lattice), length(lattice))
     temp = sortperm(directions, by=norm)
-    # sorted = Vector{Int64}(undef, length(directions))
-    # sorted[temp] .= eachindex(directions)
-
-    # for (src, bs) in enumerate(bonds)
-    #     targets[src, :] = map(sort(bs, by = t -> norm(directions[t[1]]))) do b
-    #         (sorted[b[1]], b[2])
-    #     end
-    # end
-
-    # VerboseDistanceMask(targets)
     VerboseDistanceMask(bonds[temp])
 end
+
+
+
+################################################################################
+### src -> (dir, trg) masks (restriced)
+################################################################################
+
+
+
+"""
+    RestrictedSourceMask(mask::DistanceMask, N_directions)
+
+A RestrictedSourceMask is a mask that allows indexing `(dir, trg)` tuples by
+`src`, where the number of available directions is initially restricted.
+
+As such it implements `getorder(mask, src)`.
+"""
+struct RestrictedSourceMask
+    targets::Vector{Vector{Tuple{Int64, Int64}}}
+end
+
+function RestrictedSourceMask(mask::DistanceMask, directions)
+    targets = [Tuple{Int64, Int64}[] for _ in 1:nsources(mask)]
+    for dir in 1:directions
+        for (src, trg) in getdirorder(mask, dir)
+            push!(targets[src], (dir, trg))
+        end
+    end
+    RestrictedSourceMask(targets)
+end
+
+getorder(mask::RestrictedSourceMask, src) = mask.targets[src]
