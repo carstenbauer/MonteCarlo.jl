@@ -141,11 +141,53 @@ mutable struct DQMC{
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 
-    DQMC{M, CB, ConfType, RT, Stack}() where {
-        M <: Model, CB <: Checkerboard, ConfType <: Any, 
-        RT <: AbstractRecorder, Stack <: AbstractDQMCStack
-    } = new()
+    function DQMC{M, CB, ConfType, RT, Stack}(; kwargs...) where {
+            M <: Model, CB <: Checkerboard, ConfType <: Any, 
+            RT <: AbstractRecorder, Stack <: AbstractDQMCStack
+        }
+        complete!(new{M, CB, ConfType, RT, Stack}(), kwargs)
     end
+    function DQMC{CB}(
+            model::M,
+            conf::ConfType,
+            last_sweep::Int,
+            s::Stack,
+            p::DQMCParameters,
+            a::DQMCAnalysis,
+            configs::RT,
+            thermalization_measurements::Dict{Symbol, AbstractMeasurement},
+            measurements::Dict{Symbol, AbstractMeasurement}
+        ) where {
+            M <: Model, CB <: Checkerboard, ConfType <: Any, 
+            RT <: AbstractRecorder, Stack <: AbstractDQMCStack
+        }
+        new{M, CB, ConfType, RT, Stack}(
+            model, conf, last_sweep, s, p, a, configs, 
+            thermalization_measurements, measurements
+        )
+    end
+    DQMC{M, CB, C, RT, S}(args...) where {M, CB, C, RT, S} = DQMC{CB}(args...)
+end
+
+function complete!(a::DQMC, kwargs)
+    for (field, val) in kwargs
+        setfield!(a, field, val)
+    end
+    make_concrete!(a)
+end
+
+function make_concrete!(a::DQMC{M, CB, C, RT, S}) where {M, CB, C, RT, S}
+    Ts = (
+        isdefined(a, :model) ? typeof(a.model) : M, 
+        CB, 
+        isdefined(a, :conf) ? typeof(a.conf) : C, 
+        isdefined(a, :configs) ? typeof(a.configs) : RT, 
+        isdefined(a, :s) ? typeof(a.s) : S
+    )
+    all(Ts .== (M, CB, C, RT, S)) && return a
+    data = [(f, getfield(a, f)) for f in fieldnames(DQMC) if isdefined(a, f)]
+    DQMC{Ts...}(; data...)
+end
 
 include("stack.jl")
 include("slice_matrices.jl")
@@ -762,7 +804,7 @@ function _load(data, ::Type{T}) where T <: DQMC
     mc.s = MonteCarlo.DQMCStack{
         geltype(mc), heltype(mc), interaction_matrix_type(DQMC, mc.model)
     }()
-    mc
+    make_concrete!(mc)
 end
 
 #   save_parameters(file::JLDFile, p::DQMCParameters, entryname="Parameters")
