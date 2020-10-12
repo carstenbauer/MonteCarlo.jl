@@ -130,7 +130,7 @@ end
 
 
 
-@inline function reflector!(x, normu, j=1, n=size(x, 1))
+@inline function reflector!(x::Matrix{C}, normu, j=1, n=size(x, 1)) where {C <: Real}
     @inbounds begin
         ξ1 = x[j, j]
         if iszero(normu)
@@ -148,7 +148,7 @@ end
 end
 
 
-function indmaxcolumn(A::Matrix, j=1, n=size(A, 1))
+function indmaxcolumn(A::Matrix{C}, j=1, n=size(A, 1)) where {C <: Real}
     max = 0.0
     @avx for k in j:n
         max += abs2(A[k, j])
@@ -279,7 +279,7 @@ function udt_AVX_pivot!(
     nothing
 end
 
-function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{true}) where C
+function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{true}) where {C <: Real}
     n = size(input, 1)
     @inbounds for i in 1:n
         d = 1.0 / D[i]
@@ -294,7 +294,7 @@ function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{true}) where C
         end
     end
 end
-function _apply_pivot!(input::Matrix, D, temp, pivot, ::Val{false})
+function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{false}) where {C <: Real}
     n = size(input, 1)
     @inbounds for i in 1:n
         d = 1.0 / D[i]
@@ -312,6 +312,42 @@ end
 
 
 
+@inline function reflector!(x::Matrix{C}, normu, j=1, n=size(x, 1)) where {C <: ComplexF64}
+    @inbounds begin
+        ξ1 = x[j, j]
+        if iszero(normu)
+            return zero(ξ1) #zero(ξ1/normu)
+        end
+        normu = sqrt(normu)
+        ν = LinearAlgebra.copysign(normu, real(ξ1))
+        ξ1 += ν
+        x[j, j] = -ν
+        for i = j+1:n
+            x[i, j] /= ξ1
+        end
+    end
+    ξ1/ν
+end
+
+
+function indmaxcolumn(A::Matrix{C}, j=1, n=size(A, 1)) where {C <: ComplexF64}
+    max = 0.0
+    for k in j:n
+        max += abs2(A[k, j])
+    end
+    ii = j
+    @inbounds for i in j+1:n
+        mi = 0.0
+        for k in j:n
+            mi += abs2(A[k, i])
+        end
+        if abs(mi) > max
+            max = mi
+            ii = i
+        end
+    end
+    return ii, max
+end
 
 
 # avx-less method for compatability with ComplexF64
@@ -404,4 +440,29 @@ function udt_AVX_pivot!(
     # end
 
     nothing
+end
+
+function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{true}) where {C <: Complex}
+    n = size(input, 1)
+    @inbounds for i in 1:n
+        d = 1.0 / D[i]
+        @inbounds for j in 1:i-1
+            temp[pivot[j]] = zero(C)
+        end
+        for j in i:n
+            temp[pivot[j]] = d * input[i, j]
+        end
+        for j in 1:n
+            input[i, j] = temp[j]
+        end
+    end
+end
+function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{false}) where {C <: Complex}
+    n = size(input, 1)
+    @inbounds for i in 1:n
+        d = 1.0 / D[i]
+        for j in i:n
+            input[i, j] = d * input[i, j]
+        end
+    end
 end

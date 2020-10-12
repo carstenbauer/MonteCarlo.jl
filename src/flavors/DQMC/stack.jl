@@ -7,7 +7,7 @@ mutable struct DQMCStack{
     } <: AbstractDQMCStack
 
     u_stack::Vector{GreensMatType}
-    d_stack::Vector{Vector{GreensElType}}
+    d_stack::Vector{Vector{Float64}}
     t_stack::Vector{GreensMatType}
 
     Ul::GreensMatType
@@ -334,10 +334,10 @@ Diagonal matrices), `pivot` an integer Vector and `temp` a Vector with the same
 element type as the matrices.
 """
 @bm function calculate_greens_AVX!(
-        Ul, Dl, Tl, Ur, Dr, Tr, G,
+        Ul, Dl, Tl, Ur, Dr, Tr, G::AbstractArray{T},
         pivot = Vector{Int64}(undef, length(Dl)),
-        temp = Vector{eltype(G)}(undef, length(Dl))
-    )
+        temp = Vector{T}(undef, length(Dl))
+    ) where T
     # @bm "B1" begin
         # Used: Ul, Dl, Tl, Ur, Dr, Tr
         # TODO: [I + Ul Dl Tl Tr^† Dr Ur^†]^-1
@@ -631,4 +631,3 @@ end
     end
     nothing
 end
-
