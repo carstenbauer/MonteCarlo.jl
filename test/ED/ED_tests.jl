@@ -88,131 +88,134 @@ end
             MonteCarlo.unsafe_push!(dqmc, :CDC => MonteCarlo.ChargeDensityCorrelationMeasurement(dqmc, model, mask=mask))
             push!(dqmc, :Magn => MonteCarlo.MagnetizationMeasurement)
             MonteCarlo.unsafe_push!(dqmc, :SDC => MonteCarlo.SpinDensityCorrelationMeasurement(dqmc, model, mask=mask))
-            MonteCarlo.unsafe_push!(dqmc, :PC => MonteCarlo.PairingCorrelationMeasurement(dqmc, model, mask=mask))
+            MonteCarlo.unsafe_push!(dqmc, :PC => MonteCarlo.PairingCorrelationMeasurement(dqmc, model, mask=mask, directions=4))
             @time run!(dqmc, thermalization = 10_000, sweeps = 50_000, verbose=false)
-
+        
             @info "Running ED"
             @time begin
-            H = HamiltonMatrix(model)
-
-            # Absolute tolerance from Trotter decompositon
-            atol = dqmc.p.delta_tau^2
-            rtol = 0.01
-
-            # G_DQMC is smaller because it doesn't differentiate between spin up/down
-            @testset "Greens" begin
-                G_DQMC = mean(dqmc.measurements[:Greens].obs)
-                occs = mean(dqmc.measurements[:Occs].obs)                                   # measuring
-                occs2 = mean(MonteCarlo.occupations(dqmc.measurements[:Greens]))            # wrapping
-                occs3 = mean(MonteCarlo.OccupationMeasurement(dqmc.measurements[:Greens]))  # copying
-                G_ED = calculate_Greens_matrix(H, model.l, beta=1.0)
-                for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
-                    @test isapprox(G_DQMC[i, j], G_ED[i, j], atol=atol, rtol=rtol)
-                end
-                for i in 1:size(G_DQMC, 1)
-                    @test isapprox(occs[i], G_ED[i, i], atol=atol, rtol=rtol)
-                    @test isapprox(occs2[i], G_ED[i, i], atol=atol, rtol=rtol)
-                    @test isapprox(occs3[i], G_ED[i, i], atol=atol, rtol=rtol)
-                end
-            end
-
-            @testset "Charge Density Correlation" begin
-                CDC = mean(dqmc.measurements[:CDC].obs)
-                N = length(lattice(model))
-                for dir in 1:length(mask)
-                    ED_CDC = 0.0
-                    for (src, trg) in MonteCarlo.getdirorder(mask, dir)
-                        ED_CDC += expectation_value(
-                            charge_density_correlation(trg, src),
-                            H, beta = 1.0, N_sites = N
-                        )
+                H = HamiltonMatrix(model)
+            
+                # Absolute tolerance from Trotter decompositon
+                atol = dqmc.p.delta_tau^2
+                rtol = 0.01
+            
+                # G_DQMC is smaller because it doesn't differentiate between spin up/down
+                @testset "Greens" begin
+                    G_DQMC = mean(dqmc.measurements[:Greens].obs)
+                    occs = mean(dqmc.measurements[:Occs].obs)                                   # measuring
+                    occs2 = mean(MonteCarlo.occupations(dqmc.measurements[:Greens]))            # wrapping
+                    occs3 = mean(MonteCarlo.OccupationMeasurement(dqmc.measurements[:Greens]))  # copying
+                    G_ED = calculate_Greens_matrix(H, model.l, beta=1.0)
+                    for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
+                        @test isapprox(G_DQMC[i, j], G_ED[i, j], atol=atol, rtol=rtol)
                     end
-                    @test ED_CDC/N ≈ CDC[dir] atol=atol rtol=rtol
-                end
-            end
-
-            @testset "Magnetization x" begin
-                Mx = mean(dqmc.measurements[:Magn].x)
-                for site in 1:length(Mx)
-                    ED_Mx = expectation_value(m_x(site), H, beta = 1.0, N_sites = length(lattice(model)))
-                    @test ED_Mx ≈ Mx[site] atol=atol rtol=rtol
-                end
-            end
-            @testset "Magnetization y" begin
-                My = mean(dqmc.measurements[:Magn].y)
-                for site in 1:length(My)
-                    ED_My = expectation_value(m_y(site), H, beta = 1.0, N_sites = length(lattice(model)))
-                    @test ED_My ≈ My[site] atol=atol rtol=rtol
-                end
-            end
-            @testset "Magnetization z" begin
-                Mz = mean(dqmc.measurements[:Magn].z)
-                for site in 1:length(Mz)
-                    ED_Mz = expectation_value(m_z(site), H, beta = 1.0, N_sites = length(lattice(model)))
-                    @test ED_Mz ≈ Mz[site] atol=atol rtol=rtol
-                end
-            end
-
-            @testset "Spin density correlation x" begin
-                SDCx = mean(dqmc.measurements[:SDC].x)
-                N = length(lattice(model))
-                for offset in 1:length(mask)
-                    ED_SDCx = 0.0
-                    for (src, trg) in MonteCarlo.getdirorder(mask, offset)
-                        ED_SDCx += expectation_value(
-                            spin_density_correlation_x(trg, src),
-                            H, beta = 1.0, N_sites = N
-                        )
+                    for i in 1:size(G_DQMC, 1)
+                        @test isapprox(occs[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
+                        @test isapprox(occs2[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
+                        @test isapprox(occs3[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
                     end
-                    @test ED_SDCx/N ≈ SDCx[offset] atol=atol rtol=rtol
                 end
-            end
-            @testset "Spin density correlation y" begin
-                SDCy = mean(dqmc.measurements[:SDC].y)
-                N = length(lattice(model))
-                for offset in 1:length(mask)
-                    ED_SDCy = 0.0
-                    for (src, trg) in MonteCarlo.getdirorder(mask, offset)
-                        ED_SDCy += expectation_value(
-                            spin_density_correlation_y(trg, src),
-                            H, beta = 1.0, N_sites = N
-                        )
-                    end
-                    @test ED_SDCy/N ≈ SDCy[offset] atol=atol rtol=rtol
-                end
-            end
-            @testset "Spin density correlation z" begin
-                SDCz = mean(dqmc.measurements[:SDC].z)
-                N = length(lattice(model))
-                for offset in 1:length(mask)
-                    ED_SDCz = 0.0
-                    for (src, trg) in MonteCarlo.getdirorder(mask, offset)
-                        ED_SDCz += expectation_value(
-                            spin_density_correlation_z(trg, src),
-                            H, beta = 1.0, N_sites = N
-                        )
-                    end
-                    @test ED_SDCz/N ≈ SDCz[offset] atol=atol rtol=rtol
-                end
-            end
 
-            @testset "Pairing Correlation" begin
-                PC = mean(dqmc.measurements[:PC])
-                N = length(lattice(model))
-                for offset in 1:length(mask)
-                    ED_PC = 0.0
-                    for (src1, trg1) in MonteCarlo.getdirorder(mask, offset)
-                        for (src2, trg2) in MonteCarlo.getdirorder(mask, offset)
-                            ED_PC += expectation_value(
-                                pairing_correlation(
-                                    trg2, src2, trg1, src1
-                                ), H, beta = 1.0, N_sites = N
+                @testset "Charge Density Correlation" begin
+                    CDC = mean(dqmc.measurements[:CDC].obs)
+                    N = length(lattice(model))
+                    for dir in 1:length(mask)
+                        ED_CDC = 0.0
+                        for (src, trg) in MonteCarlo.getdirorder(mask, dir)
+                            ED_CDC += expectation_value(
+                                charge_density_correlation(trg, src),
+                                H, beta = 1.0, N_sites = N
                             )
                         end
+                        @test ED_CDC/N ≈ CDC[dir] atol=atol rtol=rtol
                     end
-                    @test ED_PC/N^2 ≈ PC[offset] atol=atol rtol=rtol
                 end
-            end
+
+                @testset "Magnetization x" begin
+                    Mx = mean(dqmc.measurements[:Magn].x)
+                    for site in 1:length(Mx)
+                        ED_Mx = expectation_value(m_x(site), H, beta = 1.0, N_sites = length(lattice(model)))
+                        @test ED_Mx ≈ Mx[site] atol=atol rtol=rtol
+                    end
+                end
+                @testset "Magnetization y" begin
+                    My = mean(dqmc.measurements[:Magn].y)
+                    for site in 1:length(My)
+                        ED_My = expectation_value(m_y(site), H, beta = 1.0, N_sites = length(lattice(model)))
+                        @test ED_My ≈ My[site] atol=atol rtol=rtol
+                    end
+                end
+                @testset "Magnetization z" begin
+                    Mz = mean(dqmc.measurements[:Magn].z)
+                    for site in 1:length(Mz)
+                        ED_Mz = expectation_value(m_z(site), H, beta = 1.0, N_sites = length(lattice(model)))
+                        @test ED_Mz ≈ Mz[site] atol=atol rtol=rtol
+                    end
+                end
+
+                @testset "Spin density correlation x" begin
+                    SDCx = mean(dqmc.measurements[:SDC].x)
+                    N = length(lattice(model))
+                    for offset in 1:length(mask)
+                        ED_SDCx = 0.0
+                        for (src, trg) in MonteCarlo.getdirorder(mask, offset)
+                            ED_SDCx += expectation_value(
+                                spin_density_correlation_x(trg, src),
+                                H, beta = 1.0, N_sites = N
+                            )
+                        end
+                        @test ED_SDCx/N ≈ SDCx[offset] atol=atol rtol=rtol
+                    end
+                end
+                @testset "Spin density correlation y" begin
+                    SDCy = mean(dqmc.measurements[:SDC].y)
+                    N = length(lattice(model))
+                    for offset in 1:length(mask)
+                        ED_SDCy = 0.0
+                        for (src, trg) in MonteCarlo.getdirorder(mask, offset)
+                            ED_SDCy += expectation_value(
+                                spin_density_correlation_y(trg, src),
+                                H, beta = 1.0, N_sites = N
+                            )
+                        end
+                        @test ED_SDCy/N ≈ SDCy[offset] atol=atol rtol=rtol
+                    end
+                end
+                @testset "Spin density correlation z" begin
+                    SDCz = mean(dqmc.measurements[:SDC].z)
+                    N = length(lattice(model))
+                    for offset in 1:length(mask)
+                        ED_SDCz = 0.0
+                        for (src, trg) in MonteCarlo.getdirorder(mask, offset)
+                            ED_SDCz += expectation_value(
+                                spin_density_correlation_z(trg, src),
+                                H, beta = 1.0, N_sites = N
+                            )
+                        end
+                        @test ED_SDCz/N ≈ SDCz[offset] atol=atol rtol=rtol
+                    end
+                end
+
+                @testset "Pairing Correlation" begin
+                    PC = mean(dqmc.measurements[:PC])
+                    rsm = dqmc[:PC].rsm
+                    N = length(lattice(model))
+                    ED_PC = zeros(size(dqmc[:PC].temp))
+                    for (dir_idx, src1, src2) in MonteCarlo.getorder(mask)
+                        for (i, trg1) in MonteCarlo.getorder(rsm, src1)
+                            for (j, trg2) in MonteCarlo.getorder(rsm, src2)
+                                ED_PC[dir_idx, i, j] += expectation_value(
+                                    pairing_correlation(
+                                        src1, trg1, src2, trg2
+                                    ), H, beta = 1.0, N_sites = N
+                                )
+                            end
+                        end
+                    end
+                    for i in eachindex(ED_PC)
+                        @test ED_PC[i]/N ≈ PC[i] atol=atol rtol=rtol
+                    end
+                end
             end
         end
     end

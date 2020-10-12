@@ -26,7 +26,7 @@ end
 
 occupations(m::GreensMeasurement) = Greens2Occupation(m.obs)
 occupations(obs::AbstractObservable) = Greens2Occupation(obs)
-(::Greens2Occupation)(M::Matrix) = diag(M)
+(::Greens2Occupation)(M::Matrix) = 1 .- diag(M)
 
 
 ################################################################################

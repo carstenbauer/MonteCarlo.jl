@@ -48,7 +48,7 @@ function save(
         filename = _generate_unique_filename(filename)
     end
 
-    if overwrite
+    if isfile(filename) && overwrite
         parts = splitpath(filename)
         parts[end] = "." * parts[end]
         temp_filename = _generate_unique_filename(joinpath(parts...))
@@ -63,7 +63,7 @@ function save(
     save_rng(file)
     close(file)
 
-    if overwrite
+    if overwrite && isfile(temp_filename)
         rm(temp_filename)
     end
 
