@@ -86,7 +86,14 @@ heltype(::Type{<: DQMCStack{G,H}}) where {G,H} = H
 geltype(mc::DQMC{M, CB, CT, CAT, S}) where {M, CB, CT, CAT, S} = geltype(S)
 heltype(mc::DQMC{M, CB, CT, CAT, S}) where {M, CB, CT, CAT, S} = heltype(S)
 
-# type initialization
+
+
+################################################################################
+### Stack Initialization
+################################################################################
+
+
+
 function initialize_stack(mc::DQMC)
     GreensEltype = geltype(mc)
     HoppingEltype = heltype(mc)
@@ -216,9 +223,10 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
     nothing
 end
 
-# stack construction
 """
-Build stack from scratch.
+    build_stack(mc::DQMC)
+
+Build slice matrix stack from scratch.
 """
 function build_stack(mc::DQMC)
     @views copyto!(mc.s.u_stack[:, :, 1], I)
@@ -234,8 +242,21 @@ function build_stack(mc::DQMC)
 
     nothing
 end
+
+
+
+################################################################################
+### Slice matrix stack manipulations/updates
+################################################################################
+
+
+
 """
-Updates stack[idx+1] based on stack[idx]
+    add_slice_sequence_left(mc::DQMC, idx)
+
+Computes the next `mc.p.safe_mult` slice matrix products from the current `idx`
+and writes them to `idx+1`. The index `idx` does not refer to the slice index, 
+but `mc.p.safe_mult` times the slice index.
 """
 @bm function add_slice_sequence_left(mc::DQMC, idx::Int)
     copyto!(mc.s.curr_U, mc.s.u_stack[:, :, idx])
@@ -252,8 +273,13 @@ Updates stack[idx+1] based on stack[idx]
     )
     @views vmul!(mc.s.t_stack[:, :, idx + 1], mc.s.curr_U, mc.s.t_stack[:, :, idx])
 end
+
 """
-Updates stack[idx] based on stack[idx+1]
+    add_slice_sequence_right(mc::DQMC, idx)
+
+Computes the next `mc.p.safe_mult` slice matrix products from the current 
+`idx+1` and writes them to `idx`. The index `idx` does not refer to the slice 
+index, but `mc.p.safe_mult` times the slice index.
 """
 @bm function add_slice_sequence_right(mc::DQMC, idx::Int)
     copyto!(mc.s.curr_U, mc.s.u_stack[:, :, idx + 1])
@@ -270,10 +296,101 @@ Updates stack[idx] based on stack[idx+1]
     @views vmul!(mc.s.t_stack[:, :, idx], mc.s.curr_U, mc.s.t_stack[:, :, idx + 1])
 end
 
-# Green's function calculation
+
+
+################################################################################
+### Green's function calculation
+################################################################################
+
+
+
 """
-Calculates G(slice) using mc.s.Ur,mc.s.Dr,mc.s.Tr=B(slice)' ... B(M)' and
-mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
+    calculate_greens_AVX!(Ul, Dl, Tl, Ur, Dr, Tr, G[, pivot, temp])
+
+Calculates the effective Greens function matrix `G` from two UDT decompositions
+`Ul, Dl, Tl` and `Ur, Dr, Tr`. Additionally a `pivot` vector can be given. Note
+that all inputs will be overwritten.
+
+The UDT should follow from a set of slice_matrix multiplications, such that
+`Ur, Dr, Tr = udt(B(slice)' ⋯ B(M)')` and `Ul, Dl, Tl = udt(B(slice-1) ⋯ B(1))`.
+The computed Greens function is then given as `G = inv(I + Ul Dl Tl Tr Dr Ur)`
+and computed here.
+
+`Ul, Tl, Ur, Tr, G` should be square matrices, `Dl, Dr` real Vectors (from 
+Diagonal matrices), `pivot` an integer Vector and `temp` a Vector with the same
+element type as the matrices.
+"""
+@bm function calculate_greens_AVX!(
+        Ul, Dl, Tl, Ur, Dr, Tr, G,
+        pivot = Vector{Int64}(undef, length(Dl)),
+        temp = Vector{eltype(G)}(undef, length(Dl))
+    )
+    # @bm "B1" begin
+        # Used: Ul, Dl, Tl, Ur, Dr, Tr
+        # TODO: [I + Ul Dl Tl Tr^† Dr Ur^†]^-1
+        # Compute: Dl * ((Tl * Tr) * Dr) -> Tr * Dr * G   (UDT)
+        vmul!(G, Tl, adjoint(Tr))
+        rvmul!(G, Diagonal(Dr))
+        lvmul!(Diagonal(Dl), G)
+        udt_AVX_pivot!(Tr, Dr, G, pivot, temp, Val(false)) # Dl available
+    # end
+
+    # @bm "B2" begin
+        # Used: Ul, Ur, G, Tr, Dr  (Ul, Ur, Tr unitary (inv = adjoint))
+        # TODO: [I + Ul Tr Dr G Ur^†]^-1
+        #     = [(Ul Tr) ((Ul Tr)^-1 (G Ur^†) + Dr) (G Ur)]^-1
+        #     = Ur G^-1 [(Ul Tr)^† Ur G^-1 + Dr]^-1 (Ul Tr)^†
+        # Compute: Ul Tr -> Tl
+        #          (Ur G^-1) -> Ur
+        #          ((Ul Tr)^† Ur G^-1) -> Tr
+        vmul!(Tl, Ul, Tr)
+        rdivp!(Ur, G, Ul, pivot) # requires unpivoted udt decompostion (Val(false))
+        vmul!(Tr, adjoint(Tl), Ur)
+    # end
+
+    # @bm "B3" begin
+        # Used: Tl, Ur, Tr, Dr
+        # TODO: Ur [Tr + Dr]^-1 Tl^† -> Ur [Tr]^-1 Tl^†
+        @avx for i in 1:length(Dr)
+            # G[i, i] = G[i, i] + Dr[i]
+            Tr[i, i] = Tr[i, i] + Dr[i]
+        end
+    # end
+
+    # @bm "B4" begin
+        # Used: Ur, Tr, Tl
+        # TODO: Ur [Tr]^-1 Tl^† -> Ur [Ul Dr Tr]^-1 Tl^† 
+        #    -> Ur Tr^-1 Dr^-1 Ul^† Tl^† -> Ur Tr^-1 Dr^-1 (Tl Ul)^†
+        # Compute: Ur Tr^-1 -> Ur,  Tl Ul -> Tr
+        udt_AVX_pivot!(Ul, Dr, Tr, pivot, temp, Val(false)) # Dl available
+        rdivp!(Ur, Tr, G, pivot) # requires unpivoted udt decompostion (false)
+        vmul!(Tr, Tl, Ul)
+    # end
+
+    # @bm "B5" begin
+        @avx for i in eachindex(Dr)
+            Dl[i] = 1.0 / Dr[i]
+        end
+    # end
+
+    # @bm "B6" begin
+        # Used: Ur, Tr, Dl, Ul, Tl
+        # TODO: (Ur Dl) Tr^† -> G
+        rvmul!(Ur, Diagonal(Dl))
+        vmul!(G, Ur, adjoint(Tr))
+    # end
+end
+
+"""
+    calculate_greens(mc::DQMC)
+
+Computes the effective greens function from the current state of the stack and
+saves the result to `mc.s.greens`.
+
+This assumes the `mc.s.Ul, mc.s.Dl, mc.s.Tl = udt(B(slice-1) ⋯ B(1))` and
+`mc.s.Ur, mc.s.Dr, mc.s.Tr = udt(B(slice)' ⋯ B(M)')`. 
+
+This should only used internally.
 """
 @bm function calculate_greens(mc::DQMC)
     calculate_greens_AVX!(
@@ -284,7 +401,13 @@ mc.s.Ul,mc.s.Dl,mc.s.Tl=B(slice-1) ... B(1)
     mc.s.greens
 end
 
-# Faster version of calculate_greens_and_logdet from testfunctions.jl
+"""
+    calculate_greens(mc::DQMC, slice[, safe_mult])
+
+Compute the effective equal-time greens function from scratch at a given `slice`.
+
+This does not invalidate the stack, but it does overwrite `mc.s.greens`.
+"""
 @bm function calculate_greens(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult)
     copyto!(mc.s.curr_U, I)
     copyto!(mc.s.Ur, I)
@@ -349,6 +472,13 @@ end
 end
 
 
+
+################################################################################
+### Stack update
+################################################################################
+
+
+
 # Green's function propagation
 @inline @bm function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)
     if direction == -1
@@ -360,11 +490,7 @@ end
     end
     nothing
 end
-# @inline function wrap_greens(mc::DQMC, gf::Matrix,slice::Int,direction::Int)
-#     temp = copy(gf)
-#     wrap_greens!(mc, temp, slice, direction)
-#     return temp
-# end
+
 @bm function propagate(mc::DQMC)
     if mc.s.direction == 1
         if mod(mc.s.current_slice, mc.p.safe_mult) == 0

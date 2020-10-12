@@ -13,6 +13,7 @@ MonteCarloObservable.all_varNs(x::WrappedObservable) = x.(all_varNs(x.obs))
 # Autocorrelation time should not be averaged
 MonteCarloObservable.tau(x::WrappedObservable) = maximum(tau(x.obs))
 MonteCarloObservable.all_taus(x::WrappedObservable) = maximum.(all_varNs(x.obs))
+observable(x::WrappedObservable) = x.obs
 
 
 ################################################################################
@@ -143,7 +144,7 @@ struct SymmetryWrapped{OT<:AbstractObservable, T} <: WrappedObservable
     formfactor::Vector{T}
 end
 
-function SymmetryWrapped(m::AbstractMeasurement, formfactor, field=:obs)
+function SymmetryWrapped(m::PairingCorrelationMeasurement, formfactor, field=:obs)
     SymmetryWrapped(getfield(m, field), formfactor)
 end
 
@@ -178,7 +179,11 @@ function eswave(m::AbstractMeasurement, lattice::AbstractLattice, field=:obs)
 end
 
 function (x::SymmetryWrapped)(data)
-    sum(x.formfactor[i] * data[i] for i in eachindex(x.formfactor)) / length(x.formfactor)
+    out = zeros(eltype(data), size(data, 1))
+    for i in eachindex(x.formfactor), j in eachindex(x.formfactor)
+        out .+= x.formfactor[i] * x.formfactor[j] * data[:, i, j]
+    end
+    out
 end
 
 # Gaussian error propagation? ¯\_(ツ)_/¯

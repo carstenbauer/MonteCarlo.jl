@@ -16,8 +16,9 @@ const JLDFile = Union{JLD.JldFile, JLD2.JLDFile}
 
 
 include("helpers.jl")
-include("inplace_udt.jl")
 export enable_benchmarks, disable_benchmarks, print_timer, reset_timer!
+include("linalg/general.jl")
+include("linalg/UDT.jl")
 include("flavors/abstract.jl")
 include("models/abstract.jl")
 include("lattices/abstract.jl")
