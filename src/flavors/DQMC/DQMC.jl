@@ -240,26 +240,30 @@ function DQMC(m::M;
     # paramskwargs = filter(kw->kw[1] in fieldnames(DQMCParameters), kwargs)
     p = DQMCParameters(measure_rate = measure_rate; kwargs...)
 
-    geltype = greenseltype(DQMC, m)
-    heltype = hoppingeltype(DQMC, m)
-    intmattype = interaction_matrix_type(DQMC, m)
+    HET = hoppingeltype(DQMC, m)
+    GET = greenseltype(DQMC, m)
+    HMT = hopping_matrix_type(DQMC, m)
+    GMT = greens_matrix_type(DQMC, m)
+    IMT = interaction_matrix_type(DQMC, m)
+    stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
+
     conf = rand(DQMC, m, p.slices)
-    mc = DQMC{M, checkerboard ? CheckerboardTrue : CheckerboardFalse,
-        typeof(conf), recorder, DQMCStack{geltype, heltype, intmattype}}()
-    mc.conf = conf
-    mc.model = m
-    mc.p = p
-    mc.a = DQMCAnalysis()
-    mc.s = DQMCStack{geltype, heltype, intmattype}()
+    analysis = DQMCAnalysis()
+    CB = checkerboard ? CheckerboardTrue : CheckerboardFalse
+
+    mc = DQMC{M, CB, typeof(conf), recorder, DQMCStack}(
+        model = m, conf = conf, last_sweep = last_sweep, s = stack,
+        p = p, a = analysis
+    )
+
     mc.configs = recorder(mc, m, recording_rate)
-    mc.last_sweep = last_sweep
 
     init!(
         mc, seed = seed, conf = conf,
         thermalization_measurements = thermalization_measurements,
         measurements = measurements
     )
-    return mc
+    return make_concrete!(mc)
 end
 
 
@@ -801,9 +805,13 @@ function _load(data, ::Type{T}) where T <: DQMC
     measurements = _load(data["Measurements"], Measurements)
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
-    mc.s = MonteCarlo.DQMCStack{
-        geltype(mc), heltype(mc), interaction_matrix_type(DQMC, mc.model)
-    }()
+    HET = hoppingeltype(DQMC, mc.model)
+    GET = greenseltype(DQMC, mc.model)
+    HMT = hopping_matrix_type(DQMC, mc.model)
+    GMT = greens_matrix_type(DQMC, mc.model)
+    IMT = interaction_matrix_type(DQMC, mc.model)
+    mc.s = DQMCStack{GET, HET, GMT, HMT, IMT}()
+
     make_concrete!(mc)
 end
 

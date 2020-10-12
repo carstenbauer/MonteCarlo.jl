@@ -1,29 +1,32 @@
 mutable struct DQMCStack{
-        GreensEltype <: Number, 
-        HoppingEltype <: Number,
+        GreensElType <: Number, 
+        HoppingElType <: Number, 
+        GreensMatType <: AbstractArray{GreensElType},
+        HoppingMatType <: AbstractArray{HoppingElType},
         InteractionMatType <: AbstractArray
     } <: AbstractDQMCStack
-    u_stack::Array{GreensEltype, 3}
-    d_stack::Matrix{Float64}
-    t_stack::Array{GreensEltype, 3}
 
-    Ul::Matrix{GreensEltype}
-    Ur::Matrix{GreensEltype}
+    u_stack::Vector{GreensMatType}
+    d_stack::Vector{Vector{GreensElType}}
+    t_stack::Vector{GreensMatType}
+
+    Ul::GreensMatType
+    Ur::GreensMatType
     Dl::Vector{Float64}
     Dr::Vector{Float64}
-    Tl::Matrix{GreensEltype}
-    Tr::Matrix{GreensEltype}
+    Tl::GreensMatType
+    Tr::GreensMatType
     pivot::Vector{Int64}
-    tempv::Vector{GreensEltype}
+    tempv::Vector{GreensElType}
 
-    greens::Matrix{GreensEltype}
-    greens_temp::Matrix{GreensEltype}
+    greens::GreensMatType
+    greens_temp::GreensMatType
 
-    # U::Matrix{GreensEltype}
+    # U::GreensMatType
     # D::Vector{Float64}
-    # T::Matrix{GreensEltype}
-    tmp1::Matrix{GreensEltype}
-    tmp2::Matrix{GreensEltype}
+    # T::GreensMatType
+    tmp1::GreensMatType
+    tmp2::GreensMatType
 
     ranges::Array{UnitRange, 1}
     n_elements::Int
@@ -31,11 +34,11 @@ mutable struct DQMCStack{
     direction::Int
 
     # # -------- Global update backup
-    # gb_u_stack::Array{GreensEltype, 3}
+    # gb_u_stack::Array{GreensElType, 3}
     # gb_d_stack::Matrix{Float64}
-    # gb_t_stack::Array{GreensEltype, 3}
+    # gb_t_stack::Array{GreensElType, 3}
 
-    # gb_greens::Matrix{GreensEltype}
+    # gb_greens::GreensMatType
     # gb_log_det::Float64
 
     # gb_conf::Array{Float64, 3}
@@ -43,48 +46,58 @@ mutable struct DQMCStack{
 
 
     # preallocated, reused arrays
-    curr_U::Matrix{GreensEltype}
+    curr_U::GreensMatType
     eV::InteractionMatType
 
     # hopping matrices (mu included)
-    hopping_matrix_exp::Matrix{HoppingEltype}
-    hopping_matrix_exp_inv::Matrix{HoppingEltype}
-    hopping_matrix_exp_squared::Matrix{HoppingEltype}
-    hopping_matrix_exp_inv_squared::Matrix{HoppingEltype}
+    hopping_matrix_exp::HoppingMatType
+    hopping_matrix_exp_inv::HoppingMatType
+    hopping_matrix_exp_squared::HoppingMatType
+    hopping_matrix_exp_inv_squared::HoppingMatType
 
     # checkerboard hopping matrices
     checkerboard::Matrix{Int} # src, trg, bondid
     groups::Vector{UnitRange}
     n_groups::Int
-    chkr_hop_half::Vector{SparseMatrixCSC{HoppingEltype, Int64}}
-    chkr_hop_half_inv::Vector{SparseMatrixCSC{HoppingEltype, Int64}}
-    chkr_hop_half_dagger::Vector{SparseMatrixCSC{HoppingEltype, Int64}}
-    chkr_hop::Vector{SparseMatrixCSC{HoppingEltype, Int64}} # without prefactor 0.5 in matrix exponentials
-    chkr_hop_inv::Vector{SparseMatrixCSC{HoppingEltype, Int64}}
-    chkr_hop_dagger::Vector{SparseMatrixCSC{HoppingEltype, Int64}}
-    chkr_mu_half::SparseMatrixCSC{HoppingEltype, Int64}
-    chkr_mu_half_inv::SparseMatrixCSC{HoppingEltype, Int64}
-    chkr_mu::SparseMatrixCSC{HoppingEltype, Int64}
-    chkr_mu_inv::SparseMatrixCSC{HoppingEltype, Int64}
+    chkr_hop_half::Vector{SparseMatrixCSC{HoppingElType, Int64}}
+    chkr_hop_half_inv::Vector{SparseMatrixCSC{HoppingElType, Int64}}
+    chkr_hop_half_dagger::Vector{SparseMatrixCSC{HoppingElType, Int64}}
+    chkr_hop::Vector{SparseMatrixCSC{HoppingElType, Int64}} # without prefactor 0.5 in matrix exponentials
+    chkr_hop_inv::Vector{SparseMatrixCSC{HoppingElType, Int64}}
+    chkr_hop_dagger::Vector{SparseMatrixCSC{HoppingElType, Int64}}
+    chkr_mu_half::SparseMatrixCSC{HoppingElType, Int64}
+    chkr_mu_half_inv::SparseMatrixCSC{HoppingElType, Int64}
+    chkr_mu::SparseMatrixCSC{HoppingElType, Int64}
+    chkr_mu_inv::SparseMatrixCSC{HoppingElType, Int64}
 
 
-    function DQMCStack{GreensEltype, HoppingEltype, IntMatType}() where {
-            GreensEltype<:Number, HoppingEltype<:Number, IntMatType <: AbstractArray
+    function DQMCStack{GET, HET, GMT, HMT, IMT}() where {
+            GET<:Number, HET<:Number, 
+            GMT<:AbstractArray{GET}, HMT<:AbstractArray{HET}, IMT<:AbstractArray
         }
-        # @assert isleaftype(GreensEltype);
-        # @assert isleaftype(HoppingEltype);
-        @assert isconcretetype(GreensEltype);
-        @assert isconcretetype(HoppingEltype);
-        @assert isconcretetype(IntMatType);
-        new()
+        @assert isconcretetype(GET);
+        @assert isconcretetype(HET);
+        @assert isconcretetype(GMT);
+        @assert isconcretetype(HMT);
+        @assert isconcretetype(IMT);
+        @assert eltype(GMT) == GET;
+        @assert eltype(HMT) == HET;
+        new{GET, HET, GMT, HMT, IMT}()
     end
 end
 
 # type helpers
-geltype(::Type{<: DQMCStack{G,H}}) where {G,H} = G
-heltype(::Type{<: DQMCStack{G,H}}) where {G,H} = H
-geltype(mc::DQMC{M, CB, CT, CAT, S}) where {M, CB, CT, CAT, S} = geltype(S)
-heltype(mc::DQMC{M, CB, CT, CAT, S}) where {M, CB, CT, CAT, S} = heltype(S)
+geltype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = GET
+heltype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = HET
+gmattype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = GMT
+hmattype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = HMT
+imattype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = IMT
+
+geltype(mc::DQMC) = geltype(mc.s)
+heltype(mc::DQMC) = heltype(mc.s)
+gmattype(mc::DQMC) = gmattype(mc.s)
+hmattype(mc::DQMC) = hmattype(mc.s)
+imattype(mc::DQMC) = imattype(mc.s)
 
 
 
@@ -95,35 +108,36 @@ heltype(mc::DQMC{M, CB, CT, CAT, S}) where {M, CB, CT, CAT, S} = heltype(S)
 
 
 function initialize_stack(mc::DQMC)
-    GreensEltype = geltype(mc)
-    HoppingEltype = heltype(mc)
+    GreensElType = geltype(mc)
+    GreensMatType = gmattype(mc)
+    HoppingElType = heltype(mc)
     N = length(mc.model.l)
     flv = mc.model.flv
 
     mc.s.n_elements = convert(Int, mc.p.slices / mc.p.safe_mult) + 1
 
-    mc.s.u_stack = zeros(GreensEltype, flv*N, flv*N, mc.s.n_elements)
-    mc.s.d_stack = zeros(Float64, flv*N, mc.s.n_elements)
-    mc.s.t_stack = zeros(GreensEltype, flv*N, flv*N, mc.s.n_elements)
+    mc.s.u_stack = [GreensMatType(undef, flv*N, flv*N) for _ in 1:mc.s.n_elements]
+    mc.s.d_stack = [zeros(Float64, flv*N) for _ in 1:mc.s.n_elements]
+    mc.s.t_stack = [GreensMatType(undef, flv*N, flv*N) for _ in 1:mc.s.n_elements]
 
-    mc.s.greens = zeros(GreensEltype, flv*N, flv*N)
-    mc.s.greens_temp = zeros(GreensEltype, flv*N, flv*N)
+    mc.s.greens = GreensMatType(undef, flv*N, flv*N)
+    mc.s.greens_temp = GreensMatType(undef, flv*N, flv*N)
 
     # used in calculate_greens
     # do not change in slice_matrices.jl or interaction_matrix_exp!
-    mc.s.Ul = Matrix{GreensEltype}(I, flv*N, flv*N)
-    mc.s.Ur = Matrix{GreensEltype}(I, flv*N, flv*N)
-    mc.s.Tl = Matrix{GreensEltype}(I, flv*N, flv*N)
-    mc.s.Tr = Matrix{GreensEltype}(I, flv*N, flv*N)
+    mc.s.Ul = GreensMatType(I, flv*N, flv*N)
+    mc.s.Ur = GreensMatType(I, flv*N, flv*N)
+    mc.s.Tl = GreensMatType(I, flv*N, flv*N)
+    mc.s.Tr = GreensMatType(I, flv*N, flv*N)
     mc.s.Dl = ones(Float64, flv*N)
     mc.s.Dr = ones(Float64, flv*N)
     # can be changed anywhere
     mc.s.pivot = Vector{Int64}(undef, flv*N)
-    mc.s.tempv = Vector{GreensEltype}(undef, flv*N)
+    mc.s.tempv = Vector{GreensElType}(undef, flv*N)
 
     # can be changed anywhere
-    mc.s.tmp1 = zeros(GreensEltype, flv*N, flv*N)
-    mc.s.tmp2 = zeros(GreensEltype, flv*N, flv*N)
+    mc.s.tmp1 = GreensMatType(undef, flv*N, flv*N)
+    mc.s.tmp2 = GreensMatType(undef, flv*N, flv*N)
 
 
     # # Global update backup
@@ -140,11 +154,11 @@ function initialize_stack(mc::DQMC)
         push!(mc.s.ranges, 1 + (i - 1) * mc.p.safe_mult:i * mc.p.safe_mult)
     end
 
-    mc.s.curr_U = zeros(GreensEltype, flv*N, flv*N)
+    mc.s.curr_U = GreensMatType(undef, flv*N, flv*N)
     mc.s.eV = init_interaction_matrix(mc.model)
 
-    # mc.s.hopping_matrix_exp = zeros(HoppingEltype, flv*N, flv*N)
-    # mc.s.hopping_matrix_exp_inv = zeros(HoppingEltype, flv*N, flv*N)
+    # mc.s.hopping_matrix_exp = zeros(HoppingElType, flv*N, flv*N)
+    # mc.s.hopping_matrix_exp_inv = zeros(HoppingElType, flv*N, flv*N)
     nothing
 end
 
@@ -229,9 +243,9 @@ end
 Build slice matrix stack from scratch.
 """
 function build_stack(mc::DQMC)
-    @views copyto!(mc.s.u_stack[:, :, 1], I)
-    @views mc.s.d_stack[:, 1] .= one(eltype(mc.s.d_stack))
-    @views copyto!(mc.s.t_stack[:, :, 1], I)
+    @views copyto!(mc.s.u_stack[1], I)
+    @views mc.s.d_stack[1] .= one(eltype(mc.s.d_stack[1]))
+    @views copyto!(mc.s.t_stack[1], I)
 
     @inbounds for i in 1:length(mc.s.ranges)
         add_slice_sequence_left(mc, i)
@@ -259,19 +273,19 @@ and writes them to `idx+1`. The index `idx` does not refer to the slice index,
 but `mc.p.safe_mult` times the slice index.
 """
 @bm function add_slice_sequence_left(mc::DQMC, idx::Int)
-    copyto!(mc.s.curr_U, mc.s.u_stack[:, :, idx])
+    copyto!(mc.s.curr_U, mc.s.u_stack[idx])
 
     # println("Adding slice seq left $idx = ", mc.s.ranges[idx])
     for slice in mc.s.ranges[idx]
         multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
     end
 
-    @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx]))
-    # @views udt_AVX!(mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], mc.s.curr_U)
+    @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[idx]))
     @views udt_AVX_pivot!(
-        mc.s.u_stack[:, :, idx + 1], mc.s.d_stack[:, idx + 1], mc.s.curr_U, mc.s.pivot, mc.s.tempv
+        mc.s.u_stack[idx + 1], mc.s.d_stack[idx + 1], mc.s.curr_U, 
+        mc.s.pivot, mc.s.tempv
     )
-    @views vmul!(mc.s.t_stack[:, :, idx + 1], mc.s.curr_U, mc.s.t_stack[:, :, idx])
+    @views vmul!(mc.s.t_stack[idx + 1], mc.s.curr_U, mc.s.t_stack[idx])
 end
 
 """
@@ -282,18 +296,17 @@ Computes the next `mc.p.safe_mult` slice matrix products from the current
 index, but `mc.p.safe_mult` times the slice index.
 """
 @bm function add_slice_sequence_right(mc::DQMC, idx::Int)
-    copyto!(mc.s.curr_U, mc.s.u_stack[:, :, idx + 1])
+    copyto!(mc.s.curr_U, mc.s.u_stack[idx + 1])
 
     for slice in reverse(mc.s.ranges[idx])
         multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
     end
 
-    @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[:, idx + 1]))
-    # @views udt_AVX!(mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.curr_U)
+    @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[idx + 1]))
     @views udt_AVX_pivot!(
-        mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.curr_U, mc.s.pivot, mc.s.tempv
+        mc.s.u_stack[idx], mc.s.d_stack[idx], mc.s.curr_U, mc.s.pivot, mc.s.tempv
     )
-    @views vmul!(mc.s.t_stack[:, :, idx], mc.s.curr_U, mc.s.t_stack[:, :, idx + 1])
+    @views vmul!(mc.s.t_stack[idx], mc.s.curr_U, mc.s.t_stack[idx + 1])
 end
 
 
@@ -496,20 +509,28 @@ end
         if mod(mc.s.current_slice, mc.p.safe_mult) == 0
             mc.s.current_slice +=1 # slice we are going to
             if mc.s.current_slice == 1
-                mc.s.Ur[:, :], mc.s.Dr[:], mc.s.Tr[:, :] = mc.s.u_stack[:, :, 1], mc.s.d_stack[:, 1], mc.s.t_stack[:, :, 1]
-                @views copyto!(mc.s.u_stack[:, :, 1], I)
-                @views mc.s.d_stack[:, 1] .= one(eltype(mc.s.d_stack))
-                @views copyto!(mc.s.t_stack[:, :, 1], I)
-                mc.s.Ul[:,:], mc.s.Dl[:], mc.s.Tl[:,:] = mc.s.u_stack[:, :, 1], mc.s.d_stack[:, 1], mc.s.t_stack[:, :, 1]
+                copyto!(mc.s.Ur, mc.s.u_stack[1])
+                copyto!(mc.s.Dr, mc.s.d_stack[1])
+                copyto!(mc.s.Tr, mc.s.t_stack[1])
+                @views copyto!(mc.s.u_stack[1], I)
+                @views mc.s.d_stack[1] .= one(eltype(mc.s.d_stack[1]))
+                @views copyto!(mc.s.t_stack[1], I)
+                copyto!(mc.s.Ul, mc.s.u_stack[1])
+                copyto!(mc.s.Dl, mc.s.d_stack[1])
+                copyto!(mc.s.Tl, mc.s.t_stack[1])
 
                 calculate_greens(mc) # greens_1 ( === greens_{m+1} )
 
             elseif 1 < mc.s.current_slice <= mc.p.slices
                 idx = Int((mc.s.current_slice - 1)/mc.p.safe_mult)
 
-                mc.s.Ur[:, :], mc.s.Dr[:], mc.s.Tr[:, :] = mc.s.u_stack[:, :, idx+1], mc.s.d_stack[:, idx+1], mc.s.t_stack[:, :, idx+1]
+                copyto!(mc.s.Ur, mc.s.u_stack[idx+1])
+                copyto!(mc.s.Dr, mc.s.d_stack[idx+1])
+                copyto!(mc.s.Tr, mc.s.t_stack[idx+1])
                 add_slice_sequence_left(mc, idx)
-                mc.s.Ul[:,:], mc.s.Dl[:], mc.s.Tl[:,:] = mc.s.u_stack[:, :, idx+1], mc.s.d_stack[:, idx+1], mc.s.t_stack[:, :, idx+1]
+                copyto!(mc.s.Ul, mc.s.u_stack[idx+1])
+                copyto!(mc.s.Dl, mc.s.d_stack[idx+1])
+                copyto!(mc.s.Tl, mc.s.t_stack[idx+1])
 
                 if mc.p.check_propagation_error
                     copyto!(mc.s.greens_temp, mc.s.greens)
@@ -550,11 +571,15 @@ end
         if mod(mc.s.current_slice-1, mc.p.safe_mult) == 0
             mc.s.current_slice -= 1 # slice we are going to
             if mc.s.current_slice == mc.p.slices
-                mc.s.Ul[:, :], mc.s.Dl[:], mc.s.Tl[:, :] = mc.s.u_stack[:, :, end], mc.s.d_stack[:, end], mc.s.t_stack[:, :, end]
-                @views copyto!(mc.s.u_stack[:, :, end], I)
-                @views mc.s.d_stack[:, end] .= one(eltype(mc.s.d_stack))
-                @views copyto!(mc.s.t_stack[:, :, end], I)
-                mc.s.Ur[:,:], mc.s.Dr[:], mc.s.Tr[:,:] = mc.s.u_stack[:, :, end], mc.s.d_stack[:, end], mc.s.t_stack[:, :, end]
+                copyto!(mc.s.Ul, mc.s.u_stack[end])
+                copyto!(mc.s.Dl, mc.s.d_stack[end])
+                copyto!(mc.s.Tl, mc.s.t_stack[end])
+                @views copyto!(mc.s.u_stack[end], I)
+                @views mc.s.d_stack[end] .= one(eltype(mc.s.d_stack[end]))
+                @views copyto!(mc.s.t_stack[end], I)
+                copyto!(mc.s.Ur, mc.s.u_stack[end])
+                copyto!(mc.s.Dr, mc.s.d_stack[end])
+                copyto!(mc.s.Tr, mc.s.t_stack[end])
 
                 calculate_greens(mc) # greens_{mc.p.slices+1} === greens_1
 
@@ -563,9 +588,13 @@ end
 
             elseif 0 < mc.s.current_slice < mc.p.slices
                 idx = Int(mc.s.current_slice / mc.p.safe_mult) + 1
-                mc.s.Ul[:, :], mc.s.Dl[:], mc.s.Tl[:, :] = mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.t_stack[:, :, idx]
+                copyto!(mc.s.Ul, mc.s.u_stack[idx])
+                copyto!(mc.s.Dl, mc.s.d_stack[idx])
+                copyto!(mc.s.Tl, mc.s.t_stack[idx])
                 add_slice_sequence_right(mc, idx)
-                mc.s.Ur[:,:], mc.s.Dr[:], mc.s.Tr[:,:] = mc.s.u_stack[:, :, idx], mc.s.d_stack[:, idx], mc.s.t_stack[:, :, idx]
+                copyto!(mc.s.Ur, mc.s.u_stack[idx])
+                copyto!(mc.s.Dr, mc.s.d_stack[idx])
+                copyto!(mc.s.Tr, mc.s.t_stack[idx])
 
                 if mc.p.check_propagation_error
                     copyto!(mc.s.greens_temp, mc.s.greens)
