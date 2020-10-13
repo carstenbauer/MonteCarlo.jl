@@ -63,7 +63,7 @@ function vmul!(C::CMat64, A::CMat64, B::Diagonal{T}) where {T <: Real}
     vmul!(C.re, A.re, B)
     vmul!(C.im, A.im, B)
 end
-function vmul!(C::CMat64, A::CMat64, B::Diagonal{ComplexF64, CVecF64})
+function vmul!(C::CMat64, A::CMat64, B::Diagonal{ComplexF64, CVec64})
     @warn "Complex StructArrays are untested not really optimized." maxlog=10
     vmul!(   C.re, A.re, B.re)
     vmuladd!(C.re, A.im, B.im, -1.0)
@@ -111,6 +111,75 @@ function lvmul!(A::Diagonal{ComplexF64}, B::CMat64)
         B[m,n] = A[m, m] * B[m, n]
     end
 end
+
+rvadd!(A::CMat64, D::Diagonal{T}) where {T <: Real} = rvadd!(A.re, D)
+
+function rdivp!(A::CMat64, T::CMat64, O::CMat64, pivot)
+    # assume Diagonal is ±1!
+    @inbounds begin
+        N = size(A, 1)
+
+        # Apply pivot
+        for (j, p) in enumerate(pivot)
+            @avx for i in 1:N
+                O.re[i, j] = A.re[i, p]
+            end
+            @avx for i in 1:N
+                O.im[i, j] = A.im[i, p]
+            end
+        end
+
+        # do the rdiv
+        # @avx will segfault on `k in 1:0`, so pull out first loop 
+        invT = conj(T[1, 1]) / abs2(T[1, 1])
+        re = real(invT); im = imag(invT)
+        @avx for i in 1:N
+            A.re[i, 1] = O.re[i, 1] * re
+        end
+        @avx for i in 1:N
+            A.re[i, 1] -= O.im[i, 1] * im
+        end
+        @avx for i in 1:N
+            A.im[i, 1] = O.im[i, 1] * re
+        end
+        @avx for i in 1:N
+            A.im[i, 1] += O.re[i, 1] * im
+        end
+
+        # TODO Is this optimal?
+        for j in 2:N
+            invT = conj(T[j, j]) / abs2(T[j, j])
+            re = real(invT); im = imag(invT)
+            
+            @avx for i in 1:N
+                x = O.re[i, j]
+                for k in 1:j-1
+                    x -= A.re[i, k] * T.re[k, j]
+                end
+                for k in 1:j-1
+                    x += A.im[i, k] * T.im[k, j]
+                end
+                A.re[i, j] = x * re
+                A.im[i, j] = x * im
+            end
+
+            @avx for i in 1:N
+                x = O.im[i, j]
+                for k in 1:j-1
+                    x -= A.im[i, k] * T.re[k, j]
+                end
+                for k in 1:j-1
+                    x -= A.re[i, k] * T.im[k, j]
+                end
+                A.re[i, j] -= x * im
+                A.im[i, j] += x * re
+            end
+        end
+    end
+    A
+end
+
+
 
 
 
@@ -198,7 +267,7 @@ function udt_AVX_pivot!(
     nothing
 end
 
-function _apply_pivot!(input::CMatF64, D, temp, pivot, ::Val{true})
+function _apply_pivot!(input::CMat64, D, temp, pivot, ::Val{true})
     # TODO: optimize
     n = size(input, 1)
     @inbounds for i in 1:n
