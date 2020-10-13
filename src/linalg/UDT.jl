@@ -184,7 +184,8 @@ If `apply_pivoting = Val(true)` the `T` matrix will be pivoted such that
 If `apply_pivoting = Val(false)` `T` will be a "dirty" upper triangular matrix 
 (i.e. with random values elsewhere) which still requires pivoting. 
 `rdivp!(A, T, temp, pivot)` is built explicitly for this case - it applies the 
-pivoting while calculating `A T^-1`.
+pivoting while calculating `A T^-1`. Warning: BlockDiagonal matrices use 
+per-block pivoting.
 
 This assumes correctly sized square matrices as inputs.
 """
