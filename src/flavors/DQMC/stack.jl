@@ -243,9 +243,9 @@ end
 Build slice matrix stack from scratch.
 """
 function build_stack(mc::DQMC)
-    @views copyto!(mc.s.u_stack[1], I)
-    @views mc.s.d_stack[1] .= one(eltype(mc.s.d_stack[1]))
-    @views copyto!(mc.s.t_stack[1], I)
+    copyto!(mc.s.u_stack[1], I)
+    mc.s.d_stack[1] .= one(eltype(mc.s.d_stack[1]))
+    copyto!(mc.s.t_stack[1], I)
 
     @inbounds for i in 1:length(mc.s.ranges)
         add_slice_sequence_left(mc, i)
@@ -273,19 +273,21 @@ and writes them to `idx+1`. The index `idx` does not refer to the slice index,
 but `mc.p.safe_mult` times the slice index.
 """
 @bm function add_slice_sequence_left(mc::DQMC, idx::Int)
-    copyto!(mc.s.curr_U, mc.s.u_stack[idx])
+    @inbounds begin
+        copyto!(mc.s.curr_U, mc.s.u_stack[idx])
 
-    # println("Adding slice seq left $idx = ", mc.s.ranges[idx])
-    for slice in mc.s.ranges[idx]
-        multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+        # println("Adding slice seq left $idx = ", mc.s.ranges[idx])
+        for slice in mc.s.ranges[idx]
+            multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+        end
+
+        vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.d_stack[idx]))
+        udt_AVX_pivot!(
+            mc.s.u_stack[idx + 1], mc.s.d_stack[idx + 1], mc.s.tmp1, 
+            mc.s.pivot, mc.s.tempv
+        )
+        vmul!(mc.s.t_stack[idx + 1], mc.s.tmp1, mc.s.t_stack[idx])
     end
-
-    @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[idx]))
-    @views udt_AVX_pivot!(
-        mc.s.u_stack[idx + 1], mc.s.d_stack[idx + 1], mc.s.curr_U, 
-        mc.s.pivot, mc.s.tempv
-    )
-    @views vmul!(mc.s.t_stack[idx + 1], mc.s.curr_U, mc.s.t_stack[idx])
 end
 
 """
@@ -296,17 +298,19 @@ Computes the next `mc.p.safe_mult` slice matrix products from the current
 index, but `mc.p.safe_mult` times the slice index.
 """
 @bm function add_slice_sequence_right(mc::DQMC, idx::Int)
-    copyto!(mc.s.curr_U, mc.s.u_stack[idx + 1])
+    @inbounds begin
+        copyto!(mc.s.curr_U, mc.s.u_stack[idx + 1])
 
-    for slice in reverse(mc.s.ranges[idx])
-        multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+        for slice in reverse(mc.s.ranges[idx])
+            multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+        end
+
+        vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.d_stack[idx + 1]))
+        udt_AVX_pivot!(
+            mc.s.u_stack[idx], mc.s.d_stack[idx], mc.s.tmp1, mc.s.pivot, mc.s.tempv
+        )
+        vmul!(mc.s.t_stack[idx], mc.s.tmp1, mc.s.t_stack[idx + 1])
     end
-
-    @views rvmul!(mc.s.curr_U, Diagonal(mc.s.d_stack[idx + 1]))
-    @views udt_AVX_pivot!(
-        mc.s.u_stack[idx], mc.s.d_stack[idx], mc.s.curr_U, mc.s.pivot, mc.s.tempv
-    )
-    @views vmul!(mc.s.t_stack[idx], mc.s.curr_U, mc.s.t_stack[idx + 1])
 end
 
 
@@ -343,8 +347,8 @@ element type as the matrices.
         # TODO: [I + Ul Dl Tl Tr^† Dr Ur^†]^-1
         # Compute: Dl * ((Tl * Tr) * Dr) -> Tr * Dr * G   (UDT)
         vmul!(G, Tl, adjoint(Tr))
-        rvmul!(G, Diagonal(Dr))
-        lvmul!(Diagonal(Dl), G)
+        vmul!(Tr, G, Diagonal(Dr))
+        vmul!(G, Diagonal(Dl), Tr)
         udt_AVX_pivot!(Tr, Dr, G, pivot, temp, Val(false)) # Dl available
     # end
 
@@ -386,8 +390,8 @@ element type as the matrices.
     # @bm "B6" begin
         # Used: Ur, Tr, Dl, Ul, Tl
         # TODO: (Ur Dl) Tr^† -> G
-        rvmul!(Ur, Diagonal(Dl))
-        vmul!(G, Ur, adjoint(Tr))
+        vmul!(Ul, Ur, Diagonal(Dl))
+        vmul!(G, Ul, adjoint(Tr))
     # end
 end
 
@@ -431,21 +435,18 @@ This does not invalidate the stack, but it does overwrite `mc.s.greens`.
         for k in reverse(start:stop)
             if mod(k,safe_mult) == 0
                 multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
-                rvmul!(mc.s.curr_U, Diagonal(mc.s.Dr))
-                # udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
-                udt_AVX_pivot!(mc.s.Ur, mc.s.Dr, mc.s.curr_U, mc.s.pivot, mc.s.tempv)
-                copyto!(mc.s.tmp1, mc.s.Tr)
-                vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp1) # TODO
-                copyto!(mc.s.curr_U, mc.s.Ur)
+                vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dr))
+                udt_AVX_pivot!(mc.s.curr_U, mc.s.Dr, mc.s.tmp1, mc.s.pivot, mc.s.tempv)
+                copyto!(mc.s.tmp2, mc.s.Tr)
+                vmul!(mc.s.Tr, mc.s.tmp1, mc.s.tmp2)
             else
                 multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
             end
         end
-        rvmul!(mc.s.curr_U, Diagonal(mc.s.Dr))
-        # udt_AVX!(mc.s.Ur, mc.s.Dr, mc.s.curr_U)
-        udt_AVX_pivot!(mc.s.Ur, mc.s.Dr, mc.s.curr_U, mc.s.pivot, mc.s.tempv)
-        copyto!(mc.s.tmp1, mc.s.Tr)
-        vmul!(mc.s.Tr, mc.s.curr_U, mc.s.tmp1)
+        vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dr))
+        udt_AVX_pivot!(mc.s.Ur, mc.s.Dr, mc.s.tmp1, mc.s.pivot, mc.s.tempv)
+        copyto!(mc.s.tmp2, mc.s.Tr)
+        vmul!(mc.s.Tr, mc.s.tmp1, mc.s.tmp2)
     end
 
 
@@ -461,21 +462,18 @@ This does not invalidate the stack, but it does overwrite `mc.s.greens`.
         for k in start:stop
             if mod(k,safe_mult) == 0
                 multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
-                rvmul!(mc.s.curr_U, Diagonal(mc.s.Dl))
-                # udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
-                udt_AVX_pivot!(mc.s.Ul, mc.s.Dl, mc.s.curr_U, mc.s.pivot, mc.s.tempv)
-                copyto!(mc.s.tmp1, mc.s.Tl)
-                vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp1) # TODO
-                copyto!(mc.s.curr_U, mc.s.Ul)
+                vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dl))
+                udt_AVX_pivot!(mc.s.curr_U, mc.s.Dl, mc.s.tmp1, mc.s.pivot, mc.s.tempv)
+                copyto!(mc.s.tmp2, mc.s.Tl)
+                vmul!(mc.s.Tl, mc.s.tmp1, mc.s.tmp2)
             else
                 multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
             end
         end
-        rvmul!(mc.s.curr_U, Diagonal(mc.s.Dl))
-        # udt_AVX!(mc.s.Ul, mc.s.Dl, mc.s.curr_U)
-        udt_AVX_pivot!(mc.s.Ul, mc.s.Dl, mc.s.curr_U, mc.s.pivot, mc.s.tempv)
-        copyto!(mc.s.tmp1, mc.s.Tl)
-        vmul!(mc.s.Tl, mc.s.curr_U, mc.s.tmp1)
+        vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dl))
+        udt_AVX_pivot!(mc.s.Ul, mc.s.Dl, mc.s.tmp1, mc.s.pivot, mc.s.tempv)
+        copyto!(mc.s.tmp2, mc.s.Tl)
+        vmul!(mc.s.Tl, mc.s.tmp1, mc.s.tmp2)
     end
 
     return calculate_greens(mc)
@@ -502,16 +500,16 @@ end
 end
 
 @bm function propagate(mc::DQMC)
-    if mc.s.direction == 1
+    @inbounds if mc.s.direction == 1
         if mod(mc.s.current_slice, mc.p.safe_mult) == 0
             mc.s.current_slice +=1 # slice we are going to
             if mc.s.current_slice == 1
                 copyto!(mc.s.Ur, mc.s.u_stack[1])
                 copyto!(mc.s.Dr, mc.s.d_stack[1])
                 copyto!(mc.s.Tr, mc.s.t_stack[1])
-                @views copyto!(mc.s.u_stack[1], I)
-                @views mc.s.d_stack[1] .= one(eltype(mc.s.d_stack[1]))
-                @views copyto!(mc.s.t_stack[1], I)
+                copyto!(mc.s.u_stack[1], I)
+                mc.s.d_stack[1] .= one(eltype(mc.s.d_stack[1]))
+                copyto!(mc.s.t_stack[1], I)
                 copyto!(mc.s.Ul, mc.s.u_stack[1])
                 copyto!(mc.s.Dl, mc.s.d_stack[1])
                 copyto!(mc.s.Tl, mc.s.t_stack[1])
@@ -571,9 +569,9 @@ end
                 copyto!(mc.s.Ul, mc.s.u_stack[end])
                 copyto!(mc.s.Dl, mc.s.d_stack[end])
                 copyto!(mc.s.Tl, mc.s.t_stack[end])
-                @views copyto!(mc.s.u_stack[end], I)
-                @views mc.s.d_stack[end] .= one(eltype(mc.s.d_stack[end]))
-                @views copyto!(mc.s.t_stack[end], I)
+                copyto!(mc.s.u_stack[end], I)
+                mc.s.d_stack[end] .= one(eltype(mc.s.d_stack[end]))
+                copyto!(mc.s.t_stack[end], I)
                 copyto!(mc.s.Ur, mc.s.u_stack[end])
                 copyto!(mc.s.Dr, mc.s.d_stack[end])
                 copyto!(mc.s.Tr, mc.s.t_stack[end])
