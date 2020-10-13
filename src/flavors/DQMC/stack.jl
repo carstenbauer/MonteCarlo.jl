@@ -364,10 +364,7 @@ element type as the matrices.
     # @bm "B3" begin
         # Used: Tl, Ur, Tr, Dr
         # TODO: Ur [Tr + Dr]^-1 Tl^† -> Ur [Tr]^-1 Tl^†
-        @avx for i in 1:length(Dr)
-            # G[i, i] = G[i, i] + Dr[i]
-            Tr[i, i] = Tr[i, i] + Dr[i]
-        end
+        rvadd!(Tr, Diagonal(Dr))
     # end
 
     # @bm "B4" begin
@@ -493,7 +490,7 @@ end
 
 
 # Green's function propagation
-@inline @bm function wrap_greens!(mc::DQMC, gf::Matrix, curr_slice::Int, direction::Int)
+@inline @bm function wrap_greens!(mc::DQMC, gf, curr_slice::Int, direction::Int)
     if direction == -1
         multiply_slice_matrix_inv_left!(mc, mc.model, curr_slice - 1, gf)
         multiply_slice_matrix_right!(mc, mc.model, curr_slice - 1, gf)

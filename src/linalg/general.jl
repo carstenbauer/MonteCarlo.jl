@@ -18,6 +18,11 @@ function vmul!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}) where {T <: Real}
         C[m,n] = A[m,n] * B[n,n]
     end
 end
+function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}) where {T <: Real}
+    @avx for m in 1:size(C, 1), n in 1:size(C, 2)
+        C[m,n] = A[m,m] * B[m,n]
+    end
+end
 function vmul!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}) where {T <: Real}
     B = X.parent
     @avx for m in 1:size(A, 1), n in 1:size(B, 2)
@@ -45,7 +50,12 @@ function rvmul!(A::Matrix{T}, B::Diagonal{T}) where {T <: Real}
 end
 function lvmul!(A::Diagonal{T}, B::Matrix{T}) where {T <: Real}
     @avx for m in 1:size(B, 1), n in 1:size(B, 2)
-        B[m,n] = A[m, m] * B[m, n]
+        B[m,n] = A.diag[m] * B[m, n]
+    end
+end
+function rvadd!(A::Matrix{T}, D::Diagonal{T}) where {T <: Real}
+    @avx for i in axes(A, 1)
+        A[i, i] = A[i, i] + D.diag[i]
     end
 end
 
@@ -102,6 +112,7 @@ end
 vmul!(C, A, B) = mul!(C, A, B)
 rvmul!(A, B) = rmul!(A, B)
 lvmul!(A, B) = lmul!(A, B)
+rvadd!(A, B) = A .= A .+ B
 
 
 function rdivp!(A::Matrix{<: Complex}, T::Matrix{<: Complex}, O::Matrix{<: Complex}, pivot)

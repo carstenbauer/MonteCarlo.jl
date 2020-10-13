@@ -729,8 +729,8 @@ exponentials from left and right.
 """
 @bm greens(mc::DQMC) = _greens!(mc)
 function _greens!(
-        mc::DQMC_CBFalse, target::Matrix = mc.s.Ul, 
-        source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
+        mc::DQMC_CBFalse, target::AbstractMatrix = mc.s.Ul, 
+        source::AbstractMatrix = mc.s.greens, temp::AbstractMatrix = mc.s.Ur
     )
     eThalfminus = mc.s.hopping_matrix_exp
     eThalfplus = mc.s.hopping_matrix_exp_inv
@@ -739,8 +739,8 @@ function _greens!(
     return target
 end
 function _greens!(
-        mc::DQMC_CBTrue, target::Matrix = mc.s.Ul, 
-        source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
+        mc::DQMC_CBTrue, target::AbstractMatrix = mc.s.Ul, 
+        source::AbstractMatrix = mc.s.greens, temp::AbstractMatrix = mc.s.Ur
     )
     chkr_hop_half_minus = mc.s.chkr_hop_half
     chkr_hop_half_plus = mc.s.chkr_hop_half_inv
