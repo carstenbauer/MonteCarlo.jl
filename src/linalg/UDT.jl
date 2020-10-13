@@ -331,7 +331,7 @@ end
 end
 
 
-function indmaxcolumn(A::Matrix{C}, j=1, n=size(A, 1)) where {C <: ComplexF64}
+function indmaxcolumn(A::AbstractMatrix{C}, j=1, n=size(A, 1)) where {C <: ComplexF64}
     max = 0.0
     for k in j:n
         max += abs2(A[k, j])

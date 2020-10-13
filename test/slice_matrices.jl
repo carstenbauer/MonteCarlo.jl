@@ -130,7 +130,12 @@ end
     end
 end
 
-using MonteCarlo: vmul!, lvmul!, rvmul!, rdivp!, udt_AVX_pivot!, BlockDiagonal
+
+
+using MonteCarlo: vmul!, lvmul!, rvmul!, rdivp!, udt_AVX_pivot!
+using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
+
+
 
 @testset "Custom Linear Algebra " begin
     for type in (Float64, ComplexF64)
@@ -195,6 +200,66 @@ using MonteCarlo: vmul!, lvmul!, rvmul!, rdivp!, udt_AVX_pivot!, BlockDiagonal
             @test u ≈ U * P' / UpperTriangular(T)
         end
     end
+
+
+    #=
+    @testset "Complex StructArray" begin
+        M1 = rand(ComplexF64, 8, 8)    
+        C1 = StructArray(M1)
+        M2 = rand(ComplexF64, 8, 8)    
+        C2 = StructArray(M2)
+        M3 = rand(ComplexF64, 8, 8)    
+        C3 = StructArray(M3)
+
+        @test C1 isa CMat64
+        @test M1 == C1
+
+        # Test avx multiplications
+        vmul!(C1, C2, C3)
+        vmul!(M1, M2, M3)
+        @test M1 == C1
+
+        vmul!(C1, C2, adjoint(C3))
+        vmul!(M1, M2, adjoint(M3))
+        @test M1 ≈ C1 atol=1e-14 # check
+
+        vmul!(C1, adjoint(C2), C3)
+        vmul!(M1, adjoint(M2), M3)
+        @test M1 ≈ C1 atol=1e-14 #check
+
+        D = Diagonal(rand(8))
+        vmul!(C1, C2, D)
+        vmul!(M1, M2, D)
+        @test M1 == C1
+
+        rvmul!(C1, D)
+        rvmul!(M1, D)
+        @test M1 == C1
+
+        lvmul!(D, C1)
+        lvmul!(D, M1)
+        @test M1 == C1
+
+        # Test UDT and rdivp!
+        M2 = Matrix(C2)
+        D = rand(8)
+        pivot = Vector{Int64}(undef, 8)
+        tempv = StructArray(Vector{ComplexF64}(undef, 8))
+        @test tempv isa CVec64
+        udt_AVX_pivot!(C1, D, C2, pivot, tempv, Val(false))
+        P = zeros(length(pivot), length(pivot))
+        for (i, j) in enumerate(pivot)
+            P[i, j] = 1.0
+        end
+        @test Matrix(C1) * Diagonal(D) * UpperTriangular(Matrix(C2)) * P ≈ M2 #check
+
+        M1 = Matrix(C1)
+        M2 = Matrix(C2)
+        rdivp!(C1, C2, C3, pivot)
+        @test C1 ≈ M1 * P' / UpperTriangular(M2) # check
+    end
+    =#
+
 
     @testset "BlockDiagonal" begin
         b1 = rand(4, 4)
