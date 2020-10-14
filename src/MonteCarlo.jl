@@ -5,7 +5,7 @@ using Reexport
 @reexport using MonteCarloObservable, Random
 import MonteCarloObservable.AbstractObservable
 using Parameters, Requires
-using TimerOutputs, LoopVectorization
+using TimerOutputs, LoopVectorization, StructArrays
 using Printf, SparseArrays, LinearAlgebra, Dates, Statistics
 
 import JLD, JLD2
@@ -16,8 +16,11 @@ const JLDFile = Union{JLD.JldFile, JLD2.JLDFile}
 
 
 include("helpers.jl")
-include("inplace_udt.jl")
 export enable_benchmarks, disable_benchmarks, print_timer, reset_timer!
+include("linalg/general.jl")
+include("linalg/UDT.jl")
+# include("linalg/complex.jl") # TODO
+include("linalg/blockdiagonal.jl")
 include("flavors/abstract.jl")
 include("models/abstract.jl")
 include("lattices/abstract.jl")

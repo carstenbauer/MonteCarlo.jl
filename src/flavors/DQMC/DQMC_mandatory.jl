@@ -43,7 +43,7 @@ part of the `hopping_matrix` and not the interaction.
 
 This is a performance critical method and one might consider efficient in-place (in `result`) construction.
 """
-interaction_matrix_exp!(mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.) = 
+interaction_matrix_exp!(mc::DQMC, m::Model, result, conf, slice::Int, power::Float64=1.) = 
     MethodError(interaction_matrix_exp!, (mc, m, result, conf, slice, power))
 
 

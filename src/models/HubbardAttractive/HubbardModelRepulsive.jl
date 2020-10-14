@@ -55,6 +55,11 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelRepulsive) = print(io,
 # Convenience
 @inline parameters(m::HubbardModelRepulsive) = (L = m.L, t = m.t, U = m.U)
 
+# optional optimization
+hopping_matrix_type(::Type{DQMC}, ::HubbardModelRepulsive) = BlockDiagonal{Float64, 2, Matrix{Float64}}
+greens_matrix_type( ::Type{DQMC}, ::HubbardModelRepulsive) = BlockDiagonal{Float64, 2, Matrix{Float64}}
+
+
 
 """
     hopping_matrix(mc::DQMC, m::HubbardModelRepulsive)
@@ -72,18 +77,17 @@ actual simulation.
 """
 function hopping_matrix(mc::DQMC, model::HubbardModelRepulsive)
     N = length(model.l)
-    T = zeros(2N, 2N)
+    T = zeros(N, N)
 
     # Nearest neighbor hoppings
     @inbounds @views begin
         for (src, trg) in neighbors(model.l, Val(true))
             trg == -1 && continue
             T[trg, src] += -model.t
-            T[trg+N, src+N] += -model.t
         end
     end
 
-    return T
+    return BlockDiagonal(T, copy(T))
 end
 
 
@@ -98,20 +102,27 @@ and store it in `result::Matrix`.
 This is a performance critical method.
 """
 @inline @bm function interaction_matrix_exp!(mc::DQMC, model::HubbardModelRepulsive,
-            result::Matrix, conf::HubbardConf, slice::Int, power::Float64=1.)
+            result, conf::HubbardConf, slice::Int, power::Float64=1.)
     dtau = mc.p.delta_tau
     lambda = acosh(exp(0.5 * model.U * dtau))
 
-    z = zero(eltype(result))
-    @inbounds for j in eachindex(result)
-        result[j] = z
-    end
+    # z = zero(eltype(result))
+    # @inbounds for j in eachindex(result)
+    #     result[j] = z
+    # end
+    # N = length(lattice(model))
+    # @inbounds for i in 1:N
+    #     result[i, i] = exp(sign(power) * lambda * conf[i, slice])
+    # end
+    # @inbounds for i in 1:N
+    #     result[i+N, i+N] = exp(-sign(power) * lambda * conf[i, slice])
+    # end
     N = length(lattice(model))
     @inbounds for i in 1:N
-        result[i, i] = exp(sign(power) * lambda * conf[i, slice])
+        result.diag[i] = exp(sign(power) * lambda * conf[i, slice])
     end
     @inbounds for i in 1:N
-        result[i+N, i+N] = exp(-sign(power) * lambda * conf[i, slice])
+        result.diag[i+N] = exp(-sign(power) * lambda * conf[i, slice])
     end
     nothing
 end
@@ -188,14 +199,35 @@ end
     @bm "accept_local (finalize computation)" begin
         # G = G - IG * (R * Δ) * G[i:N:end, :]
 
-        @avx for m in axes(G, 1), n in axes(G, 2)
-            mc.s.greens_temp[m, n] = IGR[m, 1] * G[i, n] + IGR[m, 2] * G[i+N, n]
+        # @avx for m in axes(G, 1), n in axes(G, 2)
+        #     mc.s.greens_temp[m, n] = IGR[m, 1] * G[i, n] + IGR[m, 2] * G[i+N, n]
+        # end
+
+        # @avx for m in axes(G, 1), n in axes(G, 2)
+        #     G[m, n] = G[m, n] - mc.s.greens_temp[m, n]
+        # end
+
+        # BlockDiagonal version
+        G1 = G.blocks[1]
+        G2 = G.blocks[2]
+        temp1 = mc.s.greens_temp.blocks[1]
+        temp2 = mc.s.greens_temp.blocks[2]
+
+        @avx for m in axes(G1, 1), n in axes(G1, 2)
+            temp1[m, n] = IGR[m, 1] * G1[i, n]
+        end
+        @avx for m in axes(G2, 1), n in axes(G2, 2)
+            temp2[m, n] = IGR[m+N, 2] * G2[i, n]
         end
 
-        @avx for m in axes(G, 1), n in axes(G, 2)
-            G[m, n] = G[m, n] - mc.s.greens_temp[m, n]
+        @avx for m in axes(G1, 1), n in axes(G1, 2)
+            G1[m, n] = G1[m, n] - temp1[m, n]
+        end
+        @avx for m in axes(G2, 1), n in axes(G2, 2)
+            G2[m, n] = G2[m, n] - temp2[m, n]
         end
 
+        # Always
         conf[i, slice] *= -1
     end
 

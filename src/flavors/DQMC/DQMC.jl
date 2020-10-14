@@ -141,10 +141,56 @@ mutable struct DQMC{
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 
-    DQMC{M, CB, ConfType, RT, Stack}() where {
-        M <: Model, CB <: Checkerboard, ConfType <: Any, 
-        RT <: AbstractRecorder, Stack <: AbstractDQMCStack
-    } = new()
+    function DQMC{M, CB, ConfType, RT, Stack}(; kwargs...) where {
+            M <: Model, CB <: Checkerboard, ConfType <: Any, 
+            RT <: AbstractRecorder, Stack <: AbstractDQMCStack
+        }
+        complete!(new{M, CB, ConfType, RT, Stack}(), kwargs)
+    end
+    function DQMC(CB::Type{<:Checkerboard}; kwargs...)
+        DQMC{Model, CB, Any, AbstractRecorder, AbstractDQMCStack}(; kwargs...)
+    end
+    function DQMC{CB}(
+            model::M,
+            conf::ConfType,
+            last_sweep::Int,
+            s::Stack,
+            p::DQMCParameters,
+            a::DQMCAnalysis,
+            configs::RT,
+            thermalization_measurements::Dict{Symbol, AbstractMeasurement},
+            measurements::Dict{Symbol, AbstractMeasurement}
+        ) where {
+            M <: Model, CB <: Checkerboard, ConfType <: Any, 
+            RT <: AbstractRecorder, Stack <: AbstractDQMCStack
+        }
+        new{M, CB, ConfType, RT, Stack}(
+            model, conf, last_sweep, s, p, a, configs, 
+            thermalization_measurements, measurements
+        )
+    end
+    DQMC{M, CB, C, RT, S}(args...) where {M, CB, C, RT, S} = DQMC{CB}(args...)
+end
+
+
+function complete!(a::DQMC, kwargs)
+    for (field, val) in kwargs
+        setfield!(a, field, val)
+    end
+    make_concrete!(a)
+end
+
+function make_concrete!(a::DQMC{M, CB, C, RT, S}) where {M, CB, C, RT, S}
+    Ts = (
+        isdefined(a, :model) ? typeof(a.model) : M, 
+        CB, 
+        isdefined(a, :conf) ? typeof(a.conf) : C, 
+        isdefined(a, :configs) ? typeof(a.configs) : RT, 
+        isdefined(a, :s) ? typeof(a.s) : S
+    )
+    all(Ts .== (M, CB, C, RT, S)) && return a
+    data = [(f, getfield(a, f)) for f in fieldnames(DQMC) if isdefined(a, f)]
+    DQMC{Ts...}(; data...)
 end
 
 include("stack.jl")
@@ -198,25 +244,30 @@ function DQMC(m::M;
     # paramskwargs = filter(kw->kw[1] in fieldnames(DQMCParameters), kwargs)
     p = DQMCParameters(measure_rate = measure_rate; kwargs...)
 
-    geltype = greenseltype(DQMC, m)
-    heltype = hoppingeltype(DQMC, m)
+    HET = hoppingeltype(DQMC, m)
+    GET = greenseltype(DQMC, m)
+    HMT = hopping_matrix_type(DQMC, m)
+    GMT = greens_matrix_type(DQMC, m)
+    IMT = interaction_matrix_type(DQMC, m)
+    stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
+
     conf = rand(DQMC, m, p.slices)
-    mc = DQMC{M, checkerboard ? CheckerboardTrue : CheckerboardFalse,
-        typeof(conf), recorder, DQMCStack{geltype, heltype}}()
-    mc.conf = conf
-    mc.model = m
-    mc.p = p
-    mc.a = DQMCAnalysis()
-    mc.s = DQMCStack{geltype, heltype}()
+    analysis = DQMCAnalysis()
+    CB = checkerboard ? CheckerboardTrue : CheckerboardFalse
+
+    mc = DQMC{M, CB, typeof(conf), recorder, DQMCStack}(
+        model = m, conf = conf, last_sweep = last_sweep, s = stack,
+        p = p, a = analysis
+    )
+
     mc.configs = recorder(mc, m, recording_rate)
-    mc.last_sweep = last_sweep
 
     init!(
         mc, seed = seed, conf = conf,
         thermalization_measurements = thermalization_measurements,
         measurements = measurements
     )
-    return mc
+    return make_concrete!(mc)
 end
 
 
@@ -682,8 +733,8 @@ exponentials from left and right.
 """
 @bm greens(mc::DQMC) = _greens!(mc)
 function _greens!(
-        mc::DQMC_CBFalse, target::Matrix = mc.s.Ul, 
-        source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
+        mc::DQMC_CBFalse, target::AbstractMatrix = mc.s.Ul, 
+        source::AbstractMatrix = mc.s.greens, temp::AbstractMatrix = mc.s.Ur
     )
     eThalfminus = mc.s.hopping_matrix_exp
     eThalfplus = mc.s.hopping_matrix_exp_inv
@@ -692,8 +743,8 @@ function _greens!(
     return target
 end
 function _greens!(
-        mc::DQMC_CBTrue, target::Matrix = mc.s.Ul, 
-        source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
+        mc::DQMC_CBTrue, target::AbstractMatrix = mc.s.Ul, 
+        source::AbstractMatrix = mc.s.greens, temp::AbstractMatrix = mc.s.Ur
     )
     chkr_hop_half_minus = mc.s.chkr_hop_half
     chkr_hop_half_plus = mc.s.chkr_hop_half_inv
@@ -711,6 +762,13 @@ function _greens!(
     end
     return target
 end
+
+
+
+################################################################################
+### FileIO
+################################################################################
+
 
 
 #     save_mc(filename, mc, entryname)
@@ -740,7 +798,9 @@ function _load(data, ::Type{T}) where T <: DQMC
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
 
-    mc = data["type"]()
+    CB = data["type"].parameters[2]
+    @assert CB <: Checkerboard
+    mc = DQMC(CB)
     mc.p = _load(data["Parameters"], data["Parameters"]["type"])
     mc.a = _load(data["Analysis"], data["Analysis"]["type"])
     mc.conf = data["conf"]
@@ -751,8 +811,14 @@ function _load(data, ::Type{T}) where T <: DQMC
     measurements = _load(data["Measurements"], Measurements)
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
-    mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
-    mc
+    HET = hoppingeltype(DQMC, mc.model)
+    GET = greenseltype(DQMC, mc.model)
+    HMT = hopping_matrix_type(DQMC, mc.model)
+    GMT = greens_matrix_type(DQMC, mc.model)
+    IMT = interaction_matrix_type(DQMC, mc.model)
+    mc.s = DQMCStack{GET, HET, GMT, HMT, IMT}()
+
+    make_concrete!(mc)
 end
 
 #   save_parameters(file::JLDFile, p::DQMCParameters, entryname="Parameters")
