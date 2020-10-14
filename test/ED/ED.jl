@@ -61,11 +61,11 @@ end
 
 
 
-function HamiltonMatrix(model::HubbardModelAttractive)
+function HamiltonMatrix(model::T) where {T <: HubbardModel}
     lattice = model.l
     t = model.t
-    U = -abs(model.U)
-    mu = model.mu
+    U = T <: HubbardModelAttractive ? -abs(model.U) : model.U
+    mu = T <: HubbardModelAttractive ? model.mu : 0.0
 
     H = zeros(Float64, 4^lattice.sites, 4^lattice.sites)
 
@@ -308,14 +308,19 @@ end
 
 
 # local s-wave
-pairing_correlation(site1, site2) = pairing_correlation(site1, site1, site2, site2)
+# NOTE - this may no longer match the order of other observables
+# Δ_i Δ_j^† |ψ⟩
+pairing_correlation(i, j) = pairing_correlation(i, i, j, j)
 # general case
-function pairing_correlation(site1, site2, site3, site4)
+# Δ_i = c_{i, ↑} c_{j, ↓}
+# Δ_j^† -> Δ_k^† = (c_{k, ↑} c_{l, ↓})^† = c_{l, ↓}^† c_{k, ↑}^†
+#  Δ_i Δ_k^† |ψ⟩ = c_{i, ↑} c_{j, ↓} c_{l, ↓}^† c_{k, ↑}^† |ψ⟩
+function pairing_correlation(i, j, k, l)
     state -> begin
-        sign1, _state = create!(state, site1, UP)
-        sign2, _state = create!(_state, site2, DOWN)
-        sign3, _state = annihilate!(_state, site3, DOWN)
-        sign4, _state = annihilate!(_state, site4, UP)
+        sign1, _state = create!(state, k, UP)
+        sign2, _state = create!(_state, l, DOWN)
+        sign3, _state = annihilate!(_state, j, DOWN)
+        sign4, _state = annihilate!(_state, i, UP)
         p = sign1 * sign2 * sign3 * sign4
         if p == 0
             return Float64[], typeof(state)[]

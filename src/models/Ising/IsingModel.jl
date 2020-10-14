@@ -64,7 +64,6 @@ Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 
 
 # implement `Model` interface
-@inline nsites(m::IsingModel) = length(m.l)
 @inline lattice(m::IsingModel) = m.l
 
 
@@ -110,7 +109,7 @@ Constructs a Wolff cluster spinflip for configuration `conf`.
 Returns wether a cluster spinflip has been performed (any spins have been flipped).
 """
 @bm function global_move(mc::MC, m::IsingModel, conf::IsingConf)
-    N = nsites(m)
+    N = length(lattice(m))
     beta = mc.p.beta
 
     cluster = Array{Int, 1}()
@@ -178,7 +177,7 @@ square lattice case. (It is roughly twice as fast in this case.)
 function energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
     neighs = m.l.neighs
     E = 0.0
-    @inbounds @simd for i in 1:nsites(m)
+    @inbounds @simd for i in 1:length(lattice(m))
         E -= conf[i]*conf[neighs[1,i]] + conf[i]*conf[neighs[2,i]]
     end
     m.energy[] = E

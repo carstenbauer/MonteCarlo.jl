@@ -22,7 +22,7 @@ function LatPhysLattice(lattice::LatPhysBase.AbstractLattice)
             neighs[idx, src] = trg
         end
     end
-    any(x -> x == -1, neighs) && @warn(
+    any(x -> x == -1, neighs) && @debug(
         "neighs is padded with -1 to indicated the lack of a bond. This is " *
         "due to the lattice having an irregular number of bonds per site."
     )
@@ -33,12 +33,17 @@ end
 @inline Base.ndims(l::LatPhysLattice) = ndims(l.lattice)
 function Base.size(l::LatPhysLattice)
     N = numSites(l.lattice)
+    n = numSites(l.lattice.unitcell)
     D = ndims(l)
-    @warn "Guessing size of LatPhys Lattice."
-    if N % D == 0
-        return tuple((div(N, D) for _ in 1:D)...)
+
+    @debug "Assuming lattice has equal size in each dimension"
+    N_ucs = div(N, n)
+    L = N_ucs^(1/D)
+    l = round(Int64, L)
+    if l - L ≈ 0.0
+        return tuple((l for _ in 1:D)...)
     else
-        error("Failed to guess size of LatPhys Lattice.")
+        error("The computed linear system size does not match the number of sites.")
     end
 end
 

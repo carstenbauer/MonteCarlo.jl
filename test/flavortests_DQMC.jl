@@ -80,7 +80,7 @@ end
 @testset "Unequal Time Stack" begin
     m = HubbardModelAttractive(dims=1, L=6);
     dqmc = DQMC(m; beta=15.0, safe_mult=5)
-    dqmc.ut_stack = MonteCarlo.UnequalTimeStack(dqmc)
+    MonteCarlo.initialize_stack(dqmc, dqmc.ut_stack)
 
     MonteCarlo.build_stack(dqmc, dqmc.ut_stack)
     MonteCarlo.build_stack(dqmc, dqmc.s)
@@ -97,9 +97,9 @@ end
 
     # test B(β, τ) / B_Nl stacks
     # Note: dqmc.s doesn't generate the full stack here
-    @test dqmc.s.u_stack[:, :, 2:end] ≈ dqmc.ut_stack.backward_u_stack[:, :, 2:end]
-    @test dqmc.s.d_stack[:, 2:end]    ≈ dqmc.ut_stack.backward_d_stack[:, 2:end]
-    @test dqmc.s.t_stack[:, :, 2:end] ≈ dqmc.ut_stack.backward_t_stack[:, :, 2:end]
+    @test dqmc.s.u_stack[2:end] ≈ dqmc.ut_stack.backward_u_stack[2:end]
+    @test dqmc.s.d_stack[2:end] ≈ dqmc.ut_stack.backward_d_stack[2:end]
+    @test dqmc.s.t_stack[2:end] ≈ dqmc.ut_stack.backward_t_stack[2:end]
 
     while !(
             MonteCarlo.current_slice(dqmc) == 1 &&

@@ -7,6 +7,19 @@ Base.rand(::Type{DQMC}, m::Model, nslices::Int) = MethodError(rand, (DQMC, m, ns
 
 
 """
+    nflavors(model)
+
+Returns the number of activer fermion flavors of a given Quantum Monte Carlo
+model.
+
+The size of the hopping matrix, the interaction matrix, the greens matrix and
+any derived quantity should have the 
+`(length(lattice(model)) * nflavors(model), length(lattice(model)) * nflavors(model)`.
+"""
+nflavors(::T) where {T <: Model} = error("nflavors() not implemented for $T")
+
+
+"""
     hopping_matrix(mc::DQMC, m::Model)
 
 Calculates the hopping matrix \$T_{i\\sigma, j\\sigma '}\$ where \$i, j\$ are 

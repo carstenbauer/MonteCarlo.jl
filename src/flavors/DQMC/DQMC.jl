@@ -11,7 +11,7 @@ end
 MagnitudeStats() = MagnitudeStats(-Inf, +Inf, 0.0, 0)
 
 function Base.push!(stat::MagnitudeStats, value)
-    v = log10(value)
+    v = log10(abs(value))
     stat.max = max(stat.max, v)
     stat.min = min(stat.min, v)
     stat.sum += v
@@ -148,10 +148,66 @@ mutable struct DQMC{
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 
-    DQMC{M, CB, ConfType, RT, Stack, UTStack}() where {
-        M <: Model, CB <: Checkerboard, ConfType <: Any, RT <: AbstractRecorder,
-        Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack
-    } = new{M, CB, ConfType, RT, Stack, UTStack}()
+
+    function DQMC{M, CB, ConfType, RT, Stack, UTStack}(; kwargs...) where {
+            M <: Model, CB <: Checkerboard, ConfType <: Any, 
+            RT <: AbstractRecorder, 
+            Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack
+        }
+        complete!(new{M, CB, ConfType, RT, Stack, UTStack}(), kwargs)
+    end
+    function DQMC(CB::Type{<:Checkerboard}; kwargs...)
+        DQMC{
+            Model, CB, Any, AbstractRecorder, 
+            AbstractDQMCStack, AbstractDQMCStack
+        }(; kwargs...)
+    end
+    function DQMC{CB}(
+            model::M,
+            conf::ConfType,
+            last_sweep::Int,
+            s::Stack,
+            ut_stack::UTStack,
+            p::DQMCParameters,
+            a::DQMCAnalysis,
+            configs::RT,
+            thermalization_measurements::Dict{Symbol, AbstractMeasurement},
+            measurements::Dict{Symbol, AbstractMeasurement}
+        ) where {
+            M <: Model, CB <: Checkerboard, ConfType <: Any, 
+            RT <: AbstractRecorder, 
+            Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack
+        }
+        new{M, CB, ConfType, RT, Stack, UTStack}(
+            model, conf, last_sweep, s, ut_stack, p, a, configs, 
+            thermalization_measurements, measurements
+        )
+    end
+    function DQMC{M, CB, C, RT, S, UTS}(args...) where {M, CB, C, RT, S, UTS}
+        DQMC{CB}(args...)
+    end
+end
+
+
+function complete!(a::DQMC, kwargs)
+    for (field, val) in kwargs
+        setfield!(a, field, val)
+    end
+    make_concrete!(a)
+end
+
+function make_concrete!(a::DQMC{M, CB, C, RT, S, UTS}) where {M, CB, C, RT, S, UTS}
+    Ts = (
+        isdefined(a, :model) ? typeof(a.model) : M, 
+        CB, 
+        isdefined(a, :conf) ? typeof(a.conf) : C, 
+        isdefined(a, :configs) ? typeof(a.configs) : RT, 
+        isdefined(a, :s) ? typeof(a.s) : S,
+        isdefined(a, :ut_stack) ? typeof(a.ut_stack) : UTS
+    )
+    all(Ts .== (M, CB, C, RT, S, UTS)) && return a
+    data = [(f, getfield(a, f)) for f in fieldnames(DQMC) if isdefined(a, f)]
+    DQMC{Ts...}(; data...)
 end
 
 include("stack.jl")
@@ -206,27 +262,32 @@ function DQMC(m::M;
     # paramskwargs = filter(kw->kw[1] in fieldnames(DQMCParameters), kwargs)
     p = DQMCParameters(measure_rate = measure_rate; kwargs...)
 
-    geltype = greenseltype(DQMC, m)
-    heltype = hoppingeltype(DQMC, m)
+    HET = hoppingeltype(DQMC, m)
+    GET = greenseltype(DQMC, m)
+    HMT = hopping_matrix_type(DQMC, m)
+    GMT = greens_matrix_type(DQMC, m)
+    IMT = interaction_matrix_type(DQMC, m)
+    stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
+    ut_stack = UnequalTimeStack{GET, GMT}()
+
     conf = rand(DQMC, m, p.slices)
-    mc = DQMC{
-        M, checkerboard ? CheckerboardTrue : CheckerboardFalse, typeof(conf), 
-        recorder, DQMCStack{geltype, heltype}, UnequalTimeStack{geltype}
-    }()
-    mc.conf = conf
-    mc.model = m
-    mc.p = p
-    mc.a = DQMCAnalysis()
-    mc.s = DQMCStack{geltype, heltype}()
+    analysis = DQMCAnalysis()
+    CB = checkerboard ? CheckerboardTrue : CheckerboardFalse
+
+    # TODO add uninitalized UnequalTimeStack 
+    mc = DQMC{M, CB, typeof(conf), recorder, DQMCStack, AbstractDQMCStack}(
+        model = m, conf = conf, last_sweep = last_sweep, s = stack,
+        ut_stack = ut_stack, p = p, a = analysis
+    )
+
     mc.configs = recorder(mc, m, recording_rate)
-    mc.last_sweep = last_sweep
 
     init!(
         mc, seed = seed, conf = conf,
         thermalization_measurements = thermalization_measurements,
         measurements = measurements
     )
-    return mc
+    return make_concrete!(mc)
 end
 
 
@@ -308,7 +369,7 @@ function init!(mc::DQMC;
     end
 
     if any(m isa UnequalTimeMeasurement for m in mc.measurements)
-        mc.ut_stack = UnequalTimeStack(mc)
+        init_stack(mc, mc.ut_stack)
     end
 
     nothing
@@ -321,7 +382,7 @@ function resume_init!(mc::DQMC)
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc, mc.s)
     if any(m isa UnequalTimeMeasurement for m in values(mc.measurements))
-        mc.ut_stack = UnequalTimeStack(mc)
+        init_stack(mc, mc.ut_stack)
     end
     nothing
 end
@@ -339,6 +400,7 @@ false if it cancelled early to generate a resumable save-file.
 `DQMC` by default.
 - `sweeps`: Number of measurement sweeps. Uses the value passed to `DQMC` by
 default.
+- `safe_every::TimePeriod`: Set the interval for regularly scheduled saves.
 - `safe_before::Date`: If this date is passed, `run!` will generate a resumable
 save file and exit
 - `grace_period = Minute(5)`: Buffer between the current time and `safe_before`.
@@ -356,6 +418,7 @@ See also: [`resume!`](@ref)
         sweeps::Int = mc.p.sweeps,
         thermalization = mc.p.thermalization,
         safe_before::TimeType = now() + Year(100),
+        safe_every::TimePeriod = Hour(10000),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld",
         overwrite = false
@@ -390,6 +453,7 @@ See also: [`resume!`](@ref)
     total_sweeps = sweeps + thermalization
 
     start_time = now()
+    last_checkpoint = now()
     max_sweep_duration = 0.0
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
@@ -460,6 +524,10 @@ See also: [`resume!`](@ref)
             verbose && println("\nEarly save finished")
 
             return false
+        elseif (now() - last_checkpoint) > safe_every
+            verbose && println("Performing scheduled save.")
+            last_checkpoint = now()
+            save(resumable_filename, mc, overwrite = overwrite, rename = false)
         end
     end
     do_me_measurements && finish!(mc.measurements, mc, mc.model)
@@ -576,6 +644,7 @@ way.
 
 ### Keyword Arguments (both):
 - `verbose = true`: If true, print progress messaged to stdout.
+- `safe_every::TimePeriod`: Set the interval for regularly scheduled saves.
 - `safe_before::Date`: If this date is passed, `replay!` will generate a
 resumable save file and exit
 - `grace_period = Minute(5)`: Buffer between the current time and `safe_before`.
@@ -593,12 +662,14 @@ function replay!(
         ignore = tuple(),
         verbose::Bool = true,
         safe_before::TimeType = now() + Year(100),
+        safe_every::TimePeriod = Hour(10000),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld",
         overwrite = false,
         measure_rate = 1
     )
     start_time = now()
+    last_checkpoint = now()
     max_sweep_duration = 0.0
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
@@ -661,6 +732,10 @@ function replay!(
             verbose && println("\nEarly save finished")
 
             return false
+        elseif (now() - last_checkpoint) > safe_every
+            verbose && println("Performing scheduled save.")
+            last_checkpoint = now()
+            save(resumable_filename, mc, overwrite = overwrite, rename = false)
         end
     end
     finish!(mc.measurements, mc, mc.model)
@@ -695,8 +770,8 @@ end
     _greens!(mc::DQMC[, output=mc.s.greens_temp, input=mc.s.greens, temp=mc.s.Ur])
 """
 function _greens!(
-        mc::DQMC_CBFalse, target::Matrix = mc.s.greens_temp, 
-        source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
+        mc::DQMC_CBFalse, target::AbstractMatrix = mc.s.greens_temp, 
+        source::AbstractMatrix = mc.s.greens, temp::AbstractMatrix = mc.s.Ur
     )
     eThalfminus = mc.s.hopping_matrix_exp
     eThalfplus = mc.s.hopping_matrix_exp_inv
@@ -705,8 +780,8 @@ function _greens!(
     return target
 end
 function _greens!(
-        mc::DQMC_CBTrue, target::Matrix = mc.s.greens_temp, 
-        source::Matrix = mc.s.greens, temp::Matrix = mc.s.Ur
+        mc::DQMC_CBTrue, target::AbstractMatrix = mc.s.greens_temp, 
+        source::AbstractMatrix = mc.s.greens, temp::AbstractMatrix = mc.s.Ur
     )
     chkr_hop_half_minus = mc.s.chkr_hop_half
     chkr_hop_half_plus = mc.s.chkr_hop_half_inv
@@ -749,12 +824,19 @@ end
     _greens!(mc::DQMC, l::Integer[, output=mc.s.greens_temp, temp1=mc.s.tmp1, temp2=mc.s.tmp2])
 """
 function _greens!(
-        mc::DQMC, slice::Integer, 
-        output::Matrix=mc.s.greens_temp, temp1::Matrix=mc.s.tmp1, temp2::Matrix=mc.s.tmp2
+        mc::DQMC, slice::Integer, output::AbstractMatrix = mc.s.greens_temp, 
+        temp1::AbstractMatrix = mc.s.tmp1, temp2::AbstractMatrix = mc.s.tmp2
     )
     calculate_greens(mc, slice, temp1)
     _greens!(mc, output, temp1, temp2)
 end
+
+
+
+################################################################################
+### FileIO
+################################################################################
+
 
 
 #     save_mc(filename, mc, entryname)
@@ -784,7 +866,9 @@ function _load(data, ::Type{T}) where T <: DQMC
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
 
-    mc = data["type"]()
+    CB = data["type"].parameters[2]
+    @assert CB <: Checkerboard
+    mc = DQMC(CB)
     mc.p = _load(data["Parameters"], data["Parameters"]["type"])
     mc.a = _load(data["Analysis"], data["Analysis"]["type"])
     mc.conf = data["conf"]
@@ -795,8 +879,14 @@ function _load(data, ::Type{T}) where T <: DQMC
     measurements = _load(data["Measurements"], Measurements)
     mc.thermalization_measurements = measurements[:TH]
     mc.measurements = measurements[:ME]
-    mc.s = MonteCarlo.DQMCStack{geltype(mc), heltype(mc)}()
-    mc
+    HET = hoppingeltype(DQMC, mc.model)
+    GET = greenseltype(DQMC, mc.model)
+    HMT = hopping_matrix_type(DQMC, mc.model)
+    GMT = greens_matrix_type(DQMC, mc.model)
+    IMT = interaction_matrix_type(DQMC, mc.model)
+    mc.s = DQMCStack{GET, HET, GMT, HMT, IMT}()
+
+    make_concrete!(mc)
 end
 
 #   save_parameters(file::JLDFile, p::DQMCParameters, entryname="Parameters")

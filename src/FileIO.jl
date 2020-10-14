@@ -48,7 +48,7 @@ function save(
         filename = _generate_unique_filename(filename)
     end
 
-    if overwrite
+    if isfile(filename) && overwrite
         parts = splitpath(filename)
         parts[end] = "." * parts[end]
         temp_filename = _generate_unique_filename(joinpath(parts...))
@@ -63,7 +63,7 @@ function save(
     save_rng(file)
     close(file)
 
-    if overwrite
+    if overwrite && isfile(temp_filename)
         rm(temp_filename)
     end
 
@@ -78,7 +78,7 @@ function _generate_unique_filename(filename)
     x = rand("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
     s = "_$(Char(x))"
     parts = split(filename, '.')
-    filename = join(paths, '.') * s
+    filename = join(parts[1:end-1], '.') * s
     while isfile(filename * '.' * parts[end])
         x = rand("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
         s = string(Char(x))
