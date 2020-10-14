@@ -147,6 +147,9 @@ mutable struct DQMC{
         }
         complete!(new{M, CB, ConfType, RT, Stack}(), kwargs)
     end
+    function DQMC(CB::Type{<:Checkerboard}; kwargs...)
+        DQMC{Model, CB, Any, AbstractRecorder, AbstractDQMCStack}(; kwargs...)
+    end
     function DQMC{CB}(
             model::M,
             conf::ConfType,
@@ -168,6 +171,7 @@ mutable struct DQMC{
     end
     DQMC{M, CB, C, RT, S}(args...) where {M, CB, C, RT, S} = DQMC{CB}(args...)
 end
+
 
 function complete!(a::DQMC, kwargs)
     for (field, val) in kwargs
@@ -794,7 +798,9 @@ function _load(data, ::Type{T}) where T <: DQMC
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
 
-    mc = data["type"]()
+    CB = data["type"].parameters[2]
+    @assert CB <: Checkerboard
+    mc = DQMC(CB)
     mc.p = _load(data["Parameters"], data["Parameters"]["type"])
     mc.a = _load(data["Analysis"], data["Analysis"]["type"])
     mc.conf = data["conf"]
