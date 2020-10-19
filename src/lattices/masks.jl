@@ -66,6 +66,7 @@ order. Furthermore each bond is assumed to be of equal length.
 """
 abstract type DistanceMask <: AbstractMask end
 DistanceMask(lattice::AbstractLattice) = MethodError(DistanceMask, (lattice))
+DistanceMask(mc::MonteCarloFlavor, model::Model) = DistanceMask(lattice(model))
 
 # SimpleDistanceMask deals with lattices where each distance vector exists for
 # every site in the lattice (assuming periodic bonds)

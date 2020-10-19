@@ -198,13 +198,14 @@ end
 # if get_all_names = false, return array of fieldnames <: AbstractObservable
 # if get_all_names = true, also return other fieldnames
 function obs_fieldnames_from_obj(obj, get_all_names=false)
+    ObsTypes = Union{AbstractObservable, LogBinner}
     fnames = fieldnames(typeof(obj))
     obs_names = [
-        s for s in fnames if getfield(obj, s) isa AbstractObservable
+        s for s in fnames if getfield(obj, s) isa ObsTypes
     ]
     if get_all_names
         other_names = [
-            s for s in fnames if !(getfield(obj, s) isa AbstractObservable)
+            s for s in fnames if !(getfield(obj, s) isa ObsTypes)
         ]
         return obs_names, other_names
     else

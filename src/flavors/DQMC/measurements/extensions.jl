@@ -1,3 +1,4 @@
+#=
 # Implement struct T <: WrappedObservable with field obs and method
 # (::T)(::Array) to apply its transformation and you get mean, etc
 abstract type WrappedObservable end
@@ -25,7 +26,7 @@ struct Greens2Occupation{T <: AbstractObservable} <: WrappedObservable
     obs::T
 end
 
-occupations(m::GreensMeasurement) = Greens2Occupation(m.obs)
+# occupations(m::GreensMeasurement) = Greens2Occupation(m.obs)
 occupations(obs::AbstractObservable) = Greens2Occupation(obs)
 (::Greens2Occupation)(M::Matrix) = 1 .- diag(M)
 
@@ -62,8 +63,8 @@ measurements.
 
 See also: [`structure_factor`](@ref)
 """
-uniform_fourier(m::PairingCorrelationMeasurement) = UniformFourierWrapped(m.obs)
-uniform_fourier(m::ChargeDensityCorrelationMeasurement) = UniformFourierWrapped(m.obs)
+# uniform_fourier(m::PairingCorrelationMeasurement) = UniformFourierWrapped(m.obs)
+# uniform_fourier(m::ChargeDensityCorrelationMeasurement) = UniformFourierWrapped(m.obs)
 uniform_fourier(m::AbstractMeasurement, field::Symbol) = UniformFourierWrapped(getfield(m, field))
 uniform_fourier(obs::AbstractObservable) = UniformFourierWrapped(obs)
 (::UniformFourierWrapped)(M::AbstractArray) = sum(M) / length(M)
@@ -144,9 +145,9 @@ struct SymmetryWrapped{OT<:AbstractObservable, T} <: WrappedObservable
     formfactor::Vector{T}
 end
 
-function SymmetryWrapped(m::PairingCorrelationMeasurement, formfactor, field=:obs)
-    SymmetryWrapped(getfield(m, field), formfactor)
-end
+# function SymmetryWrapped(m::PairingCorrelationMeasurement, formfactor, field=:obs)
+#     SymmetryWrapped(getfield(m, field), formfactor)
+# end
 
 # TODO constructors?
 # higher order is depended on lattice symmetry and therefore rather complicated
@@ -192,3 +193,4 @@ MonteCarloObservable.varN(x::SymmetryWrapped) = sqrt(sum(varN(x.obs) .^ 2))
 MonteCarloObservable.std(x::SymmetryWrapped)  = sqrt(sum(std(x.obs) .^ 2))
 MonteCarloObservable.std_error(x::SymmetryWrapped) = sqrt(sum(std_error(x.obs) .^ 2))
 
+=#

@@ -251,7 +251,7 @@ function DQMC(m::M;
         seed::Int=-1,
         checkerboard::Bool=false,
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
-        measurements = :default,
+        measurements = Dict{Symbol, AbstractMeasurement}(),
         last_sweep = 0,
         recorder = ConfigRecorder,
         measure_rate = 10,
@@ -277,16 +277,14 @@ function DQMC(m::M;
     # TODO add uninitalized UnequalTimeStack 
     mc = DQMC{M, CB, typeof(conf), recorder, DQMCStack, AbstractDQMCStack}(
         model = m, conf = conf, last_sweep = last_sweep, s = stack,
-        ut_stack = ut_stack, p = p, a = analysis
+        ut_stack = ut_stack, p = p, a = analysis,
+        thermalization_measurements = thermalization_measurements,
+        measurements = measurements
     )
 
     mc.configs = recorder(mc, m, recording_rate)
 
-    init!(
-        mc, seed = seed, conf = conf,
-        thermalization_measurements = thermalization_measurements,
-        measurements = measurements
-    )
+    init!(mc, seed = seed, conf = conf)
     return make_concrete!(mc)
 end
 
@@ -342,12 +340,7 @@ end
 Initialize the determinant quantum Monte Carlo simulation `mc`.
 If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
 """
-function init!(mc::DQMC;
-        seed::Real = -1,
-        conf = rand(DQMC,model(mc),nslices(mc)),
-        thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
-        measurements = :default
-    )
+function init!(mc::DQMC; seed::Real = -1, conf = rand(DQMC,model(mc),nslices(mc)))
     seed == -1 || Random.seed!(seed)
 
     mc.conf = conf
@@ -355,35 +348,10 @@ function init!(mc::DQMC;
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc, mc.s)
 
-    mc.thermalization_measurements = thermalization_measurements
-    if measurements isa Dict{Symbol, AbstractMeasurement}
-        mc.measurements = measurements
-    elseif measurements == :default
-        mc.measurements = default_measurements(mc, mc.model)
-    else
-        @warn(
-            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}" *
-            ", but is $(typeof(measurements)). No measurements have been set."
-        )
-        mc.measurements = Dict{Symbol, AbstractMeasurement}()
-    end
-
     if any(m isa UnequalTimeMeasurement for m in mc.measurements)
         init_stack(mc, mc.ut_stack)
     end
 
-    nothing
-end
-
-
-# Only the stack and DQMCAnalysis need to be intiialized when resuming.
-# Everything else is loaded from the save file.
-function resume_init!(mc::DQMC)
-    init_hopping_matrices(mc, mc.model)
-    initialize_stack(mc, mc.s)
-    if any(m isa UnequalTimeMeasurement for m in values(mc.measurements))
-        init_stack(mc, mc.ut_stack)
-    end
     nothing
 end
 
@@ -424,13 +392,6 @@ See also: [`resume!`](@ref)
         overwrite = false
     )
 
-    # Check for measurements
-    do_th_measurements = !isempty(mc.thermalization_measurements)
-    do_me_measurements = !isempty(mc.measurements)
-    !do_me_measurements && @warn(
-        "There are no measurements set up for this simulation!"
-    )
-
     # Update number of sweeps
     if (mc.p.thermalization != thermalization) || (mc.p.sweeps != sweeps)
         verbose && println("Rebuilding DQMCParameters with new number of sweeps.")
@@ -452,6 +413,9 @@ See also: [`resume!`](@ref)
     end
     total_sweeps = sweeps + thermalization
 
+    # Generate measurement groups
+    groups = generate_groups(mc, mc.model, collect(values(mc.measurements)))
+
     start_time = now()
     last_checkpoint = now()
     max_sweep_duration = 0.0
@@ -465,27 +429,23 @@ See also: [`resume!`](@ref)
 
     _time = time()
     verbose && println("\n\nThermalization stage - ", thermalization)
-    do_th_measurements && prepare!(mc.thermalization_measurements, mc, mc.model)
-    # dqmc.last_sweep:total_sweeps won't change when last_sweep is changed
+    # do_th_measurements && prepare!(mc.thermalization_measurements, mc, mc.model)
+    # mc.last_sweep:total_sweeps won't change when last_sweep is changed
     for i in mc.last_sweep+1:total_sweeps
         verbose && (i == thermalization + 1) && println("\n\nMeasurement stage - ", sweeps)
         for u in 1:2 * nslices(mc)
             update(mc, i)
 
-            # For optimal performance whatever is most likely to fail should be
-            # checked first.
-            if current_slice(mc) == 1 && i <= thermalization && mc.s.direction == 1 &&
-                    iszero(mod(i, mc.p.measure_rate)) && do_th_measurements
+            if current_slice(mc) == 1 && i ≤ thermalization && 
+                mc.s.direction == 1 && iszero(i % mc.p.measure_rate)
                 measure!(mc.thermalization_measurements, mc, mc.model, i)
-            end
-            if (i == thermalization+1)
-                do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
-                do_me_measurements && prepare!(mc.measurements, mc, mc.model)
             end
             if current_slice(mc) == 1 && mc.s.direction == 1 && i > thermalization
                 push!(mc.configs, mc, mc.model, i)
-                if iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
-                    measure!(mc.measurements, mc, mc.model, i)
+                if iszero(i % mc.p.measure_rate)
+                    for (requirement, group) in groups
+                        apply!(requirement, group, mc, mc.model, i)
+                    end
                 end
             end
         end
@@ -530,7 +490,6 @@ See also: [`resume!`](@ref)
             save(resumable_filename, mc, overwrite = overwrite, rename = false)
         end
     end
-    do_me_measurements && finish!(mc.measurements, mc, mc.model)
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
@@ -680,6 +639,9 @@ function replay!(
     isempty(mc.measurements) && @warn(
         "There are no measurements set up for this simulation!"
     )
+    # Generate measurement groups
+    groups = generate_groups(mc, mc.model, collect(values(mc.measurements)))
+
 
     if measure_rate != mc.p.measure_rate
         mc.p = DQMCParameters(
@@ -692,12 +654,10 @@ function replay!(
     end
 
     verbose && println("Preparing Green's function stack")
-    resume_init!(mc)
-    initialize_stack(mc, mc.s) # redundant ?!
+    init!(mc)
     build_stack(mc, mc.s)
     propagate(mc)
     mc.s.current_slice = 1
-    mc.conf = rand(DQMC, mc.model, nslices(mc))
 
     _time = time()
     verbose && println("\n\nReplaying measurement stage - ", length(configurations))
@@ -705,9 +665,8 @@ function replay!(
     for i in mc.last_sweep+1:mc.p.measure_rate:length(configurations)
         copyto!(mc.conf, decompress(mc, mc.model, configurations[i]))
         calculate_greens(mc, 0) # outputs to mc.s.greens
-        for (k, m) in mc.measurements
-            k in ignore && continue
-            measure!(m, mc, mc.model, i)
+        for (requirement, group) in groups
+            apply!(requirement, group, mc, mc.model, i)
         end
         mc.last_sweep = i
 
@@ -972,6 +931,4 @@ end
 
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")
-include("measurements/equal_time_measurements.jl")
-include("measurements/unequal_time.jl")
-include("measurements/extensions.jl")
+include("measurements/measurements.jl")
