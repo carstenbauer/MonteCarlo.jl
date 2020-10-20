@@ -105,7 +105,7 @@ requires(::AbstractMeasurement) = (Nothing, Nothing)
 requires(::DQMCMeasurement{GI, LI}) where {GI, LI} = (GI, LI)
 
 
-function generate_groups(mc, model, measurements)
+@bm function generate_groups(mc, model, measurements)
     # maybe instead:
     requirements = requires.(measurements)
     GIs = tuple(unique(first.(requirements))...)
@@ -158,14 +158,14 @@ end
 
 
 
-function apply!(::Nothing, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+@bm function apply!(::Nothing, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
     for (lattice_iterator, measurement) in combined
         measure!(lattice_iterator, measurement, mc, model, sweep)
     end
     nothing
 end
 
-function apply!(::Greens, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+@bm function apply!(::Greens, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
     G = greens(mc)
     for (lattice_iterator, measurement) in combined
         measure!(lattice_iterator, measurement, mc, model, sweep, G)
@@ -173,7 +173,7 @@ function apply!(::Greens, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
     nothing
 end
 
-function apply!(iter::CombinedGreensIterator, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+@bm function apply!(iter::CombinedGreensIterator, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
     G00 = greens(mc)
     for (Gkk, Gkl) in iter
         for (lattice_iterator, measurement) in combined
@@ -191,15 +191,19 @@ end
 
 
 
-function measure!(lattice_iterator, measurement, mc::DQMC, model, sweep, args...)
+@bm function measure!(lattice_iterator, measurement, mc::DQMC, model, sweep, args...)
     # ignore sweep
-    apply!(lattice_iterator, measurement, mc, model, args...)
-    push!(measurement.observable, measurement.output)
+    @bm "[1] apply" begin
+        apply!(lattice_iterator, measurement, mc, model, args...)
+    end
+    @bm "[2] push!" begin
+        push!(measurement.observable, measurement.output)
+    end
     nothing
 end
 
 # Lattice irrelevant
-function measure!(::Nothing, measurement, mc::DQMC, model, sweep, args...)
+@bm function measure!(::Nothing, measurement, mc::DQMC, model, sweep, args...)
     push!(measurement.observable, measurement.kernel(mc, model, args...))
     nothing
 end
@@ -213,7 +217,7 @@ end
 
 
 # Call kernel for each site (linear index)
-function apply!(iter::EachSite, measurement, mc::DQMC, model, args...)
+@bm function apply!(iter::EachSite, measurement, mc::DQMC, model, args...)
     for i in iter
         measurement.output[i] = measurement.kernel(mc, model, i, args...)
     end
@@ -221,7 +225,7 @@ function apply!(iter::EachSite, measurement, mc::DQMC, model, args...)
 end
 
 # Call kernel for each pair (src, trg) (Nsties² total)
-function apply!(iter::EachSitePair, measurement, mc::DQMC, model, args...)
+@bm function apply!(iter::EachSitePair, measurement, mc::DQMC, model, args...)
     for (i, j) in iter
         measurement.output[i, j] = measurement.kernel(mc, model, i, j, args...)
     end
@@ -229,7 +233,7 @@ function apply!(iter::EachSitePair, measurement, mc::DQMC, model, args...)
 end
 
 # Call kernel for each pair (site, site) (i.e. on-site) 
-function apply!(iter::OnSite, measurement, mc::DQMC, model, args...)
+@bm function apply!(iter::OnSite, measurement, mc::DQMC, model, args...)
     for (i, j) in iter
         measurement.output[i] = measurement.kernel(mc, model, i, j, args...)
     end
@@ -237,7 +241,7 @@ function apply!(iter::OnSite, measurement, mc::DQMC, model, args...)
 end
 
 # Call kernel for each pair (src, trg) and sum those that point in the same direction
-function apply!(iter::EachSitePairByDistance, measurement, mc::DQMC, model, args...)
+@bm function apply!(iter::EachSitePairByDistance, measurement, mc::DQMC, model, args...)
     measurement.output .= zero(eltype(measurement.output))
     for (dir, src, trg) in iter
         measurement.output[dir] += measurement.kernel(mc, model, src, trg, args...)
@@ -249,7 +253,7 @@ end
 # Call kernel for each pair (src1, trg1, src2, trg) and sum those that have the 
 # same `dir12 = pos[src2] - pos[src1]`, `dir1 = pos[trg1] - pos[src1]` and 
 # `dir2 = pos[trg2] - pos[src2]`
-function apply!(iter::EachLocalQuadByDistance, measurement, mc::DQMC, model, args...)
+@bm function apply!(iter::EachLocalQuadByDistance, measurement, mc::DQMC, model, args...)
     measurement.output .= zero(eltype(measurement.output))
     for (dir12, dir1, dir2, src1, trg1, src2, trg2) in iter
         measurement.output[dir12, dir1, dir2] += measurement.kernel(

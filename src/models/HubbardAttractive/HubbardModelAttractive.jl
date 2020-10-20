@@ -211,3 +211,36 @@ function _load(data, ::Type{T}) where T <: HubbardModelAttractive
         flv = data["flv"]
     )
 end
+
+
+# Need some measurement overwrites because nflavors = 1
+checkflavors(::HubbardModelAttractive) = nothing
+
+function cdc_kernel(mc, ::HubbardModelAttractive, i, j, G)
+    # spin up and down symmetric, so i+N = i
+    4 * (1 - G[i, i]) * (1 - G[j, j]) +
+    2 * (I[j, i] - G[j, i]) * G[i, j] - 2 * G[j, i] * G[i, j]
+end
+
+mx_kernel(mc, ::HubbardModelAttractive, i, G) = -2 * G[i, i]
+my_kernel(mc, ::HubbardModelAttractive, i, G) = 0.0
+mz_kernel(mc, ::HubbardModelAttractive, i, G) = 0.0
+
+function sdc_x_kernel(mc, ::HubbardModelAttractive, i, j, G)
+    4 * G[i, i] * G[j, j] +
+    2 * (I[j, i] - G[j, i]) * G[i, j] - 
+    2 * G[j, i] * G[i, j]
+end
+function sdc_y_kernel(mc, ::HubbardModelAttractive, i, j, G)
+    2 * G[j, i] * G[i, j] + 2 * G[i, i] * G[j, j] + 
+    2 * (I[j, i] - G[j, i]) * G[i, j] - 2 * G[i, i] * G[j, j] 
+end
+function sdc_z_kernel(mc, ::HubbardModelAttractive, i, j, G)
+    2 * G[j, i] * G[i, j] +
+    (I[j, i] - G[j, i]) * G[i, j] + 
+    (1 - G[j, i]) * G[i, j]
+end
+
+function pc_kernel(mc, ::HubbardModelAttractive, src1, src2, trg1, trg2, G)
+    G[src1, src2] * G[trg1, trg2] - G[src1, trg2] * G[trg1, src2]
+end
