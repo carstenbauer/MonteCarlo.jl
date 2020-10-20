@@ -63,28 +63,20 @@ end
 
 @inline neighbors_lookup_table(l::LatPhysLattice) = copy(l.neighs)
 
-
 positions(lattice::LatPhysLattice) = point.(sites(lattice.lattice))
+lattice_vectors(l::LatPhysLattice) = latticeVectors(l.lattice)
 
+
+# TODO
 function DistanceMask(lattice::LatPhysLattice)
     wrap = generate_combinations(latticeVectors(lattice.lattice))
     VerboseDistanceMask(lattice, wrap)
 end
 
 function directions(mask::VerboseDistanceMask, lattice::LatPhysLattice)
-    pos = MonteCarlo.positions(lattice)
+    pos = positions(lattice)
     dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
-    # marked = Set{Int64}()
-    # dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
-    # for src in 1:size(mask.targets, 1)
-    #     for (idx, trg) in mask.targets[src, :]
-    #         if !(idx in marked)
-    #             push!(marked, idx)
-    #             dirs[idx] = pos[trg] - pos[src]
-    #         end
-    #     end
-    # end
-    wrap = MonteCarlo.generate_combinations(latticeVectors(lattice.lattice))
+    wrap = generate_combinations(latticeVectors(lattice.lattice))
     map(dirs) do _d
         d = round.(_d .+ wrap[1], digits=6)
         for v in wrap[2:end]

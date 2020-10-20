@@ -215,22 +215,22 @@ end
 
 
 # printing
-function Base.show(io::IO, m::AbstractMeasurement)
-    #  no parametrization -v    v- no MonteCarlo.
-    typename = typeof(m).name.name
-    observables, other = obs_fieldnames_from_obj(m, true)
-    println(io, typename)
-    for obs_fieldname in observables
-        o = getfield(m, obs_fieldname)
-        oname = MonteCarloObservable.name(o)
-        otypename = typeof(o).name.name
-        println(io, "\t", obs_fieldname, "::", otypename, "\t → \"", oname, "\"")
-    end
-    for fieldname in other
-        println(io, "\t", fieldname, "::", typeof(getfield(m, fieldname)))
-    end
-    nothing
-end
+# function Base.show(io::IO, m::AbstractMeasurement)
+#     #  no parametrization -v    v- no MonteCarlo.
+#     typename = typeof(m).name.name
+#     observables, other = obs_fieldnames_from_obj(m, true)
+#     println(io, typename)
+#     for obs_fieldname in observables
+#         o = getfield(m, obs_fieldname)
+#         oname = MonteCarloObservable.name(o)
+#         otypename = typeof(o).name.name
+#         println(io, "\t", obs_fieldname, "::", otypename, "\t → \"", oname, "\"")
+#     end
+#     for fieldname in other
+#         println(io, "\t", fieldname, "::", typeof(getfield(m, fieldname)))
+#     end
+#     nothing
+# end
 
 function Base.show(io::IO, ::MIME"text/plain", m::AbstractMeasurement)
     #small
@@ -355,7 +355,7 @@ Base.getindex(mc::MonteCarloFlavor, k) = getindex(measurements(mc), k)
 # Allow `mc[:M] = MagnetizationMeasurement(mc, model)` to add measurements
 Base.setindex!(mc::MonteCarloFlavor, v, k) = setindex!(measurements(mc), v, k)
 # Allow `keys(dqmc)` to get measurement keys
-Base.keys(mc::MonteCarloFlavor, k) = keys(measurements(mc))
+Base.keys(mc::MonteCarloFlavor) = keys(measurements(mc))
 
 
 """

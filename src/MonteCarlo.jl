@@ -31,6 +31,7 @@ include("Measurements.jl")
 export measurements, observables
 
 include("lattices/masks.jl")
+include("lattices/lattice_iterators.jl")
 include("lattices/square.jl")
 include("lattices/chain.jl")
 include("lattices/cubic.jl")

@@ -87,6 +87,7 @@ indicate the trait.
 """
 struct HasBondsTable <: LatticeProperties end
 
+
 has_neighbors_table(::AbstractLattice) = nothing
 has_bonds_table(::AbstractLattice) = nothing
 

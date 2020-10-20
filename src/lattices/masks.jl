@@ -171,14 +171,6 @@ function directions(mask::VerboseDistanceMask, lattice::AbstractLattice)
     dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
     dirs
 end
-# For shifting sites across periodic bounds
-function generate_combinations(vs::Vector{Vector{Float64}})
-    out = [zeros(length(vs[1]))]
-    for v in vs
-        out = vcat([e.-v for e in out], out, [e.+v for e in out])
-    end
-    out
-end
 function VerboseDistanceMask(lattice, wrap)
     _positions = positions(lattice)
     directions = Vector{Float64}[]

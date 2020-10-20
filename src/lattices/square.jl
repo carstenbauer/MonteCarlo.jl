@@ -71,4 +71,8 @@ has_neighbors_table(::SquareLattice) = HasNeighborsTable()
 has_bonds_table(::SquareLattice) = HasBondsTable()
 
 positions(l::SquareLattice) = l.lattice |> CartesianIndices .|> Tuple .|> collect
+lattice_vectors(l::SquareLattice) = [[l.L, 0], [0, l.L]]
+
+
+# TODO remove?
 DistanceMask(lattice::SquareLattice) = default_distance_mask(lattice)
