@@ -47,6 +47,9 @@ include("flavors/DQMC/DQMC.jl")
 export GreensMeasurement, BosonEnergyMeasurement, OccupationMeasurement,
         ChargeDensityCorrelationMeasurement, SpinDensityCorrelationMeasurement,
         MagnetizationMeasurement, PairingCorrelationMeasurement
+export boson_energy_measurement, PC_measurement, SDC_measurement, 
+       magnetization_measurement, CDC_measurement, occupation_measurement, 
+       greens_measurement
 export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")

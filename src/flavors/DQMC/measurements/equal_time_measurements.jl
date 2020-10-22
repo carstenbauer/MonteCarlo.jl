@@ -27,7 +27,7 @@ greens_kernel(mc, model, G) = G
 
 
 function occupation_measurement(mc::DQMC, model::Model, kwargs...)
-    Measurement(mc, model, Greens, EachSite, occupation_kernel; kwargs...)
+    Measurement(mc, model, Greens, EachSiteAndFlavor, occupation_kernel; kwargs...)
 end
 occupation_kernel(mc, model, i, G) = 1 - G[i, i]
 
@@ -126,18 +126,18 @@ function sdc_z_kernel(mc, model, i, j, G)
     (1 - G[i, i]) * (1 - G[j, j])         + (I[j, i] - G[j, i]) * G[i, j] -
     (1 - G[i, i]) * (1 - G[j+N, j+N])     + G[j+N, i] * G[i, j+N] -
     (1 - G[i+N, i+N]) * (1 - G[j, j])     + G[j, i+N] * G[i+N, j] +
-    (1 - G[i+N, i+N]) * (1 - G[j+N, j+N]) + (1 - G[j+N, i+N]) * G[i+N, j+N]
+    (1 - G[i+N, i+N]) * (1 - G[j+N, j+N]) + (I[j+N, i+N] - G[j+N, i+N]) * G[i+N, j+N]
 end
 
 
 
 
-function pc_measurement(dqmc, model; K = 1+length(neighbors(lattice(model), 1)),
+function PC_measurement(dqmc, model; K = 1+length(neighbors(lattice(model), 1)),
         mask_iter = EachLocalQuadByDistance{K}, kwargs...
     )
     Measurement(dqmc, model, Greens, mask_iter, pc_kernel; kwargs...)
 end
-function pc_kernel(mc, model, src1, src2, trg1, trg2, G)
+function pc_kernel(mc, model, src1, trg1, src2, trg2, G)
     N = length(lattice(model))
     # verified against ED for each (src1, src2, trg1, trg2)
     # G_{i, j}^{↑, ↑} G_{i+d, j+d}^{↓, ↓} - G_{i, j+d}^{↑, ↓} G_{i+d, j}^{↓, ↑}

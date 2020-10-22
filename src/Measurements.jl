@@ -57,7 +57,7 @@ end
 
 
 """
-    save_measurement(filename, measurement, entryname)
+    _save(filename, measurement, entryname)
 
 Saves a measurement to a jld-file `filename` in group `entryname`.
 
@@ -69,7 +69,7 @@ measurement phase.
 
 See also [`save_measurements`](@ref), [`measurements`](@ref), [`_load`](@ref)
 """
-function save_measurement(file::JLDFile, m::AbstractMeasurement, entryname::String)
+function _save(file::JLDFile, m::AbstractMeasurement, entryname::String)
     # NOTE: `VERSION` and `type` are necessary
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/type", typeof(m))
@@ -542,7 +542,7 @@ function save_measurements(file::JLDFile, mc::MonteCarloFlavor, entryname::Strin
     for (k0, v0) in measurement_dict # :TH or :ME
         for (k1, meas) in v0 # Measurement name
             _entryname = entryname * "$k0/$k1"
-            save_measurement(file, meas, _entryname)
+            _save(file, meas, _entryname)
         end
     end
 end

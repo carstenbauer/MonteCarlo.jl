@@ -3,6 +3,30 @@ abstract type AbstractLatticeIterator end
 
 
 ################################################################################
+### EachSiteAndFlavor
+################################################################################
+
+
+
+"""
+    EachSiteAndFlavor(mc, model)
+
+Creates an iterator which iterates through the diagonal of the Greensfunctio
+"""
+struct EachSiteAndFlavor <: AbstractLatticeIterator
+    N::Int64
+end
+function EachSiteAndFlavor(mc::MonteCarloFlavor, model::Model)
+    EachSiteAndFlavor(length(lattice(model)) * nflavors(model))
+end
+
+Base.iterate(iter::EachSiteAndFlavor, i=1) = i ≤ iter.N ? (i, i+1) : nothing 
+Base.length(iter::EachSiteAndFlavor) = iter.N
+Base.eltype(::EachSiteAndFlavor) = Int64
+
+
+
+################################################################################
 ### EachSite
 ################################################################################
 

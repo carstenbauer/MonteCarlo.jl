@@ -85,6 +85,7 @@ _get_shape(model, mask::DistanceMask) = length(mask)
 _get_shape(mc, model, LI::Type) = _get_shape(model, LI(mc, model))
 _get_shape(model, ::Nothing) = nothing
 _get_shape(model, ::EachSite) = length(lattice(model))
+_get_shape(model, ::EachSiteAndFlavor) = nflavors(model) * length(lattice(model))
 _get_shape(model, ::EachSitePair) = (length(lattice(model)), length(lattice(model)))
 _get_shape(model, iter::EachSitePairByDistance) = ndirections(iter)
 _get_shape(model, iter::EachLocalQuadByDistance) = ndirections(iter)
@@ -130,24 +131,23 @@ requires(::DQMCMeasurement{GI, LI}) where {GI, LI} = (GI, LI)
 end
 
 
+lattice_iterator(::DQMCMeasurement{GI, LI}, mc, model) where {GI, LI} = LI(mc, model)
+
+
 function _save(file::JLDFile, m::DQMCMeasurement{GI, LI}, key::String) where {GI, LI}
     write(file, "$key/VERSION", 1)
-    write(file, "$key/type", typeof(m))
-    # for the future I guess
-    # write(file, "$key/ID", "DQMCMeasurement")
-    # write(file, "$key/GI", GI)
-    # write(file, "$key/LI", LI)
-    write(file, "$key/kernel", m.kernel)
-    write(file, "$key/obs", m.obs)
-    write(file, "$key/ouput", m.output)
+    write(file, "$key/type", DQMCMeasurement)
+    write(file, "$key/GI", GI)
+    write(file, "$key/LI", LI)
+    write(file, "$key/kernel", Symbol(m.kernel))
+    write(file, "$key/obs", m.observable)
+    write(file, "$key/output", m.output)
 end
 
 function _load(data, ::Type{T}) where {T <: DQMCMeasurement}
-    # for the future
-    # DQMCMeasurement{data["GI"], data["LI"]}(
-    #     data["kernel"], data["obs"], data["output"]
-    # )
-    T(data["kernel"], data["obs"], data["output"])
+    DQMCMeasurement{data["GI"], data["LI"]}(
+        eval(data["kernel"]), data["obs"], data["output"]
+    )
 end
 
 
@@ -167,9 +167,11 @@ end
 
 @bm function apply!(::Greens, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
     G = greens(mc)
+    x = copy(G)
     for (lattice_iterator, measurement) in combined
         measure!(lattice_iterator, measurement, mc, model, sweep, G)
     end
+    @assert x == G
     nothing
 end
 
@@ -215,6 +217,14 @@ end
 ################################################################################
 
 
+
+# Call kernel for each site (linear index)
+@bm function apply!(iter::EachSiteAndFlavor, measurement, mc::DQMC, model, args...)
+    for i in iter
+        measurement.output[i] = measurement.kernel(mc, model, i, args...)
+    end
+    nothing
+end
 
 # Call kernel for each site (linear index)
 @bm function apply!(iter::EachSite, measurement, mc::DQMC, model, args...)
@@ -266,72 +276,4 @@ end
 
 
 include("equal_time_measurements.jl")
-
-
-
-################################################################################
-#=
-
-
-function PairingCorrelationMeasurement(
-        mc::DQMC, model; 
-        mask = DistanceMask(lattice(model)), 
-        directions = 10,
-        capacity = _default_capacity(mc)
-    )
-    mask isa RawMask && @error(
-        "The Pairing Correlation Measurement will be extremely large with a RawMask!" *
-        " (Estimate: $(ceil(Int64, log2(capacity))*3*length(lattice(model))^4*8 / 1024 / 1024)MB)"
-    )
-    rsm = RestrictedSourceMask(mask, directions)
-    T = greenseltype(DQMC, model)
-    shape = (length(mask), directions, directions)
-
-    obs1 = LightObservable(
-        LogBinner(zeros(T, shape), capacity=capacity),
-        "Equal time pairing correlation matrix",
-        "observables.jld",
-        "etpc-s"
-    )
-    temp = zeros(T, shape)
-    PairingCorrelationMeasurement(obs1, temp, mask, rsm)
-end
-function measure!(m::PairingCorrelationMeasurement, mc::DQMC, model, i::Int64)
-    N = length(lattice(model))
-    G = greens(mc, model)
-    # Pᵢⱼ = ⟨ΔᵢΔⱼ^†⟩
-    #     = ⟨c_{i, ↑} c_{i+d, ↓} c_{j+d, ↓}^† c_{j, ↑}^†⟩
-    #     = ⟨c_{i, ↑} c_{j, ↑}^†⟩ ⟨c_{i+d, ↓} c_{j+d, ↓}^†⟩ -
-    #       ⟨c_{i, ↑} c_{j+d, ↓}^†⟩ ⟨c_{i+d, ↓} c_{j, ↑}^†⟩
-    #     = G_{i, j}^{↑, ↑} G_{i+d, j+d}^{↓, ↓} - 
-    #       G_{i, j+d}^{↑, ↓} G_{i+d, j}^{↓, ↑}
-
-    # Doesn't require IG
-    mask_kernel!(m, m.mask, m.rsm, G, G, _pc_s_wave_kernel, m.temp)
-    push!(m.obs, m.temp ./ N)
-end
-
-function mask_kernel!(
-        m::PairingCorrelationMeasurement,
-        mask::DistanceMask, rsm::RestrictedSourceMask,
-        IG, G, kernel::Function, output
-    )
-    output .= zero(eltype(output))
-    # Compute   Δ_v(r_1, Δr_1) Δ_v^†(r_2, Δr_2)
-    # where we write r_2 = r_1 + Δr and sum over r_1
-    for (dir_idx, src1, src2) in getorder(mask)
-        for (i, trg1) in getorder(rsm, src1)
-            for (j, trg2) in getorder(rsm, src2)
-                output[dir_idx, i, j] += kernel(IG, G, src1, src2, trg1, trg2)
-            end
-        end
-    end
-    output
-end
-function _pc_s_wave_kernel(IG, G, src1, src2, trg1, trg2)
-    N = div(size(IG, 1), 2)
-    # verified against ED for each (src1, src2, trg1, trg2)
-    # G_{i, j}^{↑, ↑} G_{i+d, j+d}^{↓, ↓} - G_{i, j+d}^{↑, ↓} G_{i+d, j}^{↓, ↑}
-    G[src1, src2] * G[trg1+N, trg2+N] - G[src1, trg2+N] * G[trg1+N, src2]
-end
-=#
+include("unequal_time.jl")

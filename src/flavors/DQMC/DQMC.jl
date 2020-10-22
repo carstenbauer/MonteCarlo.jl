@@ -354,6 +354,8 @@ function init!(mc::DQMC; seed::Real = -1, conf = rand(DQMC,model(mc),nslices(mc)
 
     nothing
 end
+resume_init!(mc::DQMC; kwargs...) = init!(mc; kwargs...)
+@deprecate resume_init!(mc; kwargs...) init!(mc; kwargs...) false
 
 
 """
@@ -640,7 +642,10 @@ function replay!(
         "There are no measurements set up for this simulation!"
     )
     # Generate measurement groups
-    groups = generate_groups(mc, mc.model, collect(values(mc.measurements)))
+    groups = generate_groups(
+        mc, mc.model, 
+        [mc.measurements[k] for k in keys(mc.measurements) if !(k in ignore)]
+    )
 
 
     if measure_rate != mc.p.measure_rate
