@@ -342,20 +342,18 @@ If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed
 """
 function init!(mc::DQMC; seed::Real = -1, conf = rand(DQMC,model(mc),nslices(mc)))
     seed == -1 || Random.seed!(seed)
-
     mc.conf = conf
-
-    init_hopping_matrices(mc, mc.model)
-    initialize_stack(mc, mc.s)
-
-    if any(m isa UnequalTimeMeasurement for m in mc.measurements)
-        init_stack(mc, mc.ut_stack)
-    end
-
+    resume_init!(mc)
     nothing
 end
-resume_init!(mc::DQMC; kwargs...) = init!(mc; kwargs...)
-@deprecate resume_init!(mc; kwargs...) init!(mc; kwargs...) false
+function resume_init!(mc::DQMC; kwargs...)
+    init_hopping_matrices(mc, mc.model)
+    initialize_stack(mc, mc.s)
+    if any(m isa UnequalTimeMeasurement for m in values(mc.measurements))
+        init_stack(mc, mc.ut_stack)
+    end
+    nothing
+end
 
 
 """
@@ -659,11 +657,12 @@ function replay!(
     end
 
     verbose && println("Preparing Green's function stack")
-    init!(mc)
+    resume_init!(mc)
     build_stack(mc, mc.s)
     propagate(mc)
     mc.s.current_slice = 1
-
+    mc.conf = rand(DQMC, mc.model, nslices(mc))
+    
     _time = time()
     verbose && println("\n\nReplaying measurement stage - ", length(configurations))
     prepare!(mc.measurements, mc, mc.model)
