@@ -53,7 +53,7 @@ export boson_energy_measurement, PC_measurement, SDC_measurement,
 export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")
-include("models/HubbardAttractive/HubbardModel.jl")
+include("models/HubbardModel/HubbardModel.jl")
 export IsingEnergyMeasurement, IsingMagnetizationMeasurement
 
 include("FileIO.jl")

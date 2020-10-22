@@ -114,6 +114,11 @@ end
         G1 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice))
         G2 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice, slice))
         @test maximum(abs.(G1 .- G2)) < 1e-14
+        if !(maximum(abs.(G1 .- G2)) < 1e-14)
+            @info slice
+            println("G1 = $G1")
+            println("G2 = $G2")
+        end
     end
 
 

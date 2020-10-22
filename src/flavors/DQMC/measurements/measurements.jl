@@ -158,28 +158,52 @@ end
 
 
 @bm function apply!(::Nothing, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+    # Clear output if necessary
+    for (lattice_iterator, measurement) in combined
+        prepare!(lattice_iterator, model, measurement)
+    end
+
     for (lattice_iterator, measurement) in combined
         measure!(lattice_iterator, measurement, mc, model, sweep)
+    end
+
+    # Finalize output (normalization) if necessary and commit
+    for (lattice_iterator, measurement) in combined
+        finish!(lattice_iterator, model, measurement)
     end
     nothing
 end
 
 @bm function apply!(::Greens, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+    for (lattice_iterator, measurement) in combined
+        prepare!(lattice_iterator, model, measurement)
+    end
+
     G = greens(mc)
-    x = copy(G)
     for (lattice_iterator, measurement) in combined
         measure!(lattice_iterator, measurement, mc, model, sweep, G)
     end
-    @assert x == G
+    
+    for (lattice_iterator, measurement) in combined
+        finish!(lattice_iterator, model, measurement)
+    end
     nothing
 end
 
 @bm function apply!(iter::CombinedGreensIterator, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+    for (lattice_iterator, measurement) in combined
+        prepare!(lattice_iterator, model, measurement)
+    end
+
     G00 = greens(mc)
     for (Gkk, Gkl) in iter
         for (lattice_iterator, measurement) in combined
             measure!(lattice_iterator, measurement, mc, model, sweep, G00, Gkk, Gkl)
         end
+    end
+
+    for (lattice_iterator, measurement) in combined
+        finish!(lattice_iterator, model, measurement)
     end
     nothing
 end
@@ -194,12 +218,7 @@ end
 
 @bm function measure!(lattice_iterator, measurement, mc::DQMC, model, sweep, args...)
     # ignore sweep
-    @bm "[1] apply" begin
-        apply!(lattice_iterator, measurement, mc, model, args...)
-    end
-    @bm "[2] push!" begin
-        push!(measurement.observable, measurement.output)
-    end
+    apply!(lattice_iterator, measurement, mc, model, args...)
     nothing
 end
 
@@ -212,8 +231,27 @@ end
 
 
 ################################################################################
-### Mask related
+### LatticeIterator related
 ################################################################################
+
+
+
+# If LatticeIterator is Nothing, then things should be handled in measure!
+prepare!(::Nothing, model, m) = nothing
+prepare!(::AbstractLatticeIterator, model, m) = nothing
+prepare!(::EachLocalQuadByDistance, model, m) = m.output .= zero(eltype(m.output))
+prepare!(::EachSitePairByDistance,  model, m) = m.output .= zero(eltype(m.output))
+
+finish!(::Nothing, model, m) = nothing
+finish!(::AbstractLatticeIterator, model, m) = push!(m.observable, m.output)
+function finish!(::EachSitePairByDistance, model, m)
+    m.output ./= length(lattice(model))
+    push!(m.observable, m.output)
+end
+function finish!(::EachLocalQuadByDistance, model, m)
+    m.output ./= length(lattice(model))
+    push!(m.observable, m.output)
+end
 
 
 
@@ -251,11 +289,9 @@ end
 
 # Call kernel for each pair (src, trg) and sum those that point in the same direction
 @bm function apply!(iter::EachSitePairByDistance, measurement, mc::DQMC, model, args...)
-    measurement.output .= zero(eltype(measurement.output))
     for (dir, src, trg) in iter
         measurement.output[dir] += measurement.kernel(mc, model, src, trg, args...)
     end
-    measurement.output ./= length(lattice(model))
     nothing
 end
 
@@ -263,13 +299,11 @@ end
 # same `dir12 = pos[src2] - pos[src1]`, `dir1 = pos[trg1] - pos[src1]` and 
 # `dir2 = pos[trg2] - pos[src2]`
 @bm function apply!(iter::EachLocalQuadByDistance, measurement, mc::DQMC, model, args...)
-    measurement.output .= zero(eltype(measurement.output))
     for (dir12, dir1, dir2, src1, trg1, src2, trg2) in iter
         measurement.output[dir12, dir1, dir2] += measurement.kernel(
             mc, model, src1, trg1, src2, trg2, args...
         )
     end
-    measurement.output ./= length(lattice(model))
     nothing
 end
 
