@@ -1,9 +1,9 @@
 # call stack:
 # run/replay 
-#   > calls apply(GreensIterator, LatticeIterator, group, dqmc, model, sweep)
-#       > calls measure(LatticeIterator, measurement, dqmc, model, sweep, GreensResults)
-#           > calls apply!(LatticeIterator, measurement, dqmc, model, GreensResults)
-#               > calls kernel(measurement, dqmc, model, MaskResult, GreensResults)
+#   > calls apply(GreensIterator, group, dqmc, model, sweep)
+#       > calls measure(LatticeIterator, measurement, dqmc, model, sweep, GreensResults...)
+#           > calls apply!(LatticeIterator, measurement, dqmc, model, GreensResults...)
+#               > calls kernel(measurement, dqmc, model, MaskResult..., GreensResults...)
 
 # Does:
 # creates groups, runs simulation
@@ -15,7 +15,6 @@
 # TODO
 # - deprecate old measurement types
 # - _save/_load to autoconvert
-# - deprecate RawMask
 # - re-add Greens -> Occupation maybe?
 
 
