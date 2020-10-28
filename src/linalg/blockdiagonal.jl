@@ -84,11 +84,13 @@ function Base.copyto!(B1::BlockDiagonal{T, N}, B2::BlockDiagonal{T, N}) where {T
     @inbounds for i in 1:N
         copyto!(B1.blocks[i], B2.blocks[i])
     end
+    return B1
 end
 function Base.copyto!(B::BlockDiagonal{T, N}, ::UniformScaling) where {T, N}
     @inbounds for i in 1:N
         copyto!(B.blocks[i], I)
     end
+    return B
 end
 function Base.copyto!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T, N}
     @inbounds n = size(B.blocks[1], 1)
@@ -99,6 +101,7 @@ function Base.copyto!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T, N}
             b[j, k] = ifelse(j == k, D.diag[offset+j], zero(T))
         end
     end
+    return B
 end
 
 
@@ -123,9 +126,21 @@ function Base.:(*)(B1::BlockDiagonal{T, N, AT}, B2::BlockDiagonal{T, N, AT}) whe
 end
 
 function Base.exp(B::BlockDiagonal{T, N, AT}) where {T<:Number, N, AT<:AbstractMatrix{T}}
-    BlockDiagonal(map(block ->exp(block), B.blocks)...)
+    BlockDiagonal(map(block -> exp(block), B.blocks)...)
 end
 
+function LinearAlgebra.transpose!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T, N}
+    @inbounds for i in 1:N
+        transpose!(A.blocks[i], B.blocks[i])
+    end
+    A
+end
+function LinearAlgebra.rmul!(B::BlockDiagonal{T, N}, f::Number) where {T, N}
+    @inbounds for i in 1:N
+        rmul!(B.blocks[i], f)
+    end
+    B
+end
 
 
 ################################################################################
@@ -193,6 +208,23 @@ function vmul!(C::BlockDiagonal{T, N}, X::Adjoint{T}, B::BlockDiagonal{T, N}) wh
         end
     end
 end
+function vmul!(C::BD, X1::Transpose{T, BD}, X2::Transpose{T, BD}) where {T <: Real, N, BD <: BlockDiagonal{T, N}}
+    A = X1.parent
+    B = X2.parent
+    @inbounds n = size(C.blocks[1], 1)
+    @inbounds for i in 1:N
+        a = A.blocks[i]
+        b = B.blocks[i]
+        c = C.blocks[i]
+        @avx for k in 1:n, l in 1:n
+            Ckl = zero(eltype(c))
+            for m in 1:n
+                Ckl += a[m,k] * b[l, m]
+            end
+            c[k,l] = Ckl
+        end
+    end
+end
 function rvmul!(A::BlockDiagonal{T, N}, B::Diagonal) where {T, N}
     # Assuming correct size
     @inbounds n = size(A.blocks[1], 1)
@@ -228,6 +260,43 @@ function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T<:Real, N}
         end
     end
 end
+function rvsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}) where {T<:Real, N}
+    @inbounds n = size(O.blocks[1], 1)
+    @inbounds for i in 1:N
+        a = A.blocks[i]
+        o = O.blocks[i]
+        @avx for j in 1:n, k in 1:n
+            o[j, k] = o[j, k] - a[j, k]
+        end
+    end
+end
+function vsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, ::UniformScaling) where {T<:Real, N}
+    @inbounds n = size(O.blocks[1], 1)
+    T1 = one(T)
+    @inbounds for i in 1:N
+        a = A.blocks[i]
+        o = O.blocks[i]
+        @avx for j in 1:n, k in 1:n
+            o[j, k] = a[j, k]
+        end
+        @avx for j in 1:n
+            o[j, j] -= T1
+        end
+    end
+end
+# function vadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}, ::UniformScaling) where {T<:Real, N}
+#     # Assuming correct size
+#     @inbounds n = size(B.blocks[1], 1)
+#     T1 = one(T)
+#     @inbounds for i in 1:N
+#         a = A.blocks[i]
+#         b = B.blocks[i]
+#         @avx for k in 1:n, l in 1:n
+#             a[k, l] = b[k, l] + T1
+#         end
+#     end
+# end
+
 
 
 function rdivp!(A::BD, T::BD, O::BD, pivot) where {ET<:Real, N, BD <: BlockDiagonal{ET, N}}
@@ -269,6 +338,7 @@ function rdivp!(A::BD, T::BD, O::BD, pivot) where {ET<:Real, N, BD <: BlockDiago
     end
     A
 end
+
 
 
 

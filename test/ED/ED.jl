@@ -151,7 +151,7 @@ function Greens_permuted(site1, site2, substate1, substate2)
 end
 
 # Charge Density Correlation
-function charge_density_correlation(site1, site2)
+function MonteCarlo.charge_density_correlation(site1::Int64, site2::Int64)
     state -> begin
         states = typeof(state)[]
         prefactors = Float64[]
@@ -310,12 +310,12 @@ end
 # local s-wave
 # NOTE - this may no longer match the order of other observables
 # Δ_i Δ_j^† |ψ⟩
-pairing_correlation(i, j) = pairing_correlation(i, i, j, j)
+MonteCarlo.pairing_correlation(i::Int64, j::Int64) = pairing_correlation(i, i, j, j)
 # general case
 # Δ_i = c_{i, ↑} c_{j, ↓}
 # Δ_j^† -> Δ_k^† = (c_{k, ↑} c_{l, ↓})^† = c_{l, ↓}^† c_{k, ↑}^†
 #  Δ_i Δ_k^† |ψ⟩ = c_{i, ↑} c_{j, ↓} c_{l, ↓}^† c_{k, ↑}^† |ψ⟩
-function pairing_correlation(i, j, k, l)
+function MonteCarlo.pairing_correlation(i::Int64, j::Int64, k::Int64, l::Int64)
     state -> begin
         sign1, _state = create!(state, k, UP)
         sign2, _state = create!(_state, l, DOWN)
@@ -414,6 +414,7 @@ end
         obsτ1::Function, obsτ2::Function, H::Eigen, τ1, τ2;
         T=1.0, beta = 1.0 / T, N_sites = 4, N_substates = 2
     )
+    @assert beta ≥ τ1 ≥ τ2 ≥ 0 "Time order must be respected!"
     @bm "init" begin
         O = 0.0
         # vals sorted small to large
@@ -463,7 +464,8 @@ end
         # Correct for τ1 = τ2
         O = 0.0
         for n in eachindex(vals), m in eachindex(vals)
-            O += exp(-(beta-τ1)*vals[n]) * obsτ1_mat[n, m] * exp(-(τ1-τ2)*vals[m]) * obsτ2_mat[m, n] * exp(-τ2*vals[n])
+            O += exp(-(beta-τ1)*vals[n]) * obsτ1_mat[n, m] * 
+                 exp(-(τ1-τ2)*vals[m]) * obsτ2_mat[m, n] * exp(-τ2*vals[n])
         end
     end
 
@@ -479,24 +481,104 @@ function calculate_Greens_matrix(H::Eigen, tau1, tau2, lattice; beta=1.0, N_subs
         lattice.sites*N_substates,
         lattice.sites*N_substates
     )
+    # Respect time order:
+    swap = tau1 < tau2
     for substate1 in 1:N_substates, substate2 in 1:N_substates
         for site1 in 1:lattice.sites, site2 in 1:lattice.sites
+            ctau1 = s -> annihilate!(s, site2, substate2)
+            ctau2 = s -> create!(s, site1, substate1)
+
             G[
                 lattice.sites * (substate1-1) + site1,
                 lattice.sites * (substate2-1) + site2
             ] = expectation_value(
-                s -> annihilate!(s, site2, substate2),
-                s -> create!(s, site1, substate1),
-                H, tau1, tau2,
+                swap ? ctau2 : ctau1,
+                swap ? ctau1 : ctau2,
+                H, swap ? tau2 : tau1, swap ? tau1 : tau2,
+                # s -> annihilate!(s, site2, substate2),
+                # s -> create!(s, site1, substate1),
+                # H, tau1, tau2,
                 beta = beta,
                 N_sites = lattice.sites,
                 N_substates = N_substates
-            )
+            ) * (1 - 2swap) # minus sign from permuting c^†(τ1) c(τ2)
         end
     end
     G
 end
 
+
+
+@bm function expectation_value_integrated(
+        obsτ1::Function, obsτ2::Function, H::Eigen; step = 0.1,
+        T=1.0, beta = 1.0 / T, N_sites = 4, N_substates = 2
+    )
+    @bm "init" begin
+        O = 0.0
+        vals, vecs = H
+        lstate = state_from_integer(0, N_sites)
+        rstate = state_from_integer(0, N_sites)
+        vals1, _ = obsτ1(rstate)
+        vals2, _ = obsτ2(rstate)
+        T1 = eltype(vals1)
+        T2 = eltype(vals2)
+        T = (T1 <: Complex || T2 <: Complex) ? ComplexF64 : Float64
+        obsτ1_mat = zeros(T, size(vecs))
+        obsτ2_mat = zeros(T, size(vecs))
+    end
+
+    @bm "obs mat" begin
+        @inbounds for i in eachindex(vals)
+            state_from_integer!(lstate, i-1)
+            for j in eachindex(vals)
+                state_from_integer!(rstate, j-1)
+                values, states = obsτ2(rstate)
+                obsτ2_mat[i, j] = scalarproduct(lstate, values, states)
+
+                state_from_integer!(rstate, j-1)
+                values, states = obsτ1(rstate)
+                obsτ1_mat[i, j] = scalarproduct(lstate, values, states)
+            end
+        end
+    end
+
+    @bm "prepare O" begin
+        obsτ2_mat = vecs' * obsτ2_mat * vecs
+        obsτ1_mat = vecs' * obsτ1_mat * vecs
+        Z = mapreduce(E -> exp(-beta * E), +, vals)
+    end
+
+    @bm "compute O" begin
+    for τ in beta:-step:0.5step #0:step:beta-0.5step
+            o = 0.0
+            for n in eachindex(vals), m in eachindex(vals)
+                o += exp(-(beta-τ)*vals[n]) * obsτ1_mat[n, m] * 
+                     exp(-τ*vals[m]) * obsτ2_mat[m, n]
+            end
+            O += step * o / Z
+        end
+    end
+    
+    O
+end
+
+
+function number_operator(site::Int64)
+    state -> begin
+        states = typeof(state)[]
+        prefactors = Float64[]
+        for substate in [UP, DOWN]
+            sign1, _state = annihilate(state, site, substate)
+            sign2, _state = create!(_state, site, substate)
+            p = sign1 * sign2
+            if p != 0.0
+                push!(prefactors, p)
+                push!(states, _state)
+            end
+        end
+        prefactors, states
+    end
+end
 
 
 ################################################################################

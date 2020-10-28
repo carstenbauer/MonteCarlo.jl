@@ -28,128 +28,128 @@ for (d, lattype) in enumerate((
             all_bonds = vcat(reduced_bonds, mirrored_bonds)
             @test sort(all_bonds) == sort(bonds)
 
-            if L == 4
-                positions = if lattype == Chain
-                    [[i] for i in 1:L]
-                else
-                    l.lattice |> CartesianIndices .|> Tuple .|> collect
-                end
-                mask = DistanceMask(l)
-                @test allunique(MonteCarlo.getorder(mask))
-                # for i in 1:length(l)
-                #     @test allunique(mask[i, :])
-                #     @test allunique(mask[:, i])
-                # end
-                # The point of DistanceMask is for all i -> mask[i, j] to point
-                # in the same direction
-                dirs = directions(mask, l)
-                for dir_idx in 1:length(mask)
-                    _dirs = [
-                        mod.(positions[trg] .- positions[src], L) 
-                        for (src, trg) in MonteCarlo.getdirorder(mask, dir_idx)
-                    ]
-                    @test all(==(first(_dirs)), _dirs)
-                    @test mod.(dirs[dir_idx], L) == _dirs[1]
-                end
-            end
+            # if L == 4
+            #     positions = if lattype == Chain
+            #         [[i] for i in 1:L]
+            #     else
+            #         l.lattice |> CartesianIndices .|> Tuple .|> collect
+            #     end
+            #     mask = DistanceMask(l)
+            #     @test allunique(MonteCarlo.getorder(mask))
+            #     # for i in 1:length(l)
+            #     #     @test allunique(mask[i, :])
+            #     #     @test allunique(mask[:, i])
+            #     # end
+            #     # The point of DistanceMask is for all i -> mask[i, j] to point
+            #     # in the same direction
+            #     dirs = directions(mask, l)
+            #     for dir_idx in 1:length(mask)
+            #         _dirs = [
+            #             mod.(positions[trg] .- positions[src], L) 
+            #             for (src, trg) in MonteCarlo.getdirorder(mask, dir_idx)
+            #         ]
+            #         @test all(==(first(_dirs)), _dirs)
+            #         @test mod.(dirs[dir_idx], L) == _dirs[1]
+            #     end
+            # end
         end
     end
 end
 
 
 
-# L = 3 hardcoded Honeycomb
-struct HoneycombTestLattice <: AbstractLattice
-    positions::Vector{Vector{Float64}}
-end
+# # L = 3 hardcoded Honeycomb
+# struct HoneycombTestLattice <: AbstractLattice
+#     positions::Vector{Vector{Float64}}
+# end
 
-function HoneycombTestLattice()
-    # Taken from LatticePhysics (L = 3)
-    pos = [[0.0, 0.0], [0.5773502691896258, 0.0], [0.8660254037844386, 0.5], [1.4433756729740645, 0.5], [1.7320508075688772, 1.0], [2.309401076758503, 1.0], [0.8660254037844386, -0.5], [1.4433756729740645, -0.5], [1.7320508075688772, 0.0], [2.309401076758503, 0.0], [2.598076211353316, 0.5], [3.1754264805429417, 0.5], [1.7320508075688772, -1.0], [2.309401076758503, -1.0], [2.598076211353316, -0.5], [3.1754264805429413, -0.5], [3.4641016151377544, 0.0], [4.04145188432738, 0.0]]
-    HoneycombTestLattice(pos)
-end
-Base.length(l::HoneycombTestLattice) = length(l.positions)
-MonteCarlo.positions(l::HoneycombTestLattice) = l.positions
-function MonteCarlo.DistanceMask(lattice::HoneycombTestLattice)
-    L = 3
-    wrap = MonteCarlo.generate_combinations(
-        [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
-    )
-    MonteCarlo.VerboseDistanceMask(lattice, wrap)
-end
-function MonteCarlo.directions(mask::MonteCarlo.VerboseDistanceMask, lattice::HoneycombTestLattice)
-    pos = MonteCarlo.positions(lattice)
-    dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
-    # marked = Set{Int64}()
-    # dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
-    # for src in 1:size(mask.targets, 1)
-    #     for (idx, trg) in mask.targets[src, :]
-    #         if !(idx in marked)
-    #             push!(marked, idx)
-    #             dirs[idx] = pos[trg] - pos[src]
-    #         end
-    #     end
-    # end
-    L = 3
-    wrap = MonteCarlo.generate_combinations(
-        [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
-    )
-    map(dirs) do _d
-        d = round.(_d .+ wrap[1], digits=6)
-        for v in wrap[2:end]
-            new_d = round.(_d .+ v, digits=6)
-            if norm(new_d) < norm(d)
-                d .= new_d
-            end
-        end
-        d
-    end
-end
+# function HoneycombTestLattice()
+#     # Taken from LatticePhysics (L = 3)
+#     pos = [[0.0, 0.0], [0.5773502691896258, 0.0], [0.8660254037844386, 0.5], [1.4433756729740645, 0.5], [1.7320508075688772, 1.0], [2.309401076758503, 1.0], [0.8660254037844386, -0.5], [1.4433756729740645, -0.5], [1.7320508075688772, 0.0], [2.309401076758503, 0.0], [2.598076211353316, 0.5], [3.1754264805429417, 0.5], [1.7320508075688772, -1.0], [2.309401076758503, -1.0], [2.598076211353316, -0.5], [3.1754264805429413, -0.5], [3.4641016151377544, 0.0], [4.04145188432738, 0.0]]
+#     HoneycombTestLattice(pos)
+# end
+# Base.length(l::HoneycombTestLattice) = length(l.positions)
+# MonteCarlo.positions(l::HoneycombTestLattice) = l.positions
+# function MonteCarlo.DistanceMask(lattice::HoneycombTestLattice)
+#     L = 3
+#     wrap = MonteCarlo.generate_combinations(
+#         [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
+#     )
+#     MonteCarlo.VerboseDistanceMask(lattice, wrap)
+# end
+# function MonteCarlo.directions(mask::MonteCarlo.VerboseDistanceMask, lattice::HoneycombTestLattice)
+#     pos = MonteCarlo.positions(lattice)
+#     dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
+#     # marked = Set{Int64}()
+#     # dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
+#     # for src in 1:size(mask.targets, 1)
+#     #     for (idx, trg) in mask.targets[src, :]
+#     #         if !(idx in marked)
+#     #             push!(marked, idx)
+#     #             dirs[idx] = pos[trg] - pos[src]
+#     #         end
+#     #     end
+#     # end
+#     L = 3
+#     wrap = MonteCarlo.generate_combinations(
+#         [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
+#     )
+#     map(dirs) do _d
+#         d = round.(_d .+ wrap[1], digits=6)
+#         for v in wrap[2:end]
+#             new_d = round.(_d .+ v, digits=6)
+#             if norm(new_d) < norm(d)
+#                 d .= new_d
+#             end
+#         end
+#         d
+#     end
+# end
 
-@testset "Mask with basis" begin
-    l = HoneycombTestLattice()
-    L = 3
-    positions = MonteCarlo.positions(l)
-    mask = DistanceMask(l)
-    @test mask isa MonteCarlo.VerboseDistanceMask
-    @test length(mask) == 27
-    @test allunique(MonteCarlo.getorder(mask))
-    # for i in 1:length(l)
-    #     @test allunique(mask[i, :])
-    #     @test allunique(mask[:, i])
-    # end
-    wrap = MonteCarlo.generate_combinations(
-        [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
-    )
+# @testset "Mask with basis" begin
+#     l = HoneycombTestLattice()
+#     L = 3
+#     positions = MonteCarlo.positions(l)
+#     mask = DistanceMask(l)
+#     @test mask isa MonteCarlo.VerboseDistanceMask
+#     @test length(mask) == 27
+#     @test allunique(MonteCarlo.getorder(mask))
+#     # for i in 1:length(l)
+#     #     @test allunique(mask[i, :])
+#     #     @test allunique(mask[:, i])
+#     # end
+#     wrap = MonteCarlo.generate_combinations(
+#         [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
+#     )
 
-    # in the same direction
-    dirs = MonteCarlo.directions(mask, l)
-    for dir_idx in 1:length(mask)
-        _dirs = map(MonteCarlo.getdirorder(mask, dir_idx)) do (src, trg)
-            d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
-            for v in wrap[2:end]
-                new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
-                if norm(new_d) < norm(d)
-                    d .= new_d
-                end
-            end
-            d
-        end
-        @test all(==(dirs[dir_idx]), _dirs)
-    end
-    # for src in 1:length(l)
-    #     for (idx, trg) in MonteCarlo.getorder(mask, src)
-    #         d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
-    #         for v in wrap[2:end]
-    #             new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
-    #             if norm(new_d) < norm(d)
-    #                 d .= new_d
-    #             end
-    #         end
-    #         @test dirs[idx] ≈ d
-    #     end
-    # end
-end
+#     # in the same direction
+#     dirs = MonteCarlo.directions(mask, l)
+#     for dir_idx in 1:length(mask)
+#         _dirs = map(MonteCarlo.getdirorder(mask, dir_idx)) do (src, trg)
+#             d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
+#             for v in wrap[2:end]
+#                 new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
+#                 if norm(new_d) < norm(d)
+#                     d .= new_d
+#                 end
+#             end
+#             d
+#         end
+#         @test all(==(dirs[dir_idx]), _dirs)
+#     end
+#     # for src in 1:length(l)
+#     #     for (idx, trg) in MonteCarlo.getorder(mask, src)
+#     #         d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
+#     #         for v in wrap[2:end]
+#     #             new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
+#     #             if norm(new_d) < norm(d)
+#     #                 d .= new_d
+#     #             end
+#     #         end
+#     #         @test dirs[idx] ≈ d
+#     #     end
+#     # end
+# end
 
 # @testset "2D Honeycomb" begin
 #     for L in (2, 3)

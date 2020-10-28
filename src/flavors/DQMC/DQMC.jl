@@ -274,7 +274,6 @@ function DQMC(m::M;
     analysis = DQMCAnalysis()
     CB = checkerboard ? CheckerboardTrue : CheckerboardFalse
 
-    # TODO add uninitalized UnequalTimeStack 
     mc = DQMC{M, CB, typeof(conf), recorder, DQMCStack, AbstractDQMCStack}(
         model = m, conf = conf, last_sweep = last_sweep, s = stack,
         ut_stack = ut_stack, p = p, a = analysis,
@@ -283,8 +282,9 @@ function DQMC(m::M;
     )
 
     mc.configs = recorder(mc, m, recording_rate)
-
-    init!(mc, seed = seed, conf = conf)
+    seed == -1 || Random.seed!(seed)
+    mc.conf = conf
+    init!(mc)
     return make_concrete!(mc)
 end
 
@@ -334,26 +334,12 @@ end
 
 
 
-"""
-    init!(mc::DQMC[; seed::Real=-1])
-
-Initialize the determinant quantum Monte Carlo simulation `mc`.
-If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
-"""
-function init!(mc::DQMC; seed::Real = -1, conf = rand(DQMC,model(mc),nslices(mc)))
-    seed == -1 || Random.seed!(seed)
-    mc.conf = conf
-    resume_init!(mc)
-    nothing
-end
-function resume_init!(mc::DQMC; kwargs...)
+function init!(mc::DQMC)
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc, mc.s)
-    if any(m isa UnequalTimeMeasurement for m in values(mc.measurements))
-        init_stack(mc, mc.ut_stack)
-    end
     nothing
 end
+@deprecate resume_init!(mc::DQMC) init!(mc) false
 
 
 """
@@ -423,7 +409,7 @@ See also: [`resume!`](@ref)
 
     # fresh stack
     verbose && println("Preparing Green's function stack")
-    initialize_stack(mc, mc.s) # redundant ?!
+    init!(mc)
     build_stack(mc, mc.s)
     propagate(mc)
 
@@ -657,12 +643,12 @@ function replay!(
     end
 
     verbose && println("Preparing Green's function stack")
-    resume_init!(mc)
+    init!(mc)
     build_stack(mc, mc.s)
     propagate(mc)
     mc.s.current_slice = 1
     mc.conf = rand(DQMC, mc.model, nslices(mc))
-    
+
     _time = time()
     verbose && println("\n\nReplaying measurement stage - ", length(configurations))
     prepare!(mc.measurements, mc, mc.model)
@@ -935,4 +921,4 @@ end
 
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")
-include("measurements/measurements.jl")
+include("measurements/generic.jl")

@@ -66,6 +66,8 @@ include("ED.jl")
                 N_sites = model.l.sites,
             )
             @test G ≈ G_perm
+
+            # Test G(t, t) = G(0, 0) = G
             UTG = expectation_value(
                 s -> annihilate!(s, site2, substate2),
                 s -> create!(s, site1, substate1),
@@ -80,6 +82,11 @@ include("ED.jl")
             @test UTG ≈ real(G) atol=1e-14
         end
     end
+
+    # Test G(t, 0) + G(0, beta - t) = 0
+    UTG1 = calculate_Greens_matrix(H, 0.7, 0.0, model.l, beta=1.0)
+    UTG2 = calculate_Greens_matrix(H, 0.0, 1.0 - 0.7, model.l, beta=1.0)
+    @test UTG1 ≈ -UTG2 atol=1e-14
 end
 
 
@@ -94,33 +101,38 @@ end
             @info "Running DQMC ($(typeof(model).name)) β=5.0, 10k + 10k sweeps"
             Random.seed!(123)
             dqmc = DQMC(
-                model, beta=5.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
+                model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
                 thermalization = 10_000, sweeps = 10_000
             )
 
             dqmc[:G]    = greens_measurement(dqmc, model)
-            dqmc[:Occs] = occupation_measurement(dqmc, model)
-            dqmc[:CDC]  = CDC_measurement(dqmc, model)
-            dqmc[:Mx]   = magnetization_measurement(dqmc, model, :x)
-            dqmc[:My]   = magnetization_measurement(dqmc, model, :y)
-            dqmc[:Mz]   = magnetization_measurement(dqmc, model, :z)
-            dqmc[:SDCx] = SDC_measurement(dqmc, model, :x)
-            dqmc[:SDCy] = SDC_measurement(dqmc, model, :y)
-            dqmc[:SDCz] = SDC_measurement(dqmc, model, :z)
-            dqmc[:PC]   = PC_measurement(dqmc, model, K=4)
+            dqmc[:Occs] = occupation(dqmc, model)
+            dqmc[:CDC]  = charge_density_correlation(dqmc, model)
+            dqmc[:Mx]   = magnetization(dqmc, model, :x)
+            dqmc[:My]   = magnetization(dqmc, model, :y)
+            dqmc[:Mz]   = magnetization(dqmc, model, :z)
+            dqmc[:SDCx] = spin_density_correlation(dqmc, model, :x)
+            dqmc[:SDCy] = spin_density_correlation(dqmc, model, :y)
+            dqmc[:SDCz] = spin_density_correlation(dqmc, model, :z)
+            dqmc[:PC]   = pairing_correlation(dqmc, model, K=4)
 
-            # # Unequal time
-            # # N = MonteCarlo.nslices(dqmc) # 10
-            # l1s = [0, 4, 5, 6, 0]
-            # l2s = [1, 5, 5, 7, MonteCarlo.nslices(dqmc)]
-            # # Why is UTGreensMeasurement not defined?
-            # UTG = MonteCarlo.UTGreensMeasurement
-            # dqmc[:UTG1] = UTG(dqmc, model, slice1=l1s[1], slice2=l2s[1])
-            # dqmc[:UTG2] = UTG(dqmc, model, slice1=l1s[2], slice2=l2s[2])
-            # dqmc[:UTG3] = UTG(dqmc, model, slice1=l1s[3], slice2=l2s[3])
-            # dqmc[:UTG4] = UTG(dqmc, model, slice1=l1s[4], slice2=l2s[4])
-            # dqmc[:UTG5] = UTG(dqmc, model, slice1=l1s[5], slice2=l2s[5])
-            # MonteCarlo.initialize_stack(dqmc, dqmc.ut_stack)
+            # Unequal time
+            l1s = [0, 3, 5, 7, 3, 0]
+            l2s = [1, 7, 5, 2, 1, MonteCarlo.nslices(dqmc)]
+            # l1s = [0, 3, 5, 0]
+            # l2s = [1, 7, 5, MonteCarlo.nslices(dqmc)]
+            dqmc[:UTG1] = greens_measurement(dqmc, model, GreensAt{l2s[1], l1s[1]})
+            dqmc[:UTG2] = greens_measurement(dqmc, model, GreensAt{l2s[2], l1s[2]})
+            dqmc[:UTG3] = greens_measurement(dqmc, model, GreensAt{l2s[3], l1s[3]})
+            dqmc[:UTG4] = greens_measurement(dqmc, model, GreensAt{l2s[4], l1s[4]})
+            dqmc[:UTG5] = greens_measurement(dqmc, model, GreensAt{l2s[5], l1s[5]})
+            dqmc[:UTG6] = greens_measurement(dqmc, model, GreensAt{l2s[6], l1s[6]})
+
+            dqmc[:CDS]  = charge_density_susceptibility(dqmc, model)
+            dqmc[:SDSx] = spin_density_susceptibility(dqmc, model, :x)
+            dqmc[:SDSy] = spin_density_susceptibility(dqmc, model, :y)
+            dqmc[:SDSz] = spin_density_susceptibility(dqmc, model, :z)
+            dqmc[:PS]   = pairing_susceptibility(dqmc, model, K=4)
 
             # MonteCarlo.enable_benchmarks()
 
@@ -231,32 +243,107 @@ end
                             H, beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    # for (dir_idx, src1, src2) in MonteCarlo.getorder(mask)
-                    #     for (i, trg1) in MonteCarlo.getorder(rsm, src1)
-                    #         for (j, trg2) in MonteCarlo.getorder(rsm, src2)
-                    #             ED_PC[dir_idx, i, j] += expectation_value(
-                    #                 pairing_correlation(
-                    #                     src1, trg1, src2, trg2
-                    #                 ), H, beta = dqmc.p.beta, N_sites = N
-                    #             )
-                    #         end
-                    #     end
-                    # end
                     @test ED_PC/N ≈ PC atol=atol rtol=rtol
-                    # println("PC")
-                    # println(ED_PC/N, "  ", PC)
                 end
-                # @testset "Unequal Time Greens" begin
-                # for (i, tau1, tau2) in zip(1:5, 0.1l1s, 0.1l2s)
-                #         UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
-                #         # ΔUTG = std_error(dqmc.measurements[Symbol(:UTG, i)])
-                #         M = size(UTG, 1)
-                #         ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l, beta=dqmc.p.beta)
-                #         for k in 1:M, l in 1:M
-                #             @test isapprox(UTG[k, l], ED_UTG[k, l], atol=atol, rtol=rtol)
-                #         end
-                #     end
-                # end
+
+                ################################################################
+                ### Unequal Time
+                ################################################################
+
+                @testset "Unequal Time Greens" begin
+                    for (i, tau1, tau2) in zip(eachindex(l1s), 0.1l1s, 0.1l2s)
+                        UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
+                        # ΔUTG = std_error(dqmc.measurements[Symbol(:UTG, i)])
+                        M = size(UTG, 1)
+                        ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l, beta=dqmc.p.beta)
+
+                        @testset "[$i] $tau1 -> $tau2" begin
+                            for k in 1:M, l in 1:M
+                                @test isapprox(UTG[k, l], ED_UTG[k, l], atol=atol, rtol=rtol)
+                            end
+                            # println("[$i] $tau1 -> $tau2")
+                            # display(UTG)
+                            # println()
+                            # display(ED_UTG)
+                            # println()
+                        end
+                    end
+                end
+
+                # TODO SDS, CDS, PS
+                # So all of these are off by more than an order of magnitude...
+                # why? G0l needs to be added...
+                @testset "Charge Density Susceptibility" begin
+                    CDS = mean(dqmc.measurements[:CDS])
+                    ED_CDS = zeros(size(CDS))
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDS], dqmc, model)
+                        ED_CDS[dir] += expectation_value_integrated(
+                            number_operator(trg), number_operator(src), H, 
+                            step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
+                        )
+                    end
+                    @test ED_CDS/N ≈ CDS atol=atol rtol=rtol
+                end
+                
+                # SDS
+                @testset "Spin density Susceptibility x" begin
+                    SDSx = mean(dqmc.measurements[:SDSx])
+                    ED_SDSx = zeros(ComplexF64, size(SDSx))
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSx], dqmc, model)
+                        ED_SDSx[dir] += expectation_value_integrated(
+                            m_x(trg), m_x(src), H, step = dqmc.p.delta_tau, 
+                            beta = dqmc.p.beta, N_sites = N
+                        )
+                    end
+                    @test ED_SDSx/N ≈ SDSx atol=atol rtol=rtol
+                end
+                @testset "Spin density Susceptibility y" begin
+                    SDSy = mean(dqmc.measurements[:SDSy])
+                    ED_SDSy = zeros(ComplexF64, size(SDSy))
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSy], dqmc, model)
+                        ED_SDSy[dir] += expectation_value_integrated(
+                            m_y(trg), m_y(src), H, step = dqmc.p.delta_tau, 
+                            beta = dqmc.p.beta, N_sites = N
+                        )
+                    end
+                    @test ED_SDSy/N ≈ SDSy atol=atol rtol=rtol
+                end
+                @testset "Spin density Susceptibility z" begin
+                    SDSz = mean(dqmc.measurements[:SDSz])
+                    ED_SDSz = zeros(ComplexF64, size(SDSz))
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSz], dqmc, model)
+                        ED_SDSz[dir] += expectation_value_integrated(
+                            m_z(trg), m_z(src), H, step = dqmc.p.delta_tau, 
+                            beta = dqmc.p.beta, N_sites = N
+                        )
+                    end
+                    @test ED_SDSz/N ≈ SDSz atol=atol rtol=rtol
+                end
+
+                @testset "Pairing Susceptibility" begin
+                    PS = mean(dqmc.measurements[:PS])
+                    ED_PS = zeros(ComplexF64, size(PS))
+                    for (dir12, dir1, dir2, src1, trg1, src2, trg2) in 
+                            MonteCarlo.EachLocalQuadByDistance{4}(dqmc, model)
+                        ED_PS[dir12, dir1, dir2] += expectation_value_integrated(
+                            state -> begin
+                                sign1, _state = annihilate!(state, trg1, DOWN)
+                                sign2, _state = annihilate!(_state, src1, UP)
+                                p = sign1*sign2
+                                p == 0 ? (Float64[], typeof(state)[]) : ([p], [_state])
+                            end,
+                            state -> begin
+                                sign1, _state = create!(state, src2, UP)
+                                sign2, _state = create!(_state, trg2, DOWN)
+                                p = sign1*sign2
+                                p == 0 ? (Float64[], typeof(state)[]) : ([p], [_state])
+                            end,
+                            H, step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
+                        )
+                    end
+                    @test ED_PS/N ≈ PS atol=atol rtol=rtol
+                end
+                
             end
         end
     end

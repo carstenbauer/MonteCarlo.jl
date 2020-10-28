@@ -155,7 +155,7 @@ end
 @testset "DQMC" begin
     model = HubbardModelAttractive(dims=2, L=4, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
-    mc[:CDC] = CDC_measurement(mc, model)
+    mc[:CDC] = charge_density_correlation(mc, model)
     t = time()
     run!(mc, verbose=false)
     t = time() - t
@@ -169,7 +169,7 @@ end
     test_dqmc(mc, x)    
 
     # Check everything again with x being a replayed simulation
-    x[:CDC] = CDC_measurement(x, model)
+    x[:CDC] = charge_density_correlation(x, model)
     x.last_sweep = 0
     replay!(x, verbose=false)
     test_dqmc(mc, x)
@@ -181,7 +181,7 @@ end
     Random.seed!(123)
     model = HubbardModelAttractive(dims=2, L=2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, sweeps=10_000_000, measure_rate=100)
-    mc[:CDC] = CDC_measurement(mc, model)
+    mc[:CDC] = charge_density_correlation(mc, model)
 
     state = run!(
         mc, verbose = false,

@@ -38,19 +38,19 @@ include("lattices/cubic.jl")
 include("lattices/honeycomb.jl")
 include("lattices/triangular.jl")
 include("lattices/ALPS.jl")
-export directions, RawMask, DistanceMask # maybe getorder?
+# export directions, RawMask, DistanceMask # maybe getorder?
 export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
+export EachSite, EachSiteAndFlavor, EachSitePair, EachSitePairByDistance, EachLocalQuadByDistance
 export neighbors
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")
-export GreensMeasurement, BosonEnergyMeasurement, OccupationMeasurement,
-        ChargeDensityCorrelationMeasurement, SpinDensityCorrelationMeasurement,
-        MagnetizationMeasurement, PairingCorrelationMeasurement
-export boson_energy_measurement, PC_measurement, SDC_measurement, 
-       magnetization_measurement, CDC_measurement, occupation_measurement, 
-       greens_measurement
-export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
+export Greens, GreensAt, CombinedGreensIterator
+export boson_energy_measurement, greens_measurement, occupation, magnetization
+export charge_density, charge_density_correlation, charge_density_susceptibility
+export spin_density, spin_density_correlation, spin_density_susceptibility
+export pairing, pairing_correlation, pairing_susceptibility
+# export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardModel/HubbardModel.jl")

@@ -32,11 +32,11 @@ end
     N = 4*4
     mc = DQMC(m, beta=1.0);
     mc[:G]    = greens_measurement(mc, m)
-    mc[:CDC]  = CDC_measurement(mc, m)
-    mc[:SDCx] = SDC_measurement(mc, m, :x)
-    mc[:SDCy] = SDC_measurement(mc, m, :y)
-    mc[:SDCz] = SDC_measurement(mc, m, :z)
-    mc[:PC]   = PC_measurement(mc, m, K=5)
+    mc[:CDC]  = charge_density_correlation(mc, m)
+    mc[:SDCx] = spin_density_correlation(mc, m, :x)
+    mc[:SDCy] = spin_density_correlation(mc, m, :y)
+    mc[:SDCz] = spin_density_correlation(mc, m, :z)
+    mc[:PC]   = pairing_correlation(mc, m, K=5)
     run!(mc, sweeps=1000, thermalization=10, verbose=false);
 
     # Check measurements
@@ -100,14 +100,14 @@ end
     m = HubbardModelRepulsive(dims=2, L=2);
     mc = DQMC(m, beta=1.0);
     mc[:G]    = greens_measurement(mc, m)
-    mc[:CDC]  = CDC_measurement(mc, m)
-    mc[:Mx]   = magnetization_measurement(mc, m, :x)
-    mc[:My]   = magnetization_measurement(mc, m, :y)
-    mc[:Mz]   = magnetization_measurement(mc, m, :z)
-    mc[:SDCx] = SDC_measurement(mc, m, :x)
-    mc[:SDCy] = SDC_measurement(mc, m, :y)
-    mc[:SDCz] = SDC_measurement(mc, m, :z)
-    mc[:PC]   = PC_measurement(mc, m, K=3)
+    mc[:CDC]  = charge_density_correlation(mc, m)
+    mc[:Mx]   = magnetization(mc, m, :x)
+    mc[:My]   = magnetization(mc, m, :y)
+    mc[:Mz]   = magnetization(mc, m, :z)
+    mc[:SDCx] = spin_density_correlation(mc, m, :x)
+    mc[:SDCy] = spin_density_correlation(mc, m, :y)
+    mc[:SDCz] = spin_density_correlation(mc, m, :z)
+    mc[:PC]   = pairing_correlation(mc, m, K=3)
     run!(mc, sweeps=1000, thermalization=10, verbose=false);
 
     # Check measurements

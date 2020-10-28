@@ -43,6 +43,17 @@ function vmul!(C::Matrix{T}, X::Adjoint{T}, B::Matrix{T}) where {T <: Real}
         C[m,n] = Cmn
     end
 end
+function vmul!(C::Matrix{T}, X1::Transpose{T}, X2::Transpose{T}) where {T <: Real}
+    A = X1.parent
+    B = X2.parent
+    @avx for m in 1:size(A, 1), n in 1:size(B, 2)
+        Cmn = zero(eltype(C))
+        for k in 1:size(A, 2)
+            Cmn += A[k,m] * B[n,k]
+        end
+        C[m,n] = Cmn
+    end
+end
 function rvmul!(A::Matrix{T}, B::Diagonal{T}) where {T <: Real}
     @avx for m in 1:size(A, 1), n in 1:size(A, 2)
         A[m,n] = A[m,n] * B[n,n]
@@ -63,6 +74,27 @@ function rvadd!(A::Matrix{T}, B::Matrix{T}) where {T <: Real}
         A[i, j] = A[i, j] + B[i, j]
     end
 end
+function rvsub!(O::Matrix{T}, A::Matrix{T}) where {T <: Real}
+    @avx for i in axes(O, 1), j in axes(O, 2)
+        O[i, j] = O[i, j] - A[i, j]
+    end
+end
+function vsub!(O::Matrix{T}, A::Matrix{T}, ::UniformScaling) where {T <: Real}
+    T1 = one(T)
+    @avx for i in axes(O, 1), j in axes(O, 2)
+        O[i, j] = A[i, j]
+    end
+    @avx for i in axes(O, 1)
+        O[i, i] -= T1
+    end
+end
+# function vadd!(A::Matrix{T}, B::Matrix{T}, ::UniformScaling) where {T<:Real}
+#     T1 = one(T)
+#     @avx for k in axes(A, 1), l in axes(A, 2)
+#         A[k, l] = B[k, l] + T1
+#     end
+# end
+
 
 
 """
@@ -75,7 +107,7 @@ changing `T`.
 
 This function is written to work with (@ref)[`udt_AVX_pivot!`].
 """
-function rdivp!(A, T, O, pivot)
+function rdivp!(A::Matrix, T, O, pivot)
     # assume Diagonal is ±1!
     @inbounds begin
         N = size(A, 1)
@@ -107,6 +139,7 @@ end
 
 
 
+
 ################################################################################
 ### Fallbacks for complex matrices
 ################################################################################
@@ -116,8 +149,9 @@ end
 vmul!(C, A, B) = mul!(C, A, B)
 rvmul!(A, B) = rmul!(A, B)
 lvmul!(A, B) = lmul!(A, B)
-rvadd!(A, B) = A .= A .+ B
-
+rvadd!(A, B) = A .+= B
+rvsub!(A, B) = A .-= B
+vsub!(A, B, C) = A .= B .- C
 
 function rdivp!(A::Matrix{<: Complex}, T::Matrix{<: Complex}, O::Matrix{<: Complex}, pivot)
     # assume Diagonal is ±1!

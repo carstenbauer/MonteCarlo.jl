@@ -220,6 +220,10 @@ function cdc_kernel(mc, ::HubbardModelAttractive, i, j, G)
     # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
     4 * (1 - G[i, i]) * (1 - G[j, j]) + 2 * (I[j, i] - G[j, i]) * G[i, j]
 end
+function cdc_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll)
+    # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
+    4 * (1 - Gll[i,i]) * (1 - G00[j,j]) - 2 * G0l[j,i] * Gl0[i,j]
+end
 
 mx_kernel(mc, ::HubbardModelAttractive, i, G) = 0.0
 my_kernel(mc, ::HubbardModelAttractive, i, G) = 0.0
@@ -229,4 +233,11 @@ sdc_x_kernel(mc, ::HubbardModelAttractive, i, j, G) = 2(I[j,i] - G[j,i]) * G[i,j
 sdc_y_kernel(mc, ::HubbardModelAttractive, i, j, G) = 2(I[j,i] - G[j,i]) * G[i,j]
 sdc_z_kernel(mc, ::HubbardModelAttractive, i, j, G) = 2(I[j,i] - G[j,i]) * G[i,j]
 
+sdc_x_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll) = -2 * G0l[j,i] * Gl0[i,j]
+sdc_y_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll) = -2 * G0l[j,i] * Gl0[i,j]
+sdc_z_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll) = -2 * G0l[j,i] * Gl0[i,j]
+
 pc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G) = G[src1, src2] * G[trg1, trg2]
+function pc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G00, G0l, Gl0, Gll)
+    Gl0[src1, src2] * Gl0[trg1, trg2]
+end

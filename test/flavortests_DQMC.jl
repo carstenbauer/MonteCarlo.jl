@@ -114,11 +114,30 @@ end
         G1 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice))
         G2 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice, slice))
         @test maximum(abs.(G1 .- G2)) < 1e-14
-        if !(maximum(abs.(G1 .- G2)) < 1e-14)
-            @info slice
-            println("G1 = $G1")
-            println("G2 = $G2")
-        end
+        # if !(maximum(abs.(G1 .- G2)) < 1e-14)
+        #     # This rarely fails - if it does I want to know why
+        #     @info slice
+        #     println("G1 = $G1")
+        #     println("G2 = $G2")
+        #     println("--------------------------")
+        #     println("uts = ", dqmc.ut_stack)
+        # end
+    end
+
+    # # Check k > l vs k < l calculations at k == l
+    # for slice in 0:MonteCarlo.nslices(dqmc)
+    #     MonteCarlo.calculate_greens_full1!(dqmc, dqmc.ut_stack, slice, slice)
+    #     G1 = deepcopy(dqmc.ut_stack.greens)
+    #     MonteCarlo.calculate_greens_full2!(dqmc, dqmc.ut_stack, slice, slice)
+    #     G2 = deepcopy(dqmc.ut_stack.greens)
+    #     @test G1 .- G2 ≈ I atol = 1e-14
+    # end
+
+    # Check G(t, 0) + G(0, beta - t) = 0
+    for slice in 0:MonteCarlo.nslices(dqmc)-1
+        G1 = MonteCarlo.greens(dqmc, slice, 0)
+        G2 = MonteCarlo.greens(dqmc, 0, MonteCarlo.nslices(dqmc) - slice)
+        @test G1 ≈ -G2 atol = 1e-14
     end
 
 
@@ -127,6 +146,7 @@ end
     # when using UnequalTimeStack
     
     # As in G(τ = Δτ * k, 0)
+    # Note: G(0, l) = G(M-l, 0)
     Gk0s = [deepcopy(MonteCarlo.greens(dqmc, slice, 0)) for slice in 0:MonteCarlo.nslices(dqmc)]
     
     # Calculated from UnequalTimeStack (high precision)
@@ -141,23 +161,26 @@ end
         @test maximum(abs.(G .- Gk0s[i])) < 1e-11
     end
 
-    Gkks = map(0:MonteCarlo.nslices(dqmc)-1) do slice
+    Gkks = map(0:MonteCarlo.nslices(dqmc)) do slice
         g = MonteCarlo.calculate_greens(dqmc, slice)
         deepcopy(MonteCarlo._greens!(dqmc, dqmc.s.greens_temp, g))
     end
+    G0ks = [deepcopy(MonteCarlo.greens(dqmc, 0, slice)) for slice in 0:MonteCarlo.nslices(dqmc)]
     MonteCarlo.calculate_greens(dqmc, 0) # restore mc.s.greens
 
     # high precision
     it = MonteCarlo.CombinedGreensIterator(dqmc, dqmc.p.safe_mult)
-    for (i, (Gk0, Gkk)) in enumerate(it)
-        @test maximum(abs.(Gk0 .- Gk0s[i])) < 1e-14
-        @test maximum(abs.(Gkk .- Gkks[i])) < 1e-14
+    for (i, (G0k, Gk0, Gkk)) in enumerate(it)
+        @test maximum(abs.(Gk0 .- Gk0s[i+1])) < 1e-14
+        @test maximum(abs.(G0k .- G0ks[i+1])) < 1e-14
+        @test maximum(abs.(Gkk .- Gkks[i+1])) < 1e-14
     end
 
     # low precision
     it = MonteCarlo.CombinedGreensIterator(dqmc, 4dqmc.p.safe_mult)
-    for (i, (Gk0, Gkk)) in enumerate(it)
-        @test maximum(abs.(Gk0 .- Gk0s[i])) < 1e-10
-        @test maximum(abs.(Gkk .- Gkks[i])) < 1e-10
+    for (i, (G0k, Gk0, Gkk)) in enumerate(it)
+        @test maximum(abs.(Gk0 .- Gk0s[i+1])) < 1e-10
+        @test maximum(abs.(G0k .- G0ks[i+1])) < 1e-10
+        @test maximum(abs.(Gkk .- Gkks[i+1])) < 1e-10
     end
 end
