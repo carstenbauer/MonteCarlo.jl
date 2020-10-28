@@ -40,8 +40,8 @@ include("lattices/triangular.jl")
 include("lattices/ALPS.jl")
 # export directions, RawMask, DistanceMask # maybe getorder?
 export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
-export EachSite, EachSiteAndFlavor, EachSitePair, EachSitePairByDistance, EachLocalQuadByDistance
-export neighbors
+export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, EachLocalQuadByDistance
+export neighbors, directions
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")

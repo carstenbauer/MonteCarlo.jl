@@ -75,7 +75,7 @@ onsite(args...) = OnSite(args...)
 
 Base.iterate(iter::OnSite, i=1) = i ≤ iter.N ? ((i, i), i+1) : nothing 
 Base.length(iter::OnSite) = iter.N
-Base.eltype(::OnSite) = Int64
+Base.eltype(::OnSite) = Tuple{Int64, Int64}
 
 
 
@@ -107,7 +107,7 @@ function Base.iterate(iter::EachSitePair, i=1)
         return nothing 
     end
 end
-Base.length(iter::EachSitePair) = iter.N
+Base.length(iter::EachSitePair) = iter.N^2
 Base.eltype(::EachSitePair) = NTuple{2, Int64}
 
 
@@ -142,7 +142,7 @@ function generate_combinations(vs::Vector{<: Vector})
     out
 end
 
-function EachSitePairByDistance(lattice::AbstractLattice)
+function EachSitePairByDistance(lattice::AbstractLattice, ϵ = 1e-6)
     _positions = positions(lattice)
     wrap = generate_combinations(lattice_vectors(lattice))
     directions = Vector{Float64}[]
@@ -151,15 +151,15 @@ function EachSitePairByDistance(lattice::AbstractLattice)
 
     for origin in 1:length(lattice)
         for (trg, p) in enumerate(_positions)
-            d = round.(_positions[origin] .- p .+ wrap[1], digits=6)
+            d = _positions[origin] .- p .+ wrap[1]
             for v in wrap[2:end]
-                new_d = round.(_positions[origin] .- p .+ v, digits=6)
-                if norm(new_d) < norm(d)
+                new_d = _positions[origin] .- p .+ v
+                if norm(new_d) + ϵ < norm(d)
                     d .= new_d
                 end
             end
             # The rounding will allow us to use == here
-            idx = findfirst(dir -> dir == d, directions)
+            idx = findfirst(dir -> isapprox(dir, d, atol=ϵ), directions)
             if idx === nothing
                 push!(directions, d)
                 if length(bonds) < length(directions)
@@ -305,22 +305,48 @@ Base.eltype(::EachLocalQuadByDistance) = NTuple{7, Int64}
 #     [p2 .- p1 for p2 in pos for p1 in pos]
 # end
 
-
-function directions(iter::EachSitePairByDistance, lattice::AbstractLattice)
+function directions(iter::EachSitePairByDistance, lattice::AbstractLattice, ϵ=1e-6)
     pos = MonteCarlo.positions(lattice)
-    wrap = generate_combinations(latticeVectors(lattice.lattice))
+    wrap = generate_combinations(lattice_vectors(lattice))
 
     dirs = map(iter.pairs) do pairs
         src, trg = pairs[1]
         _d = pos[trg] - pos[src]
         # Find lowest distance w/ periodic bounds
-        d = round.(_d .+ wrap[1], digits=6)
+        d = _d .+ wrap[1]
         for v in wrap[2:end]
-            new_d = round.(_d .+ v, digits=6)
-            if norm(new_d) < norm(d)
+            new_d = _d .+ v
+            if norm(new_d) + ϵ < norm(d)
                 d .= new_d
             end
         end
         d
     end
+end
+
+
+directions(dqmc::MonteCarloFlavor, ϵ=1e-6) = directions(lattice(dqmc), ϵ)
+directions(model::Model, ϵ=1e-6) = directions(lattice(model), ϵ)
+function directions(lattice::AbstractLattice, ϵ = 1e-6)
+    _positions = positions(lattice)
+    wrap = generate_combinations(lattice_vectors(lattice))
+    directions = Vector{Float64}[]
+    for origin in 1:length(lattice)
+        for (trg, p) in enumerate(_positions)
+            d = _positions[origin] .- p .+ wrap[1]
+            for v in wrap[2:end]
+                new_d = _positions[origin] .- p .+ v
+                if norm(new_d) + ϵ < norm(d)
+                    d .= new_d
+                end
+            end
+            # The rounding will allow us to use == here
+            idx = findfirst(dir -> isapprox(dir, d, atol=ϵ), directions)
+            if idx === nothing
+                push!(directions, d)
+            end
+        end
+    end
+    sort!(directions, by=norm)
+    directions
 end

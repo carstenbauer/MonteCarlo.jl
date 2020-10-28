@@ -27,35 +27,182 @@ for (d, lattype) in enumerate((
             mirrored_bonds = [[trg, src] for (src, trg) in reduced_bonds]
             all_bonds = vcat(reduced_bonds, mirrored_bonds)
             @test sort(all_bonds) == sort(bonds)
-
-            # if L == 4
-            #     positions = if lattype == Chain
-            #         [[i] for i in 1:L]
-            #     else
-            #         l.lattice |> CartesianIndices .|> Tuple .|> collect
-            #     end
-            #     mask = DistanceMask(l)
-            #     @test allunique(MonteCarlo.getorder(mask))
-            #     # for i in 1:length(l)
-            #     #     @test allunique(mask[i, :])
-            #     #     @test allunique(mask[:, i])
-            #     # end
-            #     # The point of DistanceMask is for all i -> mask[i, j] to point
-            #     # in the same direction
-            #     dirs = directions(mask, l)
-            #     for dir_idx in 1:length(mask)
-            #         _dirs = [
-            #             mod.(positions[trg] .- positions[src], L) 
-            #             for (src, trg) in MonteCarlo.getdirorder(mask, dir_idx)
-            #         ]
-            #         @test all(==(first(_dirs)), _dirs)
-            #         @test mod.(dirs[dir_idx], L) == _dirs[1]
-            #     end
-            # end
         end
     end
 end
 
+@testset "Lattice Iterators" begin
+    # Set up a few test models/DQMCs    
+    m = HubbardModelAttractive(L=3, dims=3)
+    dqmc1 = DQMC(m, beta=1.0)
+    
+    m = HubbardModelRepulsive(L=10, dims=1)
+    dqmc2 = DQMC(m, beta=1.0)
+
+    l = TriangularLattice(0, Lx=2, Ly=6)
+    m = HubbardModelAttractive(l = l, L=0, dims=0)
+    dqmc3 = DQMC(m, beta=1.0)
+
+    dqmcs = (dqmc1, dqmc2, dqmc3)
+
+
+
+    @testset "Meta" begin
+        for dqmc in dqmcs
+            dirs = directions(dqmc)
+            for i in 2:length(dirs)
+                @test norm(dirs[i-1]) < norm(dirs[i]) + 1e-5
+            end
+        end
+    end
+
+    @testset "EachSiteAndFlavor" begin
+        for dqmc in dqmcs
+            iter = EachSiteAndFlavor(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            Nflavors = MonteCarlo.nflavors(dqmc.model)
+            @test collect(iter) == 1:Nsites*Nflavors
+            @test length(iter) == Nsites*Nflavors
+            @test length(collect(iter)) == Nsites*Nflavors
+            @test eltype(iter) == Int64
+            @test Base.IteratorSize(EachSiteAndFlavor) == Base.HasLength()
+            @test Base.IteratorEltype(EachSiteAndFlavor) == Base.HasEltype()
+        end
+    end
+
+    @testset "EachSite" begin
+        for dqmc in dqmcs
+            iter = EachSite(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            @test collect(iter) == 1:Nsites
+            @test length(iter) == Nsites
+            @test length(collect(iter)) == Nsites
+            @test eltype(iter) == Int64
+            @test Base.IteratorSize(EachSite) == Base.HasLength()
+            @test Base.IteratorEltype(EachSite) == Base.HasEltype()
+        end
+    end
+
+    @testset "OnSite" begin
+        for dqmc in dqmcs
+            iter = OnSite(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            @test collect(iter) == collect(zip(1:Nsites, 1:Nsites))
+            @test length(iter) == Nsites
+            @test length(collect(iter)) == Nsites
+            @test eltype(iter) == Tuple{Int64, Int64}
+            @test Base.IteratorSize(OnSite) == Base.HasLength()
+            @test Base.IteratorEltype(OnSite) == Base.HasEltype()
+        end
+    end
+
+    @testset "EachSitePair" begin
+        for dqmc in dqmcs
+            iter = EachSitePair(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            @test collect(iter) == [(i, j) for i in 1:Nsites for j in 1:Nsites]
+            @test length(iter) == Nsites^2
+            @test length(collect(iter)) == Nsites^2
+            @test eltype(iter) == Tuple{Int64, Int64}
+            @test Base.IteratorSize(EachSitePair) == Base.HasLength()
+            @test Base.IteratorEltype(EachSitePair) == Base.HasEltype()
+        end
+    end
+
+    @testset "EachSitePairByDistance" begin
+        for dqmc in dqmcs
+            iter = EachSitePairByDistance(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            @test length(iter) == Nsites^2
+            @test length(collect(iter)) == Nsites^2
+            @test eltype(iter) == NTuple{3, Int64}
+            @test Base.IteratorSize(EachSitePairByDistance) == Base.HasLength()
+            @test Base.IteratorEltype(EachSitePairByDistance) == Base.HasEltype()
+
+            dirs = directions(dqmc)
+            pos = MonteCarlo.positions(lattice(dqmc))
+            wrap = MonteCarlo.generate_combinations(MonteCarlo.lattice_vectors(MonteCarlo.lattice(dqmc)))
+
+            # Let's summarize these tests...
+            check = true
+
+            for (idx, src, trg) in iter
+                _d = pos[src] - pos[trg]
+                # Find lowest distance w/ periodic bounds
+                d = _d .+ wrap[1]
+                for v in wrap[2:end]
+                    new_d = _d .+ v
+                    if norm(new_d) + 1e-6 < norm(d)
+                        d .= new_d
+                    end
+                end
+                check = check && (dirs[idx] ≈ d)
+            end
+
+            @test check
+        end
+    end
+
+    @testset "EachLocalQuadByDistance" begin
+        for dqmc in dqmcs
+            iter = EachLocalQuadByDistance{6}(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            @test length(iter) == 6^2 * Nsites^2
+            @test length(collect(iter)) == 6^2 * Nsites^2
+            @test eltype(iter) == NTuple{7, Int64}
+            @test Base.IteratorSize(EachLocalQuadByDistance) == Base.HasLength()
+            @test Base.IteratorEltype(EachLocalQuadByDistance) == Base.HasEltype()
+
+            dirs = directions(dqmc)
+            pos = MonteCarlo.positions(lattice(dqmc))
+            wrap = MonteCarlo.generate_combinations(MonteCarlo.lattice_vectors(MonteCarlo.lattice(dqmc)))
+
+            # Let's summarize these tests...
+            check12 = true
+            check1 = true
+            check2 = true
+
+            for (idx12, idx1, idx2, src1, trg1, src2, trg2) in iter
+                # src1 -- idx12 -- src2
+                _d = pos[src1] - pos[src2]
+                d = _d .+ wrap[1]
+                for v in wrap[2:end]
+                    new_d = _d .+ v
+                    if norm(new_d) + 1e-6 < norm(d)
+                        d .= new_d
+                    end
+                end
+                check12 = check12 && (dirs[idx12] ≈ d)
+
+                # src1 -- idx1 -- trg1
+                _d = pos[src1] - pos[trg1]
+                d = _d .+ wrap[1]
+                for v in wrap[2:end]
+                    new_d = _d .+ v
+                    if norm(new_d) + 1e-6 < norm(d)
+                        d .= new_d
+                    end
+                end
+                check1 = check1 && (dirs[idx1] ≈ d)
+
+                # src2 -- idx2 -- trg2
+                _d = pos[src2] - pos[trg2]
+                d = _d .+ wrap[1]
+                for v in wrap[2:end]
+                    new_d = _d .+ v
+                    if norm(new_d) + 1e-6 < norm(d)
+                        d .= new_d
+                    end
+                end
+                check2 = check2 && (dirs[idx2] ≈ d)
+            end
+
+            @test check12
+            @test check1
+            @test check2
+        end
+    end
+end
 
 
 # # L = 3 hardcoded Honeycomb
