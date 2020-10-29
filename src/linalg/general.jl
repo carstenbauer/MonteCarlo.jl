@@ -74,11 +74,6 @@ function rvadd!(A::Matrix{T}, B::Matrix{T}) where {T <: Real}
         A[i, j] = A[i, j] + B[i, j]
     end
 end
-function rvsub!(O::Matrix{T}, A::Matrix{T}) where {T <: Real}
-    @avx for i in axes(O, 1), j in axes(O, 2)
-        O[i, j] = O[i, j] - A[i, j]
-    end
-end
 function vsub!(O::Matrix{T}, A::Matrix{T}, ::UniformScaling) where {T <: Real}
     T1 = one(T)
     @avx for i in axes(O, 1), j in axes(O, 2)
@@ -88,12 +83,7 @@ function vsub!(O::Matrix{T}, A::Matrix{T}, ::UniformScaling) where {T <: Real}
         O[i, i] -= T1
     end
 end
-# function vadd!(A::Matrix{T}, B::Matrix{T}, ::UniformScaling) where {T<:Real}
-#     T1 = one(T)
-#     @avx for k in axes(A, 1), l in axes(A, 2)
-#         A[k, l] = B[k, l] + T1
-#     end
-# end
+
 
 
 
@@ -150,8 +140,15 @@ vmul!(C, A, B) = mul!(C, A, B)
 rvmul!(A, B) = rmul!(A, B)
 lvmul!(A, B) = lmul!(A, B)
 rvadd!(A, B) = A .+= B
-rvsub!(A, B) = A .-= B
 vsub!(A, B, C) = A .= B .- C
+function vsub!(A, B, ::UniformScaling)
+    T1 = one(eltype(A))
+    T0 = zero(eltype(A))
+    @inbounds for i in axes(A, 1), j in axes(A, 2)
+        A[i, j] = B[i, j] - ifelse(i==j, T1, T0)
+    end
+    A
+end
 
 function rdivp!(A::Matrix{<: Complex}, T::Matrix{<: Complex}, O::Matrix{<: Complex}, pivot)
     # assume Diagonal is ±1!

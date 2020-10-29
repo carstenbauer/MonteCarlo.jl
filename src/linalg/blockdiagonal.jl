@@ -260,16 +260,6 @@ function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T<:Real, N}
         end
     end
 end
-function rvsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}) where {T<:Real, N}
-    @inbounds n = size(O.blocks[1], 1)
-    @inbounds for i in 1:N
-        a = A.blocks[i]
-        o = O.blocks[i]
-        @avx for j in 1:n, k in 1:n
-            o[j, k] = o[j, k] - a[j, k]
-        end
-    end
-end
 function vsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, ::UniformScaling) where {T<:Real, N}
     @inbounds n = size(O.blocks[1], 1)
     T1 = one(T)
@@ -284,18 +274,6 @@ function vsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, ::UniformScaling)
         end
     end
 end
-# function vadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}, ::UniformScaling) where {T<:Real, N}
-#     # Assuming correct size
-#     @inbounds n = size(B.blocks[1], 1)
-#     T1 = one(T)
-#     @inbounds for i in 1:N
-#         a = A.blocks[i]
-#         b = B.blocks[i]
-#         @avx for k in 1:n, l in 1:n
-#             a[k, l] = b[k, l] + T1
-#         end
-#     end
-# end
 
 
 

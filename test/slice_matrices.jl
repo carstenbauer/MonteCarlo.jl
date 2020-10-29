@@ -132,7 +132,7 @@ end
 
 
 
-using MonteCarlo: vmul!, lvmul!, rvmul!, rdivp!, udt_AVX_pivot!, rvadd!
+using MonteCarlo: vmul!, lvmul!, rvmul!, rdivp!, udt_AVX_pivot!, rvadd!, vsub!
 using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
 
 
@@ -172,6 +172,9 @@ using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
             copyto!(C, A)
             rvadd!(C, B)
             @test A + B ≈ C
+
+            vsub!(C, A, I)
+            @test A - I ≈ C
         end
 
         @testset "UDT transformations + rdivp! ($type)" begin
@@ -326,6 +329,9 @@ using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
         rvadd!(B1, B2)
         rvadd!(M1, M2)
         @test M1 ≈ B1
+
+        vsub!(B1, B2, I)
+        @test M2 - I ≈ B1
 
         # Test UDT and rdivp!
         M2 = Matrix(B2)
