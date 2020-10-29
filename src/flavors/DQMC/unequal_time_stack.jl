@@ -484,18 +484,18 @@ end
         @bm "B3" begin
             # 1/D_max U^† Tl Dr_min
             vmul!(mc.s.Tr, adjoint(s.U), mc.s.Tl)
-            mc.s.Dl .= 1.0 ./ max.(1.0, s.D)
+            vmaxinv!(mc.s.Dl, s.D) # mc.s.Dl .= 1.0 ./ max.(1.0, s.D)
             vmul!(mc.s.tmp1, Diagonal(mc.s.Dl), mc.s.Tr)
-            mc.s.Dl .= min.(1.0, mc.s.Dr)
+            vmin!(mc.s.Dl, mc.s.Dr) # mc.s.Dl .= min.(1.0, mc.s.Dr)
             vmul!(mc.s.Tr, mc.s.tmp1, Diagonal(mc.s.Dl))
         end
         # [U D_max (D_min T Ur 1/Dr_max + Tr) Dr_max Ur^-1]^-1
         @bm "B4" begin
             # D_min T Ur 1/Dr_max
             vmul!(mc.s.Tl, s.T, mc.s.Ur)
-            mc.s.Dl .= min.(1.0, s.D)
+            vmin!(mc.s.Dl, s.D) # mc.s.Dl .= min.(1.0, s.D)
             vmul!(mc.s.tmp1, Diagonal(mc.s.Dl), mc.s.Tl)
-            mc.s.Dl .= 1.0 ./ max.(1.0, mc.s.Dr)
+            vmaxinv!(mc.s.Dl, mc.s.Dr) # mc.s.Dl .= 1.0 ./ max.(1.0, mc.s.Dr)
             vmul!(mc.s.Tl, mc.s.tmp1, Diagonal(mc.s.Dl))
         end
         # [U D_max (Tl + Tr) Dr_max Ur^-1]^-1
@@ -507,15 +507,13 @@ end
         # Ur 1/Dr_max Tl^-1 1/Dl Tr^† D_max U^†
         @bm "B5" begin
             # [[((1/Dr_max) / Tl) 1/Dl] Tr^†] D_max
-            mc.s.Dr .= 1.0 ./ max.(1.0, mc.s.Dr)
+            vmaxinv!(mc.s.Dr, mc.s.Dr) # mc.s.Dr .= 1.0 ./ max.(1.0, mc.s.Dr)
             copyto!(mc.s.Ul, Diagonal(mc.s.Dr))
             rdivp!(mc.s.Ul, mc.s.Tl, mc.s.tmp1, mc.s.pivot)
-            @avx for i in eachindex(mc.s.Dl)
-                mc.s.Dl[i] = 1.0 / mc.s.Dl[i]
-            end
+            vinv!(mc.s.Dl) # mc.s.Dl[i] .= 1.0 ./ mc.s.Dl[i]
             vmul!(mc.s.tmp1, mc.s.Ul, Diagonal(mc.s.Dl))
             vmul!(mc.s.Ul, mc.s.tmp1, adjoint(mc.s.Tr))
-            mc.s.Dl .= 1.0 ./ max.(1.0, s.D)
+            vmaxinv!(mc.s.Dl, s.D) # mc.s.Dl .= 1.0 ./ max.(1.0, s.D)
             vmul!(s.greens, mc.s.Ul, Diagonal(mc.s.Dl))
         end
         # Ur G U^†

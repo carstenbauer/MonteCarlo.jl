@@ -84,6 +84,44 @@ function vsub!(O::Matrix{T}, A::Matrix{T}, ::UniformScaling) where {T <: Real}
     end
 end
 
+# NOTE
+# These should only be called with real Vectors, no need to implement extra
+# methods
+function vmin!(v::Vector{T}, w::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @avx for i in eachindex(w)
+        v[i] = min(T1, w[i])
+    end
+    v
+end
+function vmininv!(v::Vector{T}, w::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @avx for i in eachindex(w)
+        v[i] = T1 / min(T1, w[i])
+    end
+    v
+end
+function vmax!(v::Vector{T}, w::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @avx for i in eachindex(w)
+        v[i] = max(T1, w[i])
+    end
+    v
+end
+function vmaxinv!(v::Vector{T}, w::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @avx for i in eachindex(w)
+        v[i] = T1 / max(T1, w[i])
+    end
+    v
+end
+function vinv!(v::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @avx for i in eachindex(v)
+        v[i] = T1 / v[i]
+    end
+    v
+end
 
 
 

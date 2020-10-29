@@ -133,6 +133,7 @@ end
 
 
 using MonteCarlo: vmul!, lvmul!, rvmul!, rdivp!, udt_AVX_pivot!, rvadd!, vsub!
+using MonteCarlo: vmin!, vmininv!, vmax!, vmaxinv!, vinv!
 using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
 
 
@@ -175,6 +176,27 @@ using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
 
             vsub!(C, A, I)
             @test A - I ≈ C
+
+            if type == Float64
+                v = rand(16) .+ 0.5
+                w = copy(v)
+                
+                vmin!(v, w)
+                @test v ≈ min.(1.0, w)
+
+                vmininv!(v, w)
+                @test v ≈ 1.0 ./ min.(1.0, w)
+                
+                vmax!(v, w)
+                @test v ≈ max.(1.0, w)
+
+                vmaxinv!(v, w)
+                @test v ≈ 1.0 ./ max.(1.0, w)
+
+                v = copy(w)
+                vinv!(w)
+                @test w ≈ 1.0 ./ v
+            end
         end
 
         @testset "UDT transformations + rdivp! ($type)" begin
