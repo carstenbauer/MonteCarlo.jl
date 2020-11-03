@@ -123,7 +123,6 @@ nsources(mask::SimpleDistanceMask) = size(mask.targets, 1)
 Base.length(mask::SimpleDistanceMask) = size(mask.targets, 1)
 dirlength(mask::SimpleDistanceMask, dir_idx) = size(mask.targets, 1)
 dirlengths(mask::SimpleDistanceMask) = (size(mask.targets, 1) for _ in 1:size(mask.targets, 1))
-
 """
     directions(mask, lattice)
 
@@ -168,7 +167,7 @@ dirlengths(mask::DistanceMask) = length.(mask.targets)
 
 function directions(mask::VerboseDistanceMask, lattice::AbstractLattice)
     pos = MonteCarlo.positions(lattice)
-    dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
+    dirs = [pos[src] - pos[trg] for (src, trg) in first.(mask.targets)]
     dirs
 end
 function VerboseDistanceMask(lattice, wrap)
@@ -235,3 +234,11 @@ function RestrictedSourceMask(mask::DistanceMask, directions)
 end
 
 getorder(mask::RestrictedSourceMask, src) = mask.targets[src]
+
+
+
+
+DistanceMask(lattice::Chain) = default_distance_mask(lattice)
+DistanceMask(lattice::CubicLattice) = default_distance_mask(lattice)
+DistanceMask(lattice::SquareLattice) = default_distance_mask(lattice)
+DistanceMask(lattice::TriangularLattice) = default_distance_mask(lattice)

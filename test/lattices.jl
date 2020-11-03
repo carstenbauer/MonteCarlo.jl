@@ -31,6 +31,8 @@ for (d, lattype) in enumerate((
     end
 end
 
+using MonteCarlo: directed_norm
+
 @testset "Lattice Iterators" begin
     # Set up a few test models/DQMCs    
     m = HubbardModelAttractive(L=3, dims=3)
@@ -132,7 +134,7 @@ end
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]
                     new_d = _d .+ v
-                    if norm(new_d) + 1e-6 < norm(d)
+                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
                         d .= new_d
                     end
                 end
@@ -168,7 +170,7 @@ end
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]
                     new_d = _d .+ v
-                    if norm(new_d) + 1e-6 < norm(d)
+                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
                         d .= new_d
                     end
                 end
@@ -179,7 +181,7 @@ end
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]
                     new_d = _d .+ v
-                    if norm(new_d) + 1e-6 < norm(d)
+                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
                         d .= new_d
                     end
                 end
@@ -190,7 +192,7 @@ end
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]
                     new_d = _d .+ v
-                    if norm(new_d) + 1e-6 < norm(d)
+                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
                         d .= new_d
                     end
                 end

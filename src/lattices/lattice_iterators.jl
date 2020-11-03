@@ -142,6 +142,18 @@ function generate_combinations(vs::Vector{<: Vector})
     out
 end
 
+# norm + ϵ * angle(v, e_x)
+function directed_norm(v, ϵ)
+    l = norm(v)
+    if length(v) == 2 && l > ϵ
+        angle = acos(dot([1, 0], v) / l)
+        v[2] < 0 && (angle = 2pi - angle)
+        return l + ϵ * angle
+    else
+        return l
+    end
+end
+
 function EachSitePairByDistance(lattice::AbstractLattice, ϵ = 1e-6)
     _positions = positions(lattice)
     wrap = generate_combinations(lattice_vectors(lattice))
@@ -154,7 +166,7 @@ function EachSitePairByDistance(lattice::AbstractLattice, ϵ = 1e-6)
             d = _positions[origin] .- p .+ wrap[1]
             for v in wrap[2:end]
                 new_d = _positions[origin] .- p .+ v
-                if norm(new_d) + ϵ < norm(d)
+                if directed_norm(new_d, ϵ) + ϵ < directed_norm(d, ϵ)
                     d .= new_d
                 end
             end
@@ -172,7 +184,7 @@ function EachSitePairByDistance(lattice::AbstractLattice, ϵ = 1e-6)
         end
     end
 
-    temp = sortperm(directions, by=norm)
+    temp = sortperm(directions, by = v -> directed_norm(v, ϵ))
     EachSitePairByDistance(length(lattice)^2, bonds[temp])
 end
 function EachSitePairByDistance(mc::MonteCarloFlavor, model::Model)
@@ -311,12 +323,12 @@ function directions(iter::EachSitePairByDistance, lattice::AbstractLattice, ϵ=1
 
     dirs = map(iter.pairs) do pairs
         src, trg = pairs[1]
-        _d = pos[trg] - pos[src]
+        _d = pos[src] - pos[trg]
         # Find lowest distance w/ periodic bounds
         d = _d .+ wrap[1]
         for v in wrap[2:end]
             new_d = _d .+ v
-            if norm(new_d) + ϵ < norm(d)
+            if directed_norm(new_d, ϵ) + ϵ < directed_norm(d, ϵ)
                 d .= new_d
             end
         end
@@ -336,17 +348,17 @@ function directions(lattice::AbstractLattice, ϵ = 1e-6)
             d = _positions[origin] .- p .+ wrap[1]
             for v in wrap[2:end]
                 new_d = _positions[origin] .- p .+ v
-                if norm(new_d) + ϵ < norm(d)
+                if directed_norm(new_d, ϵ) + ϵ < directed_norm(d, ϵ)
                     d .= new_d
                 end
             end
-            # The rounding will allow us to use == here
             idx = findfirst(dir -> isapprox(dir, d, atol=ϵ), directions)
             if idx === nothing
                 push!(directions, d)
             end
         end
     end
-    sort!(directions, by=norm)
-    directions
+    # temp = sortperm(directions, by=norm)
+    # directions[temp]
+    sort!(directions, by = v -> directed_norm(v, ϵ))
 end

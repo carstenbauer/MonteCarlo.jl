@@ -52,6 +52,3 @@ has_bonds_table(::Chain) = HasBondsTable()
 
 positions(l::Chain) = [[i] for i in 1:l.sites]
 lattice_vectors(l::Chain) = [[l.sites]]
-
-# TODO remove?
-DistanceMask(lattice::Chain) = default_distance_mask(lattice)

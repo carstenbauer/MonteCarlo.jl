@@ -30,7 +30,6 @@ export Discarder, ConfigRecorder
 include("Measurements.jl")
 export measurements, observables
 
-include("lattices/masks.jl")
 include("lattices/lattice_iterators.jl")
 include("lattices/square.jl")
 include("lattices/chain.jl")
@@ -38,6 +37,7 @@ include("lattices/cubic.jl")
 include("lattices/honeycomb.jl")
 include("lattices/triangular.jl")
 include("lattices/ALPS.jl")
+include("lattices/deprecated.jl")
 # export directions, RawMask, DistanceMask # maybe getorder?
 export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
 export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, EachLocalQuadByDistance

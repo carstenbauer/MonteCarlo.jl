@@ -68,6 +68,3 @@ has_bonds_table(::CubicLattice) = HasBondsTable()
 
 positions(l::CubicLattice) = l.lattice |> CartesianIndices .|> Tuple .|> collect
 lattice_vectors(l::CubicLattice) = [[l.L, 0, 0], [0, l.L, 0], [0, 0, l.L]]
-
-# TODO: remove?
-DistanceMask(lattice::CubicLattice) = default_distance_mask(lattice)

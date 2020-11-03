@@ -807,6 +807,9 @@ function save_mc(file::JLDFile, mc::DQMC, entryname::String="MC")
     nothing
 end
 
+CB_type(T::UnionAll) = T.body.parameters[2]
+CB_type(T::DataType) = T.parameters[2]
+
 #     load_mc(data, ::Type{<: DQMC})
 #
 # Loads a DQMC from a given `data` dictionary produced by `JLD.load(filename)`.
@@ -815,7 +818,7 @@ function _load(data, ::Type{T}) where T <: DQMC
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
 
-    CB = data["type"].parameters[2]
+    CB = CB_type(data["type"])
     @assert CB <: Checkerboard
     mc = DQMC(CB)
     mc.p = _load(data["Parameters"], data["Parameters"]["type"])

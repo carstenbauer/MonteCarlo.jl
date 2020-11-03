@@ -152,6 +152,7 @@ function _save(file::JLDFile, m::DQMCMeasurement{GI, LI}, key::String) where {GI
     write(file, "$key/type", DQMCMeasurement)
     write(file, "$key/GI", GI)
     write(file, "$key/LI", LI)
+    # maybe add module for eval?
     write(file, "$key/kernel", Symbol(m.kernel))
     write(file, "$key/obs", m.observable)
     write(file, "$key/output", m.output)
@@ -160,10 +161,16 @@ end
 # TODO
 # I think eval will fail if kernel is not defined in MonteCarlo
 function _load(data, ::Type{T}) where {T <: DQMCMeasurement}
-    DQMCMeasurement{data["GI"], data["LI"]}(
-        eval(data["kernel"]), data["obs"], data["output"]
-    )
+    kernel = try
+        eval(data["kernel"])
+    catch e
+        @warn "Failed to load kernel in module MonteCarlo." exception=e
+        missing_kernel
+    end
+    DQMCMeasurement{data["GI"], data["LI"]}(kernel, data["obs"], data["output"])
 end
+
+missing_kernel(args...) = error("kernel couldn't be loaded.")
 
 
 
@@ -329,3 +336,4 @@ end
 
 
 include("measurements.jl")
+include("deprecated.jl")

@@ -67,30 +67,11 @@ positions(lattice::LatPhysLattice) = point.(sites(lattice.lattice))
 lattice_vectors(l::LatPhysLattice) = latticeVectors(l.lattice)
 
 
-# TODO
-function DistanceMask(lattice::LatPhysLattice)
-    wrap = generate_combinations(latticeVectors(lattice.lattice))
-    VerboseDistanceMask(lattice, wrap)
-end
 
-function directions(mask::VerboseDistanceMask, lattice::LatPhysLattice)
-    pos = positions(lattice)
-    dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
-    wrap = generate_combinations(latticeVectors(lattice.lattice))
-    map(dirs) do _d
-        d = round.(_d .+ wrap[1], digits=6)
-        for v in wrap[2:end]
-            new_d = round.(_d .+ v, digits=6)
-            if norm(new_d) < norm(d)
-                d .= new_d
-            end
-        end
-        d
-    end
-end
+################################################################################
+### Saving & Loading
+################################################################################
 
-
-# Saving & Loading
 
 
 function save_lattice(file::JLDFile, lattice::LatPhysLattice, entryname::String)
@@ -157,3 +138,32 @@ function load_unitcell(data)
 end
 load_sites(data) = data["type"].(data["points"], data["labels"])
 load_bonds(data) = data["type"].(data["froms"], data["tos"], data["labels"], data["wraps"])
+
+
+
+################################################################################
+### Deprecated
+################################################################################
+
+
+
+function DistanceMask(lattice::LatPhysLattice)
+    wrap = generate_combinations(latticeVectors(lattice.lattice))
+    VerboseDistanceMask(lattice, wrap)
+end
+
+function directions(mask::VerboseDistanceMask, lattice::LatPhysLattice)
+    pos = positions(lattice)
+    dirs = [pos[src] - pos[trg] for (src, trg) in first.(mask.targets)]
+    wrap = generate_combinations(latticeVectors(lattice.lattice))
+    map(dirs) do _d
+        d = round.(_d .+ wrap[1], digits=8)
+        for v in wrap[2:end]
+            new_d = round.(_d .+ v, digits=8)
+            if directed_norm(new_d, 1e-6) < directed_norm(d, 1e-6)
+                d .= new_d
+            end
+        end
+        d
+    end
+end

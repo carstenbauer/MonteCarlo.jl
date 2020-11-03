@@ -133,11 +133,4 @@
 #     basis = [0.5773502691896258, 0.0]
 #     [o*basis .+ v1*x .+ v2*y for x in 0:l.L-1 for y in 0:l.L-1 for o in 0:1]
 # end
-#
-# function DistanceMask(lattice::HoneycombLattice)
-#     L = lattice.L
-#     wrap = generate_combinations(
-#         [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
-#     )
-#     VerboseDistanceMask(lattice, wrap)
-# end
+
