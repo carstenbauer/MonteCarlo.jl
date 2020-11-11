@@ -202,15 +202,88 @@ end
 pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens; kwargs...)
 pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator; kwargs...)
 function pc_kernel(mc, model, src1, trg1, src2, trg2, G)
-    N = length(lattice(model))
     # verified against ED for each (src1, src2, trg1, trg2)
     # Δ_v(src1, trg1) Δ_v^†(src2, trg2)
     # G_{i, j}^{↑, ↑} G_{i+d, j+d}^{↓, ↓} - G_{i, j+d}^{↑, ↓} G_{i+d, j}^{↓, ↑}
+    N = length(lattice(model))
     G[src1, src2] * G[trg1+N, trg2+N] - G[src1, trg2+N] * G[trg1+N, src2]
 end
 function pc_kernel(mc, model, src1, trg1, src2, trg2, G00, G0l, Gl0, Gll)
     N = length(lattice(model))
     Gl0[src1, src2] * Gl0[trg1+N, trg2+N] - Gl0[src1, trg2+N] * Gl0[trg1+N, src2]
+end
+
+
+
+#=
+Λ^L = Λxx(qx->0, qy=0, iω=0)
+    = ∑_r ∫[0, ß] dτ ⟨j_x(r, τ) j_x(0, 0)⟩ exp(iqr) exp(iωτ)
+j_x(r, τ) = it ∑_σ [c_{r+e_x, σ}^†(τ) c_{r, σ}(τ) - c_{r, σ}^†(τ) c_{r+e_x, σ}(τ)]
+
+# reframe as:
+0 -> r, r -> r + Δr, e_x -> r+e_x, r+e_x -> r+e_x+Δr
+then use EachLocalQuadByDistance
+Well actually no, because we want e_x to only pick one neighbor.
+
+Λ_{trg-src}(Δr) = \sum_src1 cc_kernel(...)
+∑_Δr exp(iq⋅Δr) real(Λ_{trg-src}(Δr)) # Why real? this is silly...
+where q = Δq_i = k_1, k_2 (or k_1+k_2?)
+
+                       v- (0, qy)
+ρs = 1/8 * (real(Λxxq[1,2]) - real(Λxxq[2,1]) + real(Λyyq[1,2]) - real(Λyyq[2,1]))
+                                (qx, 0) -^
+This should correspond to
+ρ = -K_s - Λ^T = Λxx^L - Λxx^T = Λxx((0, qy)) - Λxx((qx, 0))
+  ~ real(Λxxq[1,2]) + real(Λyyq[1,2]) - real(Λxxq[2,1]) - real(Λyyq[2,1])
+    ^-        sum over NNs?        -^
+
+So I need to compute reciprocal lattice vectors I guess
+So what is qx, qy then? I assume those reciprocal lattice vectors? Or literally
+just a dx/dy?
+
+Any real-space runtime computation could be EachLocalQuadByDistance, we can do
+summing, direction picking and Fourier afterwards...
+
+To be more efficient:
+Should implement new lattice iterator that picks trg1, trg2 to be in the same
+direction and skips trg == src
+EachSyncedNNQuadByDistance{K}?
+=#
+function current_current(
+        dqmc::DQMC, model::Model; 
+        K = 1+length(neighbors(lattice(model), 1)),
+        greens_iterator = CombinedGreensIterator,
+        lattice_iterator = EachLocalQuadByDistance{K}, kwargs...
+    )
+    Measurement(dqmc, model, Greens, lattice_iterator, cc_kernel; kwargs...)
+end
+
+function cc_kernel(mc, model, src1, trg1, src2, trg2, G00, G0l, Gl0, Gll)
+    # This should compute 
+    # ⟨j_{trg1-src1}(src1, τ) j_{trg2-src2}(src2, 0)⟩
+    # which includes Λ_{trg-src}(r+Δr, r, l) (Δr = src2-src1)
+    # which gets summed over r
+    N = length(lattice(model))
+    output = eltype(G00)
+    for σ1 in (0, N), σ2 in (0, N)
+        s1 = src1 + σ1; t1 = trg1 + σ1
+        s2 = src2 + σ2; t2 = trg2 + σ2
+        # Note: the first parts can be combined (+)
+        # ((I[s1, t1] - Gll[s1, t1]) - (I[t1, s1] - Gll[t1, s1])) *
+        # ((I[s2, t2] - G00[s2, t2]) - (I[t2, s2] - G00[t2, s2]))
+        output += 
+            (I[s1, t1] - Gll[s1, t1]) * (I[s2, t2] - G00[s2, t2]) +
+            (I[s2, t1] - G0l[s2, t1]) * Gl0[s1, t2] 
+        output -=
+            (I[t1, s1] - Gll[t1, s1]) * (I[s2, t2] - G00[s2, t2]) +
+            (I[s2, s1] - G0l[s2, s1]) * Gl0[t1, t2]
+        output -=
+            (I[s1, t1] - Gll[s1, t1]) * (I[t2, s2] - G00[t2, s2]) +
+            (I[t2, t1] - G0l[t2, t1]) * Gl0[s1, s2]
+        output +=
+            (I[t1, s1] - Gll[t1, s1]) * (I[t2, s2] - G00[t2, s2]) +
+            (I[t2, s1] - G0l[t2, s1]) * Gl0[t1, s2]
+    end
 end
 
 

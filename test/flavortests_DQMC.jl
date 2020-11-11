@@ -114,24 +114,7 @@ end
         G1 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice))
         G2 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice, slice))
         @test maximum(abs.(G1 .- G2)) < 1e-14
-        # if !(maximum(abs.(G1 .- G2)) < 1e-14)
-        #     # This rarely fails - if it does I want to know why
-        #     @info slice
-        #     println("G1 = $G1")
-        #     println("G2 = $G2")
-        #     println("--------------------------")
-        #     println("uts = ", dqmc.ut_stack)
-        # end
     end
-
-    # # Check k > l vs k < l calculations at k == l
-    # for slice in 0:MonteCarlo.nslices(dqmc)
-    #     MonteCarlo.calculate_greens_full1!(dqmc, dqmc.ut_stack, slice, slice)
-    #     G1 = deepcopy(dqmc.ut_stack.greens)
-    #     MonteCarlo.calculate_greens_full2!(dqmc, dqmc.ut_stack, slice, slice)
-    #     G2 = deepcopy(dqmc.ut_stack.greens)
-    #     @test G1 .- G2 ≈ I atol = 1e-14
-    # end
 
     # Check G(t, 0) + G(0, beta - t) = 0
     for slice in 0:MonteCarlo.nslices(dqmc)-1

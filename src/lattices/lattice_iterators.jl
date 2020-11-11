@@ -224,9 +224,6 @@ in_direction(iter::EachSitePairByDistance, dir::Int64) = iter.pairs[dir]
 
 
 
-# TODO
-# It would be better if this kept (dir, i, j)
-
 """
     EachLocalQuadByDistance{K}(lattice)
     EachLocalQuadByDistance{K}(mc, model)
