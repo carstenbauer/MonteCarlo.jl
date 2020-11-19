@@ -197,7 +197,7 @@ function pairing(
         K = 1+length(neighbors(lattice(model), 1)),
         lattice_iterator = EachLocalQuadByDistance{K}, kwargs...
     )
-    Measurement(dqmc, model, Greens, lattice_iterator, pc_kernel; kwargs...)
+    Measurement(dqmc, model, greens_iterator, lattice_iterator, pc_kernel; kwargs...)
 end
 pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens; kwargs...)
 pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator; kwargs...)
