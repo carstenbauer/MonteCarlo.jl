@@ -119,7 +119,7 @@ end
     # Check G(t, 0) + G(0, beta - t) = 0
     for slice in 0:MonteCarlo.nslices(dqmc)-1
         G1 = MonteCarlo.greens(dqmc, slice, 0)
-        G2 = MonteCarlo.greens(dqmc, 0, MonteCarlo.nslices(dqmc) - slice)
+        G2 = MonteCarlo.greens(dqmc, slice, MonteCarlo.nslices(dqmc))
         @test G1 ≈ -G2 atol = 1e-14
     end
 

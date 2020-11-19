@@ -64,7 +64,7 @@ end
 function HamiltonMatrix(model::T) where {T <: HubbardModel}
     lattice = model.l
     t = model.t
-    U = T <: HubbardModelAttractive ? -abs(model.U) : model.U
+    U = T <: HubbardModelAttractive ? -abs(model.U) : abs(model.U)
     mu = T <: HubbardModelAttractive ? model.mu : 0.0
 
     H = zeros(Float64, 4^lattice.sites, 4^lattice.sites)
@@ -80,7 +80,7 @@ function HamiltonMatrix(model::T) where {T <: HubbardModel}
         for j in 1:4^lattice.sites
             state_from_integer!(rstate, j-1)
 
-            E = 0
+            E = 0.0
             # hopping (hermitian conjugate implied/included by lattice generation)
             for substate in [1, 2]
                 for source in 1:lattice.sites
@@ -105,7 +105,6 @@ function HamiltonMatrix(model::T) where {T <: HubbardModel}
                     E -= mu * (up_occ + down_occ)
                 end
             end
-
             H[i, j] = E
         end
     end

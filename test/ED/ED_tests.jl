@@ -98,12 +98,12 @@ end
 
     for model in models
         @testset "$(typeof(model))" begin
-            @info "Running DQMC ($(typeof(model).name)) β=5.0, 10k + 10k sweeps"
             Random.seed!(123)
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
                 thermalization = 10_000, sweeps = 10_000
             )
+            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.p.beta), 10k + 10k sweeps"
 
             dqmc[:G]    = greens_measurement(dqmc, model)
             dqmc[:Occs] = occupation(dqmc, model)
@@ -322,18 +322,18 @@ end
 
                 @testset "Pairing Susceptibility" begin
                     PS = mean(dqmc.measurements[:PS])
-                    ED_PS = zeros(ComplexF64, size(PS))
+                    ED_PS = zeros(Float64, size(PS))
                     for (dir12, dir1, dir2, src1, trg1, src2, trg2) in 
                             MonteCarlo.EachLocalQuadByDistance{4}(dqmc, model)
                         ED_PS[dir12, dir1, dir2] += expectation_value_integrated(
                             state -> begin
-                                sign1, _state = annihilate!(state, trg1, DOWN)
+                                sign1, _state = annihilate(state, trg1, DOWN)
                                 sign2, _state = annihilate!(_state, src1, UP)
                                 p = sign1*sign2
                                 p == 0 ? (Float64[], typeof(state)[]) : ([p], [_state])
                             end,
                             state -> begin
-                                sign1, _state = create!(state, src2, UP)
+                                sign1, _state = create(state, src2, UP)
                                 sign2, _state = create!(_state, trg2, DOWN)
                                 p = sign1*sign2
                                 p == 0 ? (Float64[], typeof(state)[]) : ([p], [_state])
@@ -348,3 +348,4 @@ end
         end
     end
 end
+
