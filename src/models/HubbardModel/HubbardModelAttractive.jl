@@ -241,3 +241,21 @@ pc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G) = G[src1, src
 function pc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G00, G0l, Gl0, Gll)
     Gl0[src1, src2] * Gl0[trg1, trg2]
 end
+
+function cc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G00, G0l, Gl0, Gll)
+    N = length(lattice(mc))
+    T = mc.s.hopping_matrix
+
+    # up-up counts, down-down counts, mixed only on 11s or 22s
+    s1 = src1; t1 = trg1
+    s2 = src2; t2 = trg2
+    output = 4.0 * 
+        (T[s1, t1] * Gll[t1, s1] - T[t1, s1] * Gll[s1, t1]) * 
+        (T[s2, t2] * G00[t2, s2] - T[t2, s2] * G00[s2, t2]) +
+        2.0 * T[t1, s1] * T[t2, s2] * (- G0l[s2, t1]) * Gl0[s1, t2] -
+        2.0 * T[s1, t1] * T[t2, s2] * (- G0l[s2, s1]) * Gl0[t1, t2] -
+        2.0 * T[t1, s1] * T[s2, t2] * (- G0l[t2, t1]) * Gl0[s1, s2] +
+        2.0 * T[s1, t1] * T[s2, t2] * (- G0l[t2, s1]) * Gl0[t1, s2]
+
+    output
+end

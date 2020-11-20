@@ -40,7 +40,8 @@ include("lattices/ALPS.jl")
 include("lattices/deprecated.jl")
 # export directions, RawMask, DistanceMask # maybe getorder?
 export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
-export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, EachLocalQuadByDistance
+export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, 
+        EachLocalQuadByDistance, EachLocalQuadBySyncedDistance
 export neighbors, directions
 
 include("flavors/MC/MC.jl")
@@ -50,6 +51,7 @@ export boson_energy_measurement, greens_measurement, occupation, magnetization
 export charge_density, charge_density_correlation, charge_density_susceptibility
 export spin_density, spin_density_correlation, spin_density_susceptibility
 export pairing, pairing_correlation, pairing_susceptibility
+export current_current_susceptibility
 # export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")

@@ -47,6 +47,7 @@ mutable struct DQMCStack{
     eV::InteractionMatType
 
     # hopping matrices (mu included)
+    hopping_matrix::HoppingMatType
     hopping_matrix_exp::HoppingMatType
     hopping_matrix_exp_inv::HoppingMatType
     hopping_matrix_exp_squared::HoppingMatType
@@ -173,6 +174,7 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
     T = hopping_matrix(mc, m)
     size(T) == (flv*N, flv*N) || error("Hopping matrix should have size "*
                                 "$((flv*N, flv*N)) but has size $(size(T)) .")
+    mc.s.hopping_matrix = T
     mc.s.hopping_matrix_exp = exp(-0.5 * dtau * T)
     mc.s.hopping_matrix_exp_inv = exp(0.5 * dtau * T)
     mc.s.hopping_matrix_exp_squared = mc.s.hopping_matrix_exp * mc.s.hopping_matrix_exp

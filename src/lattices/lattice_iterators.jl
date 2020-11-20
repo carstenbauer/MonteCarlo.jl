@@ -304,6 +304,96 @@ Base.eltype(::EachLocalQuadByDistance) = NTuple{7, Int64}
 
 
 ################################################################################
+### EachLocalQuadBySyncedDistance
+################################################################################
+
+
+
+"""
+    EachLocalQuadBySyncedDistance{K}(lattice)
+    EachLocalQuadBySyncedDistance{K}(mc, model)
+
+Creates an iterator which returns a tuple 
+`(dir12, dir_ii, src1, trg1, src2, trg2)` with each iteration. The 
+directional index `dir12` identifies the direction `src2 - src1`. 
+The type parameter `K` is the maximum direction index `dir_ii` a pair 
+`(src1, trg1)` (`(src2, trg2)`) may have. Picking for example `K = 5` for a 
+`SquareLattice` will result in the `src` site (`K = 1`) and the four nearest 
+neighbors of the `src` site being selected as targets.
+Note that `K` is not always the number of nearest neighbors + 1. For example, 
+the Honeycomb lattice has 3 NNs, but 6 unique directions. To include all NN 
+here, one should pick `K = 7`.
+
+The iterator is sorted by distance `src2 - src1`.
+
+Requires `lattice` to implement `positions` and `lattice_vectors`.
+"""
+struct EachLocalQuadBySyncedDistance{K} <: AbstractLatticeIterator
+    N::Int64
+    pairs_by_dir::Vector{Vector{Tuple{Int64, Int64}}}
+    trg_from_src::Vector{Vector{Tuple{Int64, Int64}}}
+end
+
+
+function EachLocalQuadBySyncedDistance{K}(lattice::AbstractLattice) where {K}
+    # (src1, src2) pairs from dir
+    pairs_by_dir = EachSitePairByDistance(lattice)
+
+    # (dir, trg1) from src1
+    trg_from_src = [Tuple{Int64, Int64}[] for _ in 1:length(lattice)]
+    for dir in 1:K
+        for (src, trg) in in_direction(pairs_by_dir, dir)
+            push!(trg_from_src[src], (dir, trg))
+        end
+    end
+
+    total_length = sum(length(x) for x in trg_from_src) # maybe wrong
+    EachLocalQuadBySyncedDistance{K}(total_length, pairs_by_dir.pairs, trg_from_src)
+end
+function EachLocalQuadBySyncedDistance{K}(mc::MonteCarloFlavor, model::Model) where {K}
+    EachLocalQuadBySyncedDistance{K}(lattice(model))
+end
+
+
+function Base.iterate(iter::EachLocalQuadBySyncedDistance, state = (1, 1, 1, 1))
+    dir12, idx, i, j = state
+    if dir12 ≤ length(iter.pairs_by_dir)
+        if idx ≤ length(iter.pairs_by_dir[dir12])
+            src1, src2 = iter.pairs_by_dir[dir12][idx]
+            if i ≤ length(iter.trg_from_src[src1])
+                dir1, trg1 = iter.trg_from_src[src1][i]
+                if j ≤ length(iter.trg_from_src[src2])
+                    dir2, trg2 = iter.trg_from_src[src2][j]
+                    if dir1 == dir2
+                        return (
+                            (dir12, dir1, src1, trg1, src2, trg2), 
+                            (dir12, idx, i, j+1)
+                        )
+                    else
+                        return iterate(iter, (dir12, idx, i, j+1))
+                    end
+                else
+                    return iterate(iter, (dir12, idx, i+1, 1))
+                end
+            else
+                return iterate(iter, (dir12, idx+1, 1, 1))
+            end
+
+        else
+            return iterate(iter, (dir12+1, 1, 1, 1))
+        end
+    else
+        return nothing
+    end
+end
+ndirections(iter::EachLocalQuadBySyncedDistance{K}) where {K} = (length(iter.pairs_by_dir), K)
+# Base.length(iter::EachLocalQuadBySyncedDistance) = iter.N
+Base.IteratorSize(iter::EachLocalQuadBySyncedDistance) = SizeUnknown()
+Base.eltype(::EachLocalQuadBySyncedDistance) = NTuple{6, Int64}
+
+
+
+################################################################################
 ### Additonal stuff
 ################################################################################
 

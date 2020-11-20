@@ -249,41 +249,65 @@ Should implement new lattice iterator that picks trg1, trg2 to be in the same
 direction and skips trg == src
 EachSyncedNNQuadByDistance{K}?
 =#
-function current_current(
+function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
         K = 1+length(neighbors(lattice(model), 1)),
         greens_iterator = CombinedGreensIterator,
-        lattice_iterator = EachLocalQuadByDistance{K}, kwargs...
+        lattice_iterator = EachLocalQuadBySyncedDistance{K}, kwargs...
     )
-    Measurement(dqmc, model, Greens, lattice_iterator, cc_kernel; kwargs...)
+    Measurement(dqmc, model, greens_iterator, lattice_iterator, cc_kernel; kwargs...)
 end
+# current_current_correlation(mc, m; kwargs...) = current_current(mc, m, Greens; kwargs...)
+# current_current_susceptibility(mc, m; kwargs...) = current_current(mc, m, CombinedGreensIterator; kwargs...)
 
 function cc_kernel(mc, model, src1, trg1, src2, trg2, G00, G0l, Gl0, Gll)
     # This should compute 
     # ⟨j_{trg1-src1}(src1, τ) j_{trg2-src2}(src2, 0)⟩
-    # which includes Λ_{trg-src}(r+Δr, r, l) (Δr = src2-src1)
-    # which gets summed over r
+    # where (trg-src) picks a direction (e.g. NN directions)
+    # and (src1-src2) is the distance vector that the Fourier transform applies to
+    # From dos Santos: Introduction to Quantum Monte Carlo Simulations
+    # j_{trg-src}(src, τ) = it \sum\sigma (c^\dagger(trg,\sigma, \tau) c(src, \sigma, \tau) - c^\dagger(src, \sigma, \tau) c(trg, \sigma \tau))
+    # where i -> src, i+x -> trg as a generalization
+    # and t is assumed to be hopping matrix element, generalizing to
+    # = i \sum\sigma (T[trg, src] c^\dagger(trg,\sigma, \tau) c(src, \sigma, \tau) - T[src, trg] c^\dagger(src, \sigma, \tau) c(trg, \sigma \tau))
+    
     N = length(lattice(model))
-    output = eltype(G00)
+    T = mc.s.hopping_matrix
+    output = zero(eltype(G00))
+
+    # Iterate through (spin up, spin down)
     for σ1 in (0, N), σ2 in (0, N)
         s1 = src1 + σ1; t1 = trg1 + σ1
         s2 = src2 + σ2; t2 = trg2 + σ2
-        # Note: the first parts can be combined (+)
-        # ((I[s1, t1] - Gll[s1, t1]) - (I[t1, s1] - Gll[t1, s1])) *
-        # ((I[s2, t2] - G00[s2, t2]) - (I[t2, s2] - G00[t2, s2]))
         output += 
-            (I[s1, t1] - Gll[s1, t1]) * (I[s2, t2] - G00[s2, t2]) +
-            (I[s2, t1] - G0l[s2, t1]) * Gl0[s1, t2] 
-        output -=
-            (I[t1, s1] - Gll[t1, s1]) * (I[s2, t2] - G00[s2, t2]) +
-            (I[s2, s1] - G0l[s2, s1]) * Gl0[t1, t2]
-        output -=
-            (I[s1, t1] - Gll[s1, t1]) * (I[t2, s2] - G00[t2, s2]) +
-            (I[t2, t1] - G0l[t2, t1]) * Gl0[s1, s2]
-        output +=
-            (I[t1, s1] - Gll[t1, s1]) * (I[t2, s2] - G00[t2, s2]) +
-            (I[t2, s1] - G0l[t2, s1]) * Gl0[t1, s2]
+            (T[s1, t1] * Gll[t1, s1] - T[t1, s1] * Gll[s1, t1]) * 
+            (T[s2, t2] * G00[t2, s2] - T[t2, s2] * G00[s2, t2]) +
+            T[t1, s1] * T[t2, s2] * (- G0l[s2, t1]) * Gl0[s1, t2] -
+            T[s1, t1] * T[t2, s2] * (- G0l[s2, s1]) * Gl0[t1, t2] -
+            T[t1, s1] * T[s2, t2] * (- G0l[t2, t1]) * Gl0[s1, s2] +
+            T[s1, t1] * T[s2, t2] * (- G0l[t2, s1]) * Gl0[t1, s2]
+            # Why no I? 
+            # T[t1, s1] * T[t2, s2] * (I[s2, t1] - G0l[s2, t1]) * Gl0[s1, t2] -
+            # T[s1, t1] * T[t2, s2] * (I[s2, s1] - G0l[s2, s1]) * Gl0[t1, t2] -
+            # T[t1, s1] * T[s2, t2] * (I[t2, t1] - G0l[t2, t1]) * Gl0[s1, s2] +
+            # T[s1, t1] * T[s2, t2] * (I[t2, s1] - G0l[t2, s1]) * Gl0[t1, s2]
+
+        # Uncompressed Wicks expansion
+        # output += T[t1, s1] * T[t2, s2] *
+        #     ((I[s1, t1] - Gll[s1, t1]) * (I[s2, t2] - G00[s2, t2]) +
+        #     (I[s2, t1] - G0l[s2, t1]) * Gl0[s1, t2])
+        # output -= T[s1, t1] * T[t2, s2] *
+        #     ((I[t1, s1] - Gll[t1, s1]) * (I[s2, t2] - G00[s2, t2]) +
+        #     (I[s2, s1] - G0l[s2, s1]) * Gl0[t1, t2])
+        # output -= T[t1, s1] * T[s2, t2] *
+        #     ((I[s1, t1] - Gll[s1, t1]) * (I[t2, s2] - G00[t2, s2]) +
+        #     (I[t2, t1] - G0l[t2, t1]) * Gl0[s1, s2])
+        # output += T[s1, t1] * T[s2, t2] *
+        #     ((I[t1, s1] - Gll[t1, s1]) * (I[t2, s2] - G00[t2, s2]) +
+        #     (I[t2, s1] - G0l[t2, s1]) * Gl0[t1, s2])
     end
+
+    output
 end
 
 

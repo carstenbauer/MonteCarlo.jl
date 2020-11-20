@@ -330,6 +330,34 @@ function MonteCarlo.pairing_correlation(i::Int64, j::Int64, k::Int64, l::Int64)
 end
 
 
+# = i \sum\sigma (T[trg, src] c^\dagger(trg,\sigma, \tau) c(src, \sigma, \tau) - T[src, trg] c^\dagger(src, \sigma, \tau) c(trg, \sigma \tau))
+function current_density(src, trg, hopping_matrix::AbstractArray)
+    state -> begin
+        states = typeof(state)[]
+        prefactors = Float64[]
+        for substate in (UP, DOWN)
+            # T[trg, src] c^\dagger(trg,\sigma, \tau) c(src, \sigma, \tau)
+            sign1, _state = annihilate(state, src, substate)
+            sign2, _state = create!(_state, trg, substate)
+            if _state != 0.0
+                push!(prefactors, sign1 * sign2 * hopping_matrix[trg, src])
+                push!(states, _state)
+            end
+
+            # - T[src, trg] c^\dagger(src, \sigma, \tau) c(trg, \sigma \tau)
+            sign1, _state = annihilate(state, trg, substate)
+            sign2, _state = create!(_state, src, substate)
+            if _state != 0.0
+                push!(prefactors, -sign1 * sign2 * hopping_matrix[src, trg])
+                push!(states, _state)
+            end
+        end
+        prefactors, states
+    end
+end
+    
+
+
 function scalarproduct(lstate::BitArray, values::Vector, states::Vector)
     x = zero(eltype(values))
     for k in eachindex(states)

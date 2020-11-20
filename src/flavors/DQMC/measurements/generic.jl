@@ -88,6 +88,7 @@ _get_shape(model, ::EachSiteAndFlavor) = nflavors(model) * length(lattice(model)
 _get_shape(model, ::EachSitePair) = (length(lattice(model)), length(lattice(model)))
 _get_shape(model, iter::EachSitePairByDistance) = ndirections(iter)
 _get_shape(model, iter::EachLocalQuadByDistance) = ndirections(iter)
+_get_shape(model, iter::EachLocalQuadBySyncedDistance) = ndirections(iter)
 
 
 # Some type piracy to make things easier
@@ -262,8 +263,6 @@ end
 # If LatticeIterator is Nothing, then things should be handled in measure!
 prepare!(::Nothing, model, m) = nothing
 prepare!(::AbstractLatticeIterator, model, m) = m.output .= zero(eltype(m.output))
-prepare!(::EachLocalQuadByDistance, model, m) = m.output .= zero(eltype(m.output))
-prepare!(::EachSitePairByDistance,  model, m) = m.output .= zero(eltype(m.output))
 
 finish!(::Nothing, model, m) = nothing # handled in measure!
 finish!(::AbstractLatticeIterator, model, m) = push!(m.observable, m.output)
@@ -276,6 +275,10 @@ function finish!(::EachSitePairByDistance, model, m, factor=1.0)
     push!(m.observable, m.output)
 end
 function finish!(::EachLocalQuadByDistance, model, m, factor=1.0)
+    m.output .*= factor / length(lattice(model))
+    push!(m.observable, m.output)
+end
+function finish!(::EachLocalQuadBySyncedDistance, model, m, factor=1.0)
     m.output .*= factor / length(lattice(model))
     push!(m.observable, m.output)
 end
@@ -328,6 +331,18 @@ end
 @bm function apply!(iter::EachLocalQuadByDistance, measurement, mc::DQMC, model, args...)
     for (dir12, dir1, dir2, src1, trg1, src2, trg2) in iter
         measurement.output[dir12, dir1, dir2] += measurement.kernel(
+            mc, model, src1, trg1, src2, trg2, args...
+        )
+    end
+    nothing
+end
+
+# Call kernel for each pair (src1, trg1, src2, trg) and sum those that have the 
+# same `dir12 = pos[src2] - pos[src1]` and 
+# `dir1 = pos[trg1] - pos[src1] = dir2 = pos[trg2] - pos[src2] = dir_ii`
+@bm function apply!(iter::EachLocalQuadBySyncedDistance, measurement, mc::DQMC, model, args...)
+    for (dir12, dir_ii, src1, trg1, src2, trg2) in iter
+        measurement.output[dir12, dir_ii] += measurement.kernel(
             mc, model, src1, trg1, src2, trg2, args...
         )
     end

@@ -133,6 +133,7 @@ end
             dqmc[:SDSy] = spin_density_susceptibility(dqmc, model, :y)
             dqmc[:SDSz] = spin_density_susceptibility(dqmc, model, :z)
             dqmc[:PS]   = pairing_susceptibility(dqmc, model, K=4)
+            dqmc[:CCS]  = current_current_susceptibility(dqmc, model, K=4)
 
             # MonteCarlo.enable_benchmarks()
 
@@ -344,6 +345,20 @@ end
                     @test ED_PS/N ≈ PS atol=atol rtol=rtol
                 end
                 
+                @testset "Current Current Susceptibility" begin
+                    CCS = mean(dqmc.measurements[:CCS])
+                    ED_CCS = zeros(Float64, size(CCS))
+                    T = dqmc.s.hopping_matrix
+                    for (dir12, dir_ii, src1, trg1, src2, trg2) in 
+                            MonteCarlo.EachLocalQuadBySyncedDistance{4}(dqmc, model)
+                        ED_CCS[dir12, dir_ii] += expectation_value_integrated(
+                            current_density(src1, trg1, T),
+                            current_density(src2, trg2, T),
+                            H, step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
+                        )
+                    end
+                    @test ED_CCS/N ≈ CCS atol=atol rtol=rtol
+                end
             end
         end
     end
