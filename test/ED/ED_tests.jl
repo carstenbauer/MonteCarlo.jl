@@ -86,7 +86,7 @@ include("ED.jl")
     # Test G(t, 0) + G(0, beta - t) = 0
     UTG1 = calculate_Greens_matrix(H, 0.7, 0.0, model.l, beta=1.0)
     UTG2 = calculate_Greens_matrix(H, 0.0, 1.0 - 0.7, model.l, beta=1.0)
-    @test UTG1 ≈ -UTG2 atol=1e-14
+    @test UTG1 ≈ -UTG2 atol=1e-13
 end
 
 
