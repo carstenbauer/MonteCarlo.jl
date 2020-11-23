@@ -2,10 +2,10 @@ using Random
 include("ED.jl")
 
 @testset "ED checks" begin
-    void = state_from_integer(0, 1, 2)
-    up = state_from_integer(1, 1, 2)
-    down = state_from_integer(2, 1, 2)
-    updown = state_from_integer(3, 1, 2)
+    void = State(0)
+    up = State(1)
+    down = State(2)
+    updown = State(3)
 
     # create up at site 1
     _sign, s = create(void, 1, 1)
@@ -69,14 +69,14 @@ include("ED.jl")
 
             # Test G(t, t) = G(0, 0) = G
             UTG = expectation_value(
-                s -> annihilate!(s, site2, substate2),
-                s -> create!(s, site1, substate1),
+                s -> annihilate(s, site2, substate2),
+                s -> create(s, site1, substate1),
                 H, 0.1, 0.1, N_sites=model.l.sites
             )
             @test UTG ≈ real(G) atol=1e-14
             UTG = expectation_value(
-                s -> annihilate!(s, site2, substate2),
-                s -> create!(s, site1, substate1),
+                s -> annihilate(s, site2, substate2),
+                s -> create(s, site1, substate1),
                 H, 0.7, 0.7, N_sites=model.l.sites
             )
             @test UTG ≈ real(G) atol=1e-14
@@ -329,15 +329,15 @@ end
                         ED_PS[dir12, dir1, dir2] += expectation_value_integrated(
                             state -> begin
                                 sign1, _state = annihilate(state, trg1, DOWN)
-                                sign2, _state = annihilate!(_state, src1, UP)
+                                sign2, _state = annihilate(_state, src1, UP)
                                 p = sign1*sign2
-                                p == 0 ? (Float64[], typeof(state)[]) : ([p], [_state])
+                                p, _state
                             end,
                             state -> begin
                                 sign1, _state = create(state, src2, UP)
-                                sign2, _state = create!(_state, trg2, DOWN)
+                                sign2, _state = create(_state, trg2, DOWN)
                                 p = sign1*sign2
-                                p == 0 ? (Float64[], typeof(state)[]) : ([p], [_state])
+                                p, _state
                             end,
                             H, step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
                         )

@@ -1,63 +1,89 @@
+# @time HamiltonMatrix -> 0.12s ish
+# @time calculate_greens -> 0.08s ish
+# @time ED_CDC w/ growing arrays -> 0.5s ish
+#              w/ allocated array -> 0.52s ish
+#              w/ growing tuples -> 1.5s oh god
+#              w/ growing array, optimize order -> 0.46s ish
+#              w/ growing array, optimize order, skip middle -> 0.35s ish
+# @time ED_PC -> 0.62s ish (72k allocs, 136MiB)
+# @time ED_SDCx -> 0.8s ish (6M allocs, 432MiB, high variance)
+
+
+#=
+[ Info: Running DQMC (HubbardModelRepulsive) β=1.0, 10k + 10k sweeps
+ 35.093788 seconds (72.56 M allocations: 3.394 GiB, 5.23% gc time)
+[ Info: Running ED
+ 34.355872 seconds (111.06 M allocations: 8.967 GiB, 7.25% gc time)
+[ Info: Running DQMC (HubbardModelAttractive) β=1.0, 10k + 10k sweeps
+  7.884059 seconds (18.24 M allocations: 776.576 MiB, 2.80% gc time)
+[ Info: Running ED
+ 26.055611 seconds (88.26 M allocations: 7.898 GiB, 8.20% gc time)
+=#
+
 using LinearAlgebra, SparseArrays
 using MonteCarlo
 using MonteCarlo: @bm
 
-# State ∈ [0, up, down, updown] = [00, 10, 01, 11]
-# 2x2 lattice -> 4 (exponent) -> 4^4 states = 256
+
+struct State
+    x::UInt16
+end
+
+const VOID = State(typemax(UInt16))
 const UP = 1
 const DOWN = 2
 
-
-# TODO: Maybe eventually allow more chunks?
-function state_from_integer(int, sites=4, substates_per_site=2)
-    @assert int <= (2substates_per_site)^sites-1
-    out = BitArray(undef, (substates_per_site, sites))
-    out.chunks[1] = int
-    out
+State(i::Integer) = State(UInt16(i))
+function Base.getindex(s::State, i)
+    mask = UInt16(1) << (i-1)
+    s.x & mask == mask
 end
-function state_from_integer!(input, int)
-    @inbounds Base.setindex!(input.chunks, int, 1)
-    input
-end
-integer_from_state(input) = input.chunks[1]
-
-
-# NOTE: These output `0.0, state` if the state should be destroyed.
-create(state, site, substate) = create!(copy(state), site, substate)
-function create!(state, site, substate)
-    # create(|1⟩) -> no state
-    state[substate, site] && return 0.0, state
-
-    # fermionic sign
-    lindex = 2(site-1) + substate
-    t = 0
-    @inbounds for i in 1:lindex-1
-        t += state[i]
+function State(s::State, val::Bool, idx)
+    mask = UInt16(1) << (idx-1)
+    if val
+        return State(s.x | mask)
+    else
+        return State(s.x & (~mask))
     end
-    _sign = 1.0 - 2.0 * (t%2)
-
-    # create(|0⟩) -> |1⟩
-    state[substate, site] = true
-    return _sign, state
 end
-
-annihilate(state, site, substate) = annihilate!(copy(state), site, substate)
-function annihilate!(state, site, substate)
-    # annihilate(|0⟩) -> no state
-    !state[substate, site] && return 0.0, state
-
-    # fermionic sign
-    lindex = 2(site-1) + substate
-    t = 0
-    @inbounds for i in 1:lindex-1
-        t += state[i]
+function Base.show(io::IO, s::State)
+    print(io, "State(", bitstring(s.x), ")")
+end
+function count_bits(s::State, upto=16)
+    mask = VOID.x >> (16-upto)
+    c = s.x & mask
+    count_bits(c)
+end
+function count_bits(c::Integer)
+    count = 0
+    while c != 0
+        count += 1
+        c = c & (c-1)
     end
-    _sign = 1.0 - 2.0 * (t%2)
-
-    # annihilate(|1⟩) -> |0⟩
-    state[substate, site] = false
-    return _sign, state
+    count
 end
+
+function create(state::State, site, substate)
+    lin = 2(site-1) + substate
+    state[lin] && return 0.0, VOID
+
+    n = count_bits(state, lin-1)
+    mask = UInt16(1) << (lin-1)
+    return 1.0 - 2.0 * (n%2), State(state.x | mask)
+end
+function annihilate(state, site, substate)
+    lin = 2(site-1) + substate
+    state[lin] || return 0.0, VOID
+
+    n = count_bits(state::State, lin-1)
+    mask = UInt16(1) << (lin-1)
+    return 1.0 - 2.0 * (n%2), State(state.x & (~mask))
+end
+
+Base.:(+)(s::State, x) = s.x + x
+Base.iterate(s::State) = s == VOID ? nothing : (s, 1)
+Base.iterate(s::State, _) = nothing
+Base.eltype(::State) = State
 
 
 
@@ -69,16 +95,13 @@ function HamiltonMatrix(model::T) where {T <: HubbardModel}
 
     H = zeros(Float64, 4^lattice.sites, 4^lattice.sites)
 
-    lstate = state_from_integer(0, lattice.sites)
-    rstate = state_from_integer(0, lattice.sites)
-
     # -t ∑_ijσ c_iσ^† c_jσ
     # +U ∑_i (n_i↑ - 1/2)(n_i↓ - 1/2)
     # -μ ∑_i n_i
     for i in 1:4^lattice.sites
-        state_from_integer!(lstate, i-1)
+        lstate = State(i-1)
         for j in 1:4^lattice.sites
-            state_from_integer!(rstate, j-1)
+            rstate = State(j-1)
 
             E = 0.0
             # hopping (hermitian conjugate implied/included by lattice generation)
@@ -88,7 +111,7 @@ function HamiltonMatrix(model::T) where {T <: HubbardModel}
                         # be careful not to change rstate 
                         # (or restore it with state_from_integer!)
                         _sign1, state = annihilate(rstate, source, substate)
-                        _sign2, state = create!(state, target, substate)
+                        _sign2, state = create(state, target, substate)
                         if _sign1 * _sign2 != 0.0 && lstate == state
                             E -= _sign1 * _sign2 * t
                         end
@@ -98,8 +121,8 @@ function HamiltonMatrix(model::T) where {T <: HubbardModel}
 
             # # U, μ terms
             for p in 1:4
-                up_occ = rstate[1, p]
-                down_occ = rstate[2, p]
+                up_occ = rstate[2(p-1)+1]
+                down_occ = rstate[2(p-1)+2]
                 if lstate == rstate
                     E += U * (up_occ - 0.5) * (down_occ - 0.5)
                     E -= mu * (up_occ + down_occ)
@@ -121,11 +144,11 @@ end
 
 function Greens(site1, site2, substate1, substate2)
     s -> begin
-        _sign1, state = create!(s, site1, substate1)
-        _sign1 == 0. && return Float64[], typeof(s)[]
-        _sign2, state = annihilate!(state, site2, substate2)
-        _sign2 == 0. && return Float64[], typeof(s)[]
-        return [_sign1 * _sign2], [state]
+        _sign1, state = create(s, site1, substate1)
+        _sign1 == 0. && return 0.0, VOID
+        _sign2, state = annihilate(state, site2, substate2)
+        _sign2 == 0. && return 0.0, VOID
+        return _sign1 * _sign2, state
     end
 end
 
@@ -134,17 +157,20 @@ end
 function Greens_permuted(site1, site2, substate1, substate2)
     s -> begin
         delta = ((site1 == site2) && (substate1 == substate2)) ? 1.0 : 0.0
-        _sign1, state = annihilate!(s, site2, substate2)
+        _sign1, state = annihilate(s, site2, substate2)
+        # if _sign1 == 0.0
+        #     return delta, state
+        # end
         if _sign1 == 0.0
-            return delta == 0.0 ? (Float64[], typeof(s)[]) : ([delta], [state])
+            return delta == 0.0 ? (0.0, VOID) : (delta, s)
         end
-        _sign2, state = create!(state, site1, substate1)
+        _sign2, state = create(state, site1, substate1)
 
         p = _sign1 * _sign2
         if p == 0.0 && delta == 0.0
-            return Float64[], typeof(s)[]
+            return 0.0, VOID
         else
-            return [delta - p], [state]
+            return delta - p, state
         end
     end
 end
@@ -152,18 +178,19 @@ end
 # Charge Density Correlation
 function MonteCarlo.charge_density_correlation(site1::Int64, site2::Int64)
     state -> begin
-        states = typeof(state)[]
+        states = State[]
         prefactors = Float64[]
-        for substate1 in [UP, DOWN]
-            for substate2 in [UP, DOWN]
-                sign1, _state = annihilate(state, site2, substate2)
-                sign2, _state = create!(_state, site2, substate2)
-                sign3, _state = annihilate!(_state, site1, substate1)
-                sign4, _state = create!(_state, site1, substate1)
+        for substate2 in [UP, DOWN]
+            sign1, _state = annihilate(state, site2, substate2)
+            sign2, _state = create(_state, site2, substate2)
+            sign1*sign2 == 0 && continue
+            for substate1 in [UP, DOWN]
+                sign3, __state = annihilate(_state, site1, substate1)
+                sign4, __state = create(__state, site1, substate1)
                 p = sign1 * sign2 * sign3 * sign4
                 if p != 0.0
                     push!(prefactors, p)
-                    push!(states, _state)
+                    push!(states, __state)
                 end
             end
         end
@@ -179,14 +206,14 @@ function m_x(site)
         states = typeof(state)[]
         prefactors = Float64[]
         _sign1, _state = annihilate(state, site, DOWN)
-        _sign2, _state = create!(_state, site, UP)
+        _sign2, _state = create(_state, site, UP)
         p = _sign1 * _sign2
         if p != 0
             push!(states, _state)
             push!(prefactors, p)
         end
         _sign1, _state = annihilate(state, site, UP)
-        _sign2, _state = create!(_state, site, DOWN)
+        _sign2, _state = create(_state, site, DOWN)
         p = _sign1 * _sign2
         if p != 0
             push!(states, _state)
@@ -200,14 +227,14 @@ function m_y(site)
         states = typeof(state)[]
         prefactors = Float64[]
         _sign1, _state = annihilate(state, site, DOWN)
-        _sign2, _state = create!(_state, site, UP)
+        _sign2, _state = create(_state, site, UP)
         p = _sign1 * _sign2
         if p != 0
             push!(states, _state)
             push!(prefactors, p)
         end
         _sign1, _state = annihilate(state, site, UP)
-        _sign2, _state = create!(_state, site, DOWN)
+        _sign2, _state = create(_state, site, DOWN)
         p = _sign1 * _sign2
         if p != 0
             push!(states, _state)
@@ -221,14 +248,14 @@ function m_z(site)
         states = typeof(state)[]
         prefactors = Float64[]
         _sign1, _state = annihilate(state, site, UP)
-        _sign2, _state = create!(_state, site, UP)
+        _sign2, _state = create(_state, site, UP)
         p = _sign1 * _sign2
         if p != 0
             push!(states, _state)
             push!(prefactors, p)
         end
         _sign1, _state = annihilate(state, site, DOWN)
-        _sign2, _state = create!(_state, site, DOWN)
+        _sign2, _state = create(_state, site, DOWN)
         p = _sign1 * _sign2
         if p != 0
             push!(states, _state)
@@ -244,16 +271,17 @@ function spin_density_correlation_x(site1, site2)
     state -> begin
         states = typeof(state)[]
         prefactors = Float64[]
-        for substates1 in [(UP, DOWN), (DOWN, UP)]
-            for substates2 in [(UP, DOWN), (DOWN, UP)]
-                sign1, _state = annihilate(state, site2, substates2[1])
-                sign2, _state = create!(_state, site2, substates2[2])
-                sign3, _state = annihilate!(_state, site1, substates1[1])
-                sign4, _state = create!(_state, site1, substates1[2])
+        for substates2 in [(UP, DOWN), (DOWN, UP)]
+            sign1, _state = annihilate(state, site2, substates2[1])
+            sign2, _state = create(_state, site2, substates2[2])
+            sign1 * sign2 == 0.0 && continue
+            for substates1 in [(UP, DOWN), (DOWN, UP)]
+                sign3, __state = annihilate(_state, site1, substates1[1])
+                sign4, __state = create(__state, site1, substates1[2])
                 p = sign1 * sign2 * sign3 * sign4
                 if p != 0.0
                     push!(prefactors, p)
-                    push!(states, _state)
+                    push!(states, __state)
                 end
             end
         end
@@ -264,18 +292,19 @@ function spin_density_correlation_y(site1, site2)
     state -> begin
         states = typeof(state)[]
         prefactors = ComplexF64[]
-        for substates1 in [(UP, DOWN), (DOWN, UP)]
-            for substates2 in [(UP, DOWN), (DOWN, UP)]
+        for substates2 in [(UP, DOWN), (DOWN, UP)]
+            sign1, _state = annihilate(state, site2, substates2[1])
+            sign2, _state = create(_state, site2, substates2[2])
+            sign1*sign2 == 0.0 && continue
+            for substates1 in [(UP, DOWN), (DOWN, UP)]
                 # prefactor from the - in s_y
                 c = substates1 == substates2 ? +1.0 : -1.0
-                sign1, _state = annihilate(state, site2, substates2[1])
-                sign2, _state = create!(_state, site2, substates2[2])
-                sign3, _state = annihilate!(_state, site1, substates1[1])
-                sign4, _state = create!(_state, site1, substates1[2])
+                sign3, __state = annihilate(_state, site1, substates1[1])
+                sign4, __state = create(__state, site1, substates1[2])
                 p = sign1 * sign2 * sign3 * sign4
                 if p != 0.0
                     push!(prefactors, -1.0 * c * p)
-                    push!(states, _state)
+                    push!(states, __state)
                 end
             end
         end
@@ -286,16 +315,17 @@ function spin_density_correlation_z(site1, site2)
     state -> begin
         states = typeof(state)[]
         prefactors = Float64[]
-        for substates1 in [(UP, UP), (DOWN, DOWN)]
-            for substates2 in [(UP, UP), (DOWN, DOWN)]
+        for substates2 in [(UP, UP), (DOWN, DOWN)]
+            sign1, _state = annihilate(state, site2, substates2[1])
+            sign2, _state = create(_state, site2, substates2[2])
+            sign1 * sign2 == 0.0 && continue
+            for substates1 in [(UP, UP), (DOWN, DOWN)]
                 # prefactor from the - in s_z
                 c = substates1 == substates2 ? +1.0 : -1.0
-                sign1, _state = annihilate(state, site2, substates2[1])
-                sign2, _state = create!(_state, site2, substates2[2])
-                sign3, _state = annihilate!(_state, site1, substates1[1])
-                sign4, _state = create!(_state, site1, substates1[2])
+                sign3, __state = annihilate(_state, site1, substates1[1])
+                sign4, __state = create(__state, site1, substates1[2])
                 p = sign1 * sign2 * sign3 * sign4
-                if _state != 0.0
+                if p != 0.0
                     push!(prefactors, c * p)
                     push!(states, _state)
                 end
@@ -316,16 +346,12 @@ MonteCarlo.pairing_correlation(i::Int64, j::Int64) = pairing_correlation(i, i, j
 #  Δ_i Δ_k^† |ψ⟩ = c_{i, ↑} c_{j, ↓} c_{l, ↓}^† c_{k, ↑}^† |ψ⟩
 function MonteCarlo.pairing_correlation(i::Int64, j::Int64, k::Int64, l::Int64)
     state -> begin
-        sign1, _state = create!(state, k, UP)
-        sign2, _state = create!(_state, l, DOWN)
-        sign3, _state = annihilate!(_state, j, DOWN)
-        sign4, _state = annihilate!(_state, i, UP)
+        sign1, _state = create(state, k, UP)
+        sign2, _state = create(_state, l, DOWN)
+        sign3, _state = annihilate(_state, j, DOWN)
+        sign4, _state = annihilate(_state, i, UP)
         p = sign1 * sign2 * sign3 * sign4
-        if p == 0
-            return Float64[], typeof(state)[]
-        else
-            return [p], [_state]
-        end
+        return p == 0 ? (p, VOID) : (p, _state)
     end
 end
 
@@ -338,16 +364,16 @@ function current_density(src, trg, hopping_matrix::AbstractArray)
         for substate in (UP, DOWN)
             # T[trg, src] c^\dagger(trg,\sigma, \tau) c(src, \sigma, \tau)
             sign1, _state = annihilate(state, src, substate)
-            sign2, _state = create!(_state, trg, substate)
-            if _state != 0.0
+            sign2, _state = create(_state, trg, substate)
+            if sign1*sign2 != 0.0
                 push!(prefactors, sign1 * sign2 * hopping_matrix[trg, src])
                 push!(states, _state)
             end
 
             # - T[src, trg] c^\dagger(src, \sigma, \tau) c(trg, \sigma \tau)
             sign1, _state = annihilate(state, trg, substate)
-            sign2, _state = create!(_state, src, substate)
-            if _state != 0.0
+            sign2, _state = create(_state, src, substate)
+            if sign1*sign2 != 0.0
                 push!(prefactors, -sign1 * sign2 * hopping_matrix[src, trg])
                 push!(states, _state)
             end
@@ -358,7 +384,7 @@ end
     
 
 
-function scalarproduct(lstate::BitArray, values::Vector, states::Vector)
+function scalarproduct(lstate::State, values::Vector, states::Vector)
     x = zero(eltype(values))
     for k in eachindex(states)
         if states[k] == lstate
@@ -367,7 +393,16 @@ function scalarproduct(lstate::BitArray, values::Vector, states::Vector)
     end
     x
 end
-scalarproduct(lstate::BitArray, value, state::BitArray) = (lstate == state) * value
+function scalarproduct(lstate::State, values::Tuple, states::Tuple)
+    x = 0.0
+    for k in eachindex(states)
+        if states[k] == lstate
+            x += values[k]
+        end
+    end
+    x
+end
+scalarproduct(lstate::State, value, state::State) = (lstate == state) * value
 
 
 @bm function expectation_value(
@@ -380,9 +415,8 @@ scalarproduct(lstate::BitArray, value, state::BitArray) = (lstate == state) * va
     vals, vecs = H
     Z = 0.0
     O = 0.0
-    state = state_from_integer(0, N_sites, N_substates)
-
-    right_coefficients = zeros(ComplexF64, size(vecs, 1))
+    T = eltype(observable(State(0))[1])
+    right_coefficients = zeros(T, size(vecs, 1))
 
     for i in eachindex(vals)
         # exp(βEᵢ)
@@ -392,12 +426,11 @@ scalarproduct(lstate::BitArray, value, state::BitArray) = (lstate == state) * va
 
         # ⟨ψᵢ|Ô|ψᵢ⟩
         for j in 1:size(vecs, 1)
-            state_from_integer!(state, j-1)
-            values, states = observable(state)
-            for l in eachindex(values)
+            values, states = observable(State(j-1))
+            for (l, state) in enumerate(states)
+                state == VOID && continue
                 # Assuming no (s, v) pair if state destroyed
-                k = states[l].chunks[1]+1
-                right_coefficients[k] += values[l] * vecs[j, i]
+                right_coefficients[state+1] += values[l] * vecs[j, i]
             end
         end
         O += temp * dot(vecs[:, i], right_coefficients)
@@ -446,8 +479,7 @@ end
         O = 0.0
         # vals sorted small to large
         vals, vecs = H
-        lstate = state_from_integer(0, N_sites)
-        rstate = state_from_integer(0, N_sites)
+        rstate = State(0)
         vals1, _ = obsτ1(rstate)
         vals2, _ = obsτ2(rstate)
         T = typeof(first(vals1) * first(vals2))
@@ -457,13 +489,13 @@ end
 
     @bm "obs mat" begin
         @inbounds for i in eachindex(vals)
-            state_from_integer!(lstate, i-1)
+            lstate = State(i-1)
             for j in eachindex(vals)
-                state_from_integer!(rstate, j-1)
+                rstate = State(j-1)
                 values, states = obsτ2(rstate)
                 obsτ2_mat[i, j] = scalarproduct(lstate, values, states)
-
-                state_from_integer!(rstate, j-1)
+                
+                rstate = State(j-1)
                 values, states = obsτ1(rstate)
                 obsτ1_mat[i, j] = scalarproduct(lstate, values, states)
             end
@@ -512,8 +544,8 @@ function calculate_Greens_matrix(H::Eigen, tau1, tau2, lattice; beta=1.0, N_subs
     swap = tau1 < tau2
     for substate1 in 1:N_substates, substate2 in 1:N_substates
         for site1 in 1:lattice.sites, site2 in 1:lattice.sites
-            ctau1 = s -> annihilate!(s, site2, substate2)
-            ctau2 = s -> create!(s, site1, substate1)
+            ctau1 = s -> annihilate(s, site2, substate2)
+            ctau2 = s -> create(s, site1, substate1)
 
             G[
                 lattice.sites * (substate1-1) + site1,
@@ -543,8 +575,7 @@ end
     @bm "init" begin
         O = 0.0
         vals, vecs = H
-        lstate = state_from_integer(0, N_sites)
-        rstate = state_from_integer(0, N_sites)
+        rstate = State(0)
         vals1, _ = obsτ1(rstate)
         vals2, _ = obsτ2(rstate)
         T1 = eltype(vals1)
@@ -556,13 +587,12 @@ end
 
     @bm "obs mat" begin
         @inbounds for i in eachindex(vals)
-            state_from_integer!(lstate, i-1)
+            lstate = State(i-1)
             for j in eachindex(vals)
-                state_from_integer!(rstate, j-1)
+                rstate = State(j-1)
                 values, states = obsτ2(rstate)
                 obsτ2_mat[i, j] = scalarproduct(lstate, values, states)
 
-                state_from_integer!(rstate, j-1)
                 values, states = obsτ1(rstate)
                 obsτ1_mat[i, j] = scalarproduct(lstate, values, states)
             end
@@ -596,7 +626,7 @@ function number_operator(site::Int64)
         prefactors = Float64[]
         for substate in [UP, DOWN]
             sign1, _state = annihilate(state, site, substate)
-            sign2, _state = create!(_state, site, substate)
+            sign2, _state = create(_state, site, substate)
             p = sign1 * sign2
             if p != 0.0
                 push!(prefactors, p)
