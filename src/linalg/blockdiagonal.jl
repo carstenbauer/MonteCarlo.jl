@@ -21,15 +21,17 @@ struct BlockDiagonal{T, N, AT <: AbstractMatrix{T}} <: AbstractMatrix{T}
         ))
         # One matrix with zeros is faster than multiple 3x3 matrices on my
         # machine (avx2). This will most likely depend on AVX version...
-        # if n < 4
-        #     full = zeros(T, n*N, n*N)
-        #     for i in 1:N
-        #         @views copyto!(full[(i-1)*n+1 : i*n, (i-1)*n+1 : i*n], blocks[i])
-        #     end
-        #     new{T, 1, AT}((full,))
-        # else
-            new{T, N, AT}(blocks)
-        # end
+        if n < 4
+            full = zeros(T, n*N, n*N)
+            for i in 1:N
+                @views copyto!(full[(i-1)*n+1 : i*n, (i-1)*n+1 : i*n], blocks[i])
+            end
+            # new{T, 1, AT}((full,))
+            # Is this bad?
+            return full
+        else
+            return new{T, N, AT}(blocks)
+        end
     end
 end
 
