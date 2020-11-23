@@ -19,7 +19,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
         exclude:
           - os: macOS-latest
-            julia-arch: x86
+            julia-version: 1.2.0
 
     steps:
       - uses: actions/checkout@v1.0.0
