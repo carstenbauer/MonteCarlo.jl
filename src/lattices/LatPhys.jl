@@ -6,6 +6,7 @@ struct LatPhysLattice{LT <: LatPhysBase.AbstractLattice} <: AbstractLattice
     lattice::LT
     neighs::Matrix{Int}
 end
+export LatPhysLattice
 
 function LatPhysLattice(lattice::LatPhysBase.AbstractLattice)
     # Build lookup table for neighbors
@@ -65,6 +66,10 @@ end
 
 positions(lattice::LatPhysLattice) = point.(sites(lattice.lattice))
 lattice_vectors(l::LatPhysLattice) = latticeVectors(l.lattice)
+
+function reciprocal_vectors(lattice::AbstractLattice, L)
+    latticeVectors(getReciprocalUnitcell(unitcell(lattice)))
+end
 
 
 
