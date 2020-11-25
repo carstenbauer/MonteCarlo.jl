@@ -21,6 +21,10 @@
 # _load(data, ::Type{...})
 #   - loads from Dict or JLD2.JLDFile or JLD2.Group (data) to some type (for dispatch)
 
+# TODOs:
+# - rename save_x to _save(filename, ::X, entryname) (mirror _load)
+# - make _load less volatile to changes, i.e. change Type -> Val{Symbol}
+
 
 """
     save(filename, mc; overwrite=false, rename=true)
@@ -74,7 +78,6 @@ end
 # existing_file.jld -> existing_file_aJ3c.jld
 function _generate_unique_filename(filename)
     isfile(filename) || return filename
-    # those map to 0-9,    A-Z,        a-z
     x = rand("0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz")
     s = "_$(Char(x))"
     parts = split(filename, '.')
@@ -212,7 +215,6 @@ function _load(data, ::Type{T}) where T
 end
 
 
-# TODO: Not used currently
 #     save_lattice(filename, lattice, entryname)
 #
 # Save (minimal) information necessary to reconstruct the given `lattice` in a

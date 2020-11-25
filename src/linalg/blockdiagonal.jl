@@ -131,12 +131,14 @@ function Base.exp(B::BlockDiagonal{T, N, AT}) where {T<:Number, N, AT<:AbstractM
     BlockDiagonal(map(block -> exp(block), B.blocks)...)
 end
 
+# I thought this would be needed for greens(k, l), but it's not?
 function LinearAlgebra.transpose!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T, N}
     @inbounds for i in 1:N
         transpose!(A.blocks[i], B.blocks[i])
     end
     A
 end
+# This however is used for greens(k, l)
 function LinearAlgebra.rmul!(B::BlockDiagonal{T, N}, f::Number) where {T, N}
     @inbounds for i in 1:N
         rmul!(B.blocks[i], f)
@@ -242,6 +244,7 @@ function lvmul!(A::Diagonal, B::BlockDiagonal{T, N}) where {T, N}
     end
 end
 
+# used in greens(k, l)
 function rvadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T <: Real, N}
     @inbounds for i in 1:N
         a = A.blocks[i]
@@ -251,6 +254,7 @@ function rvadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T <: Real
         end
     end
 end
+# used in equal time greens
 function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T<:Real, N}
     # Assuming correct size
     @inbounds n = size(B.blocks[1], 1)
@@ -262,6 +266,7 @@ function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T<:Real, N}
         end
     end
 end
+# used in CombinedGreensIterator
 function vsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, ::UniformScaling) where {T<:Real, N}
     @inbounds n = size(O.blocks[1], 1)
     T1 = one(T)

@@ -155,8 +155,6 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
     mc.s.curr_U = GreensMatType(undef, flv*N, flv*N)
     mc.s.eV = init_interaction_matrix(mc.model)
 
-    # mc.s.hopping_matrix_exp = zeros(HoppingElType, flv*N, flv*N)
-    # mc.s.hopping_matrix_exp_inv = zeros(HoppingElType, flv*N, flv*N)
     nothing
 end
 
@@ -492,11 +490,9 @@ end
 # Green's function propagation
 @inline @bm function wrap_greens!(mc::DQMC, gf, curr_slice::Int, direction::Int)
     if direction == -1
-        # @info "by applying B_$(curr_slice-1)^-1 G B_$(curr_slice-1)"
         multiply_slice_matrix_inv_left!(mc, mc.model, curr_slice - 1, gf)
         multiply_slice_matrix_right!(mc, mc.model, curr_slice - 1, gf)
     else
-        # @info "by applying B_$(curr_slice) G B_$(curr_slice)^-1"
         multiply_slice_matrix_left!(mc, mc.model, curr_slice, gf)
         multiply_slice_matrix_inv_right!(mc, mc.model, curr_slice, gf)
     end
