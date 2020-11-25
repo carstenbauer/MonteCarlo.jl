@@ -105,19 +105,8 @@ This is a performance critical method.
             result, conf::HubbardConf, slice::Int, power::Float64=1.)
     dtau = mc.p.delta_tau
     lambda = acosh(exp(0.5 * model.U * dtau))
-
-    # z = zero(eltype(result))
-    # @inbounds for j in eachindex(result)
-    #     result[j] = z
-    # end
-    # N = length(lattice(model))
-    # @inbounds for i in 1:N
-    #     result[i, i] = exp(sign(power) * lambda * conf[i, slice])
-    # end
-    # @inbounds for i in 1:N
-    #     result[i+N, i+N] = exp(-sign(power) * lambda * conf[i, slice])
-    # end
     N = length(lattice(model))
+    
     @inbounds for i in 1:N
         result.diag[i] = exp(sign(power) * lambda * conf[i, slice])
     end
@@ -173,7 +162,6 @@ end
     end
 
     # inverting R in-place, using that R is 2x2
-    # speed up: 470ns -> 2.6ns
     @bm "accept_local (inversion)" begin
         inv_div = 1.0 / detratio
         R[1, 2] = -R[1, 2] * inv_div

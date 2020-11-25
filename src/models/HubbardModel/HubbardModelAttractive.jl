@@ -91,18 +91,10 @@ and store it in `result::Matrix`.
 This is a performance critical method.
 """
 @inline @bm function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
-            result, conf::HubbardConf, slice::Int, power::Float64=1.)
+            result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
     dtau = mc.p.delta_tau
     lambda = acosh(exp(0.5 * m.U * dtau))
 
-    # z = zero(eltype(result))
-    # @inbounds for j in eachindex(result)
-    #     result[j] = z
-    # end
-    # N = size(result, 1)
-    # @inbounds for i in 1:N
-    #     result[i, i] = exp(sign(power) * lambda * conf[i, slice])
-    # end
     N = size(result, 1)
     @inbounds for i in 1:N
         result.diag[i] = exp(sign(power) * lambda * conf[i, slice])
@@ -114,14 +106,15 @@ end
 @inline @bm function propose_local(
         mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf
     )
-    # see for example dos Santos (2002)
+    # see for example dos Santos Introduction to quantum Monte-Carlo
     greens = mc.s.greens
     dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
 
     @inbounds ΔE_boson = -2. * lambda * conf[i, slice]
     γ = exp(ΔE_boson) - 1
-    @inbounds detratio = (1 + γ * (1 - greens[i,i]))^2 # squared because of two spin sectors.
+    @inbounds detratio = (1 + γ * (1 - greens[i,i]))^2 
+    # squared because of two spin sectors
 
     return detratio, ΔE_boson, γ
 end
@@ -134,7 +127,6 @@ end
     # Unoptimized Version
     # u = -greens[:, i]
     # u[i] += 1.
-    # # OPT: speed check, maybe @views/@inbounds
     # greens .-= kron(u * 1./(1 + gamma * u[i]), transpose(gamma * greens[i, :]))
     # conf[i, slice] .*= -1.
 
