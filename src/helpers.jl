@@ -30,7 +30,9 @@ Same as `reldiff(A,B)` but with all elements set to zero where corresponding ele
 `absdiff(A,B)` is smaller than `threshold`. This is useful in avoiding artificially large
 relative errors.
 """
-function effreldiff(A::AbstractArray{T}, B::AbstractArray{S}, threshold::Float64=1e-14) where T<:Number where S<:Number
+function effreldiff(
+        A::AbstractArray{T}, B::AbstractArray{S}, threshold::Float64=1e-14
+    ) where {T <: Number, S <: Number}
     r = reldiff(A,B)
     r[findall(x -> abs.(x)<threshold, absdiff(A,B))] .= 0.
     return r
@@ -42,7 +44,7 @@ end
 
 Difference of absolute values of `A` and `B`.
 """
-function absdiff(A::AbstractArray{T}, B::AbstractArray{S}) where T<:Number where S<:Number
+function absdiff(A::AbstractArray{T}, B::AbstractArray{S}) where {T<:Number, S<:Number}
     return abs.(A-B)
 end
 
@@ -53,7 +55,7 @@ end
 Compares two matrices `A` and `B`, prints out the maximal absolute and relative differences
 and returns a boolean indicating wether `isapprox(A,B)`.
 """
-function compare(A::AbstractArray{T}, B::AbstractArray{S}) where T<:Number where S<:Number
+function compare(A::AbstractArray{T}, B::AbstractArray{S}) where {T<:Number, S<:Number}
     @printf("max absdiff: %.1e\n", maximum(absdiff(A,B)))
     @printf("mean absdiff: %.1e\n", mean(absdiff(A,B)))
     @printf("max reldiff: %.1e\n", maximum(reldiff(A,B)))

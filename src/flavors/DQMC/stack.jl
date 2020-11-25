@@ -22,9 +22,6 @@ mutable struct DQMCStack{
     greens::GreensMatType
     greens_temp::GreensMatType
 
-    # U::GreensMatType
-    # D::Vector{Float64}
-    # T::GreensMatType
     tmp1::GreensMatType
     tmp2::GreensMatType
 
@@ -50,6 +47,7 @@ mutable struct DQMCStack{
     eV::InteractionMatType
 
     # hopping matrices (mu included)
+    hopping_matrix::HoppingMatType
     hopping_matrix_exp::HoppingMatType
     hopping_matrix_exp_inv::HoppingMatType
     hopping_matrix_exp_squared::HoppingMatType
@@ -107,12 +105,12 @@ imattype(mc::DQMC) = imattype(mc.s)
 
 
 
-function initialize_stack(mc::DQMC)
+function initialize_stack(mc::DQMC, ::DQMCStack)
     GreensElType = geltype(mc)
     GreensMatType = gmattype(mc)
     HoppingElType = heltype(mc)
-    N = length(mc.model.l)
-    flv = mc.model.flv
+    N = length(lattice(mc))
+    flv = nflavors(mc.model)
 
     mc.s.n_elements = convert(Int, mc.p.slices / mc.p.safe_mult) + 1
 
@@ -157,8 +155,6 @@ function initialize_stack(mc::DQMC)
     mc.s.curr_U = GreensMatType(undef, flv*N, flv*N)
     mc.s.eV = init_interaction_matrix(mc.model)
 
-    # mc.s.hopping_matrix_exp = zeros(HoppingElType, flv*N, flv*N)
-    # mc.s.hopping_matrix_exp_inv = zeros(HoppingElType, flv*N, flv*N)
     nothing
 end
 
@@ -176,6 +172,7 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
     T = hopping_matrix(mc, m)
     size(T) == (flv*N, flv*N) || error("Hopping matrix should have size "*
                                 "$((flv*N, flv*N)) but has size $(size(T)) .")
+    mc.s.hopping_matrix = T
     mc.s.hopping_matrix_exp = exp(-0.5 * dtau * T)
     mc.s.hopping_matrix_exp_inv = exp(0.5 * dtau * T)
     mc.s.hopping_matrix_exp_squared = mc.s.hopping_matrix_exp * mc.s.hopping_matrix_exp
@@ -242,7 +239,7 @@ end
 
 Build slice matrix stack from scratch.
 """
-function build_stack(mc::DQMC)
+function build_stack(mc::DQMC, ::DQMCStack)
     copyto!(mc.s.u_stack[1], I)
     mc.s.d_stack[1] .= one(eltype(mc.s.d_stack[1]))
     copyto!(mc.s.t_stack[1], I)
@@ -406,31 +403,34 @@ This assumes the `mc.s.Ul, mc.s.Dl, mc.s.Tl = udt(B(slice-1) ⋯ B(1))` and
 
 This should only used internally.
 """
-@bm function calculate_greens(mc::DQMC)
+@bm function calculate_greens(mc::DQMC, output::AbstractMatrix = mc.s.greens)
     calculate_greens_AVX!(
         mc.s.Ul, mc.s.Dl, mc.s.Tl,
         mc.s.Ur, mc.s.Dr, mc.s.Tr,
-        mc.s.greens, mc.s.pivot, mc.s.tempv
+        output, mc.s.pivot, mc.s.tempv
     )
-    mc.s.greens
+    output
 end
 
 """
-    calculate_greens(mc::DQMC, slice[, safe_mult])
+    calculate_greens(mc::DQMC, slice[, output=mc.s.greens, safe_mult])
 
 Compute the effective equal-time greens function from scratch at a given `slice`.
 
 This does not invalidate the stack, but it does overwrite `mc.s.greens`.
 """
-@bm function calculate_greens(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult)
+@bm function calculate_greens(
+        mc::DQMC, slice::Int, output::AbstractMatrix = mc.s.greens, 
+        safe_mult::Int = mc.p.safe_mult
+    )
     copyto!(mc.s.curr_U, I)
     copyto!(mc.s.Ur, I)
     mc.s.Dr .= one(eltype(mc.s.Dr))
     copyto!(mc.s.Tr, I)
 
     # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
-    if slice <= mc.p.slices
-        start = slice
+    if slice+1 <= mc.p.slices
+        start = slice+1
         stop = mc.p.slices
         for k in reverse(start:stop)
             if mod(k,safe_mult) == 0
@@ -456,9 +456,9 @@ This does not invalidate the stack, but it does overwrite `mc.s.greens`.
     copyto!(mc.s.Tl, I)
 
     # Calculate Ul,Dl,Tl=B(slice-1) ... B(1)
-    if slice-1 >= 1
+    if slice >= 1
         start = 1
-        stop = slice-1
+        stop = slice
         for k in start:stop
             if mod(k,safe_mult) == 0
                 multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
@@ -476,7 +476,7 @@ This does not invalidate the stack, but it does overwrite `mc.s.greens`.
         vmul!(mc.s.Tl, mc.s.tmp1, mc.s.tmp2)
     end
 
-    return calculate_greens(mc)
+    return calculate_greens(mc, output)
 end
 
 
@@ -538,7 +538,8 @@ end
                 calculate_greens(mc) # greens_{slice we are propagating to}
 
                 if mc.p.check_propagation_error
-                    greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
+                    # OPT: could probably be optimized through explicit loop
+                    greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) 
                     if greensdiff > 1e-7
                         push!(mc.a.propagation_error, greensdiff)
                         mc.p.silent || @printf(
@@ -583,6 +584,7 @@ end
 
             elseif 0 < mc.s.current_slice < mc.p.slices
                 idx = Int(mc.s.current_slice / mc.p.safe_mult) + 1
+
                 copyto!(mc.s.Ul, mc.s.u_stack[idx])
                 copyto!(mc.s.Dl, mc.s.d_stack[idx])
                 copyto!(mc.s.Tl, mc.s.t_stack[idx])
@@ -598,7 +600,8 @@ end
                 calculate_greens(mc)
 
                 if mc.p.check_propagation_error
-                    greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) # OPT: could probably be optimized through explicit loop
+                    # OPT: could probably be optimized through explicit loop
+                    greensdiff = maximum(abs.(mc.s.greens_temp - mc.s.greens)) 
                     if greensdiff > 1e-7
                         push!(mc.a.propagation_error, greensdiff)
                         mc.p.silent || @printf(

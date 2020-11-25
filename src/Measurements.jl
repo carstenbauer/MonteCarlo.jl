@@ -57,7 +57,7 @@ end
 
 
 """
-    save_measurement(filename, measurement, entryname)
+    _save(filename, measurement, entryname)
 
 Saves a measurement to a jld-file `filename` in group `entryname`.
 
@@ -69,7 +69,7 @@ measurement phase.
 
 See also [`save_measurements`](@ref), [`measurements`](@ref), [`_load`](@ref)
 """
-function save_measurement(file::JLDFile, m::AbstractMeasurement, entryname::String)
+function _save(file::JLDFile, m::AbstractMeasurement, entryname::String)
     # NOTE: `VERSION` and `type` are necessary
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/type", typeof(m))
@@ -198,13 +198,14 @@ end
 # if get_all_names = false, return array of fieldnames <: AbstractObservable
 # if get_all_names = true, also return other fieldnames
 function obs_fieldnames_from_obj(obj, get_all_names=false)
+    ObsTypes = Union{AbstractObservable, LogBinner}
     fnames = fieldnames(typeof(obj))
     obs_names = [
-        s for s in fnames if getfield(obj, s) isa AbstractObservable
+        s for s in fnames if getfield(obj, s) isa ObsTypes
     ]
     if get_all_names
         other_names = [
-            s for s in fnames if !(getfield(obj, s) isa AbstractObservable)
+            s for s in fnames if !(getfield(obj, s) isa ObsTypes)
         ]
         return obs_names, other_names
     else
@@ -214,22 +215,22 @@ end
 
 
 # printing
-function Base.show(io::IO, m::AbstractMeasurement)
-    #  no parametrization -v    v- no MonteCarlo.
-    typename = typeof(m).name.name
-    observables, other = obs_fieldnames_from_obj(m, true)
-    println(io, typename)
-    for obs_fieldname in observables
-        o = getfield(m, obs_fieldname)
-        oname = MonteCarloObservable.name(o)
-        otypename = typeof(o).name.name
-        println(io, "\t", obs_fieldname, "::", otypename, "\t → \"", oname, "\"")
-    end
-    for fieldname in other
-        println(io, "\t", fieldname, "::", typeof(getfield(m, fieldname)))
-    end
-    nothing
-end
+# function Base.show(io::IO, m::AbstractMeasurement)
+#     #  no parametrization -v    v- no MonteCarlo.
+#     typename = typeof(m).name.name
+#     observables, other = obs_fieldnames_from_obj(m, true)
+#     println(io, typename)
+#     for obs_fieldname in observables
+#         o = getfield(m, obs_fieldname)
+#         oname = MonteCarloObservable.name(o)
+#         otypename = typeof(o).name.name
+#         println(io, "\t", obs_fieldname, "::", otypename, "\t → \"", oname, "\"")
+#     end
+#     for fieldname in other
+#         println(io, "\t", fieldname, "::", typeof(getfield(m, fieldname)))
+#     end
+#     nothing
+# end
 
 function Base.show(io::IO, ::MIME"text/plain", m::AbstractMeasurement)
     #small
@@ -354,7 +355,7 @@ Base.getindex(mc::MonteCarloFlavor, k) = getindex(measurements(mc), k)
 # Allow `mc[:M] = MagnetizationMeasurement(mc, model)` to add measurements
 Base.setindex!(mc::MonteCarloFlavor, v, k) = setindex!(measurements(mc), v, k)
 # Allow `keys(dqmc)` to get measurement keys
-Base.keys(mc::MonteCarloFlavor, k) = keys(measurements(mc))
+Base.keys(mc::MonteCarloFlavor) = keys(measurements(mc))
 
 
 """
@@ -541,7 +542,7 @@ function save_measurements(file::JLDFile, mc::MonteCarloFlavor, entryname::Strin
     for (k0, v0) in measurement_dict # :TH or :ME
         for (k1, meas) in v0 # Measurement name
             _entryname = entryname * "$k0/$k1"
-            save_measurement(file, meas, _entryname)
+            _save(file, meas, _entryname)
         end
     end
 end

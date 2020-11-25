@@ -88,7 +88,10 @@ function DQMCParameters(;
         delta_tau, beta = nt.delta_tau, nt.beta
         slices = round(Int, beta/delta_tau)
         if slices != nt.slices
-            error("Given slices ($(nt.slices)) does not match calculated slices beta/delta_tau ≈ $(slices)")
+            error(
+                "Given slices ($(nt.slices)) does not match calculated slices" * 
+                " beta/delta_tau ≈ $(slices)"
+            )
         end
     elseif (Set ∘ keys)(nt) == Set([:beta, :slices])
         beta, slices = nt.beta, nt.slices
@@ -99,7 +102,9 @@ function DQMCParameters(;
     elseif (Set ∘ keys)(nt) == Set([:delta_tau, :beta])
         delta_tau, beta = nt.delta_tau, nt.beta
         slices = round(beta/delta_tau)
-        warn_round && !(slices ≈ beta/delta_tau) && @warn "beta/delta_tau = $(beta/delta_tau) not an integer. Rounded to $slices"
+        if warn_round && !(slices ≈ beta/delta_tau)
+            @warn "beta/delta_tau = $(beta/delta_tau) not an integer. Rounded to $slices"
+        end
     else
         error("Invalid keyword arguments to DQMCParameters $nt")
     end
@@ -126,35 +131,43 @@ end
 Determinant quantum Monte Carlo (DQMC) simulation
 """
 mutable struct DQMC{
-        M <: Model, CB <: Checkerboard, ConfType <: Any, 
-        RT <: AbstractRecorder, Stack <: AbstractDQMCStack
+        M <: Model, CB <: Checkerboard, ConfType <: Any, RT <: AbstractRecorder, 
+        Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack
     } <: MonteCarloFlavor
 
     model::M
     conf::ConfType
     last_sweep::Int
-    s::Stack
 
+    s::Stack
+    ut_stack::UTStack
     p::DQMCParameters
     a::DQMCAnalysis
+
     configs::RT
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 
-    function DQMC{M, CB, ConfType, RT, Stack}(; kwargs...) where {
+
+    function DQMC{M, CB, ConfType, RT, Stack, UTStack}(; kwargs...) where {
             M <: Model, CB <: Checkerboard, ConfType <: Any, 
-            RT <: AbstractRecorder, Stack <: AbstractDQMCStack
+            RT <: AbstractRecorder, 
+            Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack
         }
-        complete!(new{M, CB, ConfType, RT, Stack}(), kwargs)
+        complete!(new{M, CB, ConfType, RT, Stack, UTStack}(), kwargs)
     end
     function DQMC(CB::Type{<:Checkerboard}; kwargs...)
-        DQMC{Model, CB, Any, AbstractRecorder, AbstractDQMCStack}(; kwargs...)
+        DQMC{
+            Model, CB, Any, AbstractRecorder, 
+            AbstractDQMCStack, AbstractDQMCStack
+        }(; kwargs...)
     end
     function DQMC{CB}(
             model::M,
             conf::ConfType,
             last_sweep::Int,
             s::Stack,
+            ut_stack::UTStack,
             p::DQMCParameters,
             a::DQMCAnalysis,
             configs::RT,
@@ -162,14 +175,17 @@ mutable struct DQMC{
             measurements::Dict{Symbol, AbstractMeasurement}
         ) where {
             M <: Model, CB <: Checkerboard, ConfType <: Any, 
-            RT <: AbstractRecorder, Stack <: AbstractDQMCStack
+            RT <: AbstractRecorder, 
+            Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack
         }
-        new{M, CB, ConfType, RT, Stack}(
-            model, conf, last_sweep, s, p, a, configs, 
+        new{M, CB, ConfType, RT, Stack, UTStack}(
+            model, conf, last_sweep, s, ut_stack, p, a, configs, 
             thermalization_measurements, measurements
         )
     end
-    DQMC{M, CB, C, RT, S}(args...) where {M, CB, C, RT, S} = DQMC{CB}(args...)
+    function DQMC{M, CB, C, RT, S, UTS}(args...) where {M, CB, C, RT, S, UTS}
+        DQMC{CB}(args...)
+    end
 end
 
 
@@ -180,20 +196,22 @@ function complete!(a::DQMC, kwargs)
     make_concrete!(a)
 end
 
-function make_concrete!(a::DQMC{M, CB, C, RT, S}) where {M, CB, C, RT, S}
+function make_concrete!(a::DQMC{M, CB, C, RT, S, UTS}) where {M, CB, C, RT, S, UTS}
     Ts = (
         isdefined(a, :model) ? typeof(a.model) : M, 
         CB, 
         isdefined(a, :conf) ? typeof(a.conf) : C, 
         isdefined(a, :configs) ? typeof(a.configs) : RT, 
-        isdefined(a, :s) ? typeof(a.s) : S
+        isdefined(a, :s) ? typeof(a.s) : S,
+        isdefined(a, :ut_stack) ? typeof(a.ut_stack) : UTS
     )
-    all(Ts .== (M, CB, C, RT, S)) && return a
+    all(Ts .== (M, CB, C, RT, S, UTS)) && return a
     data = [(f, getfield(a, f)) for f in fieldnames(DQMC) if isdefined(a, f)]
     DQMC{Ts...}(; data...)
 end
 
 include("stack.jl")
+include("unequal_time_stack.jl")
 include("slice_matrices.jl")
 
 """
@@ -233,7 +251,7 @@ function DQMC(m::M;
         seed::Int=-1,
         checkerboard::Bool=false,
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
-        measurements = :default,
+        measurements = Dict{Symbol, AbstractMeasurement}(),
         last_sweep = 0,
         recorder = ConfigRecorder,
         measure_rate = 10,
@@ -250,23 +268,23 @@ function DQMC(m::M;
     GMT = greens_matrix_type(DQMC, m)
     IMT = interaction_matrix_type(DQMC, m)
     stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
+    ut_stack = UnequalTimeStack{GET, GMT}()
 
     conf = rand(DQMC, m, p.slices)
     analysis = DQMCAnalysis()
     CB = checkerboard ? CheckerboardTrue : CheckerboardFalse
 
-    mc = DQMC{M, CB, typeof(conf), recorder, DQMCStack}(
+    mc = DQMC{M, CB, typeof(conf), recorder, DQMCStack, AbstractDQMCStack}(
         model = m, conf = conf, last_sweep = last_sweep, s = stack,
-        p = p, a = analysis
-    )
-
-    mc.configs = recorder(mc, m, recording_rate)
-
-    init!(
-        mc, seed = seed, conf = conf,
+        ut_stack = ut_stack, p = p, a = analysis,
         thermalization_measurements = thermalization_measurements,
         measurements = measurements
     )
+
+    mc.configs = recorder(mc, m, recording_rate)
+    seed == -1 || Random.seed!(seed)
+    mc.conf = conf
+    init!(mc)
     return make_concrete!(mc)
 end
 
@@ -316,49 +334,12 @@ end
 
 
 
-"""
-    init!(mc::DQMC[; seed::Real=-1])
-
-Initialize the determinant quantum Monte Carlo simulation `mc`.
-If `seed !=- 1` the random generator will be initialized with `Random.seed!(seed)`.
-"""
-function init!(mc::DQMC;
-        seed::Real = -1,
-        conf = rand(DQMC,model(mc),nslices(mc)),
-        thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
-        measurements = :default
-    )
-    seed == -1 || Random.seed!(seed)
-
-    mc.conf = conf
-
+function init!(mc::DQMC)
     init_hopping_matrices(mc, mc.model)
-    initialize_stack(mc)
-
-    mc.thermalization_measurements = thermalization_measurements
-    if measurements isa Dict{Symbol, AbstractMeasurement}
-        mc.measurements = measurements
-    elseif measurements == :default
-        mc.measurements = default_measurements(mc, mc.model)
-    else
-        @warn(
-            "`measurements` should be of type Dict{Symbol, AbstractMeasurement}, but is " *
-            "$(typeof(measurements)). No measurements have been set."
-        )
-        mc.measurements = Dict{Symbol, AbstractMeasurement}()
-    end
-
+    initialize_stack(mc, mc.s)
     nothing
 end
-
-
-# Only the stack and DQMCAnalysis need to be intiialized when resuming.
-# Everything else is loaded from the save file.
-function resume_init!(mc::DQMC)
-    init_hopping_matrices(mc, mc.model)
-    initialize_stack(mc)
-    nothing
-end
+@deprecate resume_init!(mc::DQMC) init!(mc) false
 
 
 """
@@ -393,15 +374,8 @@ See also: [`resume!`](@ref)
         safe_before::TimeType = now() + Year(100),
         safe_every::TimePeriod = Hour(10000),
         grace_period::TimePeriod = Minute(5),
-        resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        resumable_filename::String = "resumable_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld",
         overwrite = false
-    )
-
-    # Check for measurements
-    do_th_measurements = !isempty(mc.thermalization_measurements)
-    do_me_measurements = !isempty(mc.measurements)
-    !do_me_measurements && @warn(
-        "There are no measurements set up for this simulation!"
     )
 
     # Update number of sweeps
@@ -425,6 +399,9 @@ See also: [`resume!`](@ref)
     end
     total_sweeps = sweeps + thermalization
 
+    # Generate measurement groups
+    groups = generate_groups(mc, mc.model, collect(values(mc.measurements)))
+
     start_time = now()
     last_checkpoint = now()
     max_sweep_duration = 0.0
@@ -432,33 +409,29 @@ See also: [`resume!`](@ref)
 
     # fresh stack
     verbose && println("Preparing Green's function stack")
-    initialize_stack(mc) # redundant ?!
-    build_stack(mc)
+    init!(mc)
+    build_stack(mc, mc.s)
     propagate(mc)
 
     _time = time()
     verbose && println("\n\nThermalization stage - ", thermalization)
-    do_th_measurements && prepare!(mc.thermalization_measurements, mc, mc.model)
-    # dqmc.last_sweep:total_sweeps won't change when last_sweep is changed
+    # do_th_measurements && prepare!(mc.thermalization_measurements, mc, mc.model)
+    # mc.last_sweep:total_sweeps won't change when last_sweep is changed
     for i in mc.last_sweep+1:total_sweeps
         verbose && (i == thermalization + 1) && println("\n\nMeasurement stage - ", sweeps)
         for u in 1:2 * nslices(mc)
             update(mc, i)
 
-            # For optimal performance whatever is most likely to fail should be
-            # checked first.
-            if current_slice(mc) == nslices(mc) && i <= thermalization && mc.s.direction == -1 &&
-                    iszero(mod(i, mc.p.measure_rate)) && do_th_measurements
+            if current_slice(mc) == 1 && i ≤ thermalization && 
+                mc.s.direction == 1 && iszero(i % mc.p.measure_rate)
                 measure!(mc.thermalization_measurements, mc, mc.model, i)
             end
-            if (i == thermalization+1)
-                do_th_measurements && finish!(mc.thermalization_measurements, mc, mc.model)
-                do_me_measurements && prepare!(mc.measurements, mc, mc.model)
-            end
-            if current_slice(mc) == nslices(mc) && mc.s.direction == -1 && i > thermalization
+            if current_slice(mc) == 1 && mc.s.direction == 1 && i > thermalization
                 push!(mc.configs, mc, mc.model, i)
-                if iszero(mod(i, mc.p.measure_rate)) && do_me_measurements
-                    measure!(mc.measurements, mc, mc.model, i)
+                if iszero(i % mc.p.measure_rate)
+                    for (requirement, group) in groups
+                        apply!(requirement, group, mc, mc.model, i)
+                    end
                 end
             end
         end
@@ -503,7 +476,6 @@ See also: [`resume!`](@ref)
             save(resumable_filename, mc, overwrite = overwrite, rename = false)
         end
     end
-    do_me_measurements && finish!(mc.measurements, mc, mc.model)
 
     mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
     mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
@@ -637,7 +609,7 @@ function replay!(
         safe_before::TimeType = now() + Year(100),
         safe_every::TimePeriod = Hour(10000),
         grace_period::TimePeriod = Minute(5),
-        resumable_filename::String = "resumable_" * Dates.format(safe_before, "d_u_yyyy-HH_MM") * ".jld",
+        resumable_filename::String = "resumable_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld",
         overwrite = false,
         measure_rate = 1
     )
@@ -653,6 +625,12 @@ function replay!(
     isempty(mc.measurements) && @warn(
         "There are no measurements set up for this simulation!"
     )
+    # Generate measurement groups
+    groups = generate_groups(
+        mc, mc.model, 
+        [mc.measurements[k] for k in keys(mc.measurements) if !(k in ignore)]
+    )
+
 
     if measure_rate != mc.p.measure_rate
         mc.p = DQMCParameters(
@@ -665,21 +643,20 @@ function replay!(
     end
 
     verbose && println("Preparing Green's function stack")
-    resume_init!(mc)
-    initialize_stack(mc) # redundant ?!
-    build_stack(mc)
+    init!(mc)
+    build_stack(mc, mc.s)
     propagate(mc)
+    mc.s.current_slice = 1
     mc.conf = rand(DQMC, mc.model, nslices(mc))
 
     _time = time()
     verbose && println("\n\nReplaying measurement stage - ", length(configurations))
     prepare!(mc.measurements, mc, mc.model)
     for i in mc.last_sweep+1:mc.p.measure_rate:length(configurations)
-        mc.conf .= decompress(mc, mc.model, configurations[i])
-        mc.s.greens .= calculate_greens(mc, nslices(mc))
-        for (k, m) in mc.measurements
-            k in ignore && continue
-            measure!(m, mc, mc.model, i)
+        copyto!(mc.conf, decompress(mc, mc.model, configurations[i]))
+        calculate_greens(mc, 0) # outputs to mc.s.greens
+        for (requirement, group) in groups
+            apply!(requirement, group, mc, mc.model, i)
         end
         mc.last_sweep = i
 
@@ -731,9 +708,18 @@ Internally, `mc.s.greens` is an effective Green's function. This method
 transforms it to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
-@bm greens(mc::DQMC) = _greens!(mc)
+@bm greens(mc::DQMC) = copy(_greens!(mc))
+"""
+    greens!(mc::DQMC[; output=mc.s.greens_temp, input=mc.s.greens, temp=mc.s.Ur])
+"""
+@bm function greens!(mc::DQMC; output=mc.s.greens_temp, input=mc.s.greens, temp=mc.s.Ur)
+    _greens!(mc, output, input, temp)
+end
+"""
+    _greens!(mc::DQMC[, output=mc.s.greens_temp, input=mc.s.greens, temp=mc.s.Ur])
+"""
 function _greens!(
-        mc::DQMC_CBFalse, target::AbstractMatrix = mc.s.Ul, 
+        mc::DQMC_CBFalse, target::AbstractMatrix = mc.s.greens_temp, 
         source::AbstractMatrix = mc.s.greens, temp::AbstractMatrix = mc.s.Ur
     )
     eThalfminus = mc.s.hopping_matrix_exp
@@ -743,7 +729,7 @@ function _greens!(
     return target
 end
 function _greens!(
-        mc::DQMC_CBTrue, target::AbstractMatrix = mc.s.Ul, 
+        mc::DQMC_CBTrue, target::AbstractMatrix = mc.s.greens_temp, 
         source::AbstractMatrix = mc.s.greens, temp::AbstractMatrix = mc.s.Ur
     )
     chkr_hop_half_minus = mc.s.chkr_hop_half
@@ -761,6 +747,37 @@ function _greens!(
         end
     end
     return target
+end
+"""
+    greens(mc::DQMC, l::Integer)
+
+Calculates the equal-time greens function at a given slice index `l`, i.e. 
+`G_{ij}(l, l) = G_{ij}(l⋅Δτ, l⋅Δτ) = ⟨cᵢ(l⋅Δτ)cⱼ(l⋅Δτ)^†⟩`.
+
+Note: This internally overwrites the stack variables `Ul`, `Dl`, `Tl`, `Ur`, 
+`Dr`, `Tr`, `curr_U`, `tmp1` and `tmp2`. All of those can be used as temporary
+or output variables here, however keep in mind that other results may be 
+invalidated. (I.e. `G = greens!(mc)` would get overwritten.)
+"""
+@bm greens(mc::DQMC, slice::Integer) = copy(_greens!(mc, slice))
+"""
+    greens!(mc::DQMC, l::Integer[; output=mc.s.greens_temp, temp1=mc.s.tmp1, temp2=mc.s.tmp2])
+"""
+@bm function greens!(
+        mc::DQMC, slice::Integer; 
+        output=mc.s.greens_temp, temp1 = mc.s.tmp1, temp2 = mc.s.tmp2
+    ) 
+    _greens!(mc, slice, output, temp1, temp2)
+end
+"""
+    _greens!(mc::DQMC, l::Integer[, output=mc.s.greens_temp, temp1=mc.s.tmp1, temp2=mc.s.tmp2])
+"""
+function _greens!(
+        mc::DQMC, slice::Integer, output::AbstractMatrix = mc.s.greens_temp, 
+        temp1::AbstractMatrix = mc.s.tmp1, temp2::AbstractMatrix = mc.s.tmp2
+    )
+    calculate_greens(mc, slice, temp1)
+    _greens!(mc, output, temp1, temp2)
 end
 
 
@@ -790,6 +807,9 @@ function save_mc(file::JLDFile, mc::DQMC, entryname::String="MC")
     nothing
 end
 
+CB_type(T::UnionAll) = T.body.parameters[2]
+CB_type(T::DataType) = T.parameters[2]
+
 #     load_mc(data, ::Type{<: DQMC})
 #
 # Loads a DQMC from a given `data` dictionary produced by `JLD.load(filename)`.
@@ -798,7 +818,7 @@ function _load(data, ::Type{T}) where T <: DQMC
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
 
-    CB = data["type"].parameters[2]
+    CB = CB_type(data["type"])
     @assert CB <: Checkerboard
     mc = DQMC(CB)
     mc.p = _load(data["Parameters"], data["Parameters"]["type"])
@@ -904,5 +924,4 @@ end
 
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")
-include("measurements/equal_time_measurements.jl")
-include("measurements/extensions.jl")
+include("measurements/generic.jl")

@@ -30,26 +30,32 @@ export Discarder, ConfigRecorder
 include("Measurements.jl")
 export measurements, observables
 
-include("lattices/masks.jl")
+include("lattices/lattice_iterators.jl")
 include("lattices/square.jl")
 include("lattices/chain.jl")
 include("lattices/cubic.jl")
 include("lattices/honeycomb.jl")
 include("lattices/triangular.jl")
 include("lattices/ALPS.jl")
-export directions, RawMask, DistanceMask # maybe getorder?
+include("lattices/deprecated.jl")
+# export directions, RawMask, DistanceMask # maybe getorder?
 export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
-export neighbors
+export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, 
+        EachLocalQuadByDistance, EachLocalQuadBySyncedDistance
+export neighbors, directions
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/DQMC.jl")
-export GreensMeasurement, BosonEnergyMeasurement, OccupationMeasurement,
-        ChargeDensityCorrelationMeasurement, SpinDensityCorrelationMeasurement,
-        MagnetizationMeasurement, PairingCorrelationMeasurement
-export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
+export Greens, GreensAt, CombinedGreensIterator
+export boson_energy_measurement, greens_measurement, occupation, magnetization
+export charge_density, charge_density_correlation, charge_density_susceptibility
+export spin_density, spin_density_correlation, spin_density_susceptibility
+export pairing, pairing_correlation, pairing_susceptibility
+export current_current_susceptibility
+# export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")
-include("models/HubbardAttractive/HubbardModel.jl")
+include("models/HubbardModel/HubbardModel.jl")
 export IsingEnergyMeasurement, IsingMagnetizationMeasurement
 
 include("FileIO.jl")

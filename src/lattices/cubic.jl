@@ -5,7 +5,8 @@ struct CubicLattice{T<:AbstractArray{Int}} <: AbstractLattice
     L::Int
     dim::Int
     sites::Int
-    neighs::Matrix{Int} # row = first half uprights, second half downlefts, D in total; col = siteidx
+    # row = first half uprights, second half downlefts, D in total; col = siteidx
+    neighs::Matrix{Int} 
     lattice::T
 
     # generic checkerboard
@@ -66,4 +67,4 @@ has_neighbors_table(::CubicLattice) = HasNeighborsTable()
 has_bonds_table(::CubicLattice) = HasBondsTable()
 
 positions(l::CubicLattice) = l.lattice |> CartesianIndices .|> Tuple .|> collect
-DistanceMask(lattice::CubicLattice) = default_distance_mask(lattice)
+lattice_vectors(l::CubicLattice) = [[l.L, 0, 0], [0, l.L, 0], [0, 0, l.L]]

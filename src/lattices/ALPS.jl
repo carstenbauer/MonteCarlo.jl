@@ -4,7 +4,8 @@ Generic ALPS lattice parsed from XML file.
 struct ALPSLattice <: AbstractLattice
     sites::Int # n_sites
     dim::Int
-    neighs::Matrix{Int} # row = neighbors; col = siteidx (assumption: const. coordination nr.)
+    # row = neighbors; col = siteidx (assumption: const. coordination nr.)
+    neighs::Matrix{Int} 
     n_neighs::Int
     bond_vecs::Matrix{Float64}
 
@@ -40,7 +41,10 @@ function build_neighbortable(::Type{ALPSLattice}, n_neighs, sites, n_bonds, bond
         end
     catch e
         if isa(e, BoundsError)
-            warn("Lattice seems to not have a constant coordination number. Fields `n_neighs` and `neighs` shouldn't be used.")
+            warn(
+                "Lattice seems to not have a constant coordination number. " * 
+                "Fields `n_neighs` and `neighs` shouldn't be used."
+            )
         else
             throw(e)
         end
@@ -81,7 +85,8 @@ function parse_alpslattice_xml(filename::String)
 
     end
 
-    n_neighs = count(x->x==1, bonds[:, 1]) + count(x->x==1, bonds[:, 2]) # neighbors of site 1
+    # neighbors of site 1
+    n_neighs = count(x->x==1, bonds[:, 1]) + count(x->x==1, bonds[:, 2]) 
     return sites, dim, n_neighs, bond_vecs, n_bonds, bonds
 end
 

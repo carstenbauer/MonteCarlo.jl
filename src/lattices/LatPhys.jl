@@ -6,6 +6,7 @@ struct LatPhysLattice{LT <: LatPhysBase.AbstractLattice} <: AbstractLattice
     lattice::LT
     neighs::Matrix{Int}
 end
+export LatPhysLattice
 
 function LatPhysLattice(lattice::LatPhysBase.AbstractLattice)
     # Build lookup table for neighbors
@@ -63,42 +64,19 @@ end
 
 @inline neighbors_lookup_table(l::LatPhysLattice) = copy(l.neighs)
 
-
 positions(lattice::LatPhysLattice) = point.(sites(lattice.lattice))
+lattice_vectors(l::LatPhysLattice) = latticeVectors(l.lattice)
 
-function DistanceMask(lattice::LatPhysLattice)
-    wrap = generate_combinations(latticeVectors(lattice.lattice))
-    VerboseDistanceMask(lattice, wrap)
-end
-
-function directions(mask::VerboseDistanceMask, lattice::LatPhysLattice)
-    pos = MonteCarlo.positions(lattice)
-    dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
-    # marked = Set{Int64}()
-    # dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
-    # for src in 1:size(mask.targets, 1)
-    #     for (idx, trg) in mask.targets[src, :]
-    #         if !(idx in marked)
-    #             push!(marked, idx)
-    #             dirs[idx] = pos[trg] - pos[src]
-    #         end
-    #     end
-    # end
-    wrap = MonteCarlo.generate_combinations(latticeVectors(lattice.lattice))
-    map(dirs) do _d
-        d = round.(_d .+ wrap[1], digits=6)
-        for v in wrap[2:end]
-            new_d = round.(_d .+ v, digits=6)
-            if norm(new_d) < norm(d)
-                d .= new_d
-            end
-        end
-        d
-    end
+function reciprocal_vectors(lattice::AbstractLattice, L)
+    latticeVectors(getReciprocalUnitcell(unitcell(lattice)))
 end
 
 
-# Saving & Loading
+
+################################################################################
+### Saving & Loading
+################################################################################
+
 
 
 function save_lattice(file::JLDFile, lattice::LatPhysLattice, entryname::String)
@@ -165,3 +143,32 @@ function load_unitcell(data)
 end
 load_sites(data) = data["type"].(data["points"], data["labels"])
 load_bonds(data) = data["type"].(data["froms"], data["tos"], data["labels"], data["wraps"])
+
+
+
+################################################################################
+### Deprecated
+################################################################################
+
+
+
+function DistanceMask(lattice::LatPhysLattice)
+    wrap = generate_combinations(latticeVectors(lattice.lattice))
+    VerboseDistanceMask(lattice, wrap)
+end
+
+function directions(mask::VerboseDistanceMask, lattice::LatPhysLattice)
+    pos = positions(lattice)
+    dirs = [pos[src] - pos[trg] for (src, trg) in first.(mask.targets)]
+    wrap = generate_combinations(latticeVectors(lattice.lattice))
+    map(dirs) do _d
+        d = round.(_d .+ wrap[1], digits=8)
+        for v in wrap[2:end]
+            new_d = round.(_d .+ v, digits=8)
+            if directed_norm(new_d, 1e-6) < directed_norm(d, 1e-6)
+                d .= new_d
+            end
+        end
+        d
+    end
+end

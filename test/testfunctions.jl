@@ -83,8 +83,8 @@ function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.s
     N = length(lattice(mc.model))
 
     # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
-    if slice <= mc.p.slices
-        Ur, Dr, Tr = calculate_slice_matrix_chain_dagger(mc,slice,mc.p.slices, safe_mult)
+    if slice+1 <= mc.p.slices
+        Ur, Dr, Tr = calculate_slice_matrix_chain_dagger(mc,slice+1,mc.p.slices, safe_mult)
     else
         Ur = Matrix{GreensType}(I, flv * N, flv * N)
         Dr = ones(Float64, flv * N)
@@ -92,8 +92,8 @@ function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.s
     end
 
     # Calculate Ul,Dl,Tl=B(slice-1) ... B(1)
-    if slice-1 >= 1
-        Ul, Dl, Tl = calculate_slice_matrix_chain(mc,1,slice-1, safe_mult)
+    if slice >= 1
+        Ul, Dl, Tl = calculate_slice_matrix_chain(mc,1,slice, safe_mult)
     else
         Ul = Matrix{GreensType}(I, flv * N, flv * N)
         Dl = ones(Float64, flv * N)

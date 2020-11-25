@@ -27,129 +27,278 @@ for (d, lattype) in enumerate((
             mirrored_bonds = [[trg, src] for (src, trg) in reduced_bonds]
             all_bonds = vcat(reduced_bonds, mirrored_bonds)
             @test sort(all_bonds) == sort(bonds)
+        end
+    end
+end
 
-            if L == 4
-                positions = if lattype == Chain
-                    [[i] for i in 1:L]
-                else
-                    l.lattice |> CartesianIndices .|> Tuple .|> collect
-                end
-                mask = DistanceMask(l)
-                @test allunique(MonteCarlo.getorder(mask))
-                # for i in 1:length(l)
-                #     @test allunique(mask[i, :])
-                #     @test allunique(mask[:, i])
-                # end
-                # The point of DistanceMask is for all i -> mask[i, j] to point
-                # in the same direction
-                dirs = directions(mask, l)
-                for dir_idx in 1:length(mask)
-                    _dirs = [
-                        mod.(positions[trg] .- positions[src], L) 
-                        for (src, trg) in MonteCarlo.getdirorder(mask, dir_idx)
-                    ]
-                    @test all(==(first(_dirs)), _dirs)
-                    @test mod.(dirs[dir_idx], L) == _dirs[1]
-                end
+using MonteCarlo: directed_norm
+
+@testset "Lattice Iterators" begin
+    # Set up a few test models/DQMCs    
+    m = HubbardModelAttractive(L=3, dims=3)
+    dqmc1 = DQMC(m, beta=1.0)
+    
+    m = HubbardModelRepulsive(L=10, dims=1)
+    dqmc2 = DQMC(m, beta=1.0)
+
+    l = TriangularLattice(0, Lx=2, Ly=6)
+    m = HubbardModelAttractive(l = l, L=0, dims=0)
+    dqmc3 = DQMC(m, beta=1.0)
+
+    dqmcs = (dqmc1, dqmc2, dqmc3)
+
+
+
+    @testset "Meta" begin
+        for dqmc in dqmcs
+            dirs = directions(dqmc)
+            for i in 2:length(dirs)
+                @test norm(dirs[i-1]) < norm(dirs[i]) + 1e-5
             end
+        end
+    end
+
+    @testset "EachSiteAndFlavor" begin
+        for dqmc in dqmcs
+            iter = EachSiteAndFlavor(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            Nflavors = MonteCarlo.nflavors(dqmc.model)
+            @test collect(iter) == 1:Nsites*Nflavors
+            @test length(iter) == Nsites*Nflavors
+            @test length(collect(iter)) == Nsites*Nflavors
+            @test eltype(iter) == Int64
+            @test Base.IteratorSize(EachSiteAndFlavor) == Base.HasLength()
+            @test Base.IteratorEltype(EachSiteAndFlavor) == Base.HasEltype()
+        end
+    end
+
+    @testset "EachSite" begin
+        for dqmc in dqmcs
+            iter = EachSite(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            @test collect(iter) == 1:Nsites
+            @test length(iter) == Nsites
+            @test length(collect(iter)) == Nsites
+            @test eltype(iter) == Int64
+            @test Base.IteratorSize(EachSite) == Base.HasLength()
+            @test Base.IteratorEltype(EachSite) == Base.HasEltype()
+        end
+    end
+
+    @testset "OnSite" begin
+        for dqmc in dqmcs
+            iter = OnSite(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            @test collect(iter) == collect(zip(1:Nsites, 1:Nsites))
+            @test length(iter) == Nsites
+            @test length(collect(iter)) == Nsites
+            @test eltype(iter) == Tuple{Int64, Int64}
+            @test Base.IteratorSize(OnSite) == Base.HasLength()
+            @test Base.IteratorEltype(OnSite) == Base.HasEltype()
+        end
+    end
+
+    @testset "EachSitePair" begin
+        for dqmc in dqmcs
+            iter = EachSitePair(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            @test collect(iter) == [(i, j) for i in 1:Nsites for j in 1:Nsites]
+            @test length(iter) == Nsites^2
+            @test length(collect(iter)) == Nsites^2
+            @test eltype(iter) == Tuple{Int64, Int64}
+            @test Base.IteratorSize(EachSitePair) == Base.HasLength()
+            @test Base.IteratorEltype(EachSitePair) == Base.HasEltype()
+        end
+    end
+
+    @testset "EachSitePairByDistance" begin
+        for dqmc in dqmcs
+            iter = EachSitePairByDistance(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            @test length(iter) == Nsites^2
+            @test length(collect(iter)) == Nsites^2
+            @test eltype(iter) == NTuple{3, Int64}
+            @test Base.IteratorSize(EachSitePairByDistance) == Base.HasLength()
+            @test Base.IteratorEltype(EachSitePairByDistance) == Base.HasEltype()
+
+            dirs = directions(dqmc)
+            pos = MonteCarlo.positions(lattice(dqmc))
+            wrap = MonteCarlo.generate_combinations(MonteCarlo.lattice_vectors(MonteCarlo.lattice(dqmc)))
+
+            # Let's summarize these tests...
+            check = true
+
+            for (idx, src, trg) in iter
+                _d = pos[src] - pos[trg]
+                # Find lowest distance w/ periodic bounds
+                d = _d .+ wrap[1]
+                for v in wrap[2:end]
+                    new_d = _d .+ v
+                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                        d .= new_d
+                    end
+                end
+                check = check && (dirs[idx] ≈ d)
+            end
+
+            @test check
+        end
+    end
+
+    @testset "EachLocalQuadByDistance" begin
+        for dqmc in dqmcs
+            iter = EachLocalQuadByDistance{6}(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            @test length(iter) == 6^2 * Nsites^2
+            @test length(collect(iter)) == 6^2 * Nsites^2
+            @test eltype(iter) == NTuple{7, Int64}
+            @test Base.IteratorSize(EachLocalQuadByDistance) == Base.HasLength()
+            @test Base.IteratorEltype(EachLocalQuadByDistance) == Base.HasEltype()
+
+            dirs = directions(dqmc)
+            pos = MonteCarlo.positions(lattice(dqmc))
+            wrap = MonteCarlo.generate_combinations(MonteCarlo.lattice_vectors(MonteCarlo.lattice(dqmc)))
+
+            # Let's summarize these tests...
+            check12 = true
+            check1 = true
+            check2 = true
+
+            for (idx12, idx1, idx2, src1, trg1, src2, trg2) in iter
+                # src1 -- idx12 -- src2
+                _d = pos[src1] - pos[src2]
+                d = _d .+ wrap[1]
+                for v in wrap[2:end]
+                    new_d = _d .+ v
+                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                        d .= new_d
+                    end
+                end
+                check12 = check12 && (dirs[idx12] ≈ d)
+
+                # src1 -- idx1 -- trg1
+                _d = pos[src1] - pos[trg1]
+                d = _d .+ wrap[1]
+                for v in wrap[2:end]
+                    new_d = _d .+ v
+                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                        d .= new_d
+                    end
+                end
+                check1 = check1 && (dirs[idx1] ≈ d)
+
+                # src2 -- idx2 -- trg2
+                _d = pos[src2] - pos[trg2]
+                d = _d .+ wrap[1]
+                for v in wrap[2:end]
+                    new_d = _d .+ v
+                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                        d .= new_d
+                    end
+                end
+                check2 = check2 && (dirs[idx2] ≈ d)
+            end
+
+            @test check12
+            @test check1
+            @test check2
         end
     end
 end
 
 
+# # L = 3 hardcoded Honeycomb
+# struct HoneycombTestLattice <: AbstractLattice
+#     positions::Vector{Vector{Float64}}
+# end
 
-# L = 3 hardcoded Honeycomb
-struct HoneycombTestLattice <: AbstractLattice
-    positions::Vector{Vector{Float64}}
-end
+# function HoneycombTestLattice()
+#     # Taken from LatticePhysics (L = 3)
+#     pos = [[0.0, 0.0], [0.5773502691896258, 0.0], [0.8660254037844386, 0.5], [1.4433756729740645, 0.5], [1.7320508075688772, 1.0], [2.309401076758503, 1.0], [0.8660254037844386, -0.5], [1.4433756729740645, -0.5], [1.7320508075688772, 0.0], [2.309401076758503, 0.0], [2.598076211353316, 0.5], [3.1754264805429417, 0.5], [1.7320508075688772, -1.0], [2.309401076758503, -1.0], [2.598076211353316, -0.5], [3.1754264805429413, -0.5], [3.4641016151377544, 0.0], [4.04145188432738, 0.0]]
+#     HoneycombTestLattice(pos)
+# end
+# Base.length(l::HoneycombTestLattice) = length(l.positions)
+# MonteCarlo.positions(l::HoneycombTestLattice) = l.positions
+# function MonteCarlo.DistanceMask(lattice::HoneycombTestLattice)
+#     L = 3
+#     wrap = MonteCarlo.generate_combinations(
+#         [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
+#     )
+#     MonteCarlo.VerboseDistanceMask(lattice, wrap)
+# end
+# function MonteCarlo.directions(mask::MonteCarlo.VerboseDistanceMask, lattice::HoneycombTestLattice)
+#     pos = MonteCarlo.positions(lattice)
+#     dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
+#     # marked = Set{Int64}()
+#     # dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
+#     # for src in 1:size(mask.targets, 1)
+#     #     for (idx, trg) in mask.targets[src, :]
+#     #         if !(idx in marked)
+#     #             push!(marked, idx)
+#     #             dirs[idx] = pos[trg] - pos[src]
+#     #         end
+#     #     end
+#     # end
+#     L = 3
+#     wrap = MonteCarlo.generate_combinations(
+#         [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
+#     )
+#     map(dirs) do _d
+#         d = round.(_d .+ wrap[1], digits=6)
+#         for v in wrap[2:end]
+#             new_d = round.(_d .+ v, digits=6)
+#             if norm(new_d) < norm(d)
+#                 d .= new_d
+#             end
+#         end
+#         d
+#     end
+# end
 
-function HoneycombTestLattice()
-    # Taken from LatticePhysics (L = 3)
-    pos = [[0.0, 0.0], [0.5773502691896258, 0.0], [0.8660254037844386, 0.5], [1.4433756729740645, 0.5], [1.7320508075688772, 1.0], [2.309401076758503, 1.0], [0.8660254037844386, -0.5], [1.4433756729740645, -0.5], [1.7320508075688772, 0.0], [2.309401076758503, 0.0], [2.598076211353316, 0.5], [3.1754264805429417, 0.5], [1.7320508075688772, -1.0], [2.309401076758503, -1.0], [2.598076211353316, -0.5], [3.1754264805429413, -0.5], [3.4641016151377544, 0.0], [4.04145188432738, 0.0]]
-    HoneycombTestLattice(pos)
-end
-Base.length(l::HoneycombTestLattice) = length(l.positions)
-MonteCarlo.positions(l::HoneycombTestLattice) = l.positions
-function MonteCarlo.DistanceMask(lattice::HoneycombTestLattice)
-    L = 3
-    wrap = MonteCarlo.generate_combinations(
-        [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
-    )
-    MonteCarlo.VerboseDistanceMask(lattice, wrap)
-end
-function MonteCarlo.directions(mask::MonteCarlo.VerboseDistanceMask, lattice::HoneycombTestLattice)
-    pos = MonteCarlo.positions(lattice)
-    dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
-    # marked = Set{Int64}()
-    # dirs = Vector{eltype(pos)}(undef, maximum(first(x) for x in mask.targets))
-    # for src in 1:size(mask.targets, 1)
-    #     for (idx, trg) in mask.targets[src, :]
-    #         if !(idx in marked)
-    #             push!(marked, idx)
-    #             dirs[idx] = pos[trg] - pos[src]
-    #         end
-    #     end
-    # end
-    L = 3
-    wrap = MonteCarlo.generate_combinations(
-        [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
-    )
-    map(dirs) do _d
-        d = round.(_d .+ wrap[1], digits=6)
-        for v in wrap[2:end]
-            new_d = round.(_d .+ v, digits=6)
-            if norm(new_d) < norm(d)
-                d .= new_d
-            end
-        end
-        d
-    end
-end
+# @testset "Mask with basis" begin
+#     l = HoneycombTestLattice()
+#     L = 3
+#     positions = MonteCarlo.positions(l)
+#     mask = DistanceMask(l)
+#     @test mask isa MonteCarlo.VerboseDistanceMask
+#     @test length(mask) == 27
+#     @test allunique(MonteCarlo.getorder(mask))
+#     # for i in 1:length(l)
+#     #     @test allunique(mask[i, :])
+#     #     @test allunique(mask[:, i])
+#     # end
+#     wrap = MonteCarlo.generate_combinations(
+#         [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
+#     )
 
-@testset "Mask with basis" begin
-    l = HoneycombTestLattice()
-    L = 3
-    positions = MonteCarlo.positions(l)
-    mask = DistanceMask(l)
-    @test mask isa MonteCarlo.VerboseDistanceMask
-    @test length(mask) == 27
-    @test allunique(MonteCarlo.getorder(mask))
-    # for i in 1:length(l)
-    #     @test allunique(mask[i, :])
-    #     @test allunique(mask[:, i])
-    # end
-    wrap = MonteCarlo.generate_combinations(
-        [L * [0.8660254037844386, -0.5], L * [0.8660254037844386, 0.5]]
-    )
-
-    # in the same direction
-    dirs = MonteCarlo.directions(mask, l)
-    for dir_idx in 1:length(mask)
-        _dirs = map(MonteCarlo.getdirorder(mask, dir_idx)) do (src, trg)
-            d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
-            for v in wrap[2:end]
-                new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
-                if norm(new_d) < norm(d)
-                    d .= new_d
-                end
-            end
-            d
-        end
-        @test all(==(dirs[dir_idx]), _dirs)
-    end
-    # for src in 1:length(l)
-    #     for (idx, trg) in MonteCarlo.getorder(mask, src)
-    #         d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
-    #         for v in wrap[2:end]
-    #             new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
-    #             if norm(new_d) < norm(d)
-    #                 d .= new_d
-    #             end
-    #         end
-    #         @test dirs[idx] ≈ d
-    #     end
-    # end
-end
+#     # in the same direction
+#     dirs = MonteCarlo.directions(mask, l)
+#     for dir_idx in 1:length(mask)
+#         _dirs = map(MonteCarlo.getdirorder(mask, dir_idx)) do (src, trg)
+#             d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
+#             for v in wrap[2:end]
+#                 new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
+#                 if norm(new_d) < norm(d)
+#                     d .= new_d
+#                 end
+#             end
+#             d
+#         end
+#         @test all(==(dirs[dir_idx]), _dirs)
+#     end
+#     # for src in 1:length(l)
+#     #     for (idx, trg) in MonteCarlo.getorder(mask, src)
+#     #         d = round.(positions[trg] .- positions[src] .+ wrap[1], digits=6)
+#     #         for v in wrap[2:end]
+#     #             new_d = round.(positions[trg] .- positions[src] .+ v, digits=6)
+#     #             if norm(new_d) < norm(d)
+#     #                 d .= new_d
+#     #             end
+#     #         end
+#     #         @test dirs[idx] ≈ d
+#     #     end
+#     # end
+# end
 
 # @testset "2D Honeycomb" begin
 #     for L in (2, 3)

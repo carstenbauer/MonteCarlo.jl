@@ -53,8 +53,12 @@ import Base.show
 Base.summary(model::IsingModel) = "$(model.dims)D-Ising model"
 # Base.show(io::IO, model::IsingModel{LT}) where LT<:AbstractCubicLattice =
     # print(io, "$(model.dims)D-Ising model, L=$(model.L) ($(model.l.sites) sites)")
-Base.show(io::IO, model::IsingModel{LT}) where LT<:AbstractLattice =
-    print(io, "Ising model on $(replace(string(LT), "MonteCarlo."=>"")), L=$(model.L) ($(model.l.sites) sites)")
+function Base.show(io::IO, model::IsingModel{LT}) where LT<:AbstractLattice
+    print(io, 
+        "Ising model on $(replace(string(LT), "MonteCarlo."=>"")), " * 
+        "L=$(model.L) ($(model.l.sites) sites)"
+    )
+end
 Base.show(io::IO, m::MIME"text/plain", model::IsingModel) = print(io, model)
 
 
@@ -85,7 +89,9 @@ end
 end
 
 # optimized for 2D case
-@propagate_inbounds @bm function propose_local(mc::MC, m::IsingModel{SquareLattice}, i::Int, conf::IsingConf)
+@propagate_inbounds @bm function propose_local(
+        mc::MC, m::IsingModel{SquareLattice}, i::Int, conf::IsingConf
+    )
     neighs = m.l.neighs
     @inbounds delta_E = 2.0 * conf[i] * (
         conf[neighs[1, i]] + conf[neighs[2, i]] +

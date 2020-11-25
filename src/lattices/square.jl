@@ -4,8 +4,10 @@ Two dimensional square lattice.
 struct SquareLattice <: AbstractLattice
     L::Int
     sites::Int
-    neighs::Matrix{Int} # row = up, right, down, left; col = siteidx
-    neighs_cartesian::Array{Int, 3} # row (1) = up, right, down, left; cols (2,3) = cartesian siteidx
+    # row = up, right, down, left; col = siteidx
+    neighs::Matrix{Int} 
+    # row (1) = up, right, down, left; cols (2,3) = cartesian siteidx
+    neighs_cartesian::Array{Int, 3} 
     lattice::Matrix{Int}
 
     # for generic checkerboard decomposition
@@ -69,4 +71,4 @@ has_neighbors_table(::SquareLattice) = HasNeighborsTable()
 has_bonds_table(::SquareLattice) = HasBondsTable()
 
 positions(l::SquareLattice) = l.lattice |> CartesianIndices .|> Tuple .|> collect
-DistanceMask(lattice::SquareLattice) = default_distance_mask(lattice)
+lattice_vectors(l::SquareLattice) = [[l.L, 0], [0, l.L]]

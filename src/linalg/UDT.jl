@@ -59,10 +59,10 @@ decomposed and the triangular output matrix.
 
 This assumes correctly sized square matrices as inputs.
 """
-function udt_AVX!(U::AbstractArray{C, 2}, D::AbstractArray{C, 1}, input::AbstractArray{C, 2}) where {C<:Number}
+function udt_AVX!(U::AbstractMatrix{C}, D::AbstractVector{C}, input::AbstractMatrix{C}) where {C<:Number}
     # Assumptions:
     # - all matrices same size
-    # - input can be fucked up (input becomes T)
+    # - input can be changed (input becomes T)
 
     # @bm "Compute QR decomposition" begin
         n, _ = size(input)

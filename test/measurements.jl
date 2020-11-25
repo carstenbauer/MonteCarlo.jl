@@ -8,8 +8,7 @@ struct DummyMeasurement <: AbstractMeasurement end
     @test IsingEnergyMeasurement <: IsingMeasurement
     @test IsingMagnetizationMeasurement <: IsingMeasurement
     @test IsingMeasurement <: AbstractMeasurement
-    @test GreensMeasurement <: AbstractMeasurement
-    @test BosonEnergyMeasurement <: AbstractMeasurement
+    @test MonteCarlo.DQMCMeasurement <: AbstractMeasurement
 end
 
 @testset "Interface" begin
@@ -54,30 +53,8 @@ end
     model = HubbardModelAttractive(dims=2, L=2)
     mc = DQMC(model, beta=1.0)
 
-    defaults = MonteCarlo.default_measurements(mc, model)
-    @test !isempty(defaults)
-    @test haskey(defaults, :Greens) && defaults[:Greens] isa GreensMeasurement
-    obs = observables(defaults[:Greens])
-    @test haskey(obs, "Equal-times Green's function") && obs["Equal-times Green's function"] isa AbstractObservable
-
-    @test haskey(defaults, :BosonEnergy) && defaults[:BosonEnergy] isa BosonEnergyMeasurement
-    obs = observables(defaults[:BosonEnergy])
-    @test haskey(obs, "Bosonic Energy") && obs["Bosonic Energy"] isa AbstractObservable
-
+    @test isempty(mc.measurements)
     @test isempty(mc.thermalization_measurements)
-    @test !isempty(mc.measurements)
-    @test haskey(mc.measurements, :Greens) && mc.measurements[:Greens] isa GreensMeasurement
-    @test haskey(mc.measurements, :BosonEnergy) && mc.measurements[:BosonEnergy] isa BosonEnergyMeasurement
-
-    @test measurements(mc) == mc.measurements
-    @test measurements(mc, :ME) == mc.measurements
-    @test measurements(mc, :TH) == mc.thermalization_measurements
-    @test measurements(mc, :ALL)[:ME] == mc.measurements
-    @test measurements(mc, :ALL)[:TH] == mc.thermalization_measurements
-
-    _obs = observables(mc, :all)
-    @test observables(mc, :ME) == _obs[:ME]
-    @test observables(mc, :TH) == _obs[:TH]
 end
 
 @testset "Retrieving Measurements" begin
@@ -192,7 +169,7 @@ end
 @testset "Measured Greens function" begin
     m = HubbardModelAttractive(dims=2, L=8, mu=0.5)
     mc = DQMC(m, beta=5.0, safe_mult=1)
-    MonteCarlo.build_stack(mc)
+    MonteCarlo.build_stack(mc, mc.s)
     MonteCarlo.propagate(mc)
 
     # greens(mc) matches expected output
@@ -206,30 +183,30 @@ end
     @test greens(mc) ≈ calc_measured_greens(mc, mc.s.greens)
 end
 
-@testset "Uniform Fourier" begin
-    A = rand(64, 64)
-    @test uniform_fourier(A, 64) == sum(A) / 64
-    @test uniform_fourier(A, 10) == sum(A) / 10
+# @testset "Uniform Fourier" begin
+#     A = rand(64, 64)
+#     @test uniform_fourier(A, 64) == sum(A) / 64
+#     @test uniform_fourier(A, 10) == sum(A) / 10
 
-    m = HubbardModelAttractive(dims=2, L=8)
-    mc = DQMC(m, beta=5.0)
-    @test uniform_fourier(A, mc) == sum(A) / 64
+#     m = HubbardModelAttractive(dims=2, L=8)
+#     mc = DQMC(m, beta=5.0)
+#     @test uniform_fourier(A, mc) == sum(A) / 64
 
-    mask = MonteCarlo.DistanceMask(MonteCarlo.lattice(m))
-    MonteCarlo.unsafe_push!(mc, :CDC => ChargeDensityCorrelationMeasurement(mc, m, mask=mask))
-    MonteCarlo.unsafe_push!(mc, :SDC => SpinDensityCorrelationMeasurement(mc, m, mask=mask))
-    MonteCarlo.unsafe_push!(mc, :PC => PairingCorrelationMeasurement(mc, m, mask=mask))
-    run!(mc, verbose=false)
-    measured = measurements(mc)
+#     mask = MonteCarlo.DistanceMask(MonteCarlo.lattice(m))
+#     MonteCarlo.unsafe_push!(mc, :CDC => ChargeDensityCorrelationMeasurement(mc, m, mask=mask))
+#     MonteCarlo.unsafe_push!(mc, :SDC => SpinDensityCorrelationMeasurement(mc, m, mask=mask))
+#     MonteCarlo.unsafe_push!(mc, :PC => PairingCorrelationMeasurement(mc, m, mask=mask))
+#     run!(mc, verbose=false)
+#     measured = measurements(mc)
 
-    @test uniform_fourier(measured[:CDC]) isa MonteCarlo.UniformFourierWrapped
-    @test_throws MethodError uniform_fourier(measured[:SDC])
-    @test uniform_fourier(measured[:SDC], :x) isa MonteCarlo.UniformFourierWrapped
-    @test uniform_fourier(measured[:SDC].y) isa MonteCarlo.UniformFourierWrapped
-    @test uniform_fourier(measured[:PC]) isa MonteCarlo.UniformFourierWrapped
+#     @test uniform_fourier(measured[:CDC]) isa MonteCarlo.UniformFourierWrapped
+#     @test_throws MethodError uniform_fourier(measured[:SDC])
+#     @test uniform_fourier(measured[:SDC], :x) isa MonteCarlo.UniformFourierWrapped
+#     @test uniform_fourier(measured[:SDC].y) isa MonteCarlo.UniformFourierWrapped
+#     @test uniform_fourier(measured[:PC]) isa MonteCarlo.UniformFourierWrapped
 
-    @test mean(uniform_fourier(measured[:CDC])) == sum(mean(measured[:CDC])) / 64
-    @test var(uniform_fourier(measured[:SDC], :x)) == sum(var(measured[:SDC].x)) / 64
-    @test std_error(uniform_fourier(measured[:SDC].z)) == sum(std_error(measured[:SDC].z)) / 64
-    @test tau(uniform_fourier(measured[:PC])) == maximum(tau(measured[:PC]))
-end
+#     @test mean(uniform_fourier(measured[:CDC])) == sum(mean(measured[:CDC])) / 64
+#     @test var(uniform_fourier(measured[:SDC], :x)) == sum(var(measured[:SDC].x)) / 64
+#     @test std_error(uniform_fourier(measured[:SDC].z)) == sum(std_error(measured[:SDC].z)) / 64
+#     @test tau(uniform_fourier(measured[:PC])) == maximum(tau(measured[:PC]))
+# end

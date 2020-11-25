@@ -65,7 +65,7 @@ end
     mc, state = resume!(
         "resumable_testfile.jld",
         verbose = false,
-        safe_before = now() + Second(15),
+        safe_before = now() + Second(20),
         grace_period = Millisecond(0),
         overwrite = true,
         resumable_filename = "resumable_testfile.jld"
@@ -91,7 +91,7 @@ function test_dqmc(mc, x)
     for f in fieldnames(typeof(mc.p))
         @test getfield(mc.p, f) == getfield(x.p, f)
     end
-    @test mc.conf == x.conf
+    # @test mc.conf == x.conf
     @test mc.model.dims == x.model.dims
     @test mc.model.L == x.model.L
     @test mc.model.mu == x.model.mu
@@ -116,6 +116,7 @@ function test_dqmc(mc, x)
     end
     for (k, v) in mc.measurements
         for f in fieldnames(typeof(v))
+            v isa MonteCarlo.DQMCMeasurement && f == :output && continue
             r = if getfield(v, f) isa LightObservable
                 # TODO
                 # implement == for LightObservable in MonteCarloObservable
@@ -130,6 +131,17 @@ function test_dqmc(mc, x)
                 r = r && (a.B.x_sum ≈ b.B.x_sum)
                 r = r && (a.B.x2_sum ≈ b.B.x2_sum)
                 r = r && (a.B.count ≈ b.B.count)
+            elseif getfield(v, f) isa LogBinner
+                r = true
+                a = getfield(v, f)
+                b = getfield(x.measurements[k], f)
+                for i in eachindex(a.compressors)
+                    r = r && (a.compressors[i].value ≈ b.compressors[i].value)
+                    r = r && (a.compressors[i].switch ≈ b.compressors[i].switch)
+                end
+                r = r && (a.x_sum ≈ b.x_sum)
+                r = r && (a.x2_sum ≈ b.x2_sum)
+                r = r && (a.count ≈ b.count)
             else
                 getfield(v, f) == getfield(x.measurements[k], f)
             end
@@ -143,18 +155,21 @@ end
 @testset "DQMC" begin
     model = HubbardModelAttractive(dims=2, L=4, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
+    mc[:CDC] = charge_density_correlation(mc, model)
     t = time()
     run!(mc, verbose=false)
     t = time() - t
+
     save("testfile.jld", mc)
     x = load("testfile.jld")
     rm("testfile.jld")
+    @test mc.conf == x.conf
 
     # Repeat these tests once with x being replayed rather than loaded
     test_dqmc(mc, x)    
 
     # Check everything again with x being a replayed simulation
-    x.measurements = MonteCarlo.default_measurements(mc, model) 
+    x[:CDC] = charge_density_correlation(x, model)
     x.last_sweep = 0
     replay!(x, verbose=false)
     test_dqmc(mc, x)
@@ -166,6 +181,7 @@ end
     Random.seed!(123)
     model = HubbardModelAttractive(dims=2, L=2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, sweeps=10_000_000, measure_rate=100)
+    mc[:CDC] = charge_density_correlation(mc, model)
 
     state = run!(
         mc, verbose = false,

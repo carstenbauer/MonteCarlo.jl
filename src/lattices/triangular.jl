@@ -2,7 +2,8 @@
 # remove Lx, Ly or save and use them consistently
 
 struct TriangularLattice <: AbstractLattice
-    L::Int
+    Lx::Int
+    Ly::Int
     sites::Int
     # row = up, down, left/right; col = siteidx
     neighs::Matrix{Int}
@@ -51,7 +52,7 @@ function TriangularLattice(L::Int; Lx=L, Ly=L)
     isAsite = [iseven(i) for i in 1:Lx, j in 1:Ly][:]
 
     return TriangularLattice(
-        L, sites,
+        Lx, Ly, sites,
         neighs, neighs_cartesian,
         ext_neighs, ext_neighs_cartesian,
         lattice, isAsite, n_bonds, bonds
@@ -102,7 +103,7 @@ end
 
 # Implement AbstractLattice interface: mandatory
 @inline Base.length(l::TriangularLattice) = l.sites
-@inline Base.size(l::TriangularLattice) = (l.L, l.L)
+@inline Base.size(l::TriangularLattice) = (l.Lx, l.Ly)
 
 # Implement AbstractLattice interface: optional
 @inline neighbors_lookup_table(l::TriangularLattice) = copy(l.neighs)
@@ -115,4 +116,4 @@ function positions(l::TriangularLattice)
     idxs = l.lattice |> CartesianIndices .|> Tuple .|> collect
     [[0.5, 0.8660254037844386] * idx[1] + [1, 0] * idx[2] for idx in idxs]
 end
-DistanceMask(lattice::TriangularLattice) = default_distance_mask(lattice)
+lattice_vectors(l::TriangularLattice) = [[0.5, 0.8660254037844386] * l.Lx, [l.Ly, 0]]

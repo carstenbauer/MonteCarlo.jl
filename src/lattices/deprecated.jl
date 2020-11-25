@@ -66,6 +66,7 @@ order. Furthermore each bond is assumed to be of equal length.
 """
 abstract type DistanceMask <: AbstractMask end
 DistanceMask(lattice::AbstractLattice) = MethodError(DistanceMask, (lattice))
+DistanceMask(mc::MonteCarloFlavor, model::Model) = DistanceMask(lattice(model))
 
 # SimpleDistanceMask deals with lattices where each distance vector exists for
 # every site in the lattice (assuming periodic bonds)
@@ -111,6 +112,7 @@ function getorder(mask::SimpleDistanceMask)
                      for (dir, trg) in enumerate(mask.targets[src, :])
     )
 end
+
 # All (src, trg) in dir
 function getdirorder(mask::SimpleDistanceMask, dir)
     ((src, mask.targets[src, dir]) for src in 1:size(mask.targets, 1))
@@ -121,7 +123,6 @@ nsources(mask::SimpleDistanceMask) = size(mask.targets, 1)
 Base.length(mask::SimpleDistanceMask) = size(mask.targets, 1)
 dirlength(mask::SimpleDistanceMask, dir_idx) = size(mask.targets, 1)
 dirlengths(mask::SimpleDistanceMask) = (size(mask.targets, 1) for _ in 1:size(mask.targets, 1))
-
 """
     directions(mask, lattice)
 
@@ -166,16 +167,8 @@ dirlengths(mask::DistanceMask) = length.(mask.targets)
 
 function directions(mask::VerboseDistanceMask, lattice::AbstractLattice)
     pos = MonteCarlo.positions(lattice)
-    dirs = [pos[trg] - pos[src] for (src, trg) in first.(mask.targets)]
+    dirs = [pos[src] - pos[trg] for (src, trg) in first.(mask.targets)]
     dirs
-end
-# For shifting sites across periodic bounds
-function generate_combinations(vs::Vector{Vector{Float64}})
-    out = [zeros(length(vs[1]))]
-    for v in vs
-        out = vcat([e.-v for e in out], out, [e.+v for e in out])
-    end
-    out
 end
 function VerboseDistanceMask(lattice, wrap)
     _positions = positions(lattice)
@@ -241,3 +234,11 @@ function RestrictedSourceMask(mask::DistanceMask, directions)
 end
 
 getorder(mask::RestrictedSourceMask, src) = mask.targets[src]
+
+
+
+
+DistanceMask(lattice::Chain) = default_distance_mask(lattice)
+DistanceMask(lattice::CubicLattice) = default_distance_mask(lattice)
+DistanceMask(lattice::SquareLattice) = default_distance_mask(lattice)
+DistanceMask(lattice::TriangularLattice) = default_distance_mask(lattice)

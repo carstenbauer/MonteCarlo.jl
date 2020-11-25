@@ -47,7 +47,9 @@ HubbardModelAttractive(params::NamedTuple) = HubbardModelAttractive(; params...)
 import Base.summary
 import Base.show
 Base.summary(model::HubbardModelAttractive) = "$(model.dims)D attractive Hubbard model"
-Base.show(io::IO, model::HubbardModelAttractive) = print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(length(model.l)) sites)")
+function Base.show(io::IO, model::HubbardModelAttractive)
+    print(io, "$(model.dims)D attractive Hubbard model, L=$(model.L) ($(length(model.l)) sites)")
+end
 Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io, model)
 
 
@@ -89,18 +91,10 @@ and store it in `result::Matrix`.
 This is a performance critical method.
 """
 @inline @bm function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
-            result, conf::HubbardConf, slice::Int, power::Float64=1.)
+            result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
     dtau = mc.p.delta_tau
     lambda = acosh(exp(0.5 * m.U * dtau))
 
-    # z = zero(eltype(result))
-    # @inbounds for j in eachindex(result)
-    #     result[j] = z
-    # end
-    # N = size(result, 1)
-    # @inbounds for i in 1:N
-    #     result[i, i] = exp(sign(power) * lambda * conf[i, slice])
-    # end
     N = size(result, 1)
     @inbounds for i in 1:N
         result.diag[i] = exp(sign(power) * lambda * conf[i, slice])
@@ -109,15 +103,18 @@ This is a performance critical method.
 end
 
 
-@inline @bm function propose_local(mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf)
-    # see for example dos Santos (2002)
+@inline @bm function propose_local(
+        mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf
+    )
+    # see for example dos Santos Introduction to quantum Monte-Carlo
     greens = mc.s.greens
     dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
 
     @inbounds ΔE_boson = -2. * lambda * conf[i, slice]
     γ = exp(ΔE_boson) - 1
-    @inbounds detratio = (1 + γ * (1 - greens[i,i]))^2 # squared because of two spin sectors.
+    @inbounds detratio = (1 + γ * (1 - greens[i,i]))^2 
+    # squared because of two spin sectors
 
     return detratio, ΔE_boson, γ
 end
@@ -130,7 +127,6 @@ end
     # Unoptimized Version
     # u = -greens[:, i]
     # u[i] += 1.
-    # # OPT: speed check, maybe @views/@inbounds
     # greens .-= kron(u * 1./(1 + gamma * u[i]), transpose(gamma * greens[i, :]))
     # conf[i, slice] .*= -1.
 
@@ -155,7 +151,8 @@ end
 """
 Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
 """
-@inline function energy_boson(mc::DQMC, m::HubbardModelAttractive, hsfield::HubbardConf)
+@inline function energy_boson(mc::DQMC, m::HubbardModelAttractive)
+    hsfiled = conf(mc)
     dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
@@ -163,10 +160,9 @@ end
 
 
 function greens(mc::DQMC, model::HubbardModelAttractive)
-    G = greens(mc)
+    G = greens!(mc)
     vcat(hcat(G, zeros(size(G))), hcat(zeros(size(G)), G))
 end
-prepare!(m::SpinOneHalfMeasurement, mc::DQMC, model::HubbardModelAttractive) = nothing
 
 function save_model(
         file::JLDFile,
@@ -206,4 +202,52 @@ function _load(data, ::Type{T}) where T <: HubbardModelAttractive
         l = l,
         flv = data["flv"]
     )
+end
+
+
+# Need some measurement overwrites because nflavors = 1
+checkflavors(::HubbardModelAttractive) = nothing
+
+function cdc_kernel(mc, ::HubbardModelAttractive, i, j, G)
+    # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
+    4 * (1 - G[i, i]) * (1 - G[j, j]) + 2 * (I[j, i] - G[j, i]) * G[i, j]
+end
+function cdc_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll)
+    # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
+    4 * (1 - Gll[i,i]) * (1 - G00[j,j]) - 2 * G0l[j,i] * Gl0[i,j]
+end
+
+mx_kernel(mc, ::HubbardModelAttractive, i, G) = 0.0
+my_kernel(mc, ::HubbardModelAttractive, i, G) = 0.0
+mz_kernel(mc, ::HubbardModelAttractive, i, G) = 0.0
+
+sdc_x_kernel(mc, ::HubbardModelAttractive, i, j, G) = 2(I[j,i] - G[j,i]) * G[i,j]
+sdc_y_kernel(mc, ::HubbardModelAttractive, i, j, G) = 2(I[j,i] - G[j,i]) * G[i,j]
+sdc_z_kernel(mc, ::HubbardModelAttractive, i, j, G) = 2(I[j,i] - G[j,i]) * G[i,j]
+
+sdc_x_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll) = -2 * G0l[j,i] * Gl0[i,j]
+sdc_y_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll) = -2 * G0l[j,i] * Gl0[i,j]
+sdc_z_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll) = -2 * G0l[j,i] * Gl0[i,j]
+
+pc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G) = G[src1, src2] * G[trg1, trg2]
+function pc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G00, G0l, Gl0, Gll)
+    Gl0[src1, src2] * Gl0[trg1, trg2]
+end
+
+function cc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G00, G0l, Gl0, Gll)
+    N = length(lattice(mc))
+    T = mc.s.hopping_matrix
+
+    # up-up counts, down-down counts, mixed only on 11s or 22s
+    s1 = src1; t1 = trg1
+    s2 = src2; t2 = trg2
+    output = 4.0 * 
+        (T[s1, t1] * Gll[t1, s1] - T[t1, s1] * Gll[s1, t1]) * 
+        (T[s2, t2] * G00[t2, s2] - T[t2, s2] * G00[s2, t2]) +
+        2.0 * T[t1, s1] * T[t2, s2] * (- G0l[s2, t1]) * Gl0[s1, t2] -
+        2.0 * T[s1, t1] * T[t2, s2] * (- G0l[s2, s1]) * Gl0[t1, t2] -
+        2.0 * T[t1, s1] * T[s2, t2] * (- G0l[t2, t1]) * Gl0[s1, s2] +
+        2.0 * T[s1, t1] * T[s2, t2] * (- G0l[t2, s1]) * Gl0[t1, s2]
+
+    output
 end

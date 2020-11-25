@@ -26,9 +26,11 @@ struct BlockDiagonal{T, N, AT <: AbstractMatrix{T}} <: AbstractMatrix{T}
         #     for i in 1:N
         #         @views copyto!(full[(i-1)*n+1 : i*n, (i-1)*n+1 : i*n], blocks[i])
         #     end
-        #     new{T, 1, AT}((full,))
+        #     # new{T, 1, AT}((full,))
+        #     # Is this bad? - Yes, because the rest of the code doesn't know about Matrix returns
+        #     return full
         # else
-            new{T, N, AT}(blocks)
+            return new{T, N, AT}(blocks)
         # end
     end
 end
@@ -81,15 +83,29 @@ function Base.getindex(B::BlockDiagonal{T, N}, i, j) where {T, N}
 end
 
 function Base.copyto!(B1::BlockDiagonal{T, N}, B2::BlockDiagonal{T, N}) where {T, N}
-    for i in 1:N
+    @inbounds for i in 1:N
         copyto!(B1.blocks[i], B2.blocks[i])
     end
+    return B1
 end
 function Base.copyto!(B::BlockDiagonal{T, N}, ::UniformScaling) where {T, N}
-    for i in 1:N
+    @inbounds for i in 1:N
         copyto!(B.blocks[i], I)
     end
+    return B
 end
+function Base.copyto!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T, N}
+    @inbounds n = size(B.blocks[1], 1)
+    @inbounds for i in 1:N
+        b = B.blocks[i]
+        offset = (i-1)*n
+        @avx for j in 1:n, k in 1:n
+            b[j, k] = ifelse(j == k, D.diag[offset+j], zero(T))
+        end
+    end
+    return B
+end
+
 
 # for Base.show
 function Base.size(B::BlockDiagonal{T, N}) where {T, N}
@@ -112,9 +128,23 @@ function Base.:(*)(B1::BlockDiagonal{T, N, AT}, B2::BlockDiagonal{T, N, AT}) whe
 end
 
 function Base.exp(B::BlockDiagonal{T, N, AT}) where {T<:Number, N, AT<:AbstractMatrix{T}}
-    BlockDiagonal(map(block ->exp(block), B.blocks)...)
+    BlockDiagonal(map(block -> exp(block), B.blocks)...)
 end
 
+# I thought this would be needed for greens(k, l), but it's not?
+function LinearAlgebra.transpose!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T, N}
+    @inbounds for i in 1:N
+        transpose!(A.blocks[i], B.blocks[i])
+    end
+    A
+end
+# This however is used for greens(k, l)
+function LinearAlgebra.rmul!(B::BlockDiagonal{T, N}, f::Number) where {T, N}
+    @inbounds for i in 1:N
+        rmul!(B.blocks[i], f)
+    end
+    B
+end
 
 
 ################################################################################
@@ -182,6 +212,23 @@ function vmul!(C::BlockDiagonal{T, N}, X::Adjoint{T}, B::BlockDiagonal{T, N}) wh
         end
     end
 end
+function vmul!(C::BD, X1::Transpose{T, BD}, X2::Transpose{T, BD}) where {T <: Real, N, BD <: BlockDiagonal{T, N}}
+    A = X1.parent
+    B = X2.parent
+    @inbounds n = size(C.blocks[1], 1)
+    @inbounds for i in 1:N
+        a = A.blocks[i]
+        b = B.blocks[i]
+        c = C.blocks[i]
+        @avx for k in 1:n, l in 1:n
+            Ckl = zero(eltype(c))
+            for m in 1:n
+                Ckl += a[m,k] * b[l, m]
+            end
+            c[k,l] = Ckl
+        end
+    end
+end
 function rvmul!(A::BlockDiagonal{T, N}, B::Diagonal) where {T, N}
     # Assuming correct size
     @inbounds n = size(A.blocks[1], 1)
@@ -197,6 +244,17 @@ function lvmul!(A::Diagonal, B::BlockDiagonal{T, N}) where {T, N}
     end
 end
 
+# used in greens(k, l)
+function rvadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T <: Real, N}
+    @inbounds for i in 1:N
+        a = A.blocks[i]
+        b = B.blocks[i]
+        @avx for j in axes(a, 1), k in axes(a, 2)
+            a[j, k] = a[j, k] + b[j, k]
+        end
+    end
+end
+# used in equal time greens
 function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T<:Real, N}
     # Assuming correct size
     @inbounds n = size(B.blocks[1], 1)
@@ -208,6 +266,22 @@ function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T<:Real, N}
         end
     end
 end
+# used in CombinedGreensIterator
+function vsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, ::UniformScaling) where {T<:Real, N}
+    @inbounds n = size(O.blocks[1], 1)
+    T1 = one(T)
+    @inbounds for i in 1:N
+        a = A.blocks[i]
+        o = O.blocks[i]
+        @avx for j in 1:n, k in 1:n
+            o[j, k] = a[j, k]
+        end
+        @avx for j in 1:n
+            o[j, j] -= T1
+        end
+    end
+end
+
 
 
 function rdivp!(A::BD, T::BD, O::BD, pivot) where {ET<:Real, N, BD <: BlockDiagonal{ET, N}}
@@ -252,6 +326,7 @@ end
 
 
 
+
 ################################################################################
 ### Fallbacks
 ################################################################################
@@ -289,6 +364,13 @@ function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T, N}
     @inbounds n = size(B.blocks[1], 1)
     @inbounds for i in 1:N
         @views rvadd!(B.blocks[i], Diagonal(D.diag[(i-1)*n+1 : i*n]))
+    end
+end
+function rvadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T, N}
+    @inbounds for i in 1:N
+        a = A.blocks[i]
+        b = B.blocks[i]
+        rvadd!(a, b)
     end
 end
 function rdivp!(A::BD, T::BD, O::BD, pivot) where {ET, N, BD <: BlockDiagonal{ET, N}}

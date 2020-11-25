@@ -43,6 +43,17 @@ function vmul!(C::Matrix{T}, X::Adjoint{T}, B::Matrix{T}) where {T <: Real}
         C[m,n] = Cmn
     end
 end
+function vmul!(C::Matrix{T}, X1::Transpose{T}, X2::Transpose{T}) where {T <: Real}
+    A = X1.parent
+    B = X2.parent
+    @avx for m in 1:size(A, 1), n in 1:size(B, 2)
+        Cmn = zero(eltype(C))
+        for k in 1:size(A, 2)
+            Cmn += A[k,m] * B[n,k]
+        end
+        C[m,n] = Cmn
+    end
+end
 function rvmul!(A::Matrix{T}, B::Diagonal{T}) where {T <: Real}
     @avx for m in 1:size(A, 1), n in 1:size(A, 2)
         A[m,n] = A[m,n] * B[n,n]
@@ -58,6 +69,59 @@ function rvadd!(A::Matrix{T}, D::Diagonal{T}) where {T <: Real}
         A[i, i] = A[i, i] + D.diag[i]
     end
 end
+function rvadd!(A::Matrix{T}, B::Matrix{T}) where {T <: Real}
+    @avx for i in axes(A, 1), j in axes(A, 2)
+        A[i, j] = A[i, j] + B[i, j]
+    end
+end
+function vsub!(O::Matrix{T}, A::Matrix{T}, ::UniformScaling) where {T <: Real}
+    T1 = one(T)
+    @avx for i in axes(O, 1), j in axes(O, 2)
+        O[i, j] = A[i, j]
+    end
+    @avx for i in axes(O, 1)
+        O[i, i] -= T1
+    end
+end
+
+# NOTE
+# These should only be called with real Vectors, no need to implement extra
+# methods
+function vmin!(v::Vector{T}, w::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @avx for i in eachindex(w)
+        v[i] = min(T1, w[i])
+    end
+    v
+end
+function vmininv!(v::Vector{T}, w::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @avx for i in eachindex(w)
+        v[i] = T1 / min(T1, w[i])
+    end
+    v
+end
+function vmax!(v::Vector{T}, w::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @avx for i in eachindex(w)
+        v[i] = max(T1, w[i])
+    end
+    v
+end
+function vmaxinv!(v::Vector{T}, w::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @avx for i in eachindex(w)
+        v[i] = T1 / max(T1, w[i])
+    end
+    v
+end
+function vinv!(v::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @avx for i in eachindex(v)
+        v[i] = T1 / v[i]
+    end
+    v
+end
 
 
 
@@ -71,7 +135,7 @@ changing `T`.
 
 This function is written to work with (@ref)[`udt_AVX_pivot!`].
 """
-function rdivp!(A, T, O, pivot)
+function rdivp!(A::Matrix, T, O, pivot)
     # assume Diagonal is ±1!
     @inbounds begin
         N = size(A, 1)
@@ -103,6 +167,7 @@ end
 
 
 
+
 ################################################################################
 ### Fallbacks for complex matrices
 ################################################################################
@@ -112,8 +177,16 @@ end
 vmul!(C, A, B) = mul!(C, A, B)
 rvmul!(A, B) = rmul!(A, B)
 lvmul!(A, B) = lmul!(A, B)
-rvadd!(A, B) = A .= A .+ B
-
+rvadd!(A, B) = A .+= B
+vsub!(A, B, C) = A .= B .- C
+function vsub!(A, B, ::UniformScaling)
+    T1 = one(eltype(A))
+    T0 = zero(eltype(A))
+    @inbounds for i in axes(A, 1), j in axes(A, 2)
+        A[i, j] = B[i, j] - ifelse(i==j, T1, T0)
+    end
+    A
+end
 
 function rdivp!(A::Matrix{<: Complex}, T::Matrix{<: Complex}, O::Matrix{<: Complex}, pivot)
     # assume Diagonal is ±1!
