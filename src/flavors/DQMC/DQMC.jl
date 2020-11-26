@@ -837,7 +837,8 @@ function _load(data, ::Type{T}) where T <: DQMC
     GMT = greens_matrix_type(DQMC, mc.model)
     IMT = interaction_matrix_type(DQMC, mc.model)
     mc.s = DQMCStack{GET, HET, GMT, HMT, IMT}()
-
+    mc.ut_stack = UnequalTimeStack{GET, GMT}()
+    
     make_concrete!(mc)
 end
 
