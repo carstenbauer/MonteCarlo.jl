@@ -200,7 +200,7 @@ function Greens_permuted(site1, site2, substate1, substate2)
 end
 
 # Charge Density Correlation
-function MonteCarlo.charge_density_correlation(site1::Int64, site2::Int64)
+function MonteCarlo.charge_density_correlation(site1::Integer, site2::Integer)
     state -> begin
         # states = State[]
         # prefactors = Float64[]
@@ -404,12 +404,12 @@ end
 # local s-wave
 # NOTE - this may no longer match the order of other observables
 # Δ_i Δ_j^† |ψ⟩
-MonteCarlo.pairing_correlation(i::Int64, j::Int64) = pairing_correlation(i, i, j, j)
+MonteCarlo.pairing_correlation(i::Integer, j::Integer) = pairing_correlation(i, i, j, j)
 # general case
 # Δ_i = c_{i, ↑} c_{j, ↓}
 # Δ_j^† -> Δ_k^† = (c_{k, ↑} c_{l, ↓})^† = c_{l, ↓}^† c_{k, ↑}^†
 #  Δ_i Δ_k^† |ψ⟩ = c_{i, ↑} c_{j, ↓} c_{l, ↓}^† c_{k, ↑}^† |ψ⟩
-function MonteCarlo.pairing_correlation(i::Int64, j::Int64, k::Int64, l::Int64)
+function MonteCarlo.pairing_correlation(i::Integer, j::Integer, k::Integer, l::Integer)
     state -> begin
         sign1, _state = create(state, k, UP)
         sign2, _state = create(_state, l, DOWN)
@@ -696,7 +696,7 @@ end
 end
 
 
-number_operator(site::Int64) = state -> _number_operator(state, site)
+number_operator(site::Integer) = state -> _number_operator(state, site)
 
 
 ################################################################################

@@ -185,14 +185,26 @@ function EachSitePairByDistance(lattice::AbstractLattice, ϵ = 1e-6)
     end
 
     temp = sortperm(directions, by = v -> directed_norm(v, ϵ))
+
     EachSitePairByDistance(length(lattice)^2, bonds[temp])
 end
 function EachSitePairByDistance(mc::MonteCarloFlavor, model::Model)
     EachSitePairByDistance(lattice(model))
 end
 
+
 @bm function Base.iterate(iter::EachSitePairByDistance, state = (1, 1))
     dir, i = state
+    # next_dir = dir + div(i, length(iter.pairs[dir]))
+    # next_i = mod1(i+1, length(iter.pairs[dir]))
+    # if next_dir > length(iter.pairs)
+    #     return nothing
+    # else
+    #     src, trg = iter.pairs[dir][i]
+    #     return (dir, src, trg), (next_dir, next_i)
+    # end
+
+
     if dir ≤ length(iter.pairs)
         if i ≤ length(iter.pairs[dir])
             src, trg = iter.pairs[dir][i]
@@ -245,8 +257,7 @@ Requires `lattice` to implement `positions` and `lattice_vectors`.
 """
 struct EachLocalQuadByDistance{K} <: AbstractLatticeIterator
     N::Int64
-    pairs_by_dir::Vector{Vector{Tuple{Int64, Int64}}}
-    trg_from_src::Vector{Vector{Tuple{Int64, Int64}}}
+    implied::Array{Vector{NTuple{4, UInt16}}, 3}
 end
 
 
@@ -262,42 +273,81 @@ function EachLocalQuadByDistance{K}(lattice::AbstractLattice) where {K}
         end
     end
 
+    # NOTE: Creating 7-Tuples is faster ~15% faster but I'm worried about memory
+    # usuage. Caching 4-tuples is still ~36% faster than running the loop below
+    # during measurements, and is not quite as demanding on memory.
     total_length = sum(length(x) for x in trg_from_src)^2
-    EachLocalQuadByDistance{K}(total_length, pairs_by_dir.pairs, trg_from_src)
+    # linear = Vector{NTuple{7, UInt16}}(undef, total_length)
+    # k = 1
+    implied = [NTuple{4, UInt16}[] for _ in 1:length(pairs_by_dir.pairs), _ in 1:K, _ in 1:K]
+    dir12, idx, i, j = (1,1,1,1)
+    while true
+        if dir12 ≤ length(pairs_by_dir.pairs)
+            if idx ≤ length(pairs_by_dir.pairs[dir12])
+                src1, src2 = pairs_by_dir.pairs[dir12][idx]
+                if i ≤ length(trg_from_src[src1])
+                    dir1, trg1 = trg_from_src[src1][i]
+                    if j ≤ length(trg_from_src[src2])
+                        dir2, trg2 = trg_from_src[src2][j]
+                        # linear[k] = UInt16.((dir12, dir1, dir2, src1, trg1, src2, trg2))
+                        push!(
+                            implied[dir12, dir1, dir2],
+                            UInt16.((src1, trg1, src2, trg2))
+                        )
+                        # k += 1
+                        j += 1
+                    else
+                        i += 1
+                        j = 1
+                    end
+                else
+                    idx += 1
+                    i = j = 1
+                end
+
+            else
+                dir12 += 1
+                idx = i = j = 1
+            end
+        else
+            break
+        end
+    end
+
+    EachLocalQuadByDistance{K}(total_length, implied)
 end
 function EachLocalQuadByDistance{K}(mc::MonteCarloFlavor, model::Model) where {K}
     EachLocalQuadByDistance{K}(lattice(model))
 end
 
-
-@bm function Base.iterate(iter::EachLocalQuadByDistance, state = (1, 1, 1, 1))
-    dir12, idx, i, j = state
-    if dir12 ≤ length(iter.pairs_by_dir)
-        if idx ≤ length(iter.pairs_by_dir[dir12])
-            src1, src2 = iter.pairs_by_dir[dir12][idx]
-            if i ≤ length(iter.trg_from_src[src1])
-                dir1, trg1 = iter.trg_from_src[src1][i]
-                if j ≤ length(iter.trg_from_src[src2])
-                    dir2, trg2 = iter.trg_from_src[src2][j]
-                    return (
-                        (dir12, dir1, dir2, src1, trg1, src2, trg2), 
-                        (dir12, idx, i, j+1)
-                    )
-                else
-                    return iterate(iter, (dir12, idx, i+1, 1))
-                end
-            else
-                return iterate(iter, (dir12, idx+1, 1, 1))
-            end
-
-        else
-            return iterate(iter, (dir12+1, 1, 1, 1))
-        end
+# @bm function Base.iterate(iter::EachLocalQuadByDistance, state=1)
+#     if state <= length(iter.direct)
+#         return (iter.direct[state], state+1)
+#     else
+#         return nothing
+#     end
+# end
+@bm function Base.iterate(iter::EachLocalQuadByDistance{K}, state=(1,1,1,1)) where {K}
+    dir12, dir1, dir2, idx = state
+    if dir12 <= size(iter.implied, 1)
+        N = length(iter.implied[dir12, dir1, dir2])
+        next_idx = mod1(idx+1, N)
+        x = div(idx, N)
+        next_dir2 = mod1(dir2 + x, K)
+        x = x * div(dir2, K)
+        next_dir1 = mod1(dir1 + x, K)
+        x = x * div(dir1, K)
+        next_dir12 = dir12 + x
+        t = iter.implied[dir12, dir1, dir2][idx]
+        return (
+            (dir12, dir1, dir2, t[1], t[2], t[3], t[4]), 
+            (next_dir12, next_dir1, next_dir2, next_idx)
+        )
     else
         return nothing
     end
 end
-ndirections(iter::EachLocalQuadByDistance{K}) where {K} = (length(iter.pairs_by_dir), K, K)
+ndirections(iter::EachLocalQuadByDistance{K}) where {K} = size(iter.implied)
 Base.length(iter::EachLocalQuadByDistance) = iter.N
 Base.eltype(::EachLocalQuadByDistance) = NTuple{7, Int64}
 
@@ -330,8 +380,7 @@ Requires `lattice` to implement `positions` and `lattice_vectors`.
 """
 struct EachLocalQuadBySyncedDistance{K} <: AbstractLatticeIterator
     N::Int64
-    pairs_by_dir::Vector{Vector{Tuple{Int64, Int64}}}
-    trg_from_src::Vector{Vector{Tuple{Int64, Int64}}}
+    implied::Array{Vector{NTuple{4, UInt16}}, 2}
 end
 
 
@@ -346,49 +395,69 @@ function EachLocalQuadBySyncedDistance{K}(lattice::AbstractLattice) where {K}
             push!(trg_from_src[src], (dir, trg))
         end
     end
+    
+    implied = [NTuple{4, UInt16}[] for _ in 1:length(pairs_by_dir.pairs), _ in 1:K]
+    dir12, idx, i, j = (1,1,1,1)
+    while true
+        if dir12 ≤ length(pairs_by_dir.pairs)
+            if idx ≤ length(pairs_by_dir.pairs[dir12])
+                src1, src2 = pairs_by_dir.pairs[dir12][idx]
+                if i ≤ length(trg_from_src[src1])
+                    dir1, trg1 = trg_from_src[src1][i]
+                    if j ≤ length(trg_from_src[src2])
+                        dir2, trg2 = trg_from_src[src2][j]
+                        j += 1
+                        dir1 != dir2 && continue
+                        push!(
+                            implied[dir12, dir1],
+                            UInt16.((src1, trg1, src2, trg2))
+                        )
+                    else
+                        i += 1
+                        j = 1
+                    end
+                else
+                    idx += 1
+                    i = j = 1
+                end
 
-    total_length = sum(length(x) for x in trg_from_src) # maybe wrong
-    EachLocalQuadBySyncedDistance{K}(total_length, pairs_by_dir.pairs, trg_from_src)
+            else
+                dir12 += 1
+                idx = i = j = 1
+            end
+        else
+            break
+        end
+    end
+    total_length = sum(length(x) for x in implied)
+
+    EachLocalQuadBySyncedDistance{K}(total_length, implied)
 end
 function EachLocalQuadBySyncedDistance{K}(mc::MonteCarloFlavor, model::Model) where {K}
     EachLocalQuadBySyncedDistance{K}(lattice(model))
 end
 
 
-@bm function Base.iterate(iter::EachLocalQuadBySyncedDistance, state = (1, 1, 1, 1))
-    dir12, idx, i, j = state
-    if dir12 ≤ length(iter.pairs_by_dir)
-        if idx ≤ length(iter.pairs_by_dir[dir12])
-            src1, src2 = iter.pairs_by_dir[dir12][idx]
-            if i ≤ length(iter.trg_from_src[src1])
-                dir1, trg1 = iter.trg_from_src[src1][i]
-                if j ≤ length(iter.trg_from_src[src2])
-                    dir2, trg2 = iter.trg_from_src[src2][j]
-                    if dir1 == dir2
-                        return (
-                            (dir12, dir1, src1, trg1, src2, trg2), 
-                            (dir12, idx, i, j+1)
-                        )
-                    else
-                        return iterate(iter, (dir12, idx, i, j+1))
-                    end
-                else
-                    return iterate(iter, (dir12, idx, i+1, 1))
-                end
-            else
-                return iterate(iter, (dir12, idx+1, 1, 1))
-            end
-
-        else
-            return iterate(iter, (dir12+1, 1, 1, 1))
-        end
+@bm function Base.iterate(iter::EachLocalQuadBySyncedDistance{K}, state = (1, 1, 1)) where {K}
+    dir12, dir, idx = state
+    if dir12 <= size(iter.implied, 1)
+        N = length(iter.implied[dir12, dir])
+        next_idx = mod1(idx+1, N)
+        x = div(idx, N)
+        next_dir = mod1(dir + x, K)
+        x = x * div(dir, K)
+        next_dir12 = dir12 + x
+        t = iter.implied[dir12, dir][idx]
+        return (
+            (dir12, dir, t[1], t[2], t[3], t[4]), 
+            (next_dir12, next_dir, next_idx)
+        )
     else
         return nothing
     end
 end
-ndirections(iter::EachLocalQuadBySyncedDistance{K}) where {K} = (length(iter.pairs_by_dir), K)
-# Base.length(iter::EachLocalQuadBySyncedDistance) = iter.N
-Base.IteratorSize(iter::EachLocalQuadBySyncedDistance) = SizeUnknown()
+ndirections(iter::EachLocalQuadBySyncedDistance{K}) where {K} = size(iter.implied)
+Base.length(iter::EachLocalQuadBySyncedDistance) = iter.N
 Base.eltype(::EachLocalQuadBySyncedDistance) = NTuple{6, Int64}
 
 
