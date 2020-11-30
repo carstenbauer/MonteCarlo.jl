@@ -208,33 +208,37 @@ end
 # Need some measurement overwrites because nflavors = 1
 checkflavors(::HubbardModelAttractive) = nothing
 
-function cdc_kernel(mc, ::HubbardModelAttractive, i, j, G)
+function cdc_kernel(mc, ::HubbardModelAttractive, i, j, G::AbstractArray)
     # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
     4 * (1 - G[i, i]) * (1 - G[j, j]) + 2 * (I[j, i] - G[j, i]) * G[i, j]
 end
-function cdc_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll)
+function cdc_kernel(mc, ::HubbardModelAttractive, i, j, pg::NTuple{4})
+    G00, G0l, Gl0, Gll = pg
     # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
     4 * (1 - Gll[i,i]) * (1 - G00[j,j]) - 2 * G0l[j,i] * Gl0[i,j]
 end
 
-mx_kernel(mc, ::HubbardModelAttractive, i, G) = 0.0
-my_kernel(mc, ::HubbardModelAttractive, i, G) = 0.0
-mz_kernel(mc, ::HubbardModelAttractive, i, G) = 0.0
+mx_kernel(mc, ::HubbardModelAttractive, i, G::AbstractArray) = 0.0
+my_kernel(mc, ::HubbardModelAttractive, i, G::AbstractArray) = 0.0
+mz_kernel(mc, ::HubbardModelAttractive, i, G::AbstractArray) = 0.0
 
-sdc_x_kernel(mc, ::HubbardModelAttractive, i, j, G) = 2(I[j,i] - G[j,i]) * G[i,j]
-sdc_y_kernel(mc, ::HubbardModelAttractive, i, j, G) = 2(I[j,i] - G[j,i]) * G[i,j]
-sdc_z_kernel(mc, ::HubbardModelAttractive, i, j, G) = 2(I[j,i] - G[j,i]) * G[i,j]
+sdc_x_kernel(mc, ::HubbardModelAttractive, i, j, G::AbstractArray) = 2(I[j,i] - G[j,i]) * G[i,j]
+sdc_y_kernel(mc, ::HubbardModelAttractive, i, j, G::AbstractArray) = 2(I[j,i] - G[j,i]) * G[i,j]
+sdc_z_kernel(mc, ::HubbardModelAttractive, i, j, G::AbstractArray) = 2(I[j,i] - G[j,i]) * G[i,j]
 
-sdc_x_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll) = -2 * G0l[j,i] * Gl0[i,j]
-sdc_y_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll) = -2 * G0l[j,i] * Gl0[i,j]
-sdc_z_kernel(mc, ::HubbardModelAttractive, i, j, G00, G0l, Gl0, Gll) = -2 * G0l[j,i] * Gl0[i,j]
+sdc_x_kernel(mc, ::HubbardModelAttractive, i, j, pg::NTuple{4}) = -2 * pg[2][j,i] * pg[3][i,j]
+sdc_y_kernel(mc, ::HubbardModelAttractive, i, j, pg::NTuple{4}) = -2 * pg[2][j,i] * pg[3][i,j]
+sdc_z_kernel(mc, ::HubbardModelAttractive, i, j, pg::NTuple{4}) = -2 * pg[2][j,i] * pg[3][i,j]
 
-pc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G) = G[src1, src2] * G[trg1, trg2]
-function pc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G00, G0l, Gl0, Gll)
-    Gl0[src1, src2] * Gl0[trg1, trg2]
+function pc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G::AbstractArray)
+    G[src1, src2] * G[trg1, trg2]
+end
+function pc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, pg::NTuple{4})
+    pg[3][src1, src2] * pg[3][trg1, trg2]
 end
 
-function cc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, G00, G0l, Gl0, Gll)
+function cc_kernel(mc, ::HubbardModelAttractive, src1, trg1, src2, trg2, pg::NTuple{4})
+    G00, G0l, Gl0, Gll = pg
     N = length(lattice(mc))
     T = mc.s.hopping_matrix
 

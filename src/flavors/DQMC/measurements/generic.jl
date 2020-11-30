@@ -222,7 +222,7 @@ end
     G00 = greens!(mc)
     for (G0l, Gl0, Gll) in iter
         for (lattice_iterator, measurement) in combined
-            measure!(lattice_iterator, measurement, mc, model, sweep, G00, G0l, Gl0, Gll)
+            measure!(lattice_iterator, measurement, mc, model, sweep, (G00, G0l, Gl0, Gll))
         end
     end
 
@@ -240,15 +240,15 @@ end
 
 
 
-@bm function measure!(lattice_iterator, measurement, mc::DQMC, model, sweep, args...)
+@bm function measure!(lattice_iterator, measurement, mc::DQMC, model, sweep, packed_greens)
     # ignore sweep
-    apply!(lattice_iterator, measurement, mc, model, args...)
+    apply!(lattice_iterator, measurement, mc, model, packed_greens)
     nothing
 end
 
 # Lattice irrelevant
-@bm function measure!(::Nothing, measurement, mc::DQMC, model, sweep, args...)
-    push!(measurement.observable, measurement.kernel(mc, model, args...))
+@bm function measure!(::Nothing, measurement, mc::DQMC, model, sweep, packed_greens)
+    push!(measurement.observable, measurement.kernel(mc, model, packed_greens))
     nothing
 end
 
@@ -286,41 +286,41 @@ end
 
 
 # Call kernel for each site (linear index)
-@bm function apply!(iter::EachSiteAndFlavor, measurement, mc::DQMC, model, args...)
+@bm function apply!(iter::EachSiteAndFlavor, measurement, mc::DQMC, model, packed_greens)
     for i in iter
-        measurement.output[i] += measurement.kernel(mc, model, i, args...)
+        measurement.output[i] += measurement.kernel(mc, model, i, packed_greens)
     end
     nothing
 end
 
 # Call kernel for each site (linear index)
-@bm function apply!(iter::EachSite, measurement, mc::DQMC, model, args...)
+@bm function apply!(iter::EachSite, measurement, mc::DQMC, model, packed_greens)
     for i in iter
-        measurement.output[i] += measurement.kernel(mc, model, i, args...)
+        measurement.output[i] += measurement.kernel(mc, model, i, packed_greens)
     end
     nothing
 end
 
 # Call kernel for each pair (src, trg) (Nsties² total)
-@bm function apply!(iter::EachSitePair, measurement, mc::DQMC, model, args...)
+@bm function apply!(iter::EachSitePair, measurement, mc::DQMC, model, packed_greens)
     for (i, j) in iter
-        measurement.output[i, j] += measurement.kernel(mc, model, i, j, args...)
+        measurement.output[i, j] += measurement.kernel(mc, model, i, j, packed_greens)
     end
     nothing
 end
 
 # Call kernel for each pair (site, site) (i.e. on-site) 
-@bm function apply!(iter::OnSite, measurement, mc::DQMC, model, args...)
+@bm function apply!(iter::OnSite, measurement, mc::DQMC, model, packed_greens)
     for (i, j) in iter
-        measurement.output[i] += measurement.kernel(mc, model, i, j, args...)
+        measurement.output[i] += measurement.kernel(mc, model, i, j, packed_greens)
     end
     nothing
 end
 
 # Call kernel for each pair (src, trg) and sum those that point in the same direction
-@bm function apply!(iter::EachSitePairByDistance, measurement, mc::DQMC, model, args...)
-    for (dir, src, trg) in iter
-        measurement.output[dir] += measurement.kernel(mc, model, src, trg, args...)
+@bm function apply!(iter::EachSitePairByDistance, measurement, mc::DQMC, model, packed_greens)
+    @inbounds for (dir, src, trg) in iter
+        measurement.output[dir] += measurement.kernel(mc, model, src, trg, packed_greens)
     end
     nothing
 end
@@ -328,10 +328,10 @@ end
 # Call kernel for each pair (src1, trg1, src2, trg) and sum those that have the 
 # same `dir12 = pos[src2] - pos[src1]`, `dir1 = pos[trg1] - pos[src1]` and 
 # `dir2 = pos[trg2] - pos[src2]`
-@bm function apply!(iter::EachLocalQuadByDistance, measurement, mc::DQMC, model, args...)
+@bm function apply!(iter::EachLocalQuadByDistance, measurement, mc::DQMC, model, packed_greens)
     for (dir12, dir1, dir2, src1, trg1, src2, trg2) in iter
         measurement.output[dir12, dir1, dir2] += measurement.kernel(
-            mc, model, src1, trg1, src2, trg2, args...
+            mc, model, src1, trg1, src2, trg2, packed_greens
         )
     end
     nothing
@@ -340,10 +340,10 @@ end
 # Call kernel for each pair (src1, trg1, src2, trg) and sum those that have the 
 # same `dir12 = pos[src2] - pos[src1]` and 
 # `dir1 = pos[trg1] - pos[src1] = dir2 = pos[trg2] - pos[src2] = dir_ii`
-@bm function apply!(iter::EachLocalQuadBySyncedDistance, measurement, mc::DQMC, model, args...)
+@bm function apply!(iter::EachLocalQuadBySyncedDistance, measurement, mc::DQMC, model, packed_greens)
     for (dir12, dir_ii, src1, trg1, src2, trg2) in iter
         measurement.output[dir12, dir_ii] += measurement.kernel(
-            mc, model, src1, trg1, src2, trg2, args...
+            mc, model, src1, trg1, src2, trg2, packed_greens
         )
     end
     nothing
