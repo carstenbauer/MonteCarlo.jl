@@ -162,7 +162,7 @@ macro bm(args...)
         expr = args[1]
         code = TimerOutputs.timer_expr(
             MonteCarlo, true,
-            string(expr.args[1].args[1]), # name is the function call signature
+            _to_typed_name(expr.args[1]),
             :(begin $(expr.args[2]) end) # inner code block
         )
         Expr(
@@ -177,6 +177,33 @@ macro bm(args...)
         # timings in the MonteCarlo namespace (otherwise they are not tied to
         # MonteCarlo.timeit_debug_enabled())
         TimerOutputs.timer_expr(MonteCarlo, true, args...)
+    end
+end
+
+function _to_typed_name(e::Expr)
+    if e.head == :where
+        _to_typed_name(e.args[1])
+    elseif e.head == :call
+        string(e.args[1]) * "(" * join(_to_type.(e.args[2:end]), ", ") * ")"
+    else
+        dump(e)
+        "ERROR"
+    end
+end
+
+_to_type(s::Symbol) = "::Any"
+function _to_type(e::Expr)
+    if e.head == Symbol("::")
+        return "::" * string(e.args[end])
+    elseif e.head == Symbol("...")
+        return _to_type(e.args[1]) * "..."
+    elseif e.head == :parameters # keyword args
+        return _to_type(e.args[1])
+    elseif e.head == :kw # default value
+        return _to_type(e.args[1])
+    else
+        dump(e)
+        return "???"
     end
 end
 
