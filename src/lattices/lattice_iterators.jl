@@ -336,7 +336,7 @@ end
         j = ifelse(N == 0, 1, j)
         while N == 0
             i += 1
-            i <= size(iter.implied) || return nothing
+            i <= length(iter.implied) || return nothing
             N = length(iter.implied[i])
         end
 
