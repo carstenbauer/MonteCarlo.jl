@@ -329,8 +329,9 @@ end
 # same `dir12 = pos[src2] - pos[src1]`, `dir1 = pos[trg1] - pos[src1]` and 
 # `dir2 = pos[trg2] - pos[src2]`
 @bm function apply!(iter::EachLocalQuadByDistance, measurement, mc::DQMC, model, packed_greens)
-    for (dir12, dir1, dir2, src1, trg1, src2, trg2) in iter
-        measurement.output[dir12, dir1, dir2] += measurement.kernel(
+    # lin is a linear index for (dir12, dir1, dir2)
+    for (lin, src1, trg1, src2, trg2) in iter
+        measurement.output[lin] += measurement.kernel(
             mc, model, src1, trg1, src2, trg2, packed_greens
         )
     end
@@ -341,8 +342,9 @@ end
 # same `dir12 = pos[src2] - pos[src1]` and 
 # `dir1 = pos[trg1] - pos[src1] = dir2 = pos[trg2] - pos[src2] = dir_ii`
 @bm function apply!(iter::EachLocalQuadBySyncedDistance, measurement, mc::DQMC, model, packed_greens)
-    for (dir12, dir_ii, src1, trg1, src2, trg2) in iter
-        measurement.output[dir12, dir_ii] += measurement.kernel(
+    # lin is a linear index for (dir12, dir_ii)
+    for (lin, src1, trg1, src2, trg2) in iter
+        measurement.output[lin] += measurement.kernel(
             mc, model, src1, trg1, src2, trg2, packed_greens
         )
     end

@@ -327,29 +327,32 @@ end
 #         return nothing
 #     end
 # end
-@bm function Base.iterate(iter::EachLocalQuadByDistance{K}, state=(1,1,1,1)) where {K}
-    dir12, dir1, dir2, idx = state
-    if dir12 <= size(iter.implied, 1)
-        N = length(iter.implied[dir12, dir1, dir2])
-        next_idx = mod1(idx+1, N)
-        x = div(idx, N)
-        next_dir2 = mod1(dir2 + x, K)
-        x = x * div(dir2, K)
-        next_dir1 = mod1(dir1 + x, K)
-        x = x * div(dir1, K)
-        next_dir12 = dir12 + x
-        t = iter.implied[dir12, dir1, dir2][idx]
-        return (
-            (dir12, dir1, dir2, t[1], t[2], t[3], t[4]), 
-            (next_dir12, next_dir1, next_dir2, next_idx)
-        )
+@bm function Base.iterate(iter::EachLocalQuadByDistance{K}, state=(1,1)) where {K}
+    i, j = state
+    if i <= length(iter.implied)
+        N = length(iter.implied[i])
+        
+        # This is required for lattices with a basis
+        j = ifelse(N == 0, 1, j)
+        while N == 0
+            i += 1
+            i <= size(iter.implied) || return nothing
+            N = length(iter.implied[i])
+        end
+
+        next_j = mod1(j+1, N)
+        next_i = i + div(j, N)
+            
+        t = iter.implied[i][j]
+        return ((i, t[1], t[2], t[3], t[4]), (next_i, next_j))
     else
         return nothing
     end
 end
+
 ndirections(iter::EachLocalQuadByDistance{K}) where {K} = size(iter.implied)
 Base.length(iter::EachLocalQuadByDistance) = iter.N
-Base.eltype(::EachLocalQuadByDistance) = NTuple{7, Int64}
+Base.eltype(::EachLocalQuadByDistance) = Tuple{Int64, UInt16, UInt16, UInt16, UInt16}
 
 
 
@@ -438,27 +441,30 @@ function EachLocalQuadBySyncedDistance{K}(mc::MonteCarloFlavor, model::Model) wh
 end
 
 
-@bm function Base.iterate(iter::EachLocalQuadBySyncedDistance{K}, state = (1, 1, 1)) where {K}
-    dir12, dir, idx = state
-    if dir12 <= size(iter.implied, 1)
-        N = length(iter.implied[dir12, dir])
-        next_idx = mod1(idx+1, N)
-        x = div(idx, N)
-        next_dir = mod1(dir + x, K)
-        x = x * div(dir, K)
-        next_dir12 = dir12 + x
-        t = iter.implied[dir12, dir][idx]
-        return (
-            (dir12, dir, t[1], t[2], t[3], t[4]), 
-            (next_dir12, next_dir, next_idx)
-        )
+@bm function Base.iterate(iter::EachLocalQuadBySyncedDistance{K}, state = (1, 1)) where {K}
+    i, j = state
+    if i <= length(iter.implied)
+        N = length(iter.implied[i])
+
+        # This is required for lattices with a basis
+        j = ifelse(N == 0, 1, j)
+        while N == 0
+            i = mod1(i + 1, K)
+            i <= length(iter.implied) || return nothing
+            N = length(iter.implied[i])
+        end
+
+        next_j = mod1(j+1, N)
+        next_i = i + div(j, N)
+        t = iter.implied[i][j]
+        return ((i, t[1], t[2], t[3], t[4]), (next_i, next_j))
     else
         return nothing
     end
 end
 ndirections(iter::EachLocalQuadBySyncedDistance{K}) where {K} = size(iter.implied)
 Base.length(iter::EachLocalQuadBySyncedDistance) = iter.N
-Base.eltype(::EachLocalQuadBySyncedDistance) = NTuple{6, Int64}
+Base.eltype(::EachLocalQuadBySyncedDistance) = Tuple{Int64, UInt16, UInt16, UInt16, UInt16}
 
 
 
