@@ -151,7 +151,7 @@ using MonteCarlo: directed_norm
             Nsites = length(lattice(dqmc))
             @test length(iter) == 6^2 * Nsites^2
             @test length(collect(iter)) == 6^2 * Nsites^2
-            @test eltype(iter) == NTuple{7, Int64}
+            @test eltype(iter) == Tuple{Int64, UInt16, UInt16, UInt16, UInt16}
             @test Base.IteratorSize(EachLocalQuadByDistance) == Base.HasLength()
             @test Base.IteratorEltype(EachLocalQuadByDistance) == Base.HasEltype()
 
@@ -164,7 +164,11 @@ using MonteCarlo: directed_norm
             check1 = true
             check2 = true
 
-            for (idx12, idx1, idx2, src1, trg1, src2, trg2) in iter
+            idxs = CartesianIndices((Nsites, 6, 6))
+
+            for (lin, src1, trg1, src2, trg2) in iter
+                idx12, idx1, idx2 = Tuple(idxs[lin])
+
                 # src1 -- idx12 -- src2
                 _d = pos[src1] - pos[src2]
                 d = _d .+ wrap[1]

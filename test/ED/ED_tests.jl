@@ -237,9 +237,9 @@ end
                 @testset "Pairing Correlation" begin
                     PC = mean(dqmc.measurements[:PC])
                     ED_PC = zeros(ComplexF64, size(PC))
-                    for (dir12, dir1, dir2, src1, trg1, src2, trg2) in 
+                    for (dirs, src1, trg1, src2, trg2) in 
                             MonteCarlo.EachLocalQuadByDistance{4}(dqmc, model)
-                        ED_PC[dir12, dir1, dir2] += expectation_value(
+                        ED_PC[dirs] += expectation_value(
                             pairing_correlation(src1, trg1, src2, trg2), 
                             H, beta = dqmc.p.beta, N_sites = N
                         )
@@ -324,9 +324,9 @@ end
                 @testset "Pairing Susceptibility" begin
                     PS = mean(dqmc.measurements[:PS])
                     ED_PS = zeros(Float64, size(PS))
-                    for (dir12, dir1, dir2, src1, trg1, src2, trg2) in 
+                    for (dirs, src1, trg1, src2, trg2) in 
                             MonteCarlo.EachLocalQuadByDistance{4}(dqmc, model)
-                        ED_PS[dir12, dir1, dir2] += expectation_value_integrated(
+                        ED_PS[dirs] += expectation_value_integrated(
                             state -> begin
                                 sign1, _state = annihilate(state, trg1, DOWN)
                                 sign2, _state = annihilate(_state, src1, UP)
@@ -349,9 +349,9 @@ end
                     CCS = mean(dqmc.measurements[:CCS])
                     ED_CCS = zeros(Float64, size(CCS))
                     T = dqmc.s.hopping_matrix
-                    for (dir12, dir_ii, src1, trg1, src2, trg2) in 
+                    for (dirs, src1, trg1, src2, trg2) in 
                             MonteCarlo.EachLocalQuadBySyncedDistance{4}(dqmc, model)
-                        ED_CCS[dir12, dir_ii] += expectation_value_integrated(
+                        ED_CCS[dirs] += expectation_value_integrated(
                             current_density(src1, trg1, T),
                             current_density(src2, trg2, T),
                             H, step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
