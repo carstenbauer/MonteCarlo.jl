@@ -35,14 +35,14 @@ using MonteCarlo: directed_norm
 
 @testset "Lattice Iterators" begin
     # Set up a few test models/DQMCs    
-    m = HubbardModelAttractive(L=3, dims=3)
+    m = HubbardModelAttractive(3, 3)
     dqmc1 = DQMC(m, beta=1.0)
     
-    m = HubbardModelRepulsive(L=10, dims=1)
+    m = HubbardModelRepulsive(10, 1)
     dqmc2 = DQMC(m, beta=1.0)
 
     l = TriangularLattice(0, Lx=2, Ly=6)
-    m = HubbardModelAttractive(l = l, L=0, dims=0)
+    m = HubbardModelAttractive(l)
     dqmc3 = DQMC(m, beta=1.0)
 
     dqmcs = (dqmc1, dqmc2, dqmc3)

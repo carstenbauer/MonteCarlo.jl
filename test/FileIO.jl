@@ -92,8 +92,6 @@ function test_dqmc(mc, x)
         @test getfield(mc.p, f) == getfield(x.p, f)
     end
     # @test mc.conf == x.conf
-    @test mc.model.dims == x.model.dims
-    @test mc.model.L == x.model.L
     @test mc.model.mu == x.model.mu
     @test mc.model.t == x.model.t
     @test mc.model.U == x.model.U
@@ -153,7 +151,7 @@ function test_dqmc(mc, x)
 end
 
 @testset "DQMC" begin
-    model = HubbardModelAttractive(dims=2, L=4, t = 1.7, U = 5.5)
+    model = HubbardModelAttractive(4, 2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
     mc[:CDC] = charge_density_correlation(mc, model)
     t = time()
@@ -179,7 +177,7 @@ end
 
     # Run for 1s with known RNG
     Random.seed!(123)
-    model = HubbardModelAttractive(dims=2, L=2, t = 1.7, U = 5.5)
+    model = HubbardModelAttractive(2, 2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, sweeps=10_000_000, measure_rate=100)
     mc[:CDC] = charge_density_correlation(mc, model)
 
@@ -212,7 +210,7 @@ end
 
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
-    model = HubbardModelAttractive(dims=2, L=2, t = 1.7, U = 5.5)
+    model = HubbardModelAttractive(2, 2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, sweeps=100length(cs), measure_rate=100)
     state = run!(mc, verbose = false)
     @test mc.configs.configs == cs.configs

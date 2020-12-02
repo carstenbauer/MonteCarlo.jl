@@ -1,25 +1,3 @@
-# @time HamiltonMatrix -> 0.12s ish
-# @time calculate_greens -> 0.08s ish
-# @time ED_CDC w/ growing arrays -> 0.5s ish
-#              w/ allocated array -> 0.52s ish
-#              w/ growing tuples -> 1.5s oh god
-#              w/ growing array, optimize order -> 0.46s ish
-#              w/ growing array, optimize order, skip middle -> 0.35s ish
-# @time ED_PC -> 0.62s ish (72k allocs, 136MiB)
-# @time ED_SDCx -> 0.8s ish (6M allocs, 432MiB, high variance)
-
-
-#=
-[ Info: Running DQMC (HubbardModelRepulsive) β=1.0, 10k + 10k sweeps
- 35.093788 seconds (72.56 M allocations: 3.394 GiB, 5.23% gc time)
-[ Info: Running ED
- 34.355872 seconds (111.06 M allocations: 8.967 GiB, 7.25% gc time)
-[ Info: Running DQMC (HubbardModelAttractive) β=1.0, 10k + 10k sweeps
-  7.884059 seconds (18.24 M allocations: 776.576 MiB, 2.80% gc time)
-[ Info: Running ED
- 26.055611 seconds (88.26 M allocations: 7.898 GiB, 8.20% gc time)
-=#
-
 using LinearAlgebra, SparseArrays
 using MonteCarlo
 using MonteCarlo: @bm, @avx

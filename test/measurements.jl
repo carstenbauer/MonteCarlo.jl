@@ -50,7 +50,7 @@ end
     @test haskey(mc.measurements, :Magn) && mc.measurements[:Magn] isa IsingMagnetizationMeasurement
     @test haskey(mc.measurements, :Energy) && mc.measurements[:Energy] isa IsingEnergyMeasurement
 
-    model = HubbardModelAttractive(dims=2, L=2)
+    model = HubbardModelAttractive(2, 2)
     mc = DQMC(model, beta=1.0)
 
     @test isempty(mc.measurements)
@@ -167,7 +167,7 @@ function calc_measured_greens(mc::DQMC, G::Matrix)
 end
 
 @testset "Measured Greens function" begin
-    m = HubbardModelAttractive(dims=2, L=8, mu=0.5)
+    m = HubbardModelAttractive(8, 2, mu=0.5)
     mc = DQMC(m, beta=5.0, safe_mult=1)
     MonteCarlo.build_stack(mc, mc.s)
     MonteCarlo.propagate(mc)
@@ -188,7 +188,7 @@ end
 #     @test uniform_fourier(A, 64) == sum(A) / 64
 #     @test uniform_fourier(A, 10) == sum(A) / 10
 
-#     m = HubbardModelAttractive(dims=2, L=8)
+#     m = HubbardModelAttractive(8, 2)
 #     mc = DQMC(m, beta=5.0)
 #     @test uniform_fourier(A, mc) == sum(A) / 64
 

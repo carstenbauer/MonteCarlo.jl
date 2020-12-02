@@ -5,17 +5,27 @@
     @test HubbardModelRepulsive <: HubbardModel
 
     # constructors
-    @test HubbardModel(U =  1.0, dims=1, L=1) isa HubbardModelRepulsive
-    @test HubbardModel(U = -1.0, dims=1, L=1) isa HubbardModelAttractive
+    @test HubbardModel(1, 1, U =  1.0) isa HubbardModelRepulsive
+    @test HubbardModel(1, 1, U = -1.0) isa HubbardModelAttractive
 
     for T in (HubbardModelAttractive, HubbardModelRepulsive)
-        m = T(dims=1, L=8);
-        @test m.L == 8 && m.dims == 1
+        m = T(8, 1)
+        @test length(m.l) == 8
         @test typeof(m) == T{Chain}
         
-        d = Dict(:dims=>2,:L=>3)
+        l = SquareLattice(5)
+        m = T(l = l);
+        @test length(m.l) == 25
+        @test typeof(m) == T{SquareLattice}
+
+        m = T(l, t = 0.5);
+        @test length(m.l) == 25
+        @test m.t == 0.5
+        @test typeof(m) == T{SquareLattice}
+        
+        d = Dict(:l => l, :U => 0.5)
         m = T(d)
         @test typeof(m) == T{SquareLattice}
-        @test m.L == 3 && m.dims == 2
+        @test m.U == 0.5
     end
 end
