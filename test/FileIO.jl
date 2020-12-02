@@ -92,8 +92,6 @@ function test_dqmc(mc, x)
         @test getfield(mc.p, f) == getfield(x.p, f)
     end
     # @test mc.conf == x.conf
-    @test mc.model.dims == x.model.dims
-    @test mc.model.L == x.model.L
     @test mc.model.mu == x.model.mu
     @test mc.model.t == x.model.t
     @test mc.model.U == x.model.U
