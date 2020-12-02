@@ -28,7 +28,7 @@ end
 
 @testset "DQMC: attractive HubbardModel Simulation" begin
     Random.seed!(123)
-    m = HubbardModelAttractive(dims=2, L=4);
+    m = HubbardModelAttractive(4, 2);
     N = 4*4
     mc = DQMC(m, beta=1.0);
     mc[:G]    = greens_measurement(mc, m)
@@ -97,7 +97,7 @@ end
 
 @testset "DQMC: repulsive HubbardModel Simulation" begin
     Random.seed!(123)
-    m = HubbardModelRepulsive(dims=2, L=2);
+    m = HubbardModelRepulsive(2, 2);
     mc = DQMC(m, beta=1.0);
     mc[:G]    = greens_measurement(mc, m)
     mc[:CDC]  = charge_density_correlation(mc, m)
@@ -297,7 +297,7 @@ end
         ])
         @info "[$(k)/15] μ = $mu   L = $L   β = $beta (literature check)"
         m = HubbardModelAttractive(
-            dims=2, L=L, l = MonteCarlo.TriangularLattice(L),
+            l = MonteCarlo.TriangularLattice(L),
             t = 1.0, U = 4.0, mu = mu
         )
         OC_sample = []

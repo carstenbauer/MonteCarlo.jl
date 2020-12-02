@@ -48,9 +48,7 @@ include("ED.jl")
     @test _sign == -1.0 &&  s == up
 
     # check Greens consistency
-    model = HubbardModelAttractive(
-        L = 2, dims = 2,
-        U = rand(), mu = rand(), t = rand()
+    model = HubbardModelAttractive(2, 2, U = rand(), mu = rand(), t = rand()
     )
     H = HamiltonMatrix(model)
     for substate1 in 1:2, substate2 in 1:2
@@ -92,8 +90,8 @@ end
 
 @testset "Repulsive/Attractive Hubbard Model (ED)" begin
     models = (
-        HubbardModelRepulsive(L = 2, dims = 2, U = 1.0, t = 1.0),
-        HubbardModelAttractive(L = 2, dims = 2, U = 1.0, mu = 1.0, t = 1.0)
+        HubbardModelRepulsive(2, 2, U = 1.0, t = 1.0),
+        HubbardModelAttractive(2, 2, U = 1.0, mu = 1.0, t = 1.0)
     )
 
     for model in models

@@ -1,30 +1,37 @@
 """
-Famous repulsive (positive U) Hubbard model on a lattice.
-Discrete Hubbard Stratonovich transformation (Hirsch transformation) in the 
-spin/magnetic channel, such that HS-field is real.
+    HubbardModelRepulsive(lattice; params...)
+    HubbardModelRepulsive(L, dims; params...)
+    HubbardModelRepulsive(params::Dict)
+    HubbardModelRepulsive(params::NamedTuple)
+    HubbardModelRepulsive(; params...)
 
-    HubbardModelRepulsive(; dims, L[, kwargs...])
+Defines a repulsive (positive `U`) Hubbard model on a given (or derived) 
+`lattice`. If a linear system size `L` and dimensionality `dims` is given, the
+`lattice` will be a Cubic lattice of fitting size.
 
-Create an repulsive Hubbard model on `dims`-dimensional lattice
-with linear system size `L`. Additional allowed `kwargs` are:
+Additional parameters (keyword arguments) include:
+* `l::AbstractLattice = lattice`: The lattice the model uses. The keyword 
+argument takes precedence over the argument `lattice`.
+* `U::Float64 = 1.0 > 0.0` is the absolute value of the Hubbard Interaction.
+* `t::Float64 = 1.0` is the hopping strength.
 
- * `U::Float64=1.0`: onsite interaction strength, "Hubbard U"
- * `t::Float64=1.0`: hopping energy
+Internally, a discrete Hubbard Stratonovich transformation (Hirsch 
+transformation) is used in the spin/magnetic channel to enable DQMC. The 
+resulting Hubbard Stratonovich fiels is real.
+To reduce computational cost a specialized `BlockDiagonal` representation of the
+greens matrix is used. 
 """
 @with_kw_noshow struct HubbardModelRepulsive{LT<:AbstractLattice} <: HubbardModel
-    # user mandatory
-    dims::Int
-    L::Int
-
     # user optional
     U::Float64 = 1.0
     @assert U >= 0. "U must be positive."
     t::Float64 = 1.0
 
-    # non-user fields
-    l::LT = choose_lattice(HubbardModelRepulsive, dims, L)
-    flv::Int = 2
+    # mandatory (this or (L, dims))
+    l::LT
 
+    # non-user fields
+    flv::Int = 2
     # to avoid allocations (TODO always real?)
     IG::Matrix{Float64}  = Matrix{Float64}(undef, 2length(l), 2)
     IGR::Matrix{Float64} = Matrix{Float64}(undef, 2length(l), 2)
@@ -34,15 +41,15 @@ with linear system size `L`. Additional allowed `kwargs` are:
 end
 
 
-"""
-    HubbardModelRepulsive(params::Dict)
-    HubbardModelRepulsive(params::NamedTuple)
-
-Create an repulsive Hubbard model with (keyword) parameters as specified in the
-dictionary/named tuple `params`.
-"""
 HubbardModelRepulsive(params::Dict{Symbol, T}) where T = HubbardModelRepulsive(; params...)
 HubbardModelRepulsive(params::NamedTuple) = HubbardModelRepulsive(; params...)
+function HubbardModelRepulsive(lattice::AbstractLattice; kwargs...)
+    HubbardModelRepulsive(l = lattice; kwargs...)
+end
+function HubbardModelRepulsive(L, dims; kwargs...)
+    l = choose_lattice(HubbardModelRepulsive, dims, L)
+    HubbardModelRepulsive(l = l; kwargs...)
+end
 
 # cosmetics
 import Base.summary
@@ -243,8 +250,6 @@ function save_model(
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(m))
 
-    write(file, entryname * "/dims", m.dims)
-    write(file, entryname * "/L", m.L)
     write(file, entryname * "/U", m.U)
     write(file, entryname * "/t", m.t)
     save_lattice(file, m.l, entryname * "/l")
@@ -264,8 +269,6 @@ function _load(data, ::Type{T}) where T <: HubbardModelRepulsive
 
     l = _load(data["l"], data["l"]["type"])
     data["type"](
-        dims = data["dims"],
-        L = data["L"],
         U = data["U"],
         t = data["t"],
         l = l,

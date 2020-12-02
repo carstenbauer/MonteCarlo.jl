@@ -34,7 +34,7 @@ using SparseArrays
 end
 
 @testset "Slice Matrices" begin
-    m = HubbardModelAttractive(dims=1, L=8)
+    m = HubbardModelAttractive(8, 1)
     dqmc = DQMC(m, beta=5.0)
     eT = dqmc.s.hopping_matrix_exp
     eV = similar(dqmc.s.eV)

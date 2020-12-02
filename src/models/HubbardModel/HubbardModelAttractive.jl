@@ -1,47 +1,54 @@
 """
-Famous attractive (negative U) Hubbard model on a cubic lattice.
-Discrete Hubbard Stratonovich transformation (Hirsch transformation) in the density/charge channel,
-such that HS-field is real.
+    HubbardModelAttractive(lattice; params...)
+    HubbardModelAttractive(L, dims; params...)
+    HubbardModelAttractive(params::Dict)
+    HubbardModelAttractive(params::NamedTuple)
+    HubbardModelAttractive(; params...)
 
-    HubbardModelAttractive(; dims, L[, kwargs...])
+Defines an attractive (negative `U`) Hubbard model on a given (or derived) 
+`lattice`. If a linear system size `L` and dimensionality `dims` is given, the
+`lattice` will be a Cubic lattice of fitting size.
 
-Create an attractive Hubbard model on `dims`-dimensional cubic lattice
-with linear system size `L`. Additional allowed `kwargs` are:
+Additional parameters (keyword arguments) include:
+* `l::AbstractLattice = lattice`: The lattice the model uses. The keyword 
+argument takes precedence over the argument `lattice`.
+* `U::Float64 = 1.0 > 0.0` is the absolute value of the Hubbard Interaction.
+* `t::Float64 = 1.0` is the hopping strength.
+* `mu::Float64` is the chemical potential.
 
- * `mu::Float64=0.0`: chemical potential
- * `U::Float64=1.0`: onsite interaction strength, "Hubbard U"
- * `t::Float64=1.0`: hopping energy
+Internally, a discrete Hubbard Stratonovich transformation (Hirsch 
+transformation) is used in the spin/magnetic channel to enable DQMC. The 
+resulting Hubbard Stratonovich fiels is real.
+Furthermore, we use spin up/down symmetry to speed up the simulation. As a 
+result the greens matrix is of size (N, N) with N the number of sites, and the
+element G[i, j] corresponds to the up-up and down-down element. 
 """
 @with_kw_noshow struct HubbardModelAttractive{LT<:AbstractLattice} <: HubbardModel
-    # user mandatory
-    dims::Int
-    L::Int
-
     # user optional
     mu::Float64 = 0.0
     U::Float64 = 1.0
     @assert U >= 0. "U must be positive."
     t::Float64 = 1.0
+    l::LT
 
     # non-user fields
-    l::LT = choose_lattice(HubbardModelAttractive, dims, L)
     flv::Int = 1
-
     # to avoid allocations (TODO always real?)
     IG::Vector{Float64} = Vector{Float64}(undef, length(l))
     G::Vector{Float64} = Vector{Float64}(undef, length(l))
 end
 
 
-"""
-    HubbardModelAttractive(params::Dict)
-    HubbardModelAttractive(params::NamedTuple)
-
-Create an attractive Hubbard model with (keyword) parameters as specified in the
-dictionary/named tuple `params`.
-"""
-HubbardModelAttractive(params::Dict{Symbol, T}) where T = HubbardModelAttractive(; params...)
+HubbardModelAttractive(params::Dict{Symbol}) = HubbardModelAttractive(; params...)
 HubbardModelAttractive(params::NamedTuple) = HubbardModelAttractive(; params...)
+function HubbardModelAttractive(lattice::AbstractLattice; kwargs...)
+    HubbardModelAttractive(l = lattice; kwargs...)
+end
+function HubbardModelAttractive(L, dims; kwargs...)
+    l = choose_lattice(HubbardModelAttractive, dims, L)
+    HubbardModelAttractive(l = l; kwargs...)
+end
+
 
 # cosmetics
 import Base.summary
@@ -172,8 +179,6 @@ function save_model(
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(m))
 
-    write(file, entryname * "/dims", m.dims)
-    write(file, entryname * "/L", m.L)
     write(file, entryname * "/mu", m.mu)
     write(file, entryname * "/U", m.U)
     write(file, entryname * "/t", m.t)
@@ -194,8 +199,6 @@ function _load(data, ::Type{T}) where T <: HubbardModelAttractive
 
     l = _load(data["l"], data["l"]["type"])
     data["type"](
-        dims = data["dims"],
-        L = data["L"],
         mu = data["mu"],
         U = data["U"],
         t = data["t"],
@@ -203,6 +206,13 @@ function _load(data, ::Type{T}) where T <: HubbardModelAttractive
         flv = data["flv"]
     )
 end
+
+
+
+################################################################################
+### Measurement overloads
+################################################################################
+
 
 
 # Need some measurement overwrites because nflavors = 1
