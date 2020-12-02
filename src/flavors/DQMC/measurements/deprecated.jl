@@ -296,5 +296,5 @@ function DQMCMeasurement(mc::DQMC, m::PairingCorrelationMeasurement)
     temp = mean(pre)
     D = size(temp, 2)
     obs = reorder(pre, idxs, idxs[1:D], idxs[1:D])
-    DQMCMeasurement{Greens, EachLocalQuadByDistance}(pc_kernel, obs, mean(obs))
+    DQMCMeasurement{Greens, EachLocalQuadByDistance{D}}(pc_kernel, obs, mean(obs))
 end
