@@ -54,6 +54,16 @@ function Base.show(io::IO, ::MIME"text/plain", m::DQMCMeasurement{GI, LI}) where
     print(io, "[$current/$max] DQMCMeasurement{$GI, $LI}($(m.kernel))")
 end
 
+
+MonteCarloObservable.mean(m::DQMCMeasurement) = mean(m.observable)
+MonteCarloObservable.var(m::DQMCMeasurement) = var(m.observable)
+MonteCarloObservable.std_error(m::DQMCMeasurement) = std_error(m.observable)
+MonteCarloObservable.tau(m::DQMCMeasurement) = tau(m.observable)
+Base.length(m::DQMCMeasurement) = length(m.observable)
+Base.isempty(m::DQMCMeasurement) = isempty(m.observable)
+Base.empty!(m::DQMCMeasurement) = empty!(m.observable)
+
+
 """
     _default_capacity(mc::DQMC)
 

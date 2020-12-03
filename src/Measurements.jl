@@ -113,6 +113,22 @@ for (func, name) in zip(
     end
 end
 
+for func in (:length, :isempty, :empty!)
+    @eval begin
+        function Base.$(func)(m::AbstractMeasurement)
+            fn = obs_fieldnames_from_obj(m)
+            os = [getfield(m, n) for n in fn]
+            if isempty(os)
+                throw(error("Did not find any observables in $m."))
+            elseif length(os) == 1
+                return $(func)(os[1])
+            else
+                return Dict(MonteCarloObservable.name(o) => $(func)(o) for o in os)
+            end
+        end
+    end
+end
+
 
 ################################################################################
 # A new model may implement the following for convenience
