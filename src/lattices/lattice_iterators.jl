@@ -449,7 +449,7 @@ end
         # This is required for lattices with a basis
         j = ifelse(N == 0, 1, j)
         while N == 0
-            i = mod1(i + 1, K)
+            i += 1
             i <= length(iter.implied) || return nothing
             N = length(iter.implied[i])
         end

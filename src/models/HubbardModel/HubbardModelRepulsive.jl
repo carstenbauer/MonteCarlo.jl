@@ -54,8 +54,10 @@ end
 # cosmetics
 import Base.summary
 import Base.show
-Base.summary(model::HubbardModelRepulsive) = "$(model.dims)D repulsive Hubbard model"
-Base.show(io::IO, model::HubbardModelRepulsive) = print(io, "$(model.dims)D repulsive Hubbard model, L=$(model.L) ($(length(model.l)) sites)")
+Base.summary(model::HubbardModelRepulsive) = "repulsive Hubbard model"
+function Base.show(io::IO, model::HubbardModelRepulsive)
+    print(io, "repulsive Hubbard model, $(length(model.l)) sites")
+end
 Base.show(io::IO, m::MIME"text/plain", model::HubbardModelRepulsive) = print(io, model)
 
 
