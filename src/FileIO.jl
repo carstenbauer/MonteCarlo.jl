@@ -171,6 +171,13 @@ _load(_, ::Type{UnknownType}) = throw(ErrorException(
     "Got UnknownType instead of a MonteCarloFlavor. This may be " * 
     "caused by missing imports."
 ))
+function _load(data, ::JLD2.UnknownType)
+    @info "Failed to load (Unknowntype)"
+    @info "Available fields: $(keys(data))"
+    @info "You may be missing external packages."
+    nothing
+end
+
 
 
 
