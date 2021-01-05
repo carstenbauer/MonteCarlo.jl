@@ -363,4 +363,5 @@ end
 
 
 include("measurements.jl")
+include("extensions.jl")
 include("deprecated.jl")
