@@ -65,7 +65,6 @@ using MonteCarlo: directed_norm
             Nflavors = MonteCarlo.nflavors(dqmc.model)
             @test collect(iter) == 1:Nsites*Nflavors
             @test length(iter) == Nsites*Nflavors
-            @test length(collect(iter)) == Nsites*Nflavors
             @test eltype(iter) == Int64
             @test Base.IteratorSize(EachSiteAndFlavor) == Base.HasLength()
             @test Base.IteratorEltype(EachSiteAndFlavor) == Base.HasEltype()
@@ -78,7 +77,6 @@ using MonteCarlo: directed_norm
             Nsites = length(lattice(dqmc))
             @test collect(iter) == 1:Nsites
             @test length(iter) == Nsites
-            @test length(collect(iter)) == Nsites
             @test eltype(iter) == Int64
             @test Base.IteratorSize(EachSite) == Base.HasLength()
             @test Base.IteratorEltype(EachSite) == Base.HasEltype()
@@ -91,7 +89,6 @@ using MonteCarlo: directed_norm
             Nsites = length(lattice(dqmc))
             @test collect(iter) == collect(zip(1:Nsites, 1:Nsites))
             @test length(iter) == Nsites
-            @test length(collect(iter)) == Nsites
             @test eltype(iter) == Tuple{Int64, Int64}
             @test Base.IteratorSize(OnSite) == Base.HasLength()
             @test Base.IteratorEltype(OnSite) == Base.HasEltype()
@@ -104,7 +101,6 @@ using MonteCarlo: directed_norm
             Nsites = length(lattice(dqmc))
             @test collect(iter) == [(i, j) for i in 1:Nsites for j in 1:Nsites]
             @test length(iter) == Nsites^2
-            @test length(collect(iter)) == Nsites^2
             @test eltype(iter) == Tuple{Int64, Int64}
             @test Base.IteratorSize(EachSitePair) == Base.HasLength()
             @test Base.IteratorEltype(EachSitePair) == Base.HasEltype()
@@ -116,7 +112,6 @@ using MonteCarlo: directed_norm
             iter = EachSitePairByDistance(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
             @test length(iter) == Nsites^2
-            @test length(collect(iter)) == Nsites^2
             @test eltype(iter) == NTuple{3, Int64}
             @test Base.IteratorSize(EachSitePairByDistance) == Base.HasLength()
             @test Base.IteratorEltype(EachSitePairByDistance) == Base.HasEltype()
@@ -150,7 +145,6 @@ using MonteCarlo: directed_norm
             iter = EachLocalQuadByDistance{6}(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
             @test length(iter) == 6^2 * Nsites^2
-            @test length(collect(iter)) == 6^2 * Nsites^2
             @test eltype(iter) == Tuple{Int64, UInt16, UInt16, UInt16, UInt16}
             @test Base.IteratorSize(EachLocalQuadByDistance) == Base.HasLength()
             @test Base.IteratorEltype(EachLocalQuadByDistance) == Base.HasEltype()
