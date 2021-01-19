@@ -1,6 +1,15 @@
 using Random
 include("ED.jl")
 
+# check elementwise, not matrix norm
+function check(A::Array, B::Array, atol, rtol=atol)
+    for (x, y) in zip(A, B)
+        isapprox(x, y, atol=atol, rtol=rtol) || return false
+    end
+    true
+end
+check(x::Number, y::Number, atol, rtol) = isapprox(x, y, atol=atol, rtol=rtol)
+
 @testset "ED checks" begin
     void = State(0)
     up = State(1)
@@ -71,13 +80,13 @@ include("ED.jl")
                 s -> create(s, site1, substate1),
                 H, 0.1, 0.1, N_sites=model.l.sites
             )
-            @test UTG ≈ real(G) atol=1e-14
+            @test check(UTG, real(G), 1e-14, 0.0)
             UTG = expectation_value(
                 s -> annihilate(s, site2, substate2),
                 s -> create(s, site1, substate1),
                 H, 0.7, 0.7, N_sites=model.l.sites
             )
-            @test UTG ≈ real(G) atol=1e-14
+            @test check(UTG, real(G), 1e-14, 0.0)
         end
     end
 
@@ -154,10 +163,10 @@ end
                     # occs3 = mean(MonteCarlo.OccupationMeasurement(dqmc.measurements[:Greens]))  # copying
                     G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.p.beta)
                     for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
-                        @test isapprox(G_DQMC[i, j], G_ED[i, j], atol=atol, rtol=rtol)
+                        @test check(G_DQMC[i, j], G_ED[i, j], atol, rtol)
                     end
                     for i in 1:size(G_DQMC, 1)
-                        @test isapprox(occs[i],  1 - G_ED[i, i], atol=atol, rtol=rtol)
+                        @test check(occs[i],  1 - G_ED[i, i], atol, rtol)
                         # @test isapprox(occs2[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
                         # @test isapprox(occs3[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
                     end
@@ -172,21 +181,21 @@ end
                             H, beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    @test ED_CDC/N ≈ CDC atol=atol rtol=rtol
+                    @test check(ED_CDC/N, CDC, atol, rtol)
                 end
 
                 @testset "Magnetization x" begin
                     Mx = mean(dqmc.measurements[:Mx])
                     for site in 1:length(Mx)
                         ED_Mx = expectation_value(m_x(site), H, beta = dqmc.p.beta, N_sites = N)
-                        @test ED_Mx ≈ Mx[site] atol=atol rtol=rtol
+                        @test check(ED_Mx, Mx[site], atol, rtol)
                     end
                 end
                 @testset "Magnetization y" begin
                     My = mean(dqmc.measurements[:My])
                     for site in 1:length(My)
                         ED_My = expectation_value(m_y(site), H, beta = dqmc.p.beta, N_sites = N)
-                        @test ED_My ≈ My[site] atol=atol rtol=rtol
+                        @test check(ED_My, My[site], atol, rtol)
                     end
                 end
                 @testset "Magnetization z" begin
@@ -194,7 +203,7 @@ end
                     ΔMz = std_error(dqmc.measurements[:Mz])
                     for site in 1:length(Mz)
                         ED_Mz = expectation_value(m_z(site), H, beta = dqmc.p.beta, N_sites = N)
-                        @test ED_Mz ≈ Mz[site] atol=atol+ΔMz[site] rtol=rtol
+                        @test check(ED_Mz, Mz[site], atol, rtol)
                     end
                 end
 
@@ -207,7 +216,7 @@ end
                             H, beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    @test ED_SDCx/N ≈ SDCx atol=atol rtol=rtol
+                    @test check(ED_SDCx/N, SDCx, atol, rtol)
                 end
                 @testset "Spin density correlation y" begin
                     SDCy = mean(dqmc.measurements[:SDCy])
@@ -218,7 +227,7 @@ end
                             H, beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    @test ED_SDCy/N ≈ SDCy atol=atol rtol=rtol
+                    @test check(ED_SDCy/N, SDCy, atol, rtol)
                 end
                 @testset "Spin density correlation z" begin
                     SDCz = mean(dqmc.measurements[:SDCz])
@@ -229,7 +238,7 @@ end
                             H, beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    @test ED_SDCz/N ≈ SDCz atol=atol rtol=rtol
+                    @test check(ED_SDCz/N, SDCz, atol, rtol)
                 end
 
                 @testset "Pairing Correlation" begin
@@ -242,7 +251,7 @@ end
                             H, beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    @test ED_PC/N ≈ PC atol=atol rtol=rtol
+                    @test check(ED_PC/N, PC, atol, rtol)
                 end
 
                 ################################################################
@@ -258,7 +267,7 @@ end
 
                         @testset "[$i] $tau1 -> $tau2" begin
                             for k in 1:M, l in 1:M
-                                @test isapprox(UTG[k, l], ED_UTG[k, l], atol=atol, rtol=rtol)
+                                @test check(UTG[k, l], ED_UTG[k, l], atol, rtol)
                             end
                             # println("[$i] $tau1 -> $tau2")
                             # display(UTG)
@@ -281,7 +290,7 @@ end
                             step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    @test ED_CDS/N ≈ CDS atol=atol rtol=rtol
+                    @test check(ED_CDS/N, CDS, atol, rtol)
                 end
                 
                 # SDS
@@ -294,7 +303,7 @@ end
                             beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    @test ED_SDSx/N ≈ SDSx atol=atol rtol=rtol
+                    @test check(ED_SDSx/N, SDSx, atol, rtol)
                 end
                 @testset "Spin density Susceptibility y" begin
                     SDSy = mean(dqmc.measurements[:SDSy])
@@ -305,7 +314,7 @@ end
                             beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    @test ED_SDSy/N ≈ SDSy atol=atol rtol=rtol
+                    @test check(ED_SDSy/N, SDSy, atol, rtol)
                 end
                 @testset "Spin density Susceptibility z" begin
                     SDSz = mean(dqmc.measurements[:SDSz])
@@ -316,7 +325,7 @@ end
                             beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    @test ED_SDSz/N ≈ SDSz atol=atol rtol=rtol
+                    @test check(ED_SDSz/N, SDSz, atol, rtol)
                 end
 
                 @testset "Pairing Susceptibility" begin
@@ -340,7 +349,7 @@ end
                             H, step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    @test ED_PS/N ≈ PS atol=atol rtol=rtol
+                    @test check(ED_PS/N, PS, atol, rtol)
                 end
                 
                 @testset "Current Current Susceptibility" begin
@@ -355,7 +364,7 @@ end
                             H, step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
                         )
                     end
-                    @test ED_CCS/N ≈ CCS atol=atol rtol=rtol
+                    @test check(ED_CCS/N, CCS, atol, rtol)
                 end
             end
         end
