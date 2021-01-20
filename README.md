@@ -32,3 +32,4 @@ In Julia REPL:
 ## Authors
 
 * Carsten Bauer ([github](https://github.com/crstnbr))
+* Frederic Freyer ([github](https://github.com/ffreyer))
