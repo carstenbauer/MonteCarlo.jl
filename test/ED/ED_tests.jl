@@ -101,6 +101,8 @@ end
 
 
 @testset "Exact Greens comparison (ED)" begin
+    # These are theoretically the same but their implementation differs on
+    # some level. To make sure both are correct it makes sense to check both here.
     models = (
         HubbardModelRepulsive(2, 2, U = 0.0, t = 1.0),
         HubbardModelAttractive(2, 2, U = 0.0, mu = 1.0, t = 1.0)
