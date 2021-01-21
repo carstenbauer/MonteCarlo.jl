@@ -400,6 +400,7 @@ See also: [`resume!`](@ref)
     total_sweeps = sweeps + thermalization
 
     # Generate measurement groups
+    th_groups = generate_groups(mc, mc.model, collect(values(mc.thermalization_measurements)))
     groups = generate_groups(mc, mc.model, collect(values(mc.measurements)))
 
     start_time = now()
@@ -424,7 +425,12 @@ See also: [`resume!`](@ref)
 
             if current_slice(mc) == 1 && i ≤ thermalization && 
                 mc.s.direction == 1 && iszero(i % mc.p.measure_rate)
-                measure!(mc.thermalization_measurements, mc, mc.model, i)
+                #measure!(mc.thermalization_measurements, mc, mc.model, i)
+                if iszero(i % mc.p.measure_rate)
+                    for (requirement, group) in th_groups
+                        apply!(requirement, group, mc, mc.model, i)
+                    end
+                end
             end
             if current_slice(mc) == 1 && mc.s.direction == 1 && i > thermalization
                 push!(mc.configs, mc, mc.model, i)
