@@ -4,7 +4,10 @@ include("ED.jl")
 # check elementwise, not matrix norm
 function check(A::Array, B::Array, atol, rtol=atol)
     for (x, y) in zip(A, B)
-        isapprox(x, y, atol=atol, rtol=rtol) || return false
+        if !isapprox(x, y, atol=atol, rtol=rtol)
+            @info "$x ≉ $y "
+            return false
+        end
     end
     true
 end
@@ -94,6 +97,72 @@ check(x::Number, y::Number, atol, rtol) = isapprox(x, y, atol=atol, rtol=rtol)
     UTG1 = calculate_Greens_matrix(H, 0.7, 0.0, model.l, beta=1.0)
     UTG2 = calculate_Greens_matrix(H, 0.0, 1.0 - 0.7, model.l, beta=1.0)
     @test UTG1 ≈ -UTG2 atol=1e-13
+end
+
+
+@testset "Exact Greens comparison (ED)" begin
+    models = (
+        HubbardModelRepulsive(2, 2, U = 0.0, t = 1.0),
+        HubbardModelAttractive(2, 2, U = 0.0, mu = 1.0, t = 1.0)
+    )
+
+    @info "Exact Greens comparison (ED)"
+    for model in models, beta in (1.0, 10.0)
+        @testset "$(typeof(model))" begin
+            Random.seed!(123)
+            dqmc = DQMC(
+                model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
+                thermalization = 100, sweeps = 100
+            )
+            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.p.beta)"
+
+            dqmc[:G]    = greens_measurement(dqmc, model)
+            l1s = [0, 3, 5, 7, 3, 0]
+            l2s = [1, 7, 5, 2, 1, MonteCarlo.nslices(dqmc)]
+            # l1s = [0, 3, 5, 0]
+            # l2s = [1, 7, 5, MonteCarlo.nslices(dqmc)]
+            dqmc[:UTG1] = greens_measurement(dqmc, model, GreensAt{l2s[1], l1s[1]})
+            dqmc[:UTG2] = greens_measurement(dqmc, model, GreensAt{l2s[2], l1s[2]})
+            dqmc[:UTG3] = greens_measurement(dqmc, model, GreensAt{l2s[3], l1s[3]})
+            dqmc[:UTG4] = greens_measurement(dqmc, model, GreensAt{l2s[4], l1s[4]})
+            dqmc[:UTG5] = greens_measurement(dqmc, model, GreensAt{l2s[5], l1s[5]})
+            dqmc[:UTG6] = greens_measurement(dqmc, model, GreensAt{l2s[6], l1s[6]})
+
+            @time run!(dqmc, verbose=false)
+            
+            # Absolute tolerance from Trotter decompositon
+            atol = 1e-13
+            rtol = 1e-13
+            N = length(lattice(model))
+        
+            @info "Running ED"
+            @time begin
+                H = HamiltonMatrix(model)
+            
+                # G_DQMC is smaller because it doesn't differentiate between spin up/down
+                @testset "Greens" begin
+                    G_DQMC = mean(dqmc.measurements[:G])
+                    G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.p.beta)
+                    for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
+                        @test check(G_DQMC[i, j], G_ED[i, j], atol, rtol)
+                    end
+                end
+
+                for (i, tau1, tau2) in zip(eachindex(l1s), 0.1l1s, 0.1l2s)
+                    UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
+                    M = size(UTG, 1)
+                    ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l, beta=dqmc.p.beta)
+
+                    @testset "[$i] $tau1 -> $tau2" begin
+                        for k in 1:M, l in 1:M
+                            @test check(UTG[k, l], ED_UTG[k, l], atol, rtol)
+                        end
+                    end
+                end
+            end
+
+        end
+    end
 end
 
 
@@ -278,9 +347,7 @@ end
                     end
                 end
 
-                # TODO SDS, CDS, PS
-                # So all of these are off by more than an order of magnitude...
-                # why? G0l needs to be added...
+                # CDC
                 @testset "Charge Density Susceptibility" begin
                     CDS = mean(dqmc.measurements[:CDS])
                     ED_CDS = zeros(size(CDS))
@@ -370,4 +437,3 @@ end
         end
     end
 end
-
