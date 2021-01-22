@@ -31,12 +31,12 @@ function DQMCMeasurement{GI, LI}(kernel::FT, observable::OT, output::T) where {G
 end
 
 function Measurement(
-        dqmc, model, GreensIterator, LatticeIterator, kernel::F;
+        dqmc, _model, GreensIterator, LatticeIterator, kernel::F;
         capacity = _default_capacity(dqmc), eltype = geltype(dqmc),
-        shape = _get_shape(dqmc, model, LatticeIterator)
+        shape = _get_shape(dqmc, _model, LatticeIterator),
+        temp = shape === nothing ? zero(eltype) : zeros(eltype, shape),
+        obs = LogBinner(temp, capacity=capacity)
     ) where F
-    temp = shape === nothing ? zero(eltype) : zeros(eltype, shape)
-    obs = LogBinner(temp, capacity=capacity)
     DQMCMeasurement{GreensIterator, LatticeIterator}(kernel, obs, temp)
 end
 
@@ -49,7 +49,7 @@ end
 
 
 function Base.show(io::IO, ::MIME"text/plain", m::DQMCMeasurement{GI, LI}) where {GI, LI}
-    max = capacity(m.observable)
+    max = applicable(capacity, m.observable) ? capacity(m.observable) : Inf
     current = length(m.observable)
     print(io, "[$current/$max] DQMCMeasurement{$GI, $LI}($(m.kernel))")
 end
