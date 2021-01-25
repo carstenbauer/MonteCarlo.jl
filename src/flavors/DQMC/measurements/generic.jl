@@ -274,23 +274,28 @@ end
 prepare!(::Nothing, model, m) = nothing
 prepare!(::AbstractLatticeIterator, model, m) = m.output .= zero(eltype(m.output))
 
+_push!(obs, val::Number) = push!(obs, val)
+_push!(obs, val) = push!(obs, copy(val))
+_push!(obs::LogBinner, val) = push!(obs, val)
+_push!(obs::AbstractObservable, val) = push!(obs, val)
+
 finish!(::Nothing, model, m) = nothing # handled in measure!
-finish!(::AbstractLatticeIterator, model, m) = push!(m.observable, m.output)
+finish!(::AbstractLatticeIterator, model, m) = _push!(m.observable, m.output)
 function finish!(::AbstractLatticeIterator, model, m, factor)
     m.output .*= factor
-    push!(m.observable, m.output)
+    _push!(m.observable, m.output)
 end
 function finish!(::EachSitePairByDistance, model, m, factor=1.0)
     m.output .*= factor / length(lattice(model))
-    push!(m.observable, m.output)
+    _push!(m.observable, m.output)
 end
 function finish!(::EachLocalQuadByDistance, model, m, factor=1.0)
     m.output .*= factor / length(lattice(model))
-    push!(m.observable, m.output)
+    _push!(m.observable, m.output)
 end
 function finish!(::EachLocalQuadBySyncedDistance, model, m, factor=1.0)
     m.output .*= factor / length(lattice(model))
-    push!(m.observable, m.output)
+    _push!(m.observable, m.output)
 end
 
 
