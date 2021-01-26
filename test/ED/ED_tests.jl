@@ -132,10 +132,19 @@ end
 
             @time run!(dqmc, verbose=false)
             
-            # Absolute tolerance from Trotter decompositon
+            # error tolerance
             atol = 1e-13
             rtol = 1e-13
             N = length(lattice(model))
+
+            # Direct calculation simialr to what DQMC should be doing
+            T = Matrix(MonteCarlo.hopping_matrix(dqmc, model))
+            # Doing an eigenvalue decomposition makes this pretty stable
+            vals, U = eigen(exp(-T))
+            D = Diagonal(vals)^(dqmc.p.beta)
+
+            # G = I - U * inv(I + D) * adjoint(U)
+            G = U * inv(I + D) * adjoint(U)
         
             @info "Running ED"
             @time begin
@@ -145,9 +154,9 @@ end
                 @testset "Greens" begin
                     G_DQMC = mean(dqmc.measurements[:G])
                     G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.p.beta)
-                    for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
-                        @test check(G_DQMC[i, j], G_ED[i, j], atol, rtol)
-                    end
+                    @test check(G_DQMC, G_ED[1:size(G_DQMC, 1), 1:size(G_DQMC, 2)], atol, rtol)
+                    @test check(G, G_ED[1:size(G_DQMC, 1), 1:size(G_DQMC, 2)], atol, rtol)
+                    @test check(G_DQMC, G, atol, rtol)
                 end
 
                 for (i, tau1, tau2) in zip(eachindex(l1s), 0.1l1s, 0.1l2s)
