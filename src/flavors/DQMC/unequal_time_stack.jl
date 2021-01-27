@@ -748,11 +748,25 @@ struct CombinedGreensIterator{T <: DQMC} <: AbstractUnequalTimeGreensIterator
     recalculate::Int64
 end
 
-function CombinedGreensIterator(mc::T, model::Model, recalculate::Int64=4mc.p.safe_mult) where T
-    CombinedGreensIterator{T}(mc, recalculate)
+function CombinedGreensIterator(
+        mc::T, model::Model; recalculate = 2mc.p.safe_mult, max_delta=1e-7
+    ) where T
+    if recalculate === nothing
+        iter = CombinedGreensIterator{T}(mc, typemax(Int64))
+        recalc = estimate_recalculate(iter, max_delta)
+        CombinedGreensIterator{T}(mc, recalc)
+    else
+        CombinedGreensIterator{T}(mc, recalculate)
+    end
 end
-function CombinedGreensIterator(mc::T, recalculate::Int64=4mc.p.safe_mult) where T
-    CombinedGreensIterator{T}(mc, recalculate)
+function CombinedGreensIterator(mc::T; recalculate = 2mc.p.safe_mult, max_delta=1e-7) where T
+    if recalculate === nothing
+        iter = CombinedGreensIterator{T}(mc, typemax(Int64))
+        recalc = estimate_recalculate(iter, max_delta)
+        CombinedGreensIterator{T}(mc, recalc)
+    else
+        CombinedGreensIterator{T}(mc, recalculate)
+    end
 end
 function init!(it::CombinedGreensIterator)
     if it.recalculate < nslices(it.mc)
@@ -765,22 +779,33 @@ Base.length(it::CombinedGreensIterator) = nslices(it.mc)
 
 # Fast specialized version
 function Base.iterate(it::CombinedGreensIterator)
-    # Measurements take place at current_slice = 1 <> l = τ = 0
-    @assert current_slice(it.mc) == 1
     s = it.mc.s
     uts = it.mc.ut_stack
-    copyto!(s.Tl, s.greens)
+
     # Need full built stack for curr_U to be save
     build_stack(it.mc, uts)
 
+    if current_slice(it.mc) == 1
+        # The measure system triggers here to be a bit more performant
+        copyto!(s.Tl, s.greens)
+    else
+        # calculate G00
+        calculate_greens_full1!(it.mc, it.mc.ut_stack, 0, 0)
+        copyto!(s.Tl, uts.greens)
+    end
+
+    # G01 = (G00-I)B_1^-1; then G0l+1 = G0l B_{l+1}^-1
+    vsub!(s.Tr, s.Tl, I)
+
+    # 
     udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, it.mc.s.pivot, it.mc.s.tempv)
     copyto!(uts.U, s.Ul)
     copyto!(uts.D, s.Dl)
     copyto!(uts.T, s.Tl)
 
     # G01 = (G00-I)B_1^-1; then G0l+1 = G0l B_{l+1}^-1
-    vsub!(s.Tr, s.greens, I)
     udt_AVX_pivot!(s.Ur, s.Dr, s.Tr, it.mc.s.pivot, it.mc.s.tempv)
+
     return iterate(it, 1)
 end
 # probably need extra temp variables
@@ -817,7 +842,7 @@ function Base.iterate(it::CombinedGreensIterator, l)
 
         return ((G0l, Gl0, Gll), l+1)
 
-    elseif l % it.mc.p.safe_mult == 0
+    elseif (l % it.recalculate) % it.mc.p.safe_mult == 0
         # Stabilization        
         # Reminder: These overwrite s.tmp1 and s.tmp2
         multiply_slice_matrix_left!(it.mc, it.mc.model, l, s.Ul) 
@@ -855,6 +880,7 @@ function Base.iterate(it::CombinedGreensIterator, l)
         Gll = _greens!(it.mc, uts.greens, uts.greens, s.curr_U)
 
         return ((G0l, Gl0, Gll), l+1)
+
     else
         # Quick advance
         multiply_slice_matrix_left!(it.mc, it.mc.model, l, s.Ul) 
@@ -884,6 +910,24 @@ end
 
 function accuracy(iter::CombinedGreensIterator)
     mc = iter.mc
-    Gk0s = [deepcopy(greens(mc, k, 0)) for k in 0:nslices(mc)-1]
-    [maximum(abs.(Gk0s[i] .- G)) for (i, G) in enumerate(iter)]
+    Gk0s = [deepcopy(greens(mc, k, 0)) for k in 1:nslices(mc)]
+    G0ks = [deepcopy(greens(mc, 0, k)) for k in 1:nslices(mc)]
+    Gkks = [deepcopy(greens(mc, k, k)) for k in 1:nslices(mc)]
+    map(enumerate(iter)) do (i, Gs)
+        (
+            maximum(abs.(G0ks[i] .- Gs[1])),
+            maximum(abs.(Gk0s[i] .- Gs[2])),
+            maximum(abs.(Gkks[i] .- Gs[3]))
+        )
+    end
+end
+
+function estimate_recalculate(iter::CombinedGreensIterator, max_delta=1e-7)
+    deltas = accuracy(iter)
+    idx = findfirst(ds -> any(ds .> max_delta), deltas)
+    if idx === nothing
+        return typemax(Int)
+    else
+        return idx
+    end
 end
