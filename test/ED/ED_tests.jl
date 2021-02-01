@@ -1,17 +1,6 @@
 using Random
 include("ED.jl")
 
-# check elementwise, not matrix norm
-function check(A::Array, B::Array, atol, rtol=atol)
-    for (x, y) in zip(A, B)
-        if !isapprox(x, y, atol=atol, rtol=rtol)
-            @info "$x ≉ $y "
-            return false
-        end
-    end
-    true
-end
-check(x::Number, y::Number, atol, rtol) = isapprox(x, y, atol=atol, rtol=rtol)
 
 @testset "ED checks" begin
     void = State(0)
