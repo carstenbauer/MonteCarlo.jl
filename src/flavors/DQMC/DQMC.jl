@@ -552,6 +552,7 @@ imaginary time slice.
 @bm function sweep_spatial(mc::DQMC)
     m = model(mc)
     N = size(conf(mc), 1)
+    acc_rate = 0.0
 
     @inbounds for i in 1:N
         detratio, ΔE_boson, passthrough = propose_local(mc, m, i, current_slice(mc), conf(mc))
@@ -579,11 +580,11 @@ imaginary time slice.
         if p > 1 || rand() < p
             accept_local!(mc, m, i, current_slice(mc), conf(mc), detratio, ΔE_boson, passthrough)
             # Δ, detratio,ΔE_boson)
-            mc.a.acc_rate += 1.0
+            acc_rate += 1.0
             mc.a.acc_local += 1
         end
     end
-    mc.a.acc_rate /= N
+    mc.a.acc_rate += acc_rate / N
     nothing
 end
 
