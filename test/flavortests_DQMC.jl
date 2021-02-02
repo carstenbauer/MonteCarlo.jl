@@ -171,7 +171,7 @@ end
         HubbardModelAttractive(8, 2, U = 0.0, mu = 1.0, t = 1.0)
     )
 
-    @info "Exact Greens comparison (ED)"
+    @info "Exact Greens comparison"
     for model in models, beta in (1.0, 10.0)
         @testset "$(typeof(model))" begin
             Random.seed!(123)
