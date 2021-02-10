@@ -425,7 +425,6 @@ See also: [`resume!`](@ref)
 
             if current_slice(mc) == 1 && i ≤ thermalization && 
                 mc.s.direction == 1 && iszero(i % mc.p.measure_rate)
-                #measure!(mc.thermalization_measurements, mc, mc.model, i)
                 if iszero(i % mc.p.measure_rate)
                     for (requirement, group) in th_groups
                         apply!(requirement, group, mc, mc.model, i)
@@ -554,6 +553,7 @@ imaginary time slice.
     N = size(conf(mc), 1)
     acc_rate = 0.0
 
+    # @inbounds for i in rand(1:N, N)
     @inbounds for i in 1:N
         detratio, ΔE_boson, passthrough = propose_local(mc, m, i, current_slice(mc), conf(mc))
         mc.a.prop_local += 1
@@ -576,6 +576,8 @@ imaginary time slice.
         end
         p = real(exp(- ΔE_boson) * detratio)
 
+        # Gibbs/Heat bath
+        # p = p / (1.0 + p)
         # Metropolis
         if p > 1 || rand() < p
             accept_local!(mc, m, i, current_slice(mc), conf(mc), detratio, ΔE_boson, passthrough)
