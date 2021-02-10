@@ -66,6 +66,7 @@ struct DQMCParameters
     slices::Int
     
     measure_rate::Int
+    print_rate::Int
 end
 
 function DQMCParameters(;
@@ -79,6 +80,7 @@ function DQMCParameters(;
         safe_mult::Int      = 10,
         measure_rate::Int   = 10,
         warn_round::Bool    = true,
+        print_rate::Int     = 10,
         kwargs...
     )
     nt = (;kwargs...)
@@ -120,7 +122,8 @@ function DQMCParameters(;
         delta_tau,
         beta,
         slices,
-        measure_rate
+        measure_rate,
+        print_rate
     )
 end
 
@@ -253,8 +256,8 @@ function DQMC(m::M;
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
         measurements = Dict{Symbol, AbstractMeasurement}(),
         last_sweep = 0,
-        recorder = ConfigRecorder,
         measure_rate = 10,
+        recorder = ConfigRecorder,
         recording_rate = measure_rate,
         kwargs...
     ) where M<:Model
@@ -393,7 +396,8 @@ See also: [`resume!`](@ref)
             mc.p.delta_tau,
             mc.p.beta,
             mc.p.slices,
-            mc.p.measure_rate
+            mc.p.measure_rate,
+            mc.p.print_rate
         )
         mc.p = p
     end
@@ -442,19 +446,21 @@ See also: [`resume!`](@ref)
         end
         mc.last_sweep = i
 
-        if mod(i, 10) == 0
-            mc.a.acc_rate = mc.a.acc_rate / (10 * 2 * nslices(mc))
-            mc.a.acc_rate_global = mc.a.acc_rate_global / (10 / mc.p.global_rate)
-            sweep_dur = (time() - _time)/10
+        if mod(i, mc.p.print_rate) == 0
+            mc.a.acc_rate = mc.a.acc_rate / (mc.p.print_rate * 2 * nslices(mc))
+            mc.a.acc_rate_global = mc.a.acc_rate_global / (mc.p.print_rate / mc.p.global_rate)
+            sweep_dur = (time() - _time)/mc.p.print_rate
             max_sweep_duration = max(max_sweep_duration, sweep_dur)
             if verbose
                 println("\t", i)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur)
                 @printf("\t\tacc rate (local) : %.1f%%\n", mc.a.acc_rate*100)
                 if mc.p.global_moves
-                  @printf("\t\tacc rate (global): %.1f%%\n", mc.a.acc_rate_global*100)
-                  @printf("\t\tacc rate (global, overall): %.1f%%\n",
-                    mc.a.acc_global/mc.a.prop_global*100)
+                    @printf("\t\tacc rate (global): %.1f%%\n", mc.a.acc_rate_global*100)
+                    @printf(
+                        "\t\tacc rate (global, overall): %.1f%%\n",
+                        mc.a.acc_global/mc.a.prop_global*100
+                    )
                 end
             end
 
@@ -647,7 +653,7 @@ function replay!(
             mc.p.thermalization, mc.p.sweeps,
             mc.p.silent, mc.p.check_sign_problem,mc.p.check_propagation_error,
             mc.p.safe_mult, mc.p.delta_tau, mc.p.beta, mc.p.slices,
-            measure_rate
+            measure_rate, mc.p.print_rate
         )
     end
 
@@ -669,8 +675,8 @@ function replay!(
         end
         mc.last_sweep = i
 
-        if mod(i, 10) == 0
-            sweep_dur = (time() - _time)/10
+        if mod(i, mc.p.print_rate) == 0
+            sweep_dur = (time() - _time)/mc.p.print_rate
             max_sweep_duration = max(max_sweep_duration, sweep_dur)
             if verbose
                 println("\t", i)
@@ -873,6 +879,7 @@ function save_parameters(file::JLDFile, p::DQMCParameters, entryname::String="Pa
     write(file, entryname * "/beta", p.beta)
     write(file, entryname * "/slices", p.slices)
     write(file, entryname * "/measure_rate", p.measure_rate)
+    write(file, entryname * "/print_rate", p.print_rate)
 
     nothing
 end
@@ -899,6 +906,7 @@ function _load(data, ::Type{T}) where T <: DQMCParameters
         data["beta"],
         data["slices"],
         data["measure_rate"],
+        data["print_rate"],
     )
 end
 
