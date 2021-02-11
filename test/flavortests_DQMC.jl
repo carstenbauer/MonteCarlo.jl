@@ -177,11 +177,11 @@ end
             Random.seed!(123)
             dqmc = DQMC(
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
-                thermalization = 100, sweeps = 100
+                thermalization = 1, sweeps = 2, measure_rate = 1
             )
             @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.p.beta)"
 
-            dqmc[:G]    = greens_measurement(dqmc, model)
+            dqmc[:G] = greens_measurement(dqmc, model)
             @time run!(dqmc, verbose=false)
             
             # error tolerance
@@ -189,13 +189,14 @@ end
             rtol = 1e-13
             N = length(lattice(model))
 
-            # Direct calculation simialr to what DQMC should be doing
+            # Direct calculation similar to what DQMC should be doing
             T = Matrix(MonteCarlo.hopping_matrix(dqmc, model))
             # Doing an eigenvalue decomposition makes this pretty stable
             vals, U = eigen(exp(-T))
             D = Diagonal(vals)^(dqmc.p.beta)
 
-            # G = I - U * inv(I + D) * adjoint(U)
+            # Don't believe "Quantum Monte Carlo Methods", this is the right
+            # formula (believe dos Santos DQMC review instead)
             G = U * inv(I + D) * adjoint(U)
 
             @test check(mean(dqmc[:G]), G, atol, rtol)
