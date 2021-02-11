@@ -906,7 +906,7 @@ function _load(data, ::Type{T}) where T <: DQMCParameters
         data["beta"],
         data["slices"],
         data["measure_rate"],
-        data["print_rate"],
+        haskey(data, "print_rate") ? data["print_rate"] : 10,
     )
 end
 
