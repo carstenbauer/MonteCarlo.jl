@@ -517,6 +517,22 @@ function calculate_Greens_matrix(H::Eigen, lattice; beta=1.0, N_substates=2)
 end
 
 
+function energy(H::Eigen; beta = 1.0)
+    vals, vecs = H
+    Z = 0.0
+    O = 0.0
+
+    for i in eachindex(vals)
+        # E_i exp(βEᵢ)
+        weight = exp(-beta * vals[i])
+        Z += weight
+        O += vals[i] * weight
+    end
+
+    O / Z
+end
+
+
 ################################################################################
 ### unequal time
 ################################################################################

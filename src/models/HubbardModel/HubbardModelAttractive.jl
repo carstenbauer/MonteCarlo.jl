@@ -288,3 +288,9 @@ function cc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, pg::NTuple{4}
 
     output
 end
+
+# See DQMC/measurements/measurements.jl
+function intE_kernel(mc, model::HubbardModelAttractive, G::AbstractArray)
+    # up-up = down-down, up-down zero
+    - model.U * sum((diag(G) .- 0.5).^2)
+end

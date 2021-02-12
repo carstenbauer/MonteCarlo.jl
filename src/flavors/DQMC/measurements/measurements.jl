@@ -335,7 +335,7 @@ end
 
 
 function noninteracting_energy(dqmc, model; kwargs...)
-    Measurement(dqmc, model, Nothing, Greens, nonintE_kernel; kwargs...)
+    Measurement(dqmc, model, Greens, Nothing, nonintE_kernel; kwargs...)
 end
 
 @inline function nonintE_kernel(mc, model, G::AbstractArray)
@@ -349,7 +349,8 @@ function nonintE(T::AbstractArray, G::AbstractArray)
     for i in axes(G, 1), j in axes(G, 2)
         output += T[j, i] * (I[i, j] - G[i, j])
     end
-    output
+    # 2 because we're using spin up/down symmetry
+    2.0 * output
 end
 function nonintE(T::BlockDiagonal{X, N}, G::BlockDiagonal{X, N}) where {X, N}
     output = zero(eltype(G))
@@ -358,8 +359,23 @@ function nonintE(T::BlockDiagonal{X, N}, G::BlockDiagonal{X, N}) where {X, N}
         t = T.blocks[i]
         g = G.blocks[i]
         @avx for k in 1:n, l in 1:n
-            output += t[k,l] * (I[k,l] - g[k,l])
+            output += t[k,l] * (ifelse(k==l, 1.0, 0.0) - g[k,l])
         end
     end
     output
+end
+
+
+function interacting_energy(dqmc, model; kwargs...)
+    Measurement(dqmc, model, Greens, Nothing, intE_kernel; kwargs...)
+end
+# ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
+# See models for kernels
+
+
+function total_energy(dqmc, model; kwargs...)
+    Measurement(dqmc, model, Greens, Nothing, totalE_kernel; kwargs...)
+end
+function totalE_kernel(mc, model, G::AbstractArray)
+    nonintE_kernel(mc, model, G) + intE_kernel(mc, model, G)
 end

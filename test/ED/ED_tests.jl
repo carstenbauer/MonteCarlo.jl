@@ -103,7 +103,7 @@ end
             Random.seed!(123)
             dqmc = DQMC(
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
-                thermalization = 100, sweeps = 100
+                thermalization = 1, sweeps = 2, measure_rate=1
             )
             @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.p.beta)"
 
@@ -182,6 +182,7 @@ end
             @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.p.beta), 10k + 10k sweeps"
 
             dqmc[:G]    = greens_measurement(dqmc, model)
+            dqmc[:E]    = total_energy(dqmc, model)
             dqmc[:Occs] = occupation(dqmc, model)
             dqmc[:CDC]  = charge_density_correlation(dqmc, model)
             dqmc[:Mx]   = magnetization(dqmc, model, :x)
@@ -223,6 +224,12 @@ end
             @info "Running ED"
             @time begin
                 H = HamiltonMatrix(model)
+
+                @testset "(total) energy" begin
+                    dqmc_E = mean(dqmc[:E])
+                    ED_E = energy(H, beta = dqmc.p.beta)
+                    @test dqmc_E ≈ ED_E atol=atol rtol=rtol
+                end
             
                 # G_DQMC is smaller because it doesn't differentiate between spin up/down
                 @testset "Greens" begin

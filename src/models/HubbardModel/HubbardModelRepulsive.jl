@@ -277,3 +277,10 @@ function _load(data, ::Type{T}) where T <: HubbardModelRepulsive
         flv = data["flv"]
     )
 end
+
+
+# See DQMC/measurements/measurements.jl
+function intE_kernel(mc, model::HubbardModelRepulsive, G::BlockDiagonal)
+    # up-down zero
+    model.U * sum((diag(G.blocks[1]) .- 0.5) .* (diag(G.blocks[2]) .- 0.5))
+end
