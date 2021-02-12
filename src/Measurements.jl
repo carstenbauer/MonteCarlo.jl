@@ -372,6 +372,7 @@ Base.getindex(mc::MonteCarloFlavor, k) = getindex(measurements(mc), k)
 Base.setindex!(mc::MonteCarloFlavor, v, k) = setindex!(measurements(mc), v, k)
 # Allow `keys(dqmc)` to get measurement keys
 Base.keys(mc::MonteCarloFlavor) = keys(measurements(mc))
+Base.haskey(mc::MonteCarloFlavor, key) = haskey(measurements(mc), key)
 
 
 """

@@ -56,6 +56,13 @@ using MonteCarlo: directed_norm
                 @test norm(dirs[i-1]) < norm(dirs[i]) + 1e-5
             end
         end
+
+        dirs = [[cos(x), sin(x)] for x in range(0, 2pi-10eps(2pi), length=10)]
+        norms = directed_norm.(dirs, 1e-6)
+        for i in 2:length(norms)
+            @test norms[i-1] < norms[i] < norms[i-1] + 1e-5
+            @test 1.0 - 1e-5 < norms[i] < 1.0 + 1e-5
+        end
     end
 
     @testset "EachSiteAndFlavor" begin
@@ -65,7 +72,6 @@ using MonteCarlo: directed_norm
             Nflavors = MonteCarlo.nflavors(dqmc.model)
             @test collect(iter) == 1:Nsites*Nflavors
             @test length(iter) == Nsites*Nflavors
-            @test length(collect(iter)) == Nsites*Nflavors
             @test eltype(iter) == Int64
             @test Base.IteratorSize(EachSiteAndFlavor) == Base.HasLength()
             @test Base.IteratorEltype(EachSiteAndFlavor) == Base.HasEltype()
@@ -78,7 +84,6 @@ using MonteCarlo: directed_norm
             Nsites = length(lattice(dqmc))
             @test collect(iter) == 1:Nsites
             @test length(iter) == Nsites
-            @test length(collect(iter)) == Nsites
             @test eltype(iter) == Int64
             @test Base.IteratorSize(EachSite) == Base.HasLength()
             @test Base.IteratorEltype(EachSite) == Base.HasEltype()
@@ -91,7 +96,6 @@ using MonteCarlo: directed_norm
             Nsites = length(lattice(dqmc))
             @test collect(iter) == collect(zip(1:Nsites, 1:Nsites))
             @test length(iter) == Nsites
-            @test length(collect(iter)) == Nsites
             @test eltype(iter) == Tuple{Int64, Int64}
             @test Base.IteratorSize(OnSite) == Base.HasLength()
             @test Base.IteratorEltype(OnSite) == Base.HasEltype()
@@ -104,7 +108,6 @@ using MonteCarlo: directed_norm
             Nsites = length(lattice(dqmc))
             @test collect(iter) == [(i, j) for i in 1:Nsites for j in 1:Nsites]
             @test length(iter) == Nsites^2
-            @test length(collect(iter)) == Nsites^2
             @test eltype(iter) == Tuple{Int64, Int64}
             @test Base.IteratorSize(EachSitePair) == Base.HasLength()
             @test Base.IteratorEltype(EachSitePair) == Base.HasEltype()
@@ -116,7 +119,6 @@ using MonteCarlo: directed_norm
             iter = EachSitePairByDistance(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
             @test length(iter) == Nsites^2
-            @test length(collect(iter)) == Nsites^2
             @test eltype(iter) == NTuple{3, Int64}
             @test Base.IteratorSize(EachSitePairByDistance) == Base.HasLength()
             @test Base.IteratorEltype(EachSitePairByDistance) == Base.HasEltype()
@@ -150,7 +152,6 @@ using MonteCarlo: directed_norm
             iter = EachLocalQuadByDistance{6}(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
             @test length(iter) == 6^2 * Nsites^2
-            @test length(collect(iter)) == 6^2 * Nsites^2
             @test eltype(iter) == Tuple{Int64, UInt16, UInt16, UInt16, UInt16}
             @test Base.IteratorSize(EachLocalQuadByDistance) == Base.HasLength()
             @test Base.IteratorEltype(EachLocalQuadByDistance) == Base.HasEltype()
@@ -164,7 +165,7 @@ using MonteCarlo: directed_norm
             check1 = true
             check2 = true
 
-            idxs = CartesianIndices((Nsites, 6, 6))
+            idxs = CartesianIndices((length(dirs), 6, 6))
 
             for (lin, src1, trg1, src2, trg2) in iter
                 idx12, idx1, idx2 = Tuple(idxs[lin])
@@ -201,6 +202,73 @@ using MonteCarlo: directed_norm
                     end
                 end
                 check2 = check2 && (dirs[idx2] ≈ d)
+            end
+
+            @test check12
+            @test check1
+            @test check2
+        end
+    end
+
+    for dqmc in dqmcs
+        @testset "EachLocalQuadBySyncedDistance" begin
+            iter = EachLocalQuadBySyncedDistance{6}(dqmc, dqmc.model)
+            Nsites = length(lattice(dqmc))
+            # These are wrong on a lattice with a basis, because {6}
+            # does not mean 6 surrounding sites, but rather 6 smallest directions (globally).
+            # (A site directions may not apply to B sites)
+            #@test length(iter) == 6^2 * Nsites^2
+            #@test length(collect(iter)) == 6^2 * Nsites^2
+            @test eltype(iter) == Tuple{Int64, UInt16, UInt16, UInt16, UInt16}
+            @test Base.IteratorSize(EachLocalQuadBySyncedDistance) == Base.HasLength()
+            @test Base.IteratorEltype(EachLocalQuadBySyncedDistance) == Base.HasEltype()
+
+            dirs = directions(dqmc)
+            pos = MonteCarlo.positions(lattice(dqmc))
+            wrap = MonteCarlo.generate_combinations(MonteCarlo.lattice_vectors(MonteCarlo.lattice(dqmc)))
+
+            # Let's summarize these tests...
+            check12 = true
+            check1 = true
+            check2 = true
+
+            idxs = CartesianIndices((length(dirs), 6))
+
+            for (lin, src1, trg1, src2, trg2) in iter
+                idx12, idx = Tuple(idxs[lin])
+
+                # src1 -- idx12 -- src2
+                _d = pos[src1] - pos[src2]
+                d = _d .+ wrap[1]
+                for v in wrap[2:end]
+                    new_d = _d .+ v
+                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                        d .= new_d
+                    end
+                end
+                check12 = check12 && (dirs[idx12] ≈ d)
+
+                # src1 -- idx -- trg1
+                _d = pos[src1] - pos[trg1]
+                d = _d .+ wrap[1]
+                for v in wrap[2:end]
+                    new_d = _d .+ v
+                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                        d .= new_d
+                    end
+                end
+                check1 = check1 && (dirs[idx] ≈ d)
+
+                # src2 -- idx -- trg2
+                _d = pos[src2] - pos[trg2]
+                d = _d .+ wrap[1]
+                for v in wrap[2:end]
+                    new_d = _d .+ v
+                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                        d .= new_d
+                    end
+                end
+                check2 = check2 && (dirs[idx] ≈ d)
             end
 
             @test check12

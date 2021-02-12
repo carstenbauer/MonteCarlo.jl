@@ -71,34 +71,33 @@ function HamiltonMatrix(model::T) where {T <: HubbardModel}
     U = T <: HubbardModelAttractive ? -abs(model.U) : abs(model.U)
     mu = T <: HubbardModelAttractive ? model.mu : 0.0
 
-    H = zeros(Float64, 4^lattice.sites, 4^lattice.sites)
+    H = zeros(Float64, 4^length(lattice), 4^length(lattice))
 
     # -t ∑_ijσ c_iσ^† c_jσ
     # +U ∑_i (n_i↑ - 1/2)(n_i↓ - 1/2)
     # -μ ∑_i n_i
-    for i in 1:4^lattice.sites
+    for i in 1:4^length(lattice)
         lstate = State(i-1)
-        for j in 1:4^lattice.sites
+        for j in 1:4^length(lattice)
             rstate = State(j-1)
 
             E = 0.0
             # hopping (hermitian conjugate implied/included by lattice generation)
             for substate in [1, 2]
-                for source in 1:lattice.sites
-                    for target in lattice.neighs[:, source]
-                        # be careful not to change rstate 
-                        # (or restore it with state_from_integer!)
-                        _sign1, state = annihilate(rstate, source, substate)
-                        _sign2, state = create(state, target, substate)
-                        if _sign1 * _sign2 != 0.0 && lstate == state
-                            E -= _sign1 * _sign2 * t
-                        end
+                for (source, target) in neighbors(lattice, Val(true))
+                    target == -1 && continue
+                    # be careful not to change rstate 
+                    # (or restore it with state_from_integer!)
+                    _sign1, state = annihilate(rstate, source, substate)    
+                    _sign2, state = create(state, target, substate)
+                    if _sign1 * _sign2 != 0.0 && lstate == state
+                        E -= _sign1 * _sign2 * t
                     end
                 end
             end
 
             # # U, μ terms
-            for p in 1:4
+            for p in 1:length(lattice) #1:4
                 up_occ = rstate[2(p-1)+1]
                 down_occ = rstate[2(p-1)+2]
                 if lstate == rstate
@@ -497,24 +496,40 @@ end
 function calculate_Greens_matrix(H::Eigen, lattice; beta=1.0, N_substates=2)
     G = Matrix{Float64}(
         undef,
-        lattice.sites*N_substates,
-        lattice.sites*N_substates
+        length(lattice)*N_substates,
+        length(lattice)*N_substates
     )
     for substate1 in 1:N_substates, substate2 in 1:N_substates
-        for site1 in 1:lattice.sites, site2 in 1:lattice.sites
+        for site1 in 1:length(lattice), site2 in 1:length(lattice)
             G[
-                lattice.sites * (substate1-1) + site1,
-                lattice.sites * (substate2-1) + site2
+                length(lattice) * (substate1-1) + site1,
+                length(lattice) * (substate2-1) + site2
             ] = expectation_value(
                 Greens(site1, site2, substate1, substate2),
                 H,
                 beta = beta,
-                N_sites = lattice.sites,
+                N_sites = length(lattice),
                 N_substates=N_substates
             )
         end
     end
     G
+end
+
+
+function energy(H::Eigen; beta = 1.0)
+    vals, vecs = H
+    Z = 0.0
+    O = 0.0
+
+    for i in eachindex(vals)
+        # E_i exp(βEᵢ)
+        weight = exp(-beta * vals[i])
+        Z += weight
+        O += vals[i] * weight
+    end
+
+    O / Z
 end
 
 
@@ -591,19 +606,19 @@ end
 function calculate_Greens_matrix(H::Eigen, tau1, tau2, lattice; beta=1.0, N_substates=2)
     G = Matrix{Float64}(
         undef,
-        lattice.sites*N_substates,
-        lattice.sites*N_substates
+        length(lattice)*N_substates,
+        length(lattice)*N_substates
     )
     # Respect time order:
     swap = tau1 < tau2
     for substate1 in 1:N_substates, substate2 in 1:N_substates
-        for site1 in 1:lattice.sites, site2 in 1:lattice.sites
+        for site1 in 1:length(lattice), site2 in 1:length(lattice)
             ctau1 = s -> annihilate(s, site2, substate2)
             ctau2 = s -> create(s, site1, substate1)
 
             G[
-                lattice.sites * (substate1-1) + site1,
-                lattice.sites * (substate2-1) + site2
+                length(lattice) * (substate1-1) + site1,
+                length(lattice) * (substate2-1) + site2
             ] = expectation_value(
                 swap ? ctau2 : ctau1,
                 swap ? ctau1 : ctau2,
@@ -612,7 +627,7 @@ function calculate_Greens_matrix(H::Eigen, tau1, tau2, lattice; beta=1.0, N_subs
                 # s -> create!(s, site1, substate1),
                 # H, tau1, tau2,
                 beta = beta,
-                N_sites = lattice.sites,
+                N_sites = length(lattice),
                 N_substates = N_substates
             ) * (1 - 2swap) # minus sign from permuting c^†(τ1) c(τ2)
         end
@@ -629,6 +644,7 @@ end
     @bm "init" begin
         O = 0.0
         vals, vecs = H
+        @assert eltype(vecs) <: Real
         rstate = State(0)
         vals1, _ = obsτ1(rstate)
         vals2, _ = obsτ2(rstate)
@@ -637,6 +653,7 @@ end
         T = (T1 <: Complex || T2 <: Complex) ? ComplexF64 : Float64
         obsτ1_mat = zeros(T, size(vecs))
         obsτ2_mat = zeros(T, size(vecs))
+        X = zeros(T, size(vecs))
     end
 
     @bm "obs mat" begin
@@ -654,17 +671,25 @@ end
     end
 
     @bm "prepare O" begin
-        obsτ2_mat = vecs' * obsτ2_mat * vecs
-        obsτ1_mat = vecs' * obsτ1_mat * vecs
+        mul!(X, adjoint(vecs), obsτ1_mat)
+        mul!(obsτ1_mat, X, vecs)
+        
+        mul!(X, obsτ2_mat, vecs)
+        mul!(obsτ2_mat, transpose(X), vecs)
+
+        X .= obsτ1_mat .* obsτ2_mat
+
+        # obsτ2_mat = transpose(vecs) * obsτ2_mat * vecs
+        # obsτ1_mat = transpose(vecs) * obsτ1_mat * vecs
+        # X = obsτ1_mat .* transpose(obsτ2_mat)
         Z = mapreduce(E -> exp(-beta * E), +, vals)
     end
 
     @bm "compute O" begin
-    for τ in beta:-step:0.5step #0:step:beta-0.5step
+        for τ in beta:-step:0.5step #0:step:beta-0.5step
             o = 0.0
             for n in eachindex(vals), m in eachindex(vals)
-                o += exp(-(beta-τ)*vals[n]) * obsτ1_mat[n, m] * 
-                     exp(-τ*vals[m]) * obsτ2_mat[m, n]
+                o += exp(-(beta-τ)*vals[n] - τ*vals[m]) * X[n, m]
             end
             O += step * o / Z
         end

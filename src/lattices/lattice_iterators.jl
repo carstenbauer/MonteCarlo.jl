@@ -1,4 +1,8 @@
 abstract type AbstractLatticeIterator end
+# All indices are sites
+abstract type DirectLatticeIterator <: AbstractLatticeIterator end 
+# first index is a meta index (e.g. direction), rest for sites
+abstract type DeferredLatticeIterator <: AbstractLatticeIterator end 
 
 
 
@@ -13,7 +17,7 @@ abstract type AbstractLatticeIterator end
 
 Creates an iterator which iterates through the diagonal of the Greensfunctio
 """
-struct EachSiteAndFlavor <: AbstractLatticeIterator
+struct EachSiteAndFlavor <: DirectLatticeIterator
     N::Int64
 end
 function EachSiteAndFlavor(mc::MonteCarloFlavor, model::Model)
@@ -39,7 +43,7 @@ Base.eltype(::EachSiteAndFlavor) = Int64
 
 Creates an iterator which iterates through every site of a given lattice.
 """
-struct EachSite <: AbstractLatticeIterator
+struct EachSite <: DirectLatticeIterator
     N::Int64
 end
 EachSite(l::AbstractLattice) = EachSite(length(l))
@@ -66,7 +70,7 @@ Base.eltype(::EachSite) = Int64
 Creates an iterator which iterates through every site of a given lattice, 
 returning (site, site) at every step.
 """
-struct OnSite <: AbstractLatticeIterator
+struct OnSite <: DirectLatticeIterator
     N::Int64
 end
 OnSite(l::AbstractLattice) = OnSite(length(l))
@@ -93,7 +97,7 @@ Base.eltype(::OnSite) = Tuple{Int64, Int64}
 Creates an iterator which returns every pair of sites `(s1, s2)` with 
 `s1, s2 ∈ 1:Nsites`.
 """
-struct EachSitePair <: AbstractLatticeIterator
+struct EachSitePair <: DirectLatticeIterator
     N::Int64
 end
 EachSitePair(l::AbstractLattice) = EachSitePair(length(l))
@@ -128,7 +132,7 @@ sorted by distance. The `direction index` identifies each unqiue direction
 
 Requires `lattice` to implement `positions` and `lattice_vectors`.
 """
-struct EachSitePairByDistance <: AbstractLatticeIterator
+struct EachSitePairByDistance <: DeferredLatticeIterator
     N::Int64
     pairs::Vector{Vector{Tuple{Int64, Int64}}}
 end 
@@ -255,7 +259,7 @@ The iterator is sorted by distance `src2 - src1`.
 
 Requires `lattice` to implement `positions` and `lattice_vectors`.
 """
-struct EachLocalQuadByDistance{K} <: AbstractLatticeIterator
+struct EachLocalQuadByDistance{K} <: DeferredLatticeIterator
     N::Int64
     implied::Array{Vector{NTuple{4, UInt16}}, 3}
 end
@@ -381,7 +385,7 @@ The iterator is sorted by distance `src2 - src1`.
 
 Requires `lattice` to implement `positions` and `lattice_vectors`.
 """
-struct EachLocalQuadBySyncedDistance{K} <: AbstractLatticeIterator
+struct EachLocalQuadBySyncedDistance{K} <: DeferredLatticeIterator
     N::Int64
     implied::Array{Vector{NTuple{4, UInt16}}, 2}
 end
@@ -524,3 +528,26 @@ function directions(lattice::AbstractLattice, ϵ = 1e-6)
     # directions[temp]
     sort!(directions, by = v -> directed_norm(v, ϵ))
 end
+
+
+
+################################################################################
+### Sum Wrapper
+################################################################################
+
+
+
+struct Sum{LI <: AbstractLatticeIterator} <: AbstractLatticeIterator
+    iter::LI
+    function Sum{LI}(args...; kwargs...) where {LI <: AbstractLatticeIterator}
+        new{LI}(LI(args...; kwargs...))
+    end
+    function Sum(iter::LI) where {LI <: AbstractLatticeIterator}
+        new{LI}(iter)
+    end
+end
+
+Base.iterate(s::Sum) = iterate(s.iter)
+Base.iterate(s::Sum, state) = iterate(s.iter, state)
+Base.length(s::Sum) = length(s.iter)
+Base.eltype(s::Sum) = eltype(s.iter)

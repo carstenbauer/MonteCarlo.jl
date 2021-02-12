@@ -31,12 +31,12 @@ function DQMCMeasurement{GI, LI}(kernel::FT, observable::OT, output::T) where {G
 end
 
 function Measurement(
-        dqmc, model, GreensIterator, LatticeIterator, kernel::F;
+        dqmc, _model, GreensIterator, LatticeIterator, kernel::F;
         capacity = _default_capacity(dqmc), eltype = geltype(dqmc),
-        shape = _get_shape(dqmc, model, LatticeIterator)
+        shape = _get_shape(dqmc, _model, LatticeIterator),
+        temp = shape === nothing ? zero(eltype) : zeros(eltype, shape),
+        obs = LogBinner(temp, capacity=capacity)
     ) where F
-    temp = shape === nothing ? zero(eltype) : zeros(eltype, shape)
-    obs = LogBinner(temp, capacity=capacity)
     DQMCMeasurement{GreensIterator, LatticeIterator}(kernel, obs, temp)
 end
 
@@ -49,7 +49,7 @@ end
 
 
 function Base.show(io::IO, ::MIME"text/plain", m::DQMCMeasurement{GI, LI}) where {GI, LI}
-    max = capacity(m.observable)
+    max = applicable(capacity, m.observable) ? capacity(m.observable) : Inf
     current = length(m.observable)
     print(io, "[$current/$max] DQMCMeasurement{$GI, $LI}($(m.kernel))")
 end
@@ -93,6 +93,7 @@ _get_shape(model, mask::DistanceMask) = length(mask)
 
 _get_shape(mc, model, LI::Type) = _get_shape(model, LI(mc, model))
 _get_shape(model, ::Nothing) = nothing
+_get_shape(model, ::Sum) = 1
 _get_shape(model, ::EachSite) = length(lattice(model))
 _get_shape(model, ::EachSiteAndFlavor) = nflavors(model) * length(lattice(model))
 _get_shape(model, ::EachSitePair) = (length(lattice(model)), length(lattice(model)))
@@ -273,38 +274,32 @@ end
 # If LatticeIterator is Nothing, then things should be handled in measure!
 prepare!(::Nothing, model, m) = nothing
 prepare!(::AbstractLatticeIterator, model, m) = m.output .= zero(eltype(m.output))
+prepare!(s::Sum, args...) = prepare!(s.iter, args...)
+
+_push!(obs, val) = push!(obs, val)
+function _push!(obs::Vector{T}, val::AbstractArray{T}) where {T}
+    if length(val) == 1
+        push!(obs, val[1])
+    else
+        error("Attempting to push an Array of length $(length(val)) into a Vector element.")
+    end
+end
 
 finish!(::Nothing, model, m) = nothing # handled in measure!
-finish!(::AbstractLatticeIterator, model, m) = push!(m.observable, m.output)
+finish!(::AbstractLatticeIterator, model, m) = _push!(m.observable, m.output)
+finish!(s::Sum, args...) = finish!(s.iter, args...)
 function finish!(::AbstractLatticeIterator, model, m, factor)
     m.output .*= factor
-    push!(m.observable, m.output)
+    _push!(m.observable, m.output)
 end
-function finish!(::EachSitePairByDistance, model, m, factor=1.0)
+function finish!(::DeferredLatticeIterator, model, m, factor=1.0)
     m.output .*= factor / length(lattice(model))
-    push!(m.observable, m.output)
+    _push!(m.observable, m.output)
 end
-function finish!(::EachLocalQuadByDistance, model, m, factor=1.0)
-    m.output .*= factor / length(lattice(model))
-    push!(m.observable, m.output)
-end
-function finish!(::EachLocalQuadBySyncedDistance, model, m, factor=1.0)
-    m.output .*= factor / length(lattice(model))
-    push!(m.observable, m.output)
-end
-
 
 
 # Call kernel for each site (linear index)
-@bm function apply!(iter::EachSiteAndFlavor, measurement, mc::DQMC, model, packed_greens)
-    for i in iter
-        measurement.output[i] += measurement.kernel(mc, model, i, packed_greens)
-    end
-    nothing
-end
-
-# Call kernel for each site (linear index)
-@bm function apply!(iter::EachSite, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(iter::DirectLatticeIterator, measurement, mc::DQMC, model, packed_greens)
     for i in iter
         measurement.output[i] += measurement.kernel(mc, model, i, packed_greens)
     end
@@ -314,7 +309,7 @@ end
 # Call kernel for each pair (src, trg) (Nsties² total)
 @bm function apply!(iter::EachSitePair, measurement, mc::DQMC, model, packed_greens)
     for (i, j) in iter
-        measurement.output[i, j] += measurement.kernel(mc, model, i, j, packed_greens)
+        measurement.output[i, j] += measurement.kernel(mc, model, (i, j), packed_greens)
     end
     nothing
 end
@@ -322,45 +317,34 @@ end
 # Call kernel for each pair (site, site) (i.e. on-site) 
 @bm function apply!(iter::OnSite, measurement, mc::DQMC, model, packed_greens)
     for (i, j) in iter
-        measurement.output[i] += measurement.kernel(mc, model, i, j, packed_greens)
+        measurement.output[i] += measurement.kernel(mc, model, (i, j), packed_greens)
     end
     nothing
 end
 
-# Call kernel for each pair (src, trg) and sum those that point in the same direction
-@bm function apply!(iter::EachSitePairByDistance, measurement, mc::DQMC, model, packed_greens)
-    @inbounds for (dir, src, trg) in iter
-        measurement.output[dir] += measurement.kernel(mc, model, src, trg, packed_greens)
+@bm function apply!(iter::DeferredLatticeIterator, measurement, mc::DQMC, model, packed_greens)
+    @inbounds for idxs in iter
+        measurement.output[first(idxs)] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
     end
     nothing
 end
 
-# Call kernel for each pair (src1, trg1, src2, trg) and sum those that have the 
-# same `dir12 = pos[src2] - pos[src1]`, `dir1 = pos[trg1] - pos[src1]` and 
-# `dir2 = pos[trg2] - pos[src2]`
-@bm function apply!(iter::EachLocalQuadByDistance, measurement, mc::DQMC, model, packed_greens)
-    # lin is a linear index for (dir12, dir1, dir2)
-    for (lin, src1, trg1, src2, trg2) in iter
-        measurement.output[lin] += measurement.kernel(
-            mc, model, src1, trg1, src2, trg2, packed_greens
-        )
+
+# Sums
+@bm function apply!(iter::Sum{<: DirectLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
+    @inbounds for idxs in iter
+        measurement.output[1] += measurement.kernel(mc, model, idxs, packed_greens)
     end
     nothing
 end
-
-# Call kernel for each pair (src1, trg1, src2, trg) and sum those that have the 
-# same `dir12 = pos[src2] - pos[src1]` and 
-# `dir1 = pos[trg1] - pos[src1] = dir2 = pos[trg2] - pos[src2] = dir_ii`
-@bm function apply!(iter::EachLocalQuadBySyncedDistance, measurement, mc::DQMC, model, packed_greens)
-    # lin is a linear index for (dir12, dir_ii)
-    for (lin, src1, trg1, src2, trg2) in iter
-        measurement.output[lin] += measurement.kernel(
-            mc, model, src1, trg1, src2, trg2, packed_greens
-        )
+@bm function apply!(iter::Sum{<: DeferredLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
+    @inbounds for idxs in iter
+        measurement.output[1] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
     end
     nothing
 end
 
 
 include("measurements.jl")
+include("extensions.jl")
 include("deprecated.jl")

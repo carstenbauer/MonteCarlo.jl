@@ -161,3 +161,45 @@ end
         @test maximum(abs.(Gkk .- Gkks[i+1])) < 1e-10
     end
 end
+
+
+@testset "Exact Greens comparison (Analytic)" begin
+    # These are theoretically the same but their implementation differs on
+    # some level. To make sure both are correct it makes sense to check both here.
+    models = (
+        HubbardModelRepulsive(7, 2, U = 0.0, t = 1.0),
+        HubbardModelAttractive(8, 2, U = 0.0, mu = 1.0, t = 1.0)
+    )
+
+    @info "Exact Greens comparison"
+    for model in models, beta in (1.0, 10.0)
+        @testset "$(typeof(model))" begin
+            Random.seed!(123)
+            dqmc = DQMC(
+                model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
+                thermalization = 1, sweeps = 2, measure_rate = 1
+            )
+            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.p.beta)"
+
+            dqmc[:G] = greens_measurement(dqmc, model)
+            @time run!(dqmc, verbose=false)
+            
+            # error tolerance
+            atol = 1e-13
+            rtol = 1e-13
+            N = length(lattice(model))
+
+            # Direct calculation similar to what DQMC should be doing
+            T = Matrix(MonteCarlo.hopping_matrix(dqmc, model))
+            # Doing an eigenvalue decomposition makes this pretty stable
+            vals, U = eigen(exp(-T))
+            D = Diagonal(vals)^(dqmc.p.beta)
+
+            # Don't believe "Quantum Monte Carlo Methods", this is the right
+            # formula (believe dos Santos DQMC review instead)
+            G = U * inv(I + D) * adjoint(U)
+
+            @test check(mean(dqmc[:G]), G, atol, rtol)
+        end
+    end
+end

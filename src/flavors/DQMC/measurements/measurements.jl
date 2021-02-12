@@ -41,7 +41,7 @@ greens_kernel(mc, model, G::AbstractArray) = G
 function occupation(mc::DQMC, model::Model, kwargs...)
     Measurement(mc, model, Greens, EachSiteAndFlavor, occupation_kernel; kwargs...)
 end
-occupation_kernel(mc, model, i, G::AbstractArray) = 1 - G[i, i]
+occupation_kernel(mc, model, i::Integer, G::AbstractArray) = 1 - G[i, i]
 
 
 
@@ -57,7 +57,8 @@ function charge_density_susceptibility(mc, m; kwargs...)
     charge_density(mc, m, CombinedGreensIterator; kwargs...)
 end
 
-function cdc_kernel(mc, model, i, j, G::AbstractArray)
+function cdc_kernel(mc, model, ij::NTuple{2}, G::AbstractArray)
+    i, j = ij
     N = length(lattice(mc))
     # ⟨n↑n↑⟩
     (1 - G[i, i])       * (1 - G[j, j]) +
@@ -72,7 +73,8 @@ function cdc_kernel(mc, model, i, j, G::AbstractArray)
     (1 - G[i+N, i+N])           * (1 - G[j+N, j+N]) +
     (I[j, i] - G[j+N, i+N]) *  G[i+N, j+N]
 end
-function cdc_kernel(mc, model, i, j, packed_greens::NTuple{4})
+function cdc_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
+    i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(mc))
     # ⟨n↑(l)n↑⟩
@@ -145,14 +147,16 @@ function spin_density_susceptibility(args...; kwargs...)
     spin_density(args..., CombinedGreensIterator; kwargs...)
 end
 
-function sdc_x_kernel(mc, model, i, j, G::AbstractArray)
+function sdc_x_kernel(mc, model, ij::NTuple{2}, G::AbstractArray)
+    i, j = ij
     N = length(lattice(model))
     G[i+N, i] * G[j+N, j] - G[j+N, i] * G[i+N, j] +
     G[i+N, i] * G[j, j+N] + (I[j, i] - G[j, i]) * G[i+N, j+N] +
     G[i, i+N] * G[j+N, j] + (I[j, i] - G[j+N, i+N]) * G[i, j] +
     G[i, i+N] * G[j, j+N] - G[j, i+N] * G[i, j+N]
 end
-function sdc_x_kernel(mc, model, i, j, packed_greens::NTuple{4})
+function sdc_x_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
+    i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
     Gll[i+N, i] * G00[j+N, j] - G0l[j+N, i] * Gl0[i+N, j] +
@@ -161,14 +165,16 @@ function sdc_x_kernel(mc, model, i, j, packed_greens::NTuple{4})
     Gll[i, i+N] * G00[j, j+N] - G0l[j, i+N] * Gl0[i, j+N]
 end
 
-function sdc_y_kernel(mc, model, i, j, G::AbstractArray)
+function sdc_y_kernel(mc, model, ij::NTuple{2}, G::AbstractArray)
+    i, j = ij
     N = length(lattice(model))
     - G[i+N, i] * G[j+N, j] + G[j+N, i] * G[i+N, j] +
       G[i+N, i] * G[j, j+N] + (I[j, i] - G[j, i]) * G[i+N, j+N] +
       G[i, i+N] * G[j+N, j] + (I[j, i] - G[j+N, i+N]) * G[i, j] -
       G[i, i+N] * G[j, j+N] + G[j, i+N] * G[i, j+N]
 end
-function sdc_y_kernel(mc, model, i, j, packed_greens::NTuple{4})
+function sdc_y_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
+    i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
     - Gll[i+N, i] * G00[j+N, j] + G0l[j+N, i] * Gl0[i+N, j] +
@@ -177,14 +183,16 @@ function sdc_y_kernel(mc, model, i, j, packed_greens::NTuple{4})
       Gll[i, i+N] * G00[j, j+N] + G0l[j, i+N] * Gl0[i, j+N]
 end
 
-function sdc_z_kernel(mc, model, i, j, G::AbstractArray)
+function sdc_z_kernel(mc, model, ij::NTuple{2}, G::AbstractArray)
+    i, j = ij
     N = length(lattice(model))
     (1 - G[i, i]) * (1 - G[j, j])         + (I[j, i] - G[j, i]) * G[i, j] -
     (1 - G[i, i]) * (1 - G[j+N, j+N])     + G[j+N, i] * G[i, j+N] -
     (1 - G[i+N, i+N]) * (1 - G[j, j])     + G[j, i+N] * G[i+N, j] +
     (1 - G[i+N, i+N]) * (1 - G[j+N, j+N]) + (I[j, i] - G[j+N, i+N]) * G[i+N, j+N]
 end
-function sdc_z_kernel(mc, model, i, j, packed_greens::NTuple{4})
+function sdc_z_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
+    i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
     (1 - Gll[i, i])     * (1 - G00[j, j])     - G0l[j, i] * Gl0[i, j] -
@@ -205,14 +213,16 @@ function pairing(
 end
 pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens; kwargs...)
 pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator; kwargs...)
-function pc_kernel(mc, model, src1, trg1, src2, trg2, G::AbstractArray)
+function pc_kernel(mc, model, sites::NTuple{4}, G::AbstractArray)
+    src1, trg1, src2, trg2 = sites
     # verified against ED for each (src1, src2, trg1, trg2)
     # Δ_v(src1, trg1) Δ_v^†(src2, trg2)
     # G_{i, j}^{↑, ↑} G_{i+d, j+d}^{↓, ↓} - G_{i, j+d}^{↑, ↓} G_{i+d, j}^{↓, ↑}
     N = length(lattice(model))
     G[src1, src2] * G[trg1+N, trg2+N] - G[src1, trg2+N] * G[trg1+N, src2]
 end
-function pc_kernel(mc, model, src1, trg1, src2, trg2, packed_greens::NTuple{4})
+function pc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
+    src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
     Gl0[src1, src2] * Gl0[trg1+N, trg2+N] - Gl0[src1, trg2+N] * Gl0[trg1+N, src2]
@@ -265,7 +275,8 @@ end
 # current_current_correlation(mc, m; kwargs...) = current_current(mc, m, Greens; kwargs...)
 # current_current_susceptibility(mc, m; kwargs...) = current_current(mc, m, CombinedGreensIterator; kwargs...)
 
-function cc_kernel(mc, model, src1, trg1, src2, trg2, packed_greens::NTuple{4})
+function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
+    src1, trg1, src2, trg2 = sites
     # This should compute 
     # ⟨j_{trg1-src1}(src1, τ) j_{trg2-src2}(src2, 0)⟩
     # where (trg-src) picks a direction (e.g. NN directions)
@@ -320,4 +331,51 @@ end
 
 function boson_energy_measurement(dqmc, model; kwargs...)
     Measurement(dqmc, model, Nothing, Nothing, energy_boson; kwargs...)
+end
+
+
+function noninteracting_energy(dqmc, model; kwargs...)
+    Measurement(dqmc, model, Greens, Nothing, nonintE_kernel; kwargs...)
+end
+
+@inline function nonintE_kernel(mc, model, G::AbstractArray)
+    # <T> = \sum Tji * (Iij - Gij) = - \sum Tji * (Gij - Iij)
+    T = mc.s.hopping_matrix
+    nonintE(T, G)
+end
+
+function nonintE(T::AbstractArray, G::AbstractArray)
+    output = zero(eltype(G))
+    for i in axes(G, 1), j in axes(G, 2)
+        output += T[j, i] * (I[i, j] - G[i, j])
+    end
+    # 2 because we're using spin up/down symmetry
+    2.0 * output
+end
+function nonintE(T::BlockDiagonal{X, N}, G::BlockDiagonal{X, N}) where {X, N}
+    output = zero(eltype(G))
+    @inbounds n = size(T.blocks[1], 1)
+    @inbounds for i in 1:N
+        t = T.blocks[i]
+        g = G.blocks[i]
+        @avx for k in 1:n, l in 1:n
+            output += t[k,l] * (ifelse(k==l, 1.0, 0.0) - g[k,l])
+        end
+    end
+    output
+end
+
+
+function interacting_energy(dqmc, model; kwargs...)
+    Measurement(dqmc, model, Greens, Nothing, intE_kernel; kwargs...)
+end
+# ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
+# See models for kernels
+
+
+function total_energy(dqmc, model; kwargs...)
+    Measurement(dqmc, model, Greens, Nothing, totalE_kernel; kwargs...)
+end
+function totalE_kernel(mc, model, G::AbstractArray)
+    nonintE_kernel(mc, model, G) + intE_kernel(mc, model, G)
 end

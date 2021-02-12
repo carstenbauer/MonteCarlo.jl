@@ -115,9 +115,18 @@ end
 end
 
 
+
+################################################################################
+### Generic stuff
+################################################################################
+
+
+
 function reciprocal_vectors(lattice::AbstractLattice, L = lattice.L)
     v1, v2 = latticeVectors(getReciprocalUnitcell(unitcell(lattice))) ./ L
     r1 = cross([v1..., 0.0], [0,0,1])
     r2 = cross([v2..., 0.0], [0,0,1])
     return r1, r2
 end
+
+

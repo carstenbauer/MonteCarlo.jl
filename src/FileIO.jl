@@ -52,6 +52,7 @@ function save(
         filename = _generate_unique_filename(filename)
     end
 
+    temp_filename = ""
     if isfile(filename) && overwrite
         parts = splitpath(filename)
         parts[end] = "." * parts[end]
@@ -67,7 +68,7 @@ function save(
     save_rng(file)
     close(file)
 
-    if overwrite && isfile(temp_filename)
+    if overwrite && !isempty(temp_filename) && isfile(temp_filename)
         rm(temp_filename)
     end
 
@@ -171,6 +172,13 @@ _load(_, ::Type{UnknownType}) = throw(ErrorException(
     "Got UnknownType instead of a MonteCarloFlavor. This may be " * 
     "caused by missing imports."
 ))
+function _load(data, ::JLD2.UnknownType)
+    @info "Failed to load (Unknowntype)"
+    @info "Available fields: $(keys(data))"
+    @info "You may be missing external packages."
+    nothing
+end
+
 
 
 

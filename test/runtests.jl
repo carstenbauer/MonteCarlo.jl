@@ -3,6 +3,18 @@ using Test
 using LinearAlgebra, Random, Dates
 using MonteCarlo: @bm, TimerOutputs
 
+# check elementwise, not matrix norm
+function check(A::Array, B::Array, atol, rtol=atol)
+    for (x, y) in zip(A, B)
+        if !isapprox(x, y, atol=atol, rtol=rtol)
+            @info "$x ≉ $y "
+            return false
+        end
+    end
+    true
+end
+check(x::Number, y::Number, atol, rtol) = isapprox(x, y, atol=atol, rtol=rtol)
+
 # In case some test failed and left behind a .jld file
 for f in readdir()
     if endswith(f, ".jld") || endswith(f, "jld2")

@@ -1,6 +1,6 @@
 using LatPhysBase: from, to, numSites, bonds, sites, latticeVectors, unitcell,
                    point, AbstractSite
-import LatPhysBase
+import LatPhysBase, LatticePhysics
 
 struct LatPhysLattice{LT <: LatPhysBase.AbstractLattice} <: AbstractLattice
     lattice::LT
@@ -68,7 +68,11 @@ positions(lattice::LatPhysLattice) = point.(sites(lattice.lattice))
 lattice_vectors(l::LatPhysLattice) = latticeVectors(l.lattice)
 
 function reciprocal_vectors(lattice::AbstractLattice, L)
-    latticeVectors(getReciprocalUnitcell(unitcell(lattice)))
+    LatPhysBase.latticeVectors(
+        LatticePhysics.getReciprocalUnitcell(
+            LatPhysBase.unitcell(lattice.lattice)
+        )
+    )
 end
 
 
@@ -143,6 +147,28 @@ function load_unitcell(data)
 end
 load_sites(data) = data["type"].(data["points"], data["labels"])
 load_bonds(data) = data["type"].(data["froms"], data["tos"], data["labels"], data["wraps"])
+
+
+
+################################################################################
+### Extensions
+################################################################################
+
+
+
+function to_angle(v)
+    angle = acos(v[1] / norm(v))
+    (v[2] ≥ 0) ? angle : -angle
+end
+
+function get_sorted_corners(lattice::LatPhysLattice)
+    bz = LatticePhysics.getBrillouinZone(
+        LatticePhysics.getReciprocalUnitcell(
+            LatticePhysics.unitcell(lattice.lattice)
+        )
+    )
+    cs = sort(LatticePhysics.corners(bz), by = to_angle)
+end
 
 
 
