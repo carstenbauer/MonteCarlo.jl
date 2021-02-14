@@ -29,9 +29,9 @@ version = "0.5.10"
 
 [[BinningAnalysis]]
 deps = ["Lazy", "Random", "RecursiveArrayTools", "Reexport", "Statistics"]
-git-tree-sha1 = "4eed514ad4c86027870de82cf5a67939f8bc0811"
+git-tree-sha1 = "34bb4e71400064b24b4e9708f184f88077ec57c2"
 uuid = "b7192094-8e58-5052-a244-180a858778ee"
-version = "0.4.2"
+version = "0.4.3"
 
 [[Blosc]]
 deps = ["BinaryProvider", "CMakeWrapper", "Compat", "Libdl"]
@@ -149,9 +149,9 @@ version = "0.10.0"
 
 [[JLD2]]
 deps = ["CodecZlib", "DataStructures", "MacroTools", "Mmap", "Pkg", "Printf", "Requires", "UUIDs"]
-git-tree-sha1 = "9378bd9d392569c94d1722d4926ef9857b8f76fd"
+git-tree-sha1 = "bb9a457481adf060ab5898823a49d4f854ff4ddd"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.3.3"
+version = "0.4.0"
 
 [[JSON]]
 deps = ["Dates", "Mmap", "Parsers", "Unicode"]
@@ -324,9 +324,9 @@ version = "1.0.0"
 
 [[Tables]]
 deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "TableTraits", "Test"]
-git-tree-sha1 = "8dc2bb7d3548e315d890706547b24502ed79504f"
+git-tree-sha1 = "a716dde43d57fa537a19058d044b495301ba6565"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.3.1"
+version = "1.3.2"
 
 [[Test]]
 deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
