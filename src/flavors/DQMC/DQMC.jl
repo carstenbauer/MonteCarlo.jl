@@ -69,6 +69,41 @@ struct DQMCParameters
     print_rate::Int
 end
 
+function DQMCParameters(
+        p::DQMCParameters;
+        global_moves = p.global_moves,
+        global_rate = p.global_rate,
+        thermalization = p.thermalization,
+        sweeps = p.sweeps,
+        silent = p.silent, 
+        check_sign_problem = p.check_sign_problem,
+        check_propagation_error = p.check_propagation_error,
+        safe_mult = p.safe_mult,
+        delta_tau = p.delta_tau,
+        measure_rate = p.measure_rate,
+        print_rate = p.print_rate,
+        kwargs...
+    )
+    if (!haskey(kwargs, :beta)) && (!haskey(kwargs, :slices))
+        kwargs = Dict{Symbol, Any}(kwargs)
+        push!(kwargs, :beta => p.beta)
+    end
+    DQMCParameters(
+        global_moves = global_moves,
+        global_rate = global_rate,
+        thermalization = thermalization,
+        sweeps = sweeps,
+        silent = silent,
+        check_sign_problem = check_sign_problem,
+        check_propagation_error = check_propagation_error,
+        safe_mult = safe_mult,
+        delta_tau = delta_tau,
+        measure_rate = measure_rate,
+        print_rate = print_rate;
+        kwargs...
+    )
+end
+
 function DQMCParameters(;
         global_moves::Bool  = false,
         global_rate::Int    = 5,
