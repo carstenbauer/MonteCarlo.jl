@@ -35,7 +35,7 @@ function Measurement(
         capacity = _default_capacity(dqmc), eltype = geltype(dqmc),
         shape = _get_shape(dqmc, _model, LatticeIterator),
         temp = shape === nothing ? zero(eltype) : zeros(eltype, shape),
-        obs = LogBinner(temp, capacity=capacity)
+        obs = LogBinner(length(temp) == 1 ? temp[1] : temp, capacity=capacity)
     ) where F
     DQMCMeasurement{GreensIterator, LatticeIterator}(kernel, obs, temp)
 end
@@ -288,7 +288,7 @@ function finish!(::DeferredLatticeIterator, model, m, factor=1.0)
 end
 
 # Awkward
-finish!(s::Sum{<:AbstractLatticeIterator}, model, m) = push(m.observable, m.output[1])
+finish!(s::Sum{<:AbstractLatticeIterator}, model, m) = push!(m.observable, m.output[1])
 function finish!(s::Sum{<:AbstractLatticeIterator}, model, m, factor)
     push!(m.observable, m.output[1] * factor)
 end
