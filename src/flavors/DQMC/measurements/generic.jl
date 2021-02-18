@@ -287,7 +287,6 @@ end
 
 finish!(::Nothing, model, m) = nothing # handled in measure!
 finish!(::AbstractLatticeIterator, model, m) = _push!(m.observable, m.output)
-finish!(s::Sum, args...) = finish!(s.iter, args...)
 function finish!(::AbstractLatticeIterator, model, m, factor)
     m.output .*= factor
     _push!(m.observable, m.output)
@@ -296,6 +295,16 @@ function finish!(::DeferredLatticeIterator, model, m, factor=1.0)
     m.output .*= factor / length(lattice(model))
     _push!(m.observable, m.output)
 end
+
+# Awkward
+finish!(s::Sum{<:AbstractLatticeIterator}, model, m) = _push!(m.observable, m.output[1])
+function finish!(s::Sum{<:AbstractLatticeIterator}, model, m, factor)
+    _push!(m.observable, m.output[1] * factor)
+end
+function finish!(s::Sum{<:DeferredLatticeIterator}, model, m, factor=1.0)
+    _push!(m.observable, m.output[1] * factor / length(lattice(model)))
+end
+
 
 
 # Call kernel for each site (linear index)
