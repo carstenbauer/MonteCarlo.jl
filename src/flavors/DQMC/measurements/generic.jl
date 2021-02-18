@@ -276,33 +276,24 @@ prepare!(::Nothing, model, m) = nothing
 prepare!(::AbstractLatticeIterator, model, m) = m.output .= zero(eltype(m.output))
 prepare!(s::Sum, args...) = prepare!(s.iter, args...)
 
-_push!(obs, val) = push!(obs, val)
-function _push!(obs::Vector{T}, val::AbstractArray{T}) where {T}
-    if length(val) == 1
-        push!(obs, val[1])
-    else
-        error("Attempting to push an Array of length $(length(val)) into a Vector element.")
-    end
-end
-
 finish!(::Nothing, model, m) = nothing # handled in measure!
-finish!(::AbstractLatticeIterator, model, m) = _push!(m.observable, m.output)
+finish!(::AbstractLatticeIterator, model, m) = push!(m.observable, m.output)
 function finish!(::AbstractLatticeIterator, model, m, factor)
     m.output .*= factor
-    _push!(m.observable, m.output)
+    push!(m.observable, m.output)
 end
 function finish!(::DeferredLatticeIterator, model, m, factor=1.0)
     m.output .*= factor / length(lattice(model))
-    _push!(m.observable, m.output)
+    push!(m.observable, m.output)
 end
 
 # Awkward
-finish!(s::Sum{<:AbstractLatticeIterator}, model, m) = _push!(m.observable, m.output[1])
+finish!(s::Sum{<:AbstractLatticeIterator}, model, m) = push(m.observable, m.output[1])
 function finish!(s::Sum{<:AbstractLatticeIterator}, model, m, factor)
-    _push!(m.observable, m.output[1] * factor)
+    push!(m.observable, m.output[1] * factor)
 end
 function finish!(s::Sum{<:DeferredLatticeIterator}, model, m, factor=1.0)
-    _push!(m.observable, m.output[1] * factor / length(lattice(model)))
+    push!(m.observable, m.output[1] * factor / length(lattice(model)))
 end
 
 
