@@ -61,7 +61,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 
 
 # Convenience
-@inline parameters(m::HubbardModelAttractive) = (L = m.L, t = m.t, U = m.U, mu = m.mu)
+@inline parameters(m::HubbardModelAttractive) = (N = length(m.l), t = m.t, U = -m.U, mu = m.mu)
 
 
 """
