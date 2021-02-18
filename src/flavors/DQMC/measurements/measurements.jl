@@ -38,8 +38,9 @@ greens_kernel(mc, model, G::AbstractArray) = G
 
 
 
-function occupation(mc::DQMC, model::Model, kwargs...)
-    Measurement(mc, model, Greens, EachSiteAndFlavor, occupation_kernel; kwargs...)
+function occupation(mc::DQMC, model::Model; wrapper = nothing, kwargs...)
+    li = wrapper === nothing ? EachSiteAndFlavor : wrapper{EachSiteAndFlavor}
+    Measurement(mc, model, Greens, li, occupation_kernel; kwargs...)
 end
 occupation_kernel(mc, model, i::Integer, G::AbstractArray) = 1 - G[i, i]
 
@@ -47,10 +48,11 @@ occupation_kernel(mc, model, i::Integer, G::AbstractArray) = 1 - G[i, i]
 
 function charge_density(
         mc::DQMC, model::Model, greens_iterator; 
-        lattice_iterator = EachSitePairByDistance, kwargs...
+        wrapper = nothing, lattice_iterator = EachSitePairByDistance, kwargs...
     )
     checkflavors(model)
-    Measurement(mc, model, greens_iterator, lattice_iterator, cdc_kernel; kwargs...)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    Measurement(mc, model, greens_iterator, li, cdc_kernel; kwargs...)
 end
 charge_density_correlation(mc, m; kwargs...) = charge_density(mc, m, Greens; kwargs...)
 function charge_density_susceptibility(mc, m; kwargs...)
@@ -105,7 +107,7 @@ magnetization. To get the correct result, multiply the final result by `-1im`.
 """
 function magnetization(
         mc::DQMC, model::Model, dir::Symbol; 
-        lattice_iterator = EachSite, kwargs...
+        wrapper = nothing, lattice_iterator = EachSite, kwargs...
     )
     checkflavors(model)
     if     dir == :x; kernel = mx_kernel
@@ -113,7 +115,8 @@ function magnetization(
     elseif dir == :z; kernel = mz_kernel
     else throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
     end
-    Measurement(mc, model, Greens, lattice_iterator, kernel; kwargs...)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    Measurement(mc, model, Greens, li, kernel; kwargs...)
 end
 function mx_kernel(mc, model, i, G::AbstractArray)
     N = length(lattice(model))
@@ -132,7 +135,7 @@ end
 
 function spin_density(
         dqmc, model, dir::Symbol, greens_iterator; 
-        lattice_iterator = EachSitePairByDistance, kwargs...
+        wrapper = nothing, lattice_iterator = EachSitePairByDistance, kwargs...
     )
     checkflavors(model)
     if     dir == :x; kernel = sdc_x_kernel
@@ -140,7 +143,8 @@ function spin_density(
     elseif dir == :z; kernel = sdc_z_kernel
     else throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
     end
-    Measurement(dqmc, model, greens_iterator, lattice_iterator, kernel; kwargs...)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    Measurement(dqmc, model, greens_iterator, li, kernel; kwargs...)
 end
 spin_density_correlation(args...; kwargs...) = spin_density(args..., Greens; kwargs...)
 function spin_density_susceptibility(args...; kwargs...)
@@ -206,10 +210,11 @@ end
 
 function pairing(
         dqmc::DQMC, model::Model, greens_iterator; 
-        K = 1+length(neighbors(lattice(model), 1)),
+        K = 1+length(neighbors(lattice(model), 1)), wrapper = nothing, 
         lattice_iterator = EachLocalQuadByDistance{K}, kwargs...
     )
-    Measurement(dqmc, model, greens_iterator, lattice_iterator, pc_kernel; kwargs...)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    Measurement(dqmc, model, greens_iterator, li, pc_kernel; kwargs...)
 end
 pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens; kwargs...)
 pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator; kwargs...)
@@ -267,10 +272,11 @@ EachSyncedNNQuadByDistance{K}?
 function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
         K = 1+length(neighbors(lattice(model), 1)),
-        greens_iterator = CombinedGreensIterator,
+        greens_iterator = CombinedGreensIterator, wrapper = nothing,
         lattice_iterator = EachLocalQuadBySyncedDistance{K}, kwargs...
     )
-    Measurement(dqmc, model, greens_iterator, lattice_iterator, cc_kernel; kwargs...)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    Measurement(dqmc, model, greens_iterator, li, cc_kernel; kwargs...)
 end
 # current_current_correlation(mc, m; kwargs...) = current_current(mc, m, Greens; kwargs...)
 # current_current_susceptibility(mc, m; kwargs...) = current_current(mc, m, CombinedGreensIterator; kwargs...)
