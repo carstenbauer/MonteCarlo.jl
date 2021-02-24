@@ -67,25 +67,9 @@ Base.empty!(m::DQMCMeasurement) = empty!(m.observable)
 """
     _default_capacity(mc::DQMC)
 
-Returns 100_000 if the configuration measurement is not available or empty, and
-the length of the configuration measurement if it is not.
-
-This should be useful for `run` - `setup measurements` - `replay` workflow, 
-returning the exact capacity needed.
+Returns a default capacity based in the number of sweeps and the measure rate.
 """
-function _default_capacity(mc::DQMC)
-    k = if isdefined(mc, :measurements)
-        findfirst(v -> v isa ConfigurationMeasurement, mc.measurements)
-    else
-        nothing
-    end
-    if k === nothing
-        return 100_000
-    else
-        N = length(mc.measurements[k].obs)
-        return N == 0 ? 100_000 : N
-    end
-end
+_default_capacity(mc::DQMC) = 2 * mc.p.sweeps / mc.p.measure_rate
 
 # _get_shape(model, ::Nothing) = (length(lattice(model)),)
 _get_shape(model, mask::RawMask) = (mask.nsites, mask.nsites)
