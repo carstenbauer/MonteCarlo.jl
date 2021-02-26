@@ -1,8 +1,8 @@
 @testset "MC: IsingModel Simulation" begin
     Random.seed!(123)
     m = IsingModel(dims=2, L=8);
-    mc = MC(m, beta=0.35);
-    run!(mc, sweeps=1000, thermalization=10, verbose=false);
+    mc = MC(m, beta=0.35, sweeps=1000, thermalization=10);
+    run!(mc, verbose=false);
 
     # Check measurements
     measured = measurements(mc)
@@ -30,14 +30,14 @@ end
     Random.seed!(123)
     m = HubbardModelAttractive(4, 2);
     N = 4*4
-    mc = DQMC(m, beta=1.0);
+    mc = DQMC(m, beta=1.0, sweeps=1000, thermalization=10);
     mc[:G]    = greens_measurement(mc, m)
     mc[:CDC]  = charge_density_correlation(mc, m)
     mc[:SDCx] = spin_density_correlation(mc, m, :x)
     mc[:SDCy] = spin_density_correlation(mc, m, :y)
     mc[:SDCz] = spin_density_correlation(mc, m, :z)
     mc[:PC]   = pairing_correlation(mc, m, K=5)
-    run!(mc, sweeps=1000, thermalization=10, verbose=false);
+    run!(mc, verbose=false);
 
     # Check measurements
     measured = measurements(mc)
@@ -98,7 +98,7 @@ end
 @testset "DQMC: repulsive HubbardModel Simulation" begin
     Random.seed!(123)
     m = HubbardModelRepulsive(2, 2);
-    mc = DQMC(m, beta=1.0);
+    mc = DQMC(m, beta=1.0, sweeps=1000, thermalization=10);
     mc[:G]    = greens_measurement(mc, m)
     mc[:CDC]  = charge_density_correlation(mc, m)
     mc[:Mx]   = magnetization(mc, m, :x)
@@ -108,7 +108,7 @@ end
     mc[:SDCy] = spin_density_correlation(mc, m, :y)
     mc[:SDCz] = spin_density_correlation(mc, m, :z)
     mc[:PC]   = pairing_correlation(mc, m, K=3)
-    run!(mc, sweeps=1000, thermalization=10, verbose=false);
+    run!(mc, verbose=false);
 
     # Check measurements
     measured = measurements(mc)
