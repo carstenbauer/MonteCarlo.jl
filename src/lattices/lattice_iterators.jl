@@ -551,3 +551,40 @@ Base.iterate(s::Sum) = iterate(s.iter)
 Base.iterate(s::Sum, state) = iterate(s.iter, state)
 Base.length(s::Sum) = length(s.iter)
 Base.eltype(s::Sum) = eltype(s.iter)
+
+
+
+################################################################################
+### Symmetry Wrapper
+################################################################################
+
+
+
+# This is a weird monster :(
+# The idea is that we uses constructs a thin wrapper
+# li = ApplySymmetries{EachLocalQuadByDistance{5}}(sym1, sym2, ...)
+# which contains weights for different neighbors in the given symmetries
+# The backend then bundles all of these and constructs one thick wrapper by
+# calling
+# li(dqmc, model)
+# This then actually contains the udnerlying lattice iterator
+struct ApplySymmetries{LI <: DeferredLatticeIterator, N, T} <: AbstractLatticeIterator
+    symmetries::NTuple{N, Vector{T}}
+end
+function ApplySymmetries{LI}(symmetries::Vector{T}...) where {LI <: AbstractLatticeIterator, T}
+    ApplySymmetries{LI, length(symmetries), T}(symmetries)
+end
+
+struct _ApplySymmetries{LI, N, T} <: AbstractLatticeIterator
+    iter::LI
+    symmetries::NTuple{N, T}
+end
+function (x::ApplySymmetries{LI})(mc, model) where {LI}
+    iter = LI(mc, model)
+    _ApplySymmetries(iter, x.symmetries)
+end
+
+Base.iterate(s::_ApplySymmetries) = iterate(s.iter)
+Base.iterate(s::_ApplySymmetries, state) = iterate(s.iter, state)
+Base.length(s::_ApplySymmetries) = length(s.iter)
+Base.eltype(s::_ApplySymmetries) = eltype(s.iter)
