@@ -28,10 +28,17 @@ end
 
 
 # This has lattice_iteratorator = Nothing, because it straight up copies G
-function greens_measurement(mc::DQMC, model::Model, greens_iterator=Greens; kwargs...)
-    N = length(lattice(model)) * nflavors(model)
+function greens_measurement(
+        mc::DQMC, model::Model, greens_iterator=Greens; 
+        capacity = _default_capacity(mc), eltype = geltype(mc),
+        obs = let
+            N = length(lattice(model)) * nflavors(model)
+            LogBinner(zeros(eltype, (N, N)), capacity=capacity)
+        end, kwargs...
+    )
     Measurement(
-        mc, model, greens_iterator, Nothing, greens_kernel, shape = (N, N); kwargs...
+        mc, model, greens_iterator, Nothing, greens_kernel, 
+        obs = obs; kwargs...
     )
 end
 greens_kernel(mc, model, G::AbstractArray) = G
