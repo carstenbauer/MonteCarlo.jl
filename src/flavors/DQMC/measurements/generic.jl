@@ -196,7 +196,7 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
 end
 
 
-lattice_iterator(::DQMCMeasurement, mc, model) = mc.lattice_iterator(mc, model)
+lattice_iterator(m::DQMCMeasurement, mc, model) = m.lattice_iterator(mc, model)
 
 
 # TODO
@@ -322,12 +322,12 @@ end
 @inline prepare!(::AbstractLatticeIterator, model, m) = m.temp .= zero(eltype(m.temp))
 @inline prepare!(s::Sum, args...) = prepare!(s.iter, args...)
 
+@inline finish!(::Nothing, args...) = nothing # handled in measure!
 @inline function finish!(li, model, m, factor=1.0)
     finalize_temp!(li, model, m, factor)
     commit!(li, m)
 end
 
-@inline finalize_temp!(::Nothing, args...) = nothing # handled in measure!
 @inline function finalize_temp!(::AbstractLatticeIterator, model, m, factor)
     m.temp .*= factor
 end
@@ -338,7 +338,6 @@ end
     finalize_temp!(s.iter, model, m, factor)
 end
 
-@inline commit!(::Nothing, args...) = nothing
 @inline commit!(::AbstractLatticeIterator, m) = push!(m.observable, m.temp)
 @inline commit!(::Sum, m) = push!(m.observable, m.temp[1])
 
