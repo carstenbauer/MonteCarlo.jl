@@ -13,7 +13,11 @@ function check(A::Array, B::Array, atol, rtol=atol)
     end
     true
 end
-check(x::Number, y::Number, atol, rtol) = isapprox(x, y, atol=atol, rtol=rtol)
+function check(x::Number, y::Number, atol, rtol=atol)
+    result = isapprox(x, y, atol=atol, rtol=rtol)
+    result || @info "$x ≉ $y"
+    result
+end
 
 # In case some test failed and left behind a .jld file
 for f in readdir()

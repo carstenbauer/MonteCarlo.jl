@@ -127,9 +127,22 @@ function Base.:(*)(B1::BlockDiagonal{T, N, AT}, B2::BlockDiagonal{T, N, AT}) whe
     BlockDiagonal(map(*, B1.blocks, B2.blocks)...)
 end
 
-function Base.exp(B::BlockDiagonal{T, N, AT}) where {T<:Number, N, AT<:AbstractMatrix{T}}
+function Base.exp(B::BlockDiagonal)
     BlockDiagonal(map(block -> exp(block), B.blocks)...)
 end
+
+function Base.log(B::BlockDiagonal)
+    BlockDiagonal(map(block -> log(block), B.blocks)...)
+end
+
+function LinearAlgebra.det(B::BlockDiagonal{T}) where {T}
+    output = T(1)
+    for b in B.blocks
+        output *= det(b)
+    end
+    output
+end
+
 
 # I thought this would be needed for greens(k, l), but it's not?
 function LinearAlgebra.transpose!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T, N}

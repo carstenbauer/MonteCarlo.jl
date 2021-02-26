@@ -154,12 +154,53 @@ end
     nothing
 end
 
+@bm function propose_global_from_conf(mc::DQMC, m::HubbardModelAttractive, conf::AbstractArray)
+    # G = calculate_greens(mc, current_slice(mc)-1, mc.s.greens_temp)
+    # @assert G ≈ mc.s.greens
+    # D = copy(mc.s.Dl)
+    # new_greens = calculate_greens(mc, current_slice(mc)-1, mc.s.greens_temp, conf)
+    
+    # # Computing prod(D) is unstable at larger beta
+    # detratio = 1.0
+    # for i in eachindex(mc.s.Dl)
+    #     detratio *= (D[i] / mc.s.Dl[i])^2
+    # end
+    # ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
+    # return detratio, ΔE_Boson, new_greens
+
+
+    
+    # I don't think we need this...
+    @assert mc.s.current_slice == 1
+    @assert mc.s.direction == 1
+
+    # This should be just after calculating greens, so mc.s.Dl is from the UDT
+    # decomposed G
+    D = copy(mc.s.Dl)
+
+    # -1?
+    inv_det(mc, current_slice(mc)-1, conf)
+
+    # This may help with stability
+    detratio = 1.0
+    for i in eachindex(D)
+        detratio *= D[i] * mc.s.Dr[i]
+        # detratio *= mc.s.Dl[i] / D[i]
+    end
+    ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
+    # new_greens = finish_calculate_greens(
+    #     mc.s.Ul, mc.s.Dl, mc.s.Tl, mc.s.Ur, mc.s.Dr, mc.s.Tr,
+    #     mc.s.greens_temp, mc.s.pivot, mc.s.tempv
+    # )
+    # @info detratio^2
+    return detratio^2, ΔE_Boson, nothing #new_greens
+end
+
 
 """
 Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
 """
-@inline function energy_boson(mc::DQMC, m::HubbardModelAttractive)
-    hsfiled = conf(mc)
+@inline function energy_boson(mc::DQMC, m::HubbardModelAttractive, hsfield = conf(mc))
     dtau = mc.p.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)

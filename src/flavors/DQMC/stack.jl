@@ -239,7 +239,7 @@ end
 
 Build slice matrix stack from scratch.
 """
-function build_stack(mc::DQMC, ::DQMCStack)
+@bm function build_stack(mc::DQMC, ::DQMCStack)
     copyto!(mc.s.u_stack[1], I)
     mc.s.d_stack[1] .= one(eltype(mc.s.d_stack[1]))
     copyto!(mc.s.t_stack[1], I)
@@ -421,7 +421,7 @@ This does not invalidate the stack, but it does overwrite `mc.s.greens`.
 """
 @bm function calculate_greens(
         mc::DQMC, slice::Int, output::AbstractMatrix = mc.s.greens, 
-        safe_mult::Int = mc.p.safe_mult
+        conf::AbstractArray = mc.conf, safe_mult::Int = mc.p.safe_mult
     )
     copyto!(mc.s.curr_U, I)
     copyto!(mc.s.Ur, I)
@@ -434,13 +434,13 @@ This does not invalidate the stack, but it does overwrite `mc.s.greens`.
         stop = mc.p.slices
         for k in reverse(start:stop)
             if mod(k,safe_mult) == 0
-                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U, conf)
                 vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dr))
                 udt_AVX_pivot!(mc.s.curr_U, mc.s.Dr, mc.s.tmp1, mc.s.pivot, mc.s.tempv)
                 copyto!(mc.s.tmp2, mc.s.Tr)
                 vmul!(mc.s.Tr, mc.s.tmp1, mc.s.tmp2)
             else
-                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U, conf)
             end
         end
         vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dr))
@@ -461,13 +461,13 @@ This does not invalidate the stack, but it does overwrite `mc.s.greens`.
         stop = slice
         for k in start:stop
             if mod(k,safe_mult) == 0
-                multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U, conf)
                 vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dl))
                 udt_AVX_pivot!(mc.s.curr_U, mc.s.Dl, mc.s.tmp1, mc.s.pivot, mc.s.tempv)
                 copyto!(mc.s.tmp2, mc.s.Tl)
                 vmul!(mc.s.Tl, mc.s.tmp1, mc.s.tmp2)
             else
-                multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U)
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U, conf)
             end
         end
         vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dl))

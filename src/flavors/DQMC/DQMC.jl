@@ -251,6 +251,7 @@ end
 include("stack.jl")
 include("unequal_time_stack.jl")
 include("slice_matrices.jl")
+include("global.jl")
 
 """
     DQMC(m::M; kwargs...) where M<:Model
@@ -419,22 +420,7 @@ See also: [`resume!`](@ref)
     # Update number of sweeps
     if (mc.p.thermalization != thermalization) || (mc.p.sweeps != sweeps)
         verbose && println("Rebuilding DQMCParameters with new number of sweeps.")
-        p = DQMCParameters(
-            mc.p.global_moves,
-            mc.p.global_rate,
-            thermalization,
-            sweeps,
-            mc.p.silent, 
-            mc.p.check_sign_problem,
-            mc.p.check_propagation_error,
-            mc.p.safe_mult,
-            mc.p.delta_tau,
-            mc.p.beta,
-            mc.p.slices,
-            mc.p.measure_rate,
-            mc.p.print_rate
-        )
-        mc.p = p
+        mc.p = DQMCParameters(mc.p, thermalization = thermalization, sweeps = sweeps)
     end
     total_sweeps = sweeps + thermalization
 
@@ -570,12 +556,16 @@ function update(mc::DQMC, i::Int)
     propagate(mc)
 
     # global move
-    # if mc.p.global_moves && (current_slice(mc) == mc.p.slices &&
-    #        mc.s.direction == -1 && iszero(mod(i, mc.p.global_rate)))
-    #     mc.a.prop_global += 1
-    #     b = global_move(mc, mc.model, mc.conf) # not yet in DQMC_optional, i.e. unsupported
-    #     mc.a.acc_global += b
-    # end
+    # note - current_slice and direction are critical here
+    # if mc.p.global_moves && current_slice(mc) == nslices(mc) &&
+    #        mc.s.direction == -1 && iszero(mod(i, mc.p.global_rate))
+    if mc.p.global_moves && current_slice(mc) == 1 &&
+        mc.s.direction == 1 && iszero(mod(i, mc.p.global_rate))
+        mc.a.prop_global += 1
+        b = global_move(mc, mc.model)
+        mc.a.acc_global += b
+        mc.a.acc_rate_global += b
+    end
 
     # local moves
     sweep_spatial(mc)
