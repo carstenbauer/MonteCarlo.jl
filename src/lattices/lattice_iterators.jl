@@ -3,7 +3,8 @@ abstract type AbstractLatticeIterator end
 abstract type DirectLatticeIterator <: AbstractLatticeIterator end 
 # first index is a meta index (e.g. direction), rest for sites
 abstract type DeferredLatticeIterator <: AbstractLatticeIterator end 
-
+# Wraps a lattice iterator to do change what happens with the output
+abstract type LatticeIterationWrapper{LI <: AbstractLatticeIterator} <: AbstractLatticeIterator end
 
 
 ################################################################################
@@ -537,7 +538,7 @@ end
 
 
 
-struct Sum{LI <: AbstractLatticeIterator} <: AbstractLatticeIterator
+struct Sum{LI} <: LatticeIterationWrapper{LI}
     iter::LI
     function Sum{LI}(args...; kwargs...) where {LI <: AbstractLatticeIterator}
         new{LI}(LI(args...; kwargs...))
@@ -568,14 +569,14 @@ Base.eltype(s::Sum) = eltype(s.iter)
 # calling
 # li(dqmc, model)
 # This then actually contains the udnerlying lattice iterator
-struct ApplySymmetries{LI <: DeferredLatticeIterator, N, T} <: AbstractLatticeIterator
+struct ApplySymmetries{LI <: DeferredLatticeIterator, N, T} <: LatticeIterationWrapper{LI}
     symmetries::NTuple{N, Vector{T}}
 end
 function ApplySymmetries{LI}(symmetries::Vector{T}...) where {LI <: AbstractLatticeIterator, T}
     ApplySymmetries{LI, length(symmetries), T}(symmetries)
 end
 
-struct _ApplySymmetries{LI, N, T} <: AbstractLatticeIterator
+struct _ApplySymmetries{LI <: DeferredLatticeIterator, N, T} <: LatticeIterationWrapper{LI}
     iter::LI
     symmetries::NTuple{N, T}
 end
@@ -588,3 +589,60 @@ Base.iterate(s::_ApplySymmetries) = iterate(s.iter)
 Base.iterate(s::_ApplySymmetries, state) = iterate(s.iter, state)
 Base.length(s::_ApplySymmetries) = length(s.iter)
 Base.eltype(s::_ApplySymmetries) = eltype(s.iter)
+
+
+
+################################################################################
+### Symmetry Wrapper
+################################################################################
+
+
+
+#=
+CCS[dr, (0, x, y, -x, -y)]
+Λxx = CCS[:, 2]
+Λxxq^L = dot(CCS[:, 2], exp(-dirs .* (1/L, 0))
+Λxxq^T = dot(CCS[:, 2], exp(-dirs .* (0, 1/L))
+ρs = Λxxq^L - Λxxq^T
+
+# Save:
+directions(iter)
+# Supply/Pick:
+dir_idx (xx)
+L
+
+So is longitudinal/transversal just 
+    1/L * normalize(NN_vector)
+    1/L * normalize(⟂ NN_vector)
+or is it a reciprocal lattice vector?
+=#
+
+struct SuperfluidDensity{LI <: DeferredLatticeIterator, N} <: LatticeIterationWrapper{LI}
+    dir_idxs::NTuple{N, Int}
+    long_qs::NTuple{N, Vector{Float64}}
+    trans_qs::NTuple{N, Vector{Float64}}
+end
+function SuperfluidDensity{LI}(directions, longitudinal, transversal) where {LI <: AbstractLatticeIterator}
+    SuperfluidDensity{LI, length(directions)}(
+        tuple(directions...), tuple(longitudinal...), tuple(transversal...)
+    )
+end
+
+struct _SuperfluidDensity{LI <: DeferredLatticeIterator, N} <: LatticeIterationWrapper{LI}
+    iter::LI
+
+    dirs::Vector{Vector{Float64}}
+    dir_idxs::NTuple{N, Int}
+    long_qs::NTuple{N, Vector{Float64}}
+    trans_qs::NTuple{N, Vector{Float64}}
+end
+function (x::SuperfluidDensity{LI})(mc, model) where {LI}
+    iter = LI(mc, model)
+    dirs = directions(lattice(model))
+    _SuperfluidDensity(iter, dirs, x.dir_idxs, x.long_qs, x.trans_qs)
+end
+
+Base.iterate(s::_SuperfluidDensity) = iterate(s.iter)
+Base.iterate(s::_SuperfluidDensity, state) = iterate(s.iter, state)
+Base.length(s::_SuperfluidDensity) = length(s.iter)
+Base.eltype(s::_SuperfluidDensity) = eltype(s.iter)

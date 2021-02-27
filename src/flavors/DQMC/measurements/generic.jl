@@ -119,12 +119,14 @@ _default_capacity(mc::DQMC) = 2 * ceil(Int, mc.p.sweeps / mc.p.measure_rate)
 # _get_temp_shape is the shape of the temporary array
 # nothing is interpreted as "It's not needed"
 _get_temp_shape(mc, model, li) = _get_shape(mc, model, li)
-_get_temp_shape(mc, model, ::ApplySymmetries{LI}) where {LI} = _get_shape(mc, model, LI)
+_get_temp_shape(mc, model, ::Type{Sum}) = 1
+_get_temp_shape(mc, model, ::LatticeIterationWrapper{LI}) where {LI} = _get_shape(mc, model, LI)
 
 # final_shape refers to the shape of what the observable saves
 # here `nothing` means saving the eltype instead of an array 
 _get_final_shape(mc, model, li) = _get_shape(mc, model, li)
 _get_final_shape(mc, model, ::Sum) = nothing
+_get_final_shape(mc, model, ::SuperfluidDensity) = nothing
 function _get_final_shape(mc, model, s::ApplySymmetries{LI, N}) where {LI, N}
     if LI <: EachLocalQuadByDistance || LI <: EachLocalQuadBySyncedDistance
         shape = _get_shape(mc, model, LI)
@@ -139,7 +141,6 @@ _get_shape(model, mask::DistanceMask) = length(mask)
 
 _get_shape(mc, model, LI::Type) = _get_shape(LI(mc, model))
 _get_shape(mc, model, ::Type{Nothing}) = nothing
-_get_shape(mc, model, ::Type{Sum}) = 1
 _get_shape(mc, model, ::Type{EachSite}) = length(lattice(model))
 _get_shape(mc, model, ::Type{EachSiteAndFlavor}) = nflavors(model) * length(lattice(model))
 _get_shape(mc, model, ::Type{EachSitePair}) = (length(lattice(model)), length(lattice(model)))
@@ -334,7 +335,7 @@ end
 @inline function finalize_temp!(::DeferredLatticeIterator, model, m, factor)
     m.temp .*= factor / length(lattice(model))
 end
-@inline function finalize_temp!(s::_ApplySymmetries, model, m , factor)
+@inline function finalize_temp!(s::LatticeIterationWrapper, model, m , factor)
     finalize_temp!(s.iter, model, m, factor)
 end
 
@@ -361,6 +362,17 @@ function commit!(s::_ApplySymmetries{<: EachLocalQuadBySyncedDistance}, m)
     for (i, sym) in enumerate(s.symmetries)
         for k in 1:length(sym)
             @. final[:, i] += m.temp[:, k] * sym[k] * sym[k]
+        end
+    end
+    push!(m.observable, final)
+end
+
+
+function commit!(s::_SuperfluidDensity{<: EachLocalQuadBySyncedDistance}, m)
+    final = zero(eltype(m.observable))
+    for (shift, long, trans) in zip(s.dir_idxs, s.long_qs, s.trans_qs)
+        for (i, dir) in enumerate(s.dirs)
+            final += m.temp[i, shift] * (cis(-dot(dir, long)) - cis(-dot(dir, trans)))
         end
     end
     push!(m.observable, final)
@@ -445,7 +457,7 @@ end
     nothing
 end
 
-@inline apply!(s::_ApplySymmetries, m, mc, model, pg) = apply!(s.iter, m, mc, model, pg)
+@inline apply!(s::LatticeIterationWrapper, m, mc, model, pg) = apply!(s.iter, m, mc, model, pg)
 
 
 include("measurements.jl")
