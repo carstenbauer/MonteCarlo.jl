@@ -119,13 +119,15 @@ _default_capacity(mc::DQMC) = 2 * ceil(Int, mc.p.sweeps / mc.p.measure_rate)
 # _get_temp_shape is the shape of the temporary array
 # nothing is interpreted as "It's not needed"
 _get_temp_shape(mc, model, li) = _get_shape(mc, model, li)
-_get_temp_shape(mc, model, ::Type{Sum}) = 1
-_get_temp_shape(mc, model, ::LatticeIterationWrapper{LI}) where {LI} = _get_shape(mc, model, LI)
+_get_temp_shape(mc, model, ::Type{<: Sum}) = 1
+function _get_temp_shape(mc, model, ::LatticeIterationWrapper{LI}) where {LI}
+    _get_shape(mc, model, LI)
+end
 
 # final_shape refers to the shape of what the observable saves
 # here `nothing` means saving the eltype instead of an array 
 _get_final_shape(mc, model, li) = _get_shape(mc, model, li)
-_get_final_shape(mc, model, ::Sum) = nothing
+_get_final_shape(mc, model, ::Type{<: Sum}) = nothing
 _get_final_shape(mc, model, ::SuperfluidDensity) = nothing
 function _get_final_shape(mc, model, s::ApplySymmetries{LI, N}) where {LI, N}
     if LI <: EachLocalQuadByDistance || LI <: EachLocalQuadBySyncedDistance
