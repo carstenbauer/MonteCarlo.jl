@@ -22,7 +22,7 @@ StructArrays = "09ab397b-f2b6-538f-b94a-2f83cf4a842a"
 TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 
 [compat]
-BinningAnalysis = "0.4"
+BinningAnalysis = "0.4, 0.5"
 JLD = "0.9, 0.10, 0.11, 0.12"
 JLD2 = "0.2, 0.3, 0.4"
 LoopVectorization = "0.8, 0.9, 0.10, 0.11"
