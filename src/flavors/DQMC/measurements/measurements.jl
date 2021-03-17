@@ -225,20 +225,54 @@ function pairing(
 end
 pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens; kwargs...)
 pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator; kwargs...)
+
+
 function pc_kernel(mc, model, sites::NTuple{4}, G::AbstractArray)
-    src1, trg1, src2, trg2 = sites
-    # verified against ED for each (src1, src2, trg1, trg2)
-    # Δ_v(src1, trg1) Δ_v^†(src2, trg2)
-    # G_{i, j}^{↑, ↑} G_{i+d, j+d}^{↓, ↓} - G_{i, j+d}^{↑, ↓} G_{i+d, j}^{↓, ↑}
-    N = length(lattice(model))
-    G[src1, src2] * G[trg1+N, trg2+N] - G[src1, trg2+N] * G[trg1+N, src2]
+    pc_kernel(mc, model, sites, (G, G, G, G))
 end
 function pc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
+    # Δ_v(src1, trg1)(τ) Δ_v^†(src2, trg2)(0)
+    # G_{i, j}^{↑, ↑}(τ, 0) G_{i+d, j+d'}^{↓, ↓}(τ, 0) - 
+    # G_{i, j+d'}^{↑, ↓}(τ, 0) G_{i+d, j}^{↓, ↑}(τ, 0)
     Gl0[src1, src2] * Gl0[trg1+N, trg2+N] - Gl0[src1, trg2+N] * Gl0[trg1+N, src2]
 end
+
+function pc_alt_kernel(mc, model, sites::NTuple{4}, G::AbstractArray)
+    pc_alt_kernel(mc, model, sites, (G, G, G, G))
+end
+function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    N = length(lattice(model))
+    # Δ_v^†(src1, trg1)(τ) Δ_v(src2, trg2)(0)
+    # (I-G)_{j, i}^{↑, ↑}(0, τ) (I-G)_{j+d', i+d}^{↓, ↓}(0, τ) - 
+    # (I-G)_{j, i+d}^{↑, ↓}(0, τ) G_{j+d', i}^{↓, ↑}(0, τ)
+    (I[trg2, trg1] - G0l[trg2+N, trg1+N]) * (I[src2, src1] - G0l[src2, src1]) -
+    (I[src2, trg1] - G0l[src2, trg1+N]) * (I[trg2, src1] - G0l[trg2+N, src1])
+end
+
+function pc_combined_kernel(mc, model, sites::NTuple{4}, G)
+    # Δ^† Δ + Δ Δ^†
+    pc_kernel(mc, model, sites, G) + pc_alt_kernel(mc, model, sites, G)
+end
+
+function pc_ref_kernel(mc, model, sites::NTuple{4}, G::AbstractArray)
+    # Δ^† Δ + Δ Δ^† but ↑ and ↓ are swapped
+    pc_ref_kernel(mc, model, sites, (G, G, G, G))
+end
+function pc_ref_kernel(mc, model, sites::NTuple{4}, G)
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    N = length(lattice(model))
+    Gl0[src1+N, src2+N] * Gl0[trg1, trg2] - 
+    Gl0[src1+N, trg2] * Gl0[trg1, src2+N] +
+    (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2+N, src1+N]) -
+    (I[src2, trg1] - G0l[src2+N, trg1]) * (I[trg2, src1] - G0l[trg2, src1+N])
+end
+
 
 
 
