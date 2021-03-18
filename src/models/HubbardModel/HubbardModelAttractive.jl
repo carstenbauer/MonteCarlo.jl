@@ -309,23 +309,46 @@ function pc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, pg::NTuple{4}
     src1, trg1, src2, trg2 = sites
     pg[3][src1, src2] * pg[3][trg1, trg2]
 end
+function pc_alt_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, packed_greens::NTuple{4})
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2, src1])
+end
+function pc_ref_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, packed_greens::NTuple{4})
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    Gl0[src1, src2] * Gl0[trg1, trg2] +
+    (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2, src1])
+end
 
 function cc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, pg::NTuple{4})
     src1, trg1, src2, trg2 = sites
     G00, G0l, Gl0, Gll = pg
-    N = length(lattice(mc))
     T = mc.s.hopping_matrix
 
     # up-up counts, down-down counts, mixed only on 11s or 22s
     s1 = src1; t1 = trg1
     s2 = src2; t2 = trg2
-    output = 4.0 * 
-        (T[s1, t1] * Gll[t1, s1] - T[t1, s1] * Gll[s1, t1]) * 
-        (T[s2, t2] * G00[t2, s2] - T[t2, s2] * G00[s2, t2]) +
-        2.0 * T[t1, s1] * T[t2, s2] * (- G0l[s2, t1]) * Gl0[s1, t2] -
-        2.0 * T[s1, t1] * T[t2, s2] * (- G0l[s2, s1]) * Gl0[t1, t2] -
-        2.0 * T[t1, s1] * T[s2, t2] * (- G0l[t2, t1]) * Gl0[s1, s2] +
-        2.0 * T[s1, t1] * T[s2, t2] * (- G0l[t2, s1]) * Gl0[t1, s2]
+    output = -(
+        4.0 * (
+            T[t2, s2] * (I[s2, t2] - Gll[s2, t2]) - 
+            T[s2, t2] * (I[t2, s2] - Gll[t2, s2])
+        ) * (
+            T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - 
+            T[s1, t1] * (I[t1, s1] - G00[t1, s1])
+        ) +
+        - 2.0 * T[t2, s2] * T[t1, s1] * G0l[s1, t2] * Gl0[s2, t1] +
+        + 2.0 * T[t2, s2] * T[s1, t1] * G0l[t1, t2] * Gl0[s2, s1] +
+        + 2.0 * T[s2, t2] * T[t1, s1] * G0l[s1, s2] * Gl0[t2, t1] +
+        - 2.0 * T[s2, t2] * T[s1, t1] * G0l[t1, s2] * Gl0[t2, s1]
+    )
+    # output = 4.0 * 
+    #     (T[s1, t1] * Gll[t1, s1] - T[t1, s1] * Gll[s1, t1]) * 
+    #     (T[s2, t2] * G00[t2, s2] - T[t2, s2] * G00[s2, t2]) +
+    #     + 2.0 * T[t1, s1] * T[t2, s2] * (- G0l[s2, t1]) * Gl0[s1, t2] +
+    #     - 2.0 * T[s1, t1] * T[t2, s2] * (- G0l[s2, s1]) * Gl0[t1, t2] +
+    #     - 2.0 * T[t1, s1] * T[s2, t2] * (- G0l[t2, t1]) * Gl0[s1, s2] +
+    #     + 2.0 * T[s1, t1] * T[s2, t2] * (- G0l[t2, s1]) * Gl0[t1, s2] +
 
     output
 end

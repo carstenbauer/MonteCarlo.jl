@@ -259,11 +259,12 @@ function pc_combined_kernel(mc, model, sites::NTuple{4}, G)
     pc_kernel(mc, model, sites, G) + pc_alt_kernel(mc, model, sites, G)
 end
 
+
 function pc_ref_kernel(mc, model, sites::NTuple{4}, G::AbstractArray)
     # Δ^† Δ + Δ Δ^† but ↑ and ↓ are swapped
     pc_ref_kernel(mc, model, sites, (G, G, G, G))
 end
-function pc_ref_kernel(mc, model, sites::NTuple{4}, G)
+function pc_ref_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
