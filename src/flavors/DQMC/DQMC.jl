@@ -408,6 +408,7 @@ See also: [`resume!`](@ref)
 @bm function run!(
         mc::DQMC;
         verbose::Bool = true,
+        ignore = tuple(),
         sweeps::Int = mc.p.sweeps,
         thermalization = mc.p.thermalization,
         safe_before::TimeType = now() + Year(100),
@@ -425,8 +426,14 @@ See also: [`resume!`](@ref)
     total_sweeps = sweeps + thermalization
 
     # Generate measurement groups
-    th_groups = generate_groups(mc, mc.model, collect(values(mc.thermalization_measurements)))
-    groups = generate_groups(mc, mc.model, collect(values(mc.measurements)))
+    th_groups = generate_groups(
+        mc, mc.model, 
+        [mc.measurements[k] for k in keys(mc.thermalization_measurements) if !(k in ignore)]
+    )
+    groups = generate_groups(
+        mc, mc.model, 
+        [mc.measurements[k] for k in keys(mc.measurements) if !(k in ignore)]
+    )
 
     start_time = now()
     last_checkpoint = now()
