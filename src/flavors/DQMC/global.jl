@@ -1,32 +1,360 @@
+# Design
+# call stack:
+# global_update(scheduler, mc, model)
+#   - figures out which update to use
+#   > global_update(update, mc, model, temp_conf, temp_vec)
+#       - generates a conf
+#       > global_update(mc, model, temp_conf, temp_vec)
+#           > propose_global
+#           - do the Metropolis
+#           > accept_global
+
+# types:
+# <: AbstractUpdateScheduler
+# Holds a bunch of updates and iterates through them in some way
+# <: AbstractGlobalUpdate
+# Generates a new configuration
+
+# Note:
+# ReplicaExchange fits here as an AbstractGlobalUpdate
+
+# TODO
+# - Should each update collect statistics? Should DQMC not?
+#   - Since we can mix updates it might be nice to have the global stats as well
+# - FileIO
+
+
+
+################################################################################
+### Scheduler
+################################################################################
+
+
+
+abstract type AbstractUpdateScheduler end
+
+
+
+"""
+    EmptyScheduler()
+
+Schedules no global updates.
+"""
+struct EmptyScheduler <: AbstractUpdateScheduler end
+global_update(::EmptyScheduler, args...) = 0
+
+
+
+"""
+    SimpleScheduler(mc, updates...)
+
+Schedules global updates in the order specified through `updates...`. For example
+`SimpleScheduler(mc, GlobalFlip(), GlobalFlip(), GlobalShuffle())` would generate
+a sequence `GlobalFlip() > GlobalFlip() > GlobalShuffle() > repeat`.
+"""
+mutable struct SimpleScheduler{CT, T <: Tuple} <: AbstractUpdateScheduler
+    # temporary
+    conf::CT
+    temp::Vector{Float64}
+    sequence::T
+    idx::Int64
+end
+
+function SimpleScheduler(mc::DQMC, updates...)
+    N = length(lattice(mc))
+    flv = nflavors(mc.model)
+    SimpleScheduler(copy(conf(dqmc)), zeros(Float64, flv*N), updates, 0)
+end
+
+function global_update(s::SimpleScheduler, mc::DQMC, model)
+    s.idx = mod1(s.idx + 1, length(s.sequence))
+    global_update(s.sequence[s.idx], mc, model, s.conf, s.temp)
+end
+
+
+
+"""
+    AdaptiveScheduler
+
+DO NOT USE!
+
+The idea with this is to adaptive adjust how frequently global updates are used.
+With this you could just throw a bunch of global updates at a problem and let 
+the simulation figure out which ones are worth doing.
+
+Notes:
+- low acceptance rate <=> bad update => do it less
+- this needs a "grace period" to collect stats before starting to adjust rates
+- this should probably adjust asymptotically?
+- one should be able to exclude updates (e.g. ReplicaExchange)
+
+Draft:
+Add wrapper for updates that should have an adaptive sampling rate
+    mutable struct AdaptiveUpdate{T}
+        accepted::Int
+        total::Int
+        sampling_rate::Float64
+        update::T
+    end
+
+everyone starts with a sampling_rate of 1.0 (or whatever is specified)
+pick update according to sampling rates:
+    p = (sr1 + sr2 + ... srN) * rand()
+    cumsum = 0.0
+    for update in adaptive_updates
+        cumsum += update.sampling_rate
+        if p < cumsum
+            # perform update
+            break
+        end
+    end
+
+The sequence and the updates we do are somewhat disconnected... We probably want 
+something like
+    AdaptiveScheduler(
+        mc, 
+        (Adaptive(), Adaptive(), ReplicaExchange()), 
+        (StaticUpdate(NoUpdate(), 0.1), GlobalShuffle(), GlobalFlip())
+    )
+where we need something like "StaticUpdate" specifically for NoUpdate...? Or 
+maybe we can special-case this in the first place and give it a sampling rate?
+"""
+mutable struct AdaptiveScheduler{CT, T1, T2} <: AbstractUpdateScheduler
+    # below this, the sampling rate is set to 0. Basing this on sampling rate
+    # should allow us to make things a bit smoother and avoid bad luck.
+    minimum_sampling_rate::Float64 # 0.01?
+    # some number of sweeps where we just collect statistics
+    grace_period::Int # 100?
+    # Weight for how slowly sampling_rate changes.
+    # sampling_rate = (adaptive_rate * sampling_rate + accepted/total) / (adaptive_rate+1)
+    # 0 = use current probability as sampling rate
+    adaptive_rate::Float64 # 9.0?
+
+    conf::CT
+    temp::Vector{Float64}
+
+    adaptive_pool::T1
+    sequence::T2
+    idx::Int
+end
+struct Adaptive end
+
+function AdaptiveScheduler(
+        mc, sequence, pool;
+        minimum_sampling_rate = 0.01, grace_period = 99, adaptive_rate = 9.0
+    )
+
+    adaptive_pool = map(pool) do update
+        if update isa NoUpdate || update isa AdaptiveUpdate
+            return update
+        else
+            AdaptiveUpdate(update)
+        end
+    end
+
+    if !(NoUpdate() in adaptive_pool)
+        adaptive_pool = tuple(adaptive_pool..., NoUpdate())
+    end
+
+    N = length(lattice(mc))
+    flv = nflavors(mc.model)
+
+    AdaptiveScheduler(
+        minimum_sampling_rate, grace_period, adaptive_rate,
+        similar(conf(mc)), zeros(Float64, flv*N),
+        Tuple(adaptive_pool), Tuple(sequence), 0
+    )
+end
+
+function global_update(s::AdaptiveScheduler, mc::DQMC, model)
+    s.idx = mod1(s.idx + 1, length(s.sequence))
+    
+    if s.sequence[s.idx] === Adaptive()
+        # Find appropriate (i.e. with probability matching sampling rates) 
+        # update from adaptive pool
+        total_weight = mapreduce(x -> x.sampling_rate, +, s.adaptive_pool)
+        p = total_weight * rand()
+        sum = 0.0
+
+        for update in s.adaptive_pool
+            sum += update.sampling_rate
+            
+            # if sum goes beyond p we have an appropriate update
+            if p < sum
+                accepted = global_update(update, mc, model, s.conf, s.temp)
+
+                # start adjusting sampling rate if we have sampled more than 
+                # <grace_period> times
+                if update.total > s.grace_period
+                    update.sampling_rate = (
+                        s.adaptive_rate * update.sampling_rate + 
+                        update.accepted / update.total
+                    ) / (s.adaptive_rate + 1)
+                    
+                    # Hit miniomum threshold - this can no longer be accepted.
+                    if update.sampling_rate < s.minimum_sampling_rate
+                        update.sampling_rate = 0.0
+                    end
+                end
+
+                return accepted
+            end
+        end
+    else
+        # Some sort of non-adaptive update, just perform it.
+        return global_update(s.sequence[s.idx], mc, model, s.conf, s.temp)
+    end
+end
+
+
+
+################################################################################
+### Updates
+################################################################################
+
+
+
+abstract type AbstractGlobalUpdate end
+
+
+"""
+    AdaptiveUpdate(update[, expected_acceptance_rate = 0.5])
+
+Wraps any generic global update, keeps track of the number of update attempts 
+and the number of successes for adaptive sampling. This should be used with the
+adaptive scheduler but shouldn't create any problems otherwise.
+"""
+struct AdaptiveUpdate{T}
+    accepted::Int
+    total::Int
+    sampling_rate::Float64
+    update::T
+end
+function AdaptiveUpdate(update::AbstractGlobalUpdate, sampling_rate=0.5)
+    AdaptiveUpdate(0, 0, sampling_rate, update)
+end
+@inline function global_update(u::AdaptiveUpdate, mc, m, tc, tv)
+    u.total += 1
+    accepted = global_update(u.update, mc, m, tc, tv)
+    u.accepted += accepted
+    return accepted
+end
+
+
+
+"""
+    NoUpdate([mc, model], [sampling_rate = 1e-10])
+
+A global update that does nothing. Mostly used internally to keep the adaptive 
+scheduler running if all (other) updates are ignored.
+"""
+mutable struct NoUpdate <: AbstractGlobalUpdate
+    accepted::Int
+    total::Int
+    sampling_rate::Float64
+end
+NoUpdate(sampling_rate = 1e-10) = NoUpdate(0, -1, sampling_rate)
+NoUpdate(mc, model, sampling_rate=1e-10) = NoUpdate(sampling_rate)
+function global_update(u::NoUpdate, args...)
+    # We don't want to update total because that'll eventually trigger the
+    # adaptive process. But we may still want to know how often this was used...
+    # So let's keep track of that in accepted instead
+    u.accepted += 1
+    # we count this as "denied global update
+    return 0
+end
+
+
+"""
+    GlobalFlip([mc, model])
+
+A global update that flips the configuration (±1 -> ∓1).
+"""
+struct GlobalFlip <: AbstractGlobalUpdate end
+GlobalFlip(mc, model) = GlobalFlip()
+
+function global_update(::GlobalFlip, mc, model, temp_conf, temp_vec)
+    @. temp_conf = -conf(mc)
+    global_update(mc, model, temp_conf, temp_vec)
+end
+
+
+
+"""
+    GlobalShuffle([mc, model])
+
+A global update that shuffles the current configuration. Note that this is not 
+local to a time slice.
+"""
+struct GlobalShuffle <: AbstractGlobalUpdate end
+GlobalShuffle(mc, model) = GlobalShuffle()
+
+function global_update(::GlobalShuffle, mc, model, temp_conf, temp_vec)
+    copyto!(temp_conf, conf(mc))
+    shuffle!(temp_conf)
+    global_update(mc, model, temp_conf, temp_vec)
+end
+
+
+
+# I.e. we trade or not
+# struct ReplicaExchange <: AbstractGlobalUpdate end 
+
+# I.e. we give confs to each other and do things independently
+# struct ReplicaGift <: AbstractGlobalUpdate
+
+
+
 ################################################################################
 ### Linalg additions
 ################################################################################
 
+# Notes:
+# * det(A B) = det(A) det(B)
+# * det(A^-1) = 1/det(A)
+# * |det(U)| = 1 (complex norm, U unitary)
+# * det(T) = 1 (T unit-triangular like our T's)
+# * our UDT decomposition always makes D real positive
+# * all weights (det(G)) should be real positive
+# * local updates already check ratios (det(G)/det(G')) so it's probably OK to 
+#   ignore phases here!?
+
+
 
 @bm function calculate_inv_greens_udt(Ul, Dl, Tl, Ur, Dr, Tr, G, pivot, temp)
+    # G = [I + Ul Dl Tl Tr^† Dr Ur^†]^-1
     vmul!(G, Tl, adjoint(Tr))
     vmul!(Tr, G, Diagonal(Dr))
     vmul!(G, Diagonal(Dl), Tr)
+    #   = [I + Ul G Ur^†]^-1
     udt_AVX_pivot!(Tr, Dr, G, pivot, temp, Val(false)) # Dl available
-
+    #   = [I + Ul Tr Dr G Ur^†]^-1  w/ Tr unitary, G triangular
+    #   = Ur G^-1 [(Ul Tr)^† Ur G^-1 + Dr]^-1 (Ul Tr)^†
     vmul!(Tl, Ul, Tr)
     rdivp!(Ur, G, Ul, pivot) # requires unpivoted udt decompostion (Val(false))
+    #   = Ur [Tl^† Ur + Dr]^-1 Tl^†  w/ Tl unitary, Ur not
     vmul!(Tr, adjoint(Tl), Ur)
-
     rvadd!(Tr, Diagonal(Dr))
+    #   = Ur Tr^-1 Tl^†
     udt_AVX_pivot!(Ul, Dr, Tr, pivot, temp, Val(false)) # Dl available
-    return Ul, Dr, Tr
+    #   = Ur Tr^-1 Dr^-1 Ul^† Tl^†
+    #   = (old_Ur / G) Tr^-1 Dr^-1 Ul^† Tl^†
+    # with old_Ur, Ul, Tl unitary and G, Tr triangular
+    # det(G) = phase1 / 1 / 1 / det(Dr) / phase2 / phase3
+    # where we ignore phases because they should be 1 and we already check this
+    # in local updates.
+    return
 end
 
 # after the above without modifying Ur, Tr, Tl, Ul, Dr
 @bm function finish_calculate_greens(Ul, Dl, Tl, Ur, Dr, Tr, G, pivot, temp)
+    # G = Ur Tr^-1 Dr^-1 Ul^† Tl^†
     rdivp!(Ur, Tr, G, pivot) # requires unpivoted udt decompostion (false)
     vmul!(Tr, Tl, Ul)
-
+    #   = Ur Dr^-1 Tr^†
     @avx for i in eachindex(Dr)
         Dl[i] = 1.0 / Dr[i]
     end
-
     vmul!(Ul, Ur, Diagonal(Dl))
     vmul!(G, Ul, adjoint(Tr))
     return G
@@ -121,105 +449,30 @@ end
 ### Global update (working)
 ################################################################################
 
-#=
-# function propose_global_from_green(mc::DQMC, m::Model, new_G::AbstractArray)
-#     # weight = w_C' / w_C = det|G'| / det|G| = det|G' G^-1|
-#     # det(new_G * inv(old_G))
-#     inverted = inv!(mc.s.greens_temp, mc.s.greens)
-#     mul!(mc.s.tmp1, new_G, inverted)
-#     det(mc.s.tmp1) 
-# end
-
-function propose_global_from_conf(mc::DQMC, m::Model, conf::AbstractArray)
-    # I don't think we need this...
-    # @assert mc.s.current_slice == mc.p.slices + 1
-    # @assert mc.s.direction == -1
-
-    # @info current_slice(mc), mc.s.direction
-    # calculate_greens(mc, mc.s.greens_temp) # we only care about getting an up to date Dl
-    # G = mc.s.Ur * Diagonal(mc.s.Dl) * adjoint(mc.s.Tr)
-    G = calculate_greens(mc, current_slice(mc)-1, mc.s.greens_temp)
-    # display(G .- mc.s.greens)
-    @assert G ≈ mc.s.greens
-    old_weight = prod(mc.s.Dl)
-
-    # weight = w_C' / w_C = det|G'| / det|G| = det|G' G^-1|
-    # det(new_G * inv(old_G))
-    new_greens = calculate_greens(mc, current_slice(mc)-1, mc.s.greens_temp, conf)
-    new_weight = prod(mc.s.Dl)
-    # inverted = inv!(mc.s.tmp1, mc.s.greens)
-    # copyto!(mc.s.tmp1, mc.s.greens_temp)
-    # try 
-    #     inverted = LinearAlgebra.inv!(lu!(mc.s.tmp1))
-    #     mul!(mc.s.tmp2, new_greens, inverted)
-    # catch e
-    #     println(mc.s.greens_temp)
-    #     rethrow(e)
-    # end
-    # ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
-    # return det(mc.s.tmp2), ΔE_Boson, new_greens
-    
-    # detratio = exp(tr(log(new_greens)) - tr(log(mc.s.greens)))
-    detratio = old_weight/new_weight
-    ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
-    # @info old_weight, new_weight, detratio
-    return detratio, ΔE_Boson, new_greens
-end
-
-# function accept_global!(mc::DQMC, m::Model, conf)
-#     copyto!(mc.conf, conf)
-#     # Need a full stack rebuild
-#     build_stack(mc, mc.s)
-#     # This calculates greens
-#     propagate(mc)
-#     # which should match new_G
-#     # @assert new_G ≈ mc.s.greens
-#     nothing
-# end
-
-function accept_global!(mc::DQMC, m::Model, conf, new_G)
-    copyto!(mc.conf, conf)
-    # Need a full stack rebuild
-    build_stack(mc, mc.s)
-    # This calculates greens
-    propagate(mc)
-
-    # @info mc.s.current_slice, mc.s.direction
-    # which should match new_G
-    # display(new_G .- mc.s.greens)
-    @assert new_G ≈ mc.s.greens
-    nothing
-end
-=#
 
 
-################################################################################
-### Global update (experimental)
-################################################################################
-
-
-
-@bm function propose_global_from_conf(mc::DQMC, m::Model, conf::AbstractArray)
+@bm function propose_global_from_conf(mc::DQMC, m::Model, conf::AbstractArray, temp)
     # I don't think we need this...
     @assert mc.s.current_slice == 1
     @assert mc.s.direction == 1
 
     # This should be just after calculating greens, so mc.s.Dl is from the UDT
     # decomposed G
-    D = copy(mc.s.Dl)
+    # We need an independent temp vector here as inv_det changes Dl, Dr and tempv
+    temp .= mc.s.Dl
 
-    # -1?
-    # TODO: 
-    # this is essentially reverse_build_stack + partial calculate_greens
-    # we need to do this to get a weight, so maybe we should
-    # accept & deny_global
-    # instead of just accept?
+    # This is essentially reverse_build_stack + partial calculate_greens
+    # after this: G = Ur Tr^-1 Dr^-1 Ul^† Tl^†
+    # where Ur, Ul, Tl only contribute complex phases and Tr contributes 1
+    # Since we are already checking for sign problems in local updates we ignore
+    # the phases here and set det(G) = 1 / det(Dr)
     inv_det(mc, current_slice(mc)-1, conf)
 
-    # This may help with stability
+    # This loop helps with stability - it multiplies large and small numbers
+    # whihc avoid reaching extremely large or small (typemin/max) floats
     detratio = 1.0
-    for i in eachindex(D)
-        detratio *= D[i] * mc.s.Dr[i]
+    for i in eachindex(temp)
+        detratio *= temp[i] * mc.s.Dr[i]
     end
     ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
     
@@ -228,10 +481,11 @@ end
 end
 
 @bm function accept_global!(mc::DQMC, m::Model, conf, passthrough)
-    new_G = finish_calculate_greens(
-        mc.s.Ul, mc.s.Dl, mc.s.Tl, mc.s.Ur, mc.s.Dr, mc.s.Tr,
-        mc.s.greens_temp, mc.s.pivot, mc.s.tempv
-    )
+    # for checking
+    # new_G = finish_calculate_greens(
+    #     mc.s.Ul, mc.s.Dl, mc.s.Tl, mc.s.Ur, mc.s.Dr, mc.s.Tr,
+    #     mc.s.greens_temp, mc.s.pivot, mc.s.tempv
+    # )
 
     copyto!(mc.conf, conf)
     # Need a full stack rebuild
@@ -242,69 +496,41 @@ end
     # @info mc.s.current_slice, mc.s.direction
     # which should match new_G
     # display(new_G .- mc.s.greens)
-    @assert new_G ≈ mc.s.greens
+    # @assert new_G ≈ mc.s.greens
     nothing
 end
 
 
-# Alt
-#=
-function propose_global_from_conf(mc::DQMC, m::Model, conf::AbstractArray)
-    # I don't think we need this...
-    @assert mc.s.current_slice == 1
-    @assert mc.s.direction == 1
 
-    # This should be just after calculating greens, so mc.s.Dl is from the UDT
-    # decomposed G
-    D = copy(mc.s.Dl)
+# This does a MC update with the given temp_conf as the proposed new_conf
+function global_update(mc::DQMC, model::Model, temp_conf::AbstractArray, temp_vec::Vector{Float64})
+    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, temp_conf, temp_vec)
 
-    # well this but with a conf given
-    reverse_build_stack(mc, mc.s)
-    propagate(mc)
-    # e.g. rewrite inv_det above to overwrite stack?
-    # can probably use the split calculate_greens
+    p = exp(- ΔE_boson) * detratio
+    @assert imag(p) == 0.0 "p = $p should always be real because ΔE_boson = $ΔE_boson and detratio = $detratio should always be real..."
 
-    # This may help with stability
-    detratio = 1.0
-    for i in eachindex(D)
-        detratio *= D[i] * mc.s.Dr[i]
+    # Gibbs/Heat bath
+    # p = p / (1.0 + p)
+    # Metropolis
+    if p > 1 || rand() < p
+        accept_global!(mc, model, temp_conf, passthrough)
+        return 1
     end
-    ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
-    
-    @info detratio
-    return detratio, ΔE_Boson, nothing
+
+    return 0
 end
 
-function accept_global!(mc::DQMC, m::Model, conf, passthrough)
-    copyto!(mc.conf, conf)
-    # maybe move propagate here?
-    nothing
-end
-
-function deny_global!(mc::DQMC, m::Model, conf, passthrough)
-    new_greens = finish_calculate_greens(
-        mc.s.Ul, mc.s.Dl, mc.s.Tl, mc.s.Ur, mc.s.Dr, mc.s.Tr,
-        mc.s.greens_temp, mc.s.pivot, mc.s.tempv
-    )
-    # Need a full stack rebuild
-    reverse_build_stack(mc, mc.s)
-    # This calculates greens
-    propagate(mc)
-    nothing
-end
-=#
 
 
 ################################################################################
-### Global flip
+### to be deleted
 ################################################################################
 
 
-# TODO
-using Random
+
 @bm function global_move(mc, model)
     conf = shuffle(mc.conf)
-    detratio, ΔE_boson, new_greens = propose_global_from_conf(mc, model, conf)
+    detratio, ΔE_boson, new_greens = propose_global_from_conf(mc, model, conf, similar(mc.s.Dr))
 
     if mc.p.check_sign_problem
         if abs(imag(detratio)) > 1e-6
@@ -335,6 +561,7 @@ using Random
 
     return 0
 end
+
 
 
 ################################################################################

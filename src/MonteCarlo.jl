@@ -6,7 +6,7 @@ using Reexport
 import MonteCarloObservable.AbstractObservable
 using Parameters, Requires
 using TimerOutputs, LoopVectorization, StructArrays
-using Printf, SparseArrays, LinearAlgebra, Dates, Statistics
+using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random
 
 import JLD, JLD2
 # To allow switching between JLD and JLD2:
@@ -45,7 +45,7 @@ export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance
 export neighbors, directions
 
 include("flavors/MC/MC.jl")
-include("flavors/DQMC/DQMC.jl")
+include("flavors/DQMC/main.jl")
 export Greens, GreensAt, CombinedGreensIterator
 export boson_energy_measurement, greens_measurement, occupation, magnetization
 export charge_density, charge_density_correlation, charge_density_susceptibility

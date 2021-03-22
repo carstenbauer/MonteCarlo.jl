@@ -460,8 +460,3 @@ end
 end
 
 @inline apply!(s::LatticeIterationWrapper, m, mc, model, pg) = apply!(s.iter, m, mc, model, pg)
-
-
-include("measurements.jl")
-include("extensions.jl")
-include("deprecated.jl")
