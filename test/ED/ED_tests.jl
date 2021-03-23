@@ -177,7 +177,7 @@ end
             Random.seed!(123)
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
-                thermalization = 10_000, sweeps = 10_000
+                thermalization = 10_000, sweeps = 10_000, global_moves=true, print_rate=1000
             )
             @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.p.beta), 10k + 10k sweeps"
 
@@ -214,7 +214,7 @@ end
 
             # MonteCarlo.enable_benchmarks()
 
-            @time run!(dqmc, verbose=false)
+            @time run!(dqmc, verbose=true)
             
             # Absolute tolerance from Trotter decompositon
             atol = 2dqmc.p.delta_tau^2
@@ -432,9 +432,10 @@ end
                     T = dqmc.s.hopping_matrix
                     for (dirs, src1, trg1, src2, trg2) in 
                             MonteCarlo.EachLocalQuadBySyncedDistance{4}(dqmc, model)
-                        ED_CCS[dirs] += expectation_value_integrated(
+                        ED_CCS[dirs] -= expectation_value_integrated(
+                            # actually the order of this doesn't seem to matter
+                            current_density(src2, trg2, T), 
                             current_density(src1, trg1, T),
-                            current_density(src2, trg2, T),
                             H, step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
                         )
                     end
