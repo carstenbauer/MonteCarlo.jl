@@ -128,7 +128,11 @@ include("DQMC.jl")
 include("DQMC_mandatory.jl")
 include("DQMC_optional.jl")
 
+# saving and loading of DQMC
+include("FileIO.jl")
+
 # Contains some greens methods
+# some others are in stack.jl and unequal_time_stack.jl
 include("greens.jl")
 
 # Contains code related to make measurements. Specifically:
