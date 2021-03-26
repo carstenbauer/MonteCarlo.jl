@@ -336,6 +336,8 @@ function superfluid_density(
         u = cross([0,0,1], n)
         u[1:2] / L
     end
+    longs .*= 2pi
+    trans .*= 2pi
     li = SuperfluidDensity{EachLocalQuadBySyncedDistance{K}}(
         dir_idxs, longs, trans
     )
