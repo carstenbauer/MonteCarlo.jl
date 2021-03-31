@@ -99,7 +99,7 @@ This is a performance critical method.
 """
 @inline @bm function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
             result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
-    dtau = mc.p.delta_tau
+    dtau = mc.parameters.delta_tau
     lambda = acosh(exp(0.5 * m.U * dtau))
 
     N = size(result, 1)
@@ -114,8 +114,8 @@ end
         mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf
     )
     # see for example dos Santos Introduction to quantum Monte-Carlo
-    greens = mc.s.greens
-    dtau = mc.p.delta_tau
+    greens = mc.stack.greens
+    dtau = mc.parameters.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
 
     @inbounds ΔE_boson = -2. * lambda * conf[i, slice]
@@ -129,7 +129,7 @@ end
 @inline @bm function accept_local!(
         mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, 
         detratio, ΔE_boson, γ)
-    greens = mc.s.greens
+    greens = mc.stack.greens
 
     # Unoptimized Version
     # u = -greens[:, i]
@@ -171,12 +171,12 @@ end
 
     
     # I don't think we need this...
-    @assert mc.s.current_slice == 1
-    @assert mc.s.direction == 1
+    @assert mc.stack.current_slice == 1
+    @assert mc.stack.direction == 1
 
     # This should be just after calculating greens, so mc.s.Dl is from the UDT
     # decomposed G
-    copyto!(temp, mc.s.Dl)
+    copyto!(temp, mc.stack.Dl)
 
     # -1?
     inv_det(mc, current_slice(mc)-1, conf)
@@ -184,7 +184,7 @@ end
     # This may help with stability
     detratio = 1.0
     for i in eachindex(temp)
-        detratio *= temp[i] * mc.s.Dr[i]
+        detratio *= temp[i] * mc.stack.Dr[i]
         # detratio *= mc.s.Dl[i] / D[i]
     end
     ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
@@ -324,7 +324,7 @@ end
 function cc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, pg::NTuple{4})
     src1, trg1, src2, trg2 = sites
     G00, G0l, Gl0, Gll = pg
-    T = mc.s.hopping_matrix
+    T = mc.stack.hopping_matrix
 
     # up-up counts, down-down counts, mixed only on 11s or 22s
     s1 = src1; t1 = trg1

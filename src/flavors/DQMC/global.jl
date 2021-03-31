@@ -22,7 +22,8 @@
 # - Should each update collect statistics? Should DQMC not?
 #   - Since we can mix updates it might be nice to have the global stats as well
 # - FileIO
-
+# - remove old global_move
+# - add this to DQMC
 
 
 ################################################################################
@@ -365,39 +366,39 @@ end
 # det(T) = 1 because T is unit-triangular by construction
 @bm function inv_det(
         mc::DQMC, slice::Int, 
-        conf::AbstractArray = mc.conf, safe_mult::Int = mc.p.safe_mult
+        conf::AbstractArray = mc.conf, safe_mult::Int = mc.parameters.safe_mult
     )
-    copyto!(mc.s.curr_U, I)
-    copyto!(mc.s.Ur, I)
-    mc.s.Dr .= one(eltype(mc.s.Dr))
-    copyto!(mc.s.Tr, I)
+    copyto!(mc.stack.curr_U, I)
+    copyto!(mc.stack.Ur, I)
+    mc.stack.Dr .= one(eltype(mc.stack.Dr))
+    copyto!(mc.stack.Tr, I)
 
     # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
-    if slice+1 <= mc.p.slices
+    if slice+1 <= mc.parameters.slices
         start = slice+1
-        stop = mc.p.slices
+        stop = mc.parameters.slices
         for k in reverse(start:stop)
             if mod(k,safe_mult) == 0
-                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U, conf)
-                vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dr))
-                udt_AVX_pivot!(mc.s.curr_U, mc.s.Dr, mc.s.tmp1, mc.s.pivot, mc.s.tempv)
-                copyto!(mc.s.tmp2, mc.s.Tr)
-                vmul!(mc.s.Tr, mc.s.tmp1, mc.s.tmp2)
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dr))
+                udt_AVX_pivot!(mc.stack.curr_U, mc.stack.Dr, mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv)
+                copyto!(mc.stack.tmp2, mc.stack.Tr)
+                vmul!(mc.stack.Tr, mc.stack.tmp1, mc.stack.tmp2)
             else
-                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U, conf)
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
             end
         end
-        vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dr))
-        udt_AVX_pivot!(mc.s.Ur, mc.s.Dr, mc.s.tmp1, mc.s.pivot, mc.s.tempv)
-        copyto!(mc.s.tmp2, mc.s.Tr)
-        vmul!(mc.s.Tr, mc.s.tmp1, mc.s.tmp2)
+        vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dr))
+        udt_AVX_pivot!(mc.stack.Ur, mc.stack.Dr, mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv)
+        copyto!(mc.stack.tmp2, mc.stack.Tr)
+        vmul!(mc.stack.Tr, mc.stack.tmp1, mc.stack.tmp2)
     end
 
 
-    copyto!(mc.s.curr_U, I)
-    copyto!(mc.s.Ul, I)
-    mc.s.Dl .= one(eltype(mc.s.Dl))
-    copyto!(mc.s.Tl, I)
+    copyto!(mc.stack.curr_U, I)
+    copyto!(mc.stack.Ul, I)
+    mc.stack.Dl .= one(eltype(mc.stack.Dl))
+    copyto!(mc.stack.Tl, I)
 
     # Calculate Ul,Dl,Tl=B(slice-1) ... B(1)
     if slice >= 1
@@ -405,40 +406,40 @@ end
         stop = slice
         for k in start:stop
             if mod(k,safe_mult) == 0
-                multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U, conf)
-                vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dl))
-                udt_AVX_pivot!(mc.s.curr_U, mc.s.Dl, mc.s.tmp1, mc.s.pivot, mc.s.tempv)
-                copyto!(mc.s.tmp2, mc.s.Tl)
-                vmul!(mc.s.Tl, mc.s.tmp1, mc.s.tmp2)
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dl))
+                udt_AVX_pivot!(mc.stack.curr_U, mc.stack.Dl, mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv)
+                copyto!(mc.stack.tmp2, mc.stack.Tl)
+                vmul!(mc.stack.Tl, mc.stack.tmp1, mc.stack.tmp2)
             else
-                multiply_slice_matrix_left!(mc, mc.model, k, mc.s.curr_U, conf)
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
             end
         end
-        vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.Dl))
-        udt_AVX_pivot!(mc.s.Ul, mc.s.Dl, mc.s.tmp1, mc.s.pivot, mc.s.tempv)
-        copyto!(mc.s.tmp2, mc.s.Tl)
-        vmul!(mc.s.Tl, mc.s.tmp1, mc.s.tmp2)
+        vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dl))
+        udt_AVX_pivot!(mc.stack.Ul, mc.stack.Dl, mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv)
+        copyto!(mc.stack.tmp2, mc.stack.Tl)
+        vmul!(mc.stack.Tl, mc.stack.tmp1, mc.stack.tmp2)
     end
 
     calculate_inv_greens_udt(
-        mc.s.Ul, mc.s.Dl, mc.s.Tl, mc.s.Ur, mc.s.Dr, mc.s.Tr, 
-        mc.s.greens_temp, mc.s.pivot, mc.s.tempv
+        mc.stack.Ul, mc.stack.Dl, mc.stack.Tl, mc.stack.Ur, mc.stack.Dr, mc.stack.Tr, 
+        mc.stack.greens_temp, mc.stack.pivot, mc.stack.tempv
     )
-    return mc.s.Dr
+    return mc.stack.Dr
 end
 
 
 @bm function reverse_build_stack(mc::DQMC, ::DQMCStack)
-    copyto!(mc.s.u_stack[end], I)
-    mc.s.d_stack[end] .= one(eltype(mc.s.d_stack[end]))
-    copyto!(mc.s.t_stack[end], I)
+    copyto!(mc.stack.u_stack[end], I)
+    mc.stack.d_stack[end] .= one(eltype(mc.stack.d_stack[end]))
+    copyto!(mc.stack.t_stack[end], I)
 
-    @inbounds for i in length(mc.s.ranges):-1:1
+    @inbounds for i in length(mc.stack.ranges):-1:1
         add_slice_sequence_right(mc, i)
     end
 
-    mc.s.current_slice = 0
-    mc.s.direction = 1
+    mc.stack.current_slice = 0
+    mc.stack.direction = 1
 
     nothing
 end
@@ -453,13 +454,13 @@ end
 
 @bm function propose_global_from_conf(mc::DQMC, m::Model, conf::AbstractArray, temp)
     # I don't think we need this...
-    @assert mc.s.current_slice == 1
-    @assert mc.s.direction == 1
+    @assert mc.stack.current_slice == 1
+    @assert mc.stack.direction == 1
 
-    # This should be just after calculating greens, so mc.s.Dl is from the UDT
+    # This should be just after calculating greens, so mc.stack.Dl is from the UDT
     # decomposed G
     # We need an independent temp vector here as inv_det changes Dl, Dr and tempv
-    temp .= mc.s.Dl
+    temp .= mc.stack.Dl
 
     # This is essentially reverse_build_stack + partial calculate_greens
     # after this: G = Ur Tr^-1 Dr^-1 Ul^† Tl^†
@@ -472,7 +473,7 @@ end
     # whihc avoid reaching extremely large or small (typemin/max) floats
     detratio = 1.0
     for i in eachindex(temp)
-        detratio *= temp[i] * mc.s.Dr[i]
+        detratio *= temp[i] * mc.stack.Dr[i]
     end
     ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
     
@@ -483,20 +484,20 @@ end
 @bm function accept_global!(mc::DQMC, m::Model, conf, passthrough)
     # for checking
     # new_G = finish_calculate_greens(
-    #     mc.s.Ul, mc.s.Dl, mc.s.Tl, mc.s.Ur, mc.s.Dr, mc.s.Tr,
-    #     mc.s.greens_temp, mc.s.pivot, mc.s.tempv
+    #     mc.stack.Ul, mc.stack.Dl, mc.stack.Tl, mc.stack.Ur, mc.stack.Dr, mc.stack.Tr,
+    #     mc.stack.greens_temp, mc.stack.pivot, mc.stack.tempv
     # )
 
     copyto!(mc.conf, conf)
     # Need a full stack rebuild
-    reverse_build_stack(mc, mc.s)
+    reverse_build_stack(mc, mc.stack)
     # This calculates greens
     propagate(mc)
 
-    # @info mc.s.current_slice, mc.s.direction
+    # @info mc.stack.current_slice, mc.stack.direction
     # which should match new_G
-    # display(new_G .- mc.s.greens)
-    # @assert new_G ≈ mc.s.greens
+    # display(new_G .- mc.stack.greens)
+    # @assert new_G ≈ mc.stack.greens
     nothing
 end
 
@@ -527,22 +528,22 @@ end
 ################################################################################
 
 
-
+# TODO remove
 @bm function global_move(mc, model)
     conf = shuffle(mc.conf)
-    detratio, ΔE_boson, new_greens = propose_global_from_conf(mc, model, conf, similar(mc.s.Dr))
+    detratio, ΔE_boson, new_greens = propose_global_from_conf(mc, model, conf, similar(mc.stack.Dr))
 
-    if mc.p.check_sign_problem
+    if mc.parameters.check_sign_problem
         if abs(imag(detratio)) > 1e-6
-            push!(mc.a.imaginary_probability, abs(imag(detratio)))
-            mc.p.silent || @printf(
+            push!(mc.analysis.imaginary_probability, abs(imag(detratio)))
+            mc.parameters.silent || @printf(
                 "Did you expect a sign problem? imag. detratio:  %.9e\n", 
                 abs(imag(detratio))
             )
         end
         if real(detratio) < 0.0
-            push!(mc.a.negative_probability, real(detratio))
-            mc.p.silent || @printf(
+            push!(mc.analysis.negative_probability, real(detratio))
+            mc.parameters.silent || @printf(
                 "Did you expect a sign problem? negative detratio %.9e\n",
                 real(detratio)
             )
@@ -591,7 +592,7 @@ function ReplicaExchange(mc::DQMC, recalculate=true)
     replica_exchange.connected = 0
 
     replica_exchange.updated = false
-    replica_exchange.greens = copy(dqmc.s.greens)
+    replica_exchange.greens = copy(dqmc.stack.greens)
     replica_exchange.conf = copy(dqmc.conf)
 
     replica_exchange
@@ -623,7 +624,7 @@ function send!(mc::DQMC)
     if re.needs_recalculation
         send!(mc.conf)
     else
-        send!(mc.conf, mc.s.greens)
+        send!(mc.conf, mc.stack.greens)
     end
 end
 
@@ -690,64 +691,64 @@ end
 #=
 function compute_ratio(mc, conf)
     # U D T
-    copyto!(mc.s.u_stack[1], I)
-    mc.s.d_stack[1] .= one(eltype(mc.s.d_stack[1]))
-    copyto!(mc.s.t_stack[1], I)
+    copyto!(mc.stack.u_stack[1], I)
+    mc.stack.d_stack[1] .= one(eltype(mc.stack.d_stack[1]))
+    copyto!(mc.stack.t_stack[1], I)
 
-    @inbounds for idx in 1:length(mc.s.ranges)
-        copyto!(mc.s.curr_U, mc.s.u_stack[idx])
+    @inbounds for idx in 1:length(mc.stack.ranges)
+        copyto!(mc.stack.curr_U, mc.stack.u_stack[idx])
 
-        # println("Adding slice seq left $idx = ", mc.s.ranges[idx])
-        for slice in mc.s.ranges[idx]
-            multiply_slice_matrix_inv_left!(mc, mc.model, slice, mc.s.curr_U)
+        # println("Adding slice seq left $idx = ", mc.stack.ranges[idx])
+        for slice in mc.stack.ranges[idx]
+            multiply_slice_matrix_inv_left!(mc, mc.model, slice, mc.stack.curr_U)
         end
 
-        vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.d_stack[idx]))
+        vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.d_stack[idx]))
         udt_AVX_pivot!(
-            mc.s.u_stack[idx + 1], mc.s.d_stack[idx + 1], mc.s.tmp1, 
-            mc.s.pivot, mc.s.tempv
+            mc.stack.u_stack[idx + 1], mc.stack.d_stack[idx + 1], mc.stack.tmp1, 
+            mc.stack.pivot, mc.stack.tempv
         )
-        vmul!(mc.s.t_stack[idx + 1], mc.s.tmp1, mc.s.t_stack[idx])
+        vmul!(mc.stack.t_stack[idx + 1], mc.stack.tmp1, mc.stack.t_stack[idx])
     end
-    U = copy(mc.s.u_stack[end])
-    D = copy(mc.s.d_stack[end])
-    T = copy(mc.s.t_stack[end])
+    U = copy(mc.stack.u_stack[end])
+    D = copy(mc.stack.d_stack[end])
+    T = copy(mc.stack.t_stack[end])
 
     # Ul Dl Tl is the same
-    Ul = copy(mc.s.u_stack[end])
-    Dl = copy(mc.s.d_stack[end])
-    Tl = copy(mc.s.t_stack[end])
+    Ul = copy(mc.stack.u_stack[end])
+    Dl = copy(mc.stack.d_stack[end])
+    Tl = copy(mc.stack.t_stack[end])
 
     # Ur Dr Tr from new greens
     mc.conf .= conf
-    copyto!(mc.s.u_stack[1], I)
-    mc.s.d_stack[1] .= one(eltype(mc.s.d_stack[1]))
-    copyto!(mc.s.t_stack[1], I)
+    copyto!(mc.stack.u_stack[1], I)
+    mc.stack.d_stack[1] .= one(eltype(mc.stack.d_stack[1]))
+    copyto!(mc.stack.t_stack[1], I)
 
-    @inbounds for idx in 1:length(mc.s.ranges)
-        copyto!(mc.s.curr_U, mc.s.u_stack[idx])
+    @inbounds for idx in 1:length(mc.stack.ranges)
+        copyto!(mc.stack.curr_U, mc.stack.u_stack[idx])
 
-        # println("Adding slice seq left $idx = ", mc.s.ranges[idx])
-        for slice in mc.s.ranges[idx]
-            multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+        # println("Adding slice seq left $idx = ", mc.stack.ranges[idx])
+        for slice in mc.stack.ranges[idx]
+            multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.stack.curr_U)
         end
 
-        vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(mc.s.d_stack[idx]))
+        vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.d_stack[idx]))
         udt_AVX_pivot!(
-            mc.s.u_stack[idx + 1], mc.s.d_stack[idx + 1], mc.s.tmp1, 
-            mc.s.pivot, mc.s.tempv
+            mc.stack.u_stack[idx + 1], mc.stack.d_stack[idx + 1], mc.stack.tmp1, 
+            mc.stack.pivot, mc.stack.tempv
         )
-        vmul!(mc.s.t_stack[idx + 1], mc.s.tmp1, mc.s.t_stack[idx])
+        vmul!(mc.stack.t_stack[idx + 1], mc.stack.tmp1, mc.stack.t_stack[idx])
     end
-    Ur = copy(mc.s.u_stack[end])
-    Dr = copy(mc.s.d_stack[end])
-    Tr = copy(mc.s.t_stack[end])
+    Ur = copy(mc.stack.u_stack[end])
+    Dr = copy(mc.stack.d_stack[end])
+    Tr = copy(mc.stack.t_stack[end])
 
     # new G
-    build_stack(mc, mc.s)
+    build_stack(mc, mc.stack)
     propagate(mc)
 
-    mc.s.greens + compute_ratio(U, D, T, Ul, Dl, Tl, Ur, Dr, Tr)
+    mc.stack.greens + compute_ratio(U, D, T, Ul, Dl, Tl, Ur, Dr, Tr)
 end
 
 function compute_ratio(

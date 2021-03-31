@@ -85,15 +85,15 @@ DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
 
 
 # convenience
-@inline beta(mc::DQMC) = mc.p.beta
-@inline nslices(mc::DQMC) = mc.p.slices
+@inline beta(mc::DQMC) = mc.parameters.beta
+@inline nslices(mc::DQMC) = mc.parameters.slices
 @inline model(mc::DQMC) = mc.model
 @inline conf(mc::DQMC) = mc.conf
-@inline current_slice(mc::DQMC) = mc.s.current_slice
+@inline current_slice(mc::DQMC) = mc.stack.current_slice
 @inline last_sweep(mc::DQMC) = mc.last_sweep
-@inline configurations(mc::DQMC) = mc.configs
+@inline configurations(mc::DQMC) = mc.recorder
 @inline lattice(mc::DQMC) = lattice(mc.model)
-@inline parameters(mc::DQMC) = merge(parameters(mc.p), parameters(mc.model))
+@inline parameters(mc::DQMC) = merge(parameters(mc.parameters), parameters(mc.model))
 @inline parameters(p::DQMCParameters) = (
     beta = p.beta, delta_tau = p.delta_tau, thermalization = p.thermalization, sweeps = p.sweeps
 )
@@ -105,7 +105,7 @@ Base.summary(mc::DQMC) = "DQMC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::DQMC)
     print(io, "Determinant quantum Monte Carlo simulation\n")
     print(io, "Model: ", mc.model, "\n")
-    print(io, "Beta: ", mc.p.beta, " (T ≈ $(round(1/mc.p.beta, sigdigits=3)))\n")
+    print(io, "Beta: ", mc.parameters.beta, " (T ≈ $(round(1/mc.parameters.beta, sigdigits=3)))\n")
     N_th_meas = length(mc.thermalization_measurements)
     N_me_meas = length(mc.measurements)
     print(io, "Measurements: ", N_th_meas + N_me_meas, " ($N_th_meas + $N_me_meas)")
@@ -120,7 +120,7 @@ end
 
 function init!(mc::DQMC)
     init_hopping_matrices(mc, mc.model)
-    initialize_stack(mc, mc.s)
+    initialize_stack(mc, mc.stack)
     nothing
 end
 @deprecate resume_init!(mc::DQMC) init!(mc) false
@@ -154,8 +154,8 @@ See also: [`resume!`](@ref)
         mc::DQMC;
         verbose::Bool = true,
         ignore = tuple(),
-        sweeps::Int = mc.p.sweeps,
-        thermalization = mc.p.thermalization,
+        sweeps::Int = mc.parameters.sweeps,
+        thermalization = mc.parameters.thermalization,
         safe_before::TimeType = now() + Year(100),
         safe_every::TimePeriod = Hour(10000),
         grace_period::TimePeriod = Minute(5),
@@ -164,9 +164,9 @@ See also: [`resume!`](@ref)
     )
 
     # Update number of sweeps
-    if (mc.p.thermalization != thermalization) || (mc.p.sweeps != sweeps)
+    if (mc.parameters.thermalization != thermalization) || (mc.parameters.sweeps != sweeps)
         verbose && println("Rebuilding DQMCParameters with new number of sweeps.")
-        mc.p = DQMCParameters(mc.p, thermalization = thermalization, sweeps = sweeps)
+        mc.parameters = DQMCParameters(mc.parameters, thermalization = thermalization, sweeps = sweeps)
     end
     total_sweeps = sweeps + thermalization
 
@@ -188,7 +188,7 @@ See also: [`resume!`](@ref)
     # fresh stack
     verbose && println("Preparing Green's function stack")
     init!(mc)
-    build_stack(mc, mc.s)
+    build_stack(mc, mc.stack)
     propagate(mc)
 
     _time = time()
@@ -201,16 +201,16 @@ See also: [`resume!`](@ref)
             update(mc, i)
 
             if current_slice(mc) == 1 && i ≤ thermalization && 
-                mc.s.direction == 1 && iszero(i % mc.p.measure_rate)
-                if iszero(i % mc.p.measure_rate)
+                mc.stack.direction == 1 && iszero(i % mc.parameters.measure_rate)
+                if iszero(i % mc.parameters.measure_rate)
                     for (requirement, group) in th_groups
                         apply!(requirement, group, mc, mc.model, i)
                     end
                 end
             end
-            if current_slice(mc) == 1 && mc.s.direction == 1 && i > thermalization
-                push!(mc.configs, mc, mc.model, i)
-                if iszero(i % mc.p.measure_rate)
+            if current_slice(mc) == 1 && mc.stack.direction == 1 && i > thermalization
+                push!(mc.recorder, mc, mc.model, i)
+                if iszero(i % mc.parameters.measure_rate)
                     for (requirement, group) in groups
                         apply!(requirement, group, mc, mc.model, i)
                     end
@@ -219,26 +219,26 @@ See also: [`resume!`](@ref)
         end
         mc.last_sweep = i
 
-        if mod(i, mc.p.print_rate) == 0
-            mc.a.acc_rate = mc.a.acc_rate / (mc.p.print_rate * 2 * nslices(mc))
-            mc.a.acc_rate_global = mc.a.acc_rate_global / (mc.p.print_rate / mc.p.global_rate)
-            sweep_dur = (time() - _time)/mc.p.print_rate
+        if mod(i, mc.parameters.print_rate) == 0
+            mc.analysis.acc_rate = mc.analysis.acc_rate / (mc.parameters.print_rate * 2 * nslices(mc))
+            mc.analysis.acc_rate_global = mc.analysis.acc_rate_global / (mc.parameters.print_rate / mc.parameters.global_rate)
+            sweep_dur = (time() - _time)/mc.parameters.print_rate
             max_sweep_duration = max(max_sweep_duration, sweep_dur)
             if verbose
                 println("\t", i)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur)
-                @printf("\t\tacc rate (local) : %.1f%%\n", mc.a.acc_rate*100)
-                if mc.p.global_moves
-                    @printf("\t\tacc rate (global): %.1f%%\n", mc.a.acc_rate_global*100)
+                @printf("\t\tacc rate (local) : %.1f%%\n", mc.analysis.acc_rate*100)
+                if mc.parameters.global_moves
+                    @printf("\t\tacc rate (global): %.1f%%\n", mc.analysis.acc_rate_global*100)
                     @printf(
                         "\t\tacc rate (global, overall): %.1f%%\n",
-                        mc.a.acc_global/mc.a.prop_global*100
+                        mc.analysis.acc_global/mc.analysis.prop_global*100
                     )
                 end
             end
 
-            mc.a.acc_rate = 0.0
-            mc.a.acc_rate_global = 0.0
+            mc.analysis.acc_rate = 0.0
+            mc.analysis.acc_rate_global = 0.0
             flush(stdout)
             _time = time()
         end
@@ -261,26 +261,26 @@ See also: [`resume!`](@ref)
         end
     end
 
-    mc.a.acc_rate = mc.a.acc_local / mc.a.prop_local
-    mc.a.acc_rate_global = mc.a.acc_global / mc.a.prop_global
+    mc.analysis.acc_rate = mc.analysis.acc_local / mc.analysis.prop_local
+    mc.analysis.acc_rate_global = mc.analysis.acc_global / mc.analysis.prop_global
 
     if verbose
-        if length(mc.a.imaginary_probability) > 0
-            s = mc.a.imaginary_probability
+        if length(mc.analysis.imaginary_probability) > 0
+            s = mc.analysis.imaginary_probability
             println("\nImaginary Probability Errors: ($(s.count))")
             @printf("\tmax  = %0.3e\n", max(s))
             @printf("\tmean = %0.3e\n", mean(s))
             @printf("\tmin  = %0.3e\n\n", min(s))
         end
-        if length(mc.a.negative_probability) > 0
-            s = mc.a.negative_probability
+        if length(mc.analysis.negative_probability) > 0
+            s = mc.analysis.negative_probability
             println("\nNegative Probability Errors: ($(s.count))")
             @printf("\tmax  = %0.3e\n", max(s))
             @printf("\tmean = %0.3e\n", mean(s))
             @printf("\tmin  = %0.3e\n\n", min(s))
         end
-        if length(mc.a.propagation_error) > 0
-            s = mc.a.propagation_error
+        if length(mc.analysis.propagation_error) > 0
+            s = mc.analysis.propagation_error
             println("\nPropagation Errors: ($(s.count))")
             @printf("\tmax  = %0.3e\n", max(s))
             @printf("\tmean = %0.3e\n", mean(s))
@@ -309,14 +309,14 @@ function update(mc::DQMC, i::Int)
 
     # global move
     # note - current_slice and direction are critical here
-    # if mc.p.global_moves && current_slice(mc) == nslices(mc) &&
-    #        mc.s.direction == -1 && iszero(mod(i, mc.p.global_rate))
-    if mc.p.global_moves && current_slice(mc) == 1 &&
-        mc.s.direction == 1 && iszero(mod(i, mc.p.global_rate))
-        mc.a.prop_global += 1
+    # if mc.parameters.global_moves && current_slice(mc) == nslices(mc) &&
+    #        mc.stack.direction == -1 && iszero(mod(i, mc.parameters.global_rate))
+    if mc.parameters.global_moves && current_slice(mc) == 1 &&
+        mc.stack.direction == 1 && iszero(mod(i, mc.parameters.global_rate))
+        mc.analysis.prop_global += 1
         b = global_move(mc, mc.model)
-        mc.a.acc_global += b
-        mc.a.acc_rate_global += b
+        mc.analysis.acc_global += b
+        mc.analysis.acc_rate_global += b
     end
 
     # local moves
@@ -339,19 +339,19 @@ imaginary time slice.
     # @inbounds for i in rand(1:N, N)
     @inbounds for i in 1:N
         detratio, ΔE_boson, passthrough = propose_local(mc, m, i, current_slice(mc), conf(mc))
-        mc.a.prop_local += 1
+        mc.analysis.prop_local += 1
 
-        if mc.p.check_sign_problem
+        if mc.parameters.check_sign_problem
             if abs(imag(detratio)) > 1e-6
-                push!(mc.a.imaginary_probability, abs(imag(detratio)))
-                mc.p.silent || @printf(
+                push!(mc.analysis.imaginary_probability, abs(imag(detratio)))
+                mc.parameters.silent || @printf(
                     "Did you expect a sign problem? imag. detratio:  %.9e\n", 
                     abs(imag(detratio))
                 )
             end
             if real(detratio) < 0.0
-                push!(mc.a.negative_probability, real(detratio))
-                mc.p.silent || @printf(
+                push!(mc.analysis.negative_probability, real(detratio))
+                mc.parameters.silent || @printf(
                     "Did you expect a sign problem? negative detratio %.9e\n",
                     real(detratio)
                 )
@@ -366,15 +366,15 @@ imaginary time slice.
             accept_local!(mc, m, i, current_slice(mc), conf(mc), detratio, ΔE_boson, passthrough)
             # Δ, detratio,ΔE_boson)
             acc_rate += 1.0
-            mc.a.acc_local += 1
+            mc.analysis.acc_local += 1
         end
     end
-    mc.a.acc_rate += acc_rate / N
+    mc.analysis.acc_rate += acc_rate / N
     nothing
 end
 
 """
-    replay(mc::DQMC[; configurations::Iterable = mc.configs; kwargs...])
+    replay(mc::DQMC[; configurations::Iterable = mc.recorder; kwargs...])
 
 Replays previously generated configurations and measures observables along the
 way.
@@ -395,7 +395,7 @@ the configuration measurement.
 based on the recorded configurations, not actual sweeps.
 """
 function replay!(
-        mc::DQMC, configurations = mc.configs;
+        mc::DQMC, configurations = mc.recorder;
         ignore = tuple(),
         verbose::Bool = true,
         safe_before::TimeType = now() + Year(100),
@@ -424,36 +424,36 @@ function replay!(
     )
 
 
-    if measure_rate != mc.p.measure_rate
-        mc.p = DQMCParameters(
-            mc.p.global_moves, mc.p.global_rate,
-            mc.p.thermalization, mc.p.sweeps,
-            mc.p.silent, mc.p.check_sign_problem,mc.p.check_propagation_error,
-            mc.p.safe_mult, mc.p.delta_tau, mc.p.beta, mc.p.slices,
-            measure_rate, mc.p.print_rate
+    if measure_rate != mc.parameters.measure_rate
+        mc.parameters = DQMCParameters(
+            mc.parameters.global_moves, mc.parameters.global_rate,
+            mc.parameters.thermalization, mc.parameters.sweeps,
+            mc.parameters.silent, mc.parameters.check_sign_problem,mc.parameters.check_propagation_error,
+            mc.parameters.safe_mult, mc.parameters.delta_tau, mc.parameters.beta, mc.parameters.slices,
+            measure_rate, mc.parameters.print_rate
         )
     end
 
     verbose && println("Preparing Green's function stack")
     init!(mc)
-    build_stack(mc, mc.s)
+    build_stack(mc, mc.stack)
     propagate(mc)
-    mc.s.current_slice = 1
+    mc.stack.current_slice = 1
     mc.conf = rand(DQMC, mc.model, nslices(mc))
 
     _time = time()
     verbose && println("\n\nReplaying measurement stage - ", length(configurations))
     prepare!(mc.measurements, mc, mc.model)
-    for i in mc.last_sweep+1:mc.p.measure_rate:length(configurations)
+    for i in mc.last_sweep+1:mc.parameters.measure_rate:length(configurations)
         copyto!(mc.conf, decompress(mc, mc.model, configurations[i]))
-        calculate_greens(mc, 0) # outputs to mc.s.greens
+        calculate_greens(mc, 0) # outputs to mc.stack.greens
         for (requirement, group) in groups
             apply!(requirement, group, mc, mc.model, i)
         end
         mc.last_sweep = i
 
-        if mod(i, mc.p.print_rate) == 0
-            sweep_dur = (time() - _time)/mc.p.print_rate
+        if mod(i, mc.parameters.print_rate) == 0
+            sweep_dur = (time() - _time)/mc.parameters.print_rate
             max_sweep_duration = max(max_sweep_duration, sweep_dur)
             if verbose
                 println("\t", i)

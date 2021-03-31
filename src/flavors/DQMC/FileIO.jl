@@ -13,10 +13,10 @@
 function save_mc(file::JLDFile, mc::DQMC, entryname::String="MC")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(mc))
-    save_parameters(file, mc.p, entryname * "/Parameters")
-    save_analysis(file, mc.a, entryname * "/Analysis")
+    save_parameters(file, mc.parameters, entryname * "/Parameters")
+    save_analysis(file, mc.analysis, entryname * "/Analysis")
     write(file, entryname * "/conf", mc.conf)
-    _save(file, mc.configs, entryname * "/configs")
+    _save(file, mc.recorder, entryname * "/configs")
     write(file, entryname * "/last_sweep", mc.last_sweep)
     save_measurements(file, mc, entryname * "/Measurements")
     save_model(file, mc.model, entryname * "/Model")
@@ -37,10 +37,10 @@ function _load(data, ::Type{T}) where T <: DQMC
     CB = CB_type(data["type"])
     @assert CB <: Checkerboard
     mc = DQMC(CB)
-    mc.p = _load(data["Parameters"], data["Parameters"]["type"])
-    mc.a = _load(data["Analysis"], data["Analysis"]["type"])
+    mc.parameters = _load(data["Parameters"], data["Parameters"]["type"])
+    mc.analysis = _load(data["Analysis"], data["Analysis"]["type"])
     mc.conf = data["conf"]
-    mc.configs = _load(data["configs"], data["configs"]["type"])
+    mc.recorder = _load(data["configs"], data["configs"]["type"])
     mc.last_sweep = data["last_sweep"]
     mc.model = _load(data["Model"], data["Model"]["type"])
 
@@ -52,7 +52,7 @@ function _load(data, ::Type{T}) where T <: DQMC
     HMT = hopping_matrix_type(DQMC, mc.model)
     GMT = greens_matrix_type(DQMC, mc.model)
     IMT = interaction_matrix_type(DQMC, mc.model)
-    mc.s = DQMCStack{GET, HET, GMT, HMT, IMT}()
+    mc.stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
     mc.ut_stack = UnequalTimeStack{GET, GMT}()
     
     make_concrete!(mc)

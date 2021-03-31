@@ -355,7 +355,7 @@ function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
-    T = mc.s.hopping_matrix
+    T = mc.stack.hopping_matrix
     output = zero(eltype(G00))
 
     # Iterate through (spin up, spin down)
@@ -425,7 +425,7 @@ end
 
 @inline function nonintE_kernel(mc, model, G::AbstractArray)
     # <T> = \sum Tji * (Iij - Gij) = - \sum Tji * (Gij - Iij)
-    T = mc.s.hopping_matrix
+    T = tack.hopping_matrix
     nonintE(T, G)
 end
 

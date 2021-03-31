@@ -112,7 +112,7 @@ This is a performance critical method.
 """
 @inline @bm function interaction_matrix_exp!(mc::DQMC, model::HubbardModelRepulsive,
             result, conf::HubbardConf, slice::Int, power::Float64=1.)
-    dtau = mc.p.delta_tau
+    dtau = mc.parameters.delta_tau
     lambda = acosh(exp(0.5 * model.U * dtau))
     N = length(lattice(model))
     
@@ -129,8 +129,8 @@ end
         mc::DQMC, model::HubbardModelRepulsive, i::Int, slice::Int, conf::HubbardConf
     )
     N = length(model.l)
-    G = mc.s.greens
-    Δτ = mc.p.delta_tau
+    G = mc.stack.greens
+    Δτ = mc.parameters.delta_tau
     Δ = model.Δ
     R = model.R
 
@@ -162,7 +162,7 @@ end
 
     @bm "accept_local (init)" begin
         N = length(model.l)
-        G = mc.s.greens
+        G = mc.stack.greens
         IG = model.IG
         IGR = model.IGR
         Δ = model.Δ
@@ -207,8 +207,8 @@ end
         # BlockDiagonal version
         G1 = G.blocks[1]
         G2 = G.blocks[2]
-        temp1 = mc.s.greens_temp.blocks[1]
-        temp2 = mc.s.greens_temp.blocks[2]
+        temp1 = mc.stack.greens_temp.blocks[1]
+        temp2 = mc.stack.greens_temp.blocks[2]
 
         @avx for m in axes(G1, 1), n in axes(G1, 2)
             temp1[m, n] = IGR[m, 1] * G1[i, n]

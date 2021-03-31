@@ -7,18 +7,18 @@ value of `Gᵢⱼ = ⟨cᵢcⱼ^†⟩`. The indices relate to sites and flavors
 exact meanign depends on the model. For the attractive Hubbard model
 `G[i, j] = ⟨c_{i, ↑} c_{j, ↑}^†⟩ = ⟨c_{i, ↓} c_{j, ↓}^†⟩` due to symmetry.
 
-Internally, `mc.s.greens` is an effective Green's function. This method
+Internally, `mc.stack.greens` is an effective Green's function. This method
 transforms it to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
 @bm greens(mc::DQMC) = copy(_greens!(mc))
 
 """
-    greens!(mc::DQMC[; output=mc.s.greens_temp, input=mc.s.greens, temp=mc.s.Ur])
+    greens!(mc::DQMC[; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.Ur])
 
 Inplace version of `greens`.
 """
-@bm function greens!(mc::DQMC; output=mc.s.greens_temp, input=mc.s.greens, temp=mc.s.Ur)
+@bm function greens!(mc::DQMC; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.Ur)
     _greens!(mc, output, input, temp)
 end
 
@@ -33,30 +33,30 @@ end
 # reverse the cyclic permutation, which happens here.
 
 function _greens!(
-        mc::DQMC_CBFalse, target::AbstractMatrix = mc.s.greens_temp, 
-        source::AbstractMatrix = mc.s.greens, temp::AbstractMatrix = mc.s.Ur
+        mc::DQMC_CBFalse, target::AbstractMatrix = mc.stack.greens_temp, 
+        source::AbstractMatrix = mc.stack.greens, temp::AbstractMatrix = mc.stack.Ur
     )
-    eThalfminus = mc.s.hopping_matrix_exp
-    eThalfplus = mc.s.hopping_matrix_exp_inv
+    eThalfminus = mc.stack.hopping_matrix_exp
+    eThalfplus = mc.stack.hopping_matrix_exp_inv
     vmul!(temp, source, eThalfminus)
     vmul!(target, eThalfplus, temp)
     return target
 end
 
 function _greens!(
-        mc::DQMC_CBTrue, target::AbstractMatrix = mc.s.greens_temp, 
-        source::AbstractMatrix = mc.s.greens, temp::AbstractMatrix = mc.s.Ur
+        mc::DQMC_CBTrue, target::AbstractMatrix = mc.stack.greens_temp, 
+        source::AbstractMatrix = mc.stack.greens, temp::AbstractMatrix = mc.stack.Ur
     )
-    chkr_hop_half_minus = mc.s.chkr_hop_half
-    chkr_hop_half_plus = mc.s.chkr_hop_half_inv
+    chkr_hop_half_minus = mc.stack.chkr_hop_half
+    chkr_hop_half_plus = mc.stack.chkr_hop_half_inv
     copyto!(target, source)
 
     @inbounds @views begin
-        for i in reverse(1:mc.s.n_groups)
+        for i in reverse(1:mc.stack.n_groups)
             vmul!(temp, target, chkr_hop_half_minus[i])
             copyto!(target, temp)
         end
-        for i in reverse(1:mc.s.n_groups)
+        for i in reverse(1:mc.stack.n_groups)
             vmul!(temp, chkr_hop_half_plus[i], target)
             copyto!(target, temp)
         end
@@ -81,21 +81,21 @@ invalidated. (I.e. `G = greens!(mc)` would get overwritten.)
 @bm greens(mc::DQMC, slice::Integer) = copy(_greens!(mc, slice))
 
 """
-    greens!(mc::DQMC, l::Integer[; output=mc.s.greens_temp, temp1=mc.s.tmp1, temp2=mc.s.tmp2])
+    greens!(mc::DQMC, l::Integer[; output=mc.stack.greens_temp, temp1=mc.stack.tmp1, temp2=mc.stack.tmp2])
 
 Inplace version of `greens!(mc, l)`
 """
 @bm function greens!(
         mc::DQMC, slice::Integer; 
-        output=mc.s.greens_temp, temp1 = mc.s.tmp1, temp2 = mc.s.tmp2
+        output=mc.stack.greens_temp, temp1 = mc.stack.tmp1, temp2 = mc.stack.tmp2
     ) 
     _greens!(mc, slice, output, temp1, temp2)
 end
 
 
 function _greens!(
-        mc::DQMC, slice::Integer, output::AbstractMatrix = mc.s.greens_temp, 
-        temp1::AbstractMatrix = mc.s.tmp1, temp2::AbstractMatrix = mc.s.tmp2
+        mc::DQMC, slice::Integer, output::AbstractMatrix = mc.stack.greens_temp, 
+        temp1::AbstractMatrix = mc.stack.tmp1, temp2::AbstractMatrix = mc.stack.tmp2
     )
     calculate_greens(mc, slice, temp1)
     _greens!(mc, output, temp1, temp2)

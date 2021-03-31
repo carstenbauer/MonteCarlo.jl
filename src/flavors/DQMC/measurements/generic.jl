@@ -113,7 +113,7 @@ Base.empty!(m::DQMCMeasurement) = empty!(m.observable)
 
 Returns a default capacity based in the number of sweeps and the measure rate.
 """
-_default_capacity(mc::DQMC) = 2 * ceil(Int, mc.p.sweeps / mc.p.measure_rate)
+_default_capacity(mc::DQMC) = 2 * ceil(Int, mc.parameters.sweeps / mc.parameters.measure_rate)
 
 
 # _get_temp_shape is the shape of the temporary array
@@ -287,7 +287,7 @@ end
     end
 
     for (lattice_iterator, measurement) in combined
-        finish!(lattice_iterator, model, measurement, mc.p.delta_tau)
+        finish!(lattice_iterator, model, measurement, mc.parameters.delta_tau)
     end
     nothing
 end

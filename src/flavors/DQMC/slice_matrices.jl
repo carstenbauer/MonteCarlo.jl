@@ -11,9 +11,9 @@ Calculates `Beff(slice) = exp(−1/2∆tauT)exp(−1/2∆tauT)exp(−∆tauV(sli
         mc::DQMC_CBFalse, m::Model, slice::Int, power::Float64 = 1.0, 
         conf::AbstractArray = mc.conf
     )
-    eT2 = mc.s.hopping_matrix_exp_squared
-    eTinv2 = mc.s.hopping_matrix_exp_inv_squared
-    eV = mc.s.eV
+    eT2 = mc.stack.hopping_matrix_exp_squared
+    eTinv2 = mc.stack.hopping_matrix_exp_inv_squared
+    eV = mc.stack.eV
 
     interaction_matrix_exp!(mc, m, eV, conf, slice, power)
 
@@ -25,11 +25,11 @@ Calculates `Beff(slice) = exp(−1/2∆tauT)exp(−1/2∆tauT)exp(−∆tauV(sli
 end
 @bm function slice_matrix!(
         mc::DQMC_CBFalse, m::Model, slice::Int, power::Float64 = 1.0, 
-        result::AbstractArray = mc.s.tmp2, conf::AbstractArray = mc.conf
+        result::AbstractArray = mc.stack.tmp2, conf::AbstractArray = mc.conf
     )
-    eT2 = mc.s.hopping_matrix_exp_squared
-    eTinv2 = mc.s.hopping_matrix_exp_inv_squared
-    eV = mc.s.eV
+    eT2 = mc.stack.hopping_matrix_exp_squared
+    eTinv2 = mc.stack.hopping_matrix_exp_inv_squared
+    eV = mc.stack.eV
 
     interaction_matrix_exp!(mc, m, eV, conf, slice, power)
 
@@ -48,45 +48,45 @@ end
         mc::DQMC_CBFalse, m::Model, slice::Int, M::AbstractMatrix,
         conf::AbstractArray = mc.conf
     )
-    slice_matrix!(mc, m, slice, 1.0, mc.s.tmp2, conf)
-    vmul!(mc.s.tmp1, mc.s.tmp2, M)
-    M .= mc.s.tmp1
+    slice_matrix!(mc, m, slice, 1.0, mc.stack.tmp2, conf)
+    vmul!(mc.stack.tmp1, mc.stack.tmp2, M)
+    M .= mc.stack.tmp1
     nothing
 end
 @bm function multiply_slice_matrix_right!(
         mc::DQMC_CBFalse, m::Model, slice::Int, M::AbstractMatrix,
         conf::AbstractArray = mc.conf
     )
-    slice_matrix!(mc, m, slice, 1.0, mc.s.tmp2, conf)
-    vmul!(mc.s.tmp1, M, mc.s.tmp2)
-    M .= mc.s.tmp1
+    slice_matrix!(mc, m, slice, 1.0, mc.stack.tmp2, conf)
+    vmul!(mc.stack.tmp1, M, mc.stack.tmp2)
+    M .= mc.stack.tmp1
     nothing
 end
 @bm function multiply_slice_matrix_inv_right!(
         mc::DQMC_CBFalse, m::Model, slice::Int, M::AbstractMatrix,
         conf::AbstractArray = mc.conf    
     )
-    slice_matrix!(mc, m, slice, -1.0, mc.s.tmp2, conf)
-    vmul!(mc.s.tmp1, M, mc.s.tmp2)
-    M .= mc.s.tmp1
+    slice_matrix!(mc, m, slice, -1.0, mc.stack.tmp2, conf)
+    vmul!(mc.stack.tmp1, M, mc.stack.tmp2)
+    M .= mc.stack.tmp1
     nothing
 end
 @bm function multiply_slice_matrix_inv_left!(
         mc::DQMC_CBFalse, m::Model, slice::Int, M::AbstractMatrix,
         conf::AbstractArray = mc.conf
     )
-    slice_matrix!(mc, m, slice, -1.0, mc.s.tmp2, conf)
-    vmul!(mc.s.tmp1, mc.s.tmp2, M)
-    M .= mc.s.tmp1
+    slice_matrix!(mc, m, slice, -1.0, mc.stack.tmp2, conf)
+    vmul!(mc.stack.tmp1, mc.stack.tmp2, M)
+    M .= mc.stack.tmp1
     nothing
 end
 @bm function multiply_daggered_slice_matrix_left!(
         mc::DQMC_CBFalse, m::Model, slice::Int, M::AbstractMatrix,
         conf::AbstractArray = mc.conf
     )
-    slice_matrix!(mc, m, slice, 1.0, mc.s.tmp2, conf)
-    vmul!(mc.s.tmp1, adjoint(mc.s.tmp2), M)
-    M .= mc.s.tmp1
+    slice_matrix!(mc, m, slice, 1.0, mc.stack.tmp2, conf)
+    vmul!(mc.stack.tmp1, adjoint(mc.stack.tmp2), M)
+    M .= mc.stack.tmp1
     nothing
 end
 
@@ -112,7 +112,7 @@ const DQMC_CBTrue = DQMC{M, CheckerboardTrue} where M
     return M
 end
 @bm function slice_matrix!(mc::DQMC_CBTrue, m::Model, slice::Int,
-                    power::Float64=1., M = mc.s.U)
+                    power::Float64=1., M = mc.stack.U)
     copyto!(M, I)
     if power > 0
         multiply_slice_matrix_left!(mc, m, slice, M)
@@ -124,7 +124,7 @@ end
 
 @bm function multiply_slice_matrix_left!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
-    s = mc.s
+    s = mc.stack
     interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, 1.)
 
     mul!(s.tmp1, s.eV, M)
@@ -148,7 +148,7 @@ end
 end
 @bm function multiply_slice_matrix_right!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
-    s = mc.s
+    s = mc.stack
     @inbounds begin
         for i in reverse(2:s.n_groups)
             mul!(s.tmp1, M, s.chkr_hop_half[i])
@@ -171,7 +171,7 @@ end
 end
 @bm function multiply_slice_matrix_inv_left!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
-    s = mc.s
+    s = mc.stack
     @inbounds begin
         for i in reverse(2:s.n_groups)
             mul!(s.tmp1, s.chkr_hop_half_inv[i], M)
@@ -194,7 +194,7 @@ end
 end
 @bm function multiply_slice_matrix_inv_right!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
-    s = mc.s
+    s = mc.stack
     interaction_matrix_exp!(mc, m, s.eV, mc.conf, slice, -1.)
     mul!(s.tmp1, M, s.eV)
     M .= s.tmp1
@@ -218,7 +218,7 @@ end
 end
 @bm function multiply_daggered_slice_matrix_left!(mc::DQMC_CBTrue, m::Model, slice::Int,
                     M::AbstractMatrix{T}) where T<:Number
-    s = mc.s
+    s = mc.stack
 
     @inbounds begin
         for i in reverse(2:s.n_groups)
