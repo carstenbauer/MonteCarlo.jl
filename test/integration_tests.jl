@@ -22,7 +22,7 @@
     @test    0.014 ≈ measured[:Energy].e |> std_error  atol=0.001
     @test    0.585 ≈ measured[:Energy].C |> mean       atol=0.001
 
-    @test isempty(mc.recorder) == true
+    @test isempty(mc.configs) == true
 end
 
 

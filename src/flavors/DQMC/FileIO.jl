@@ -46,11 +46,11 @@ function _load(data, ::Type{T}) where T <: DQMC
     combined_measurements = _load(data["Measurements"], Measurements)
     thermalization_measurements = combined_measurements[:TH]
     measurements = combined_measurements[:ME]
-    HET = hoppingeltype(DQMC, mc.model)
-    GET = greenseltype(DQMC, mc.model)
-    HMT = hopping_matrix_type(DQMC, mc.model)
-    GMT = greens_matrix_type(DQMC, mc.model)
-    IMT = interaction_matrix_type(DQMC, mc.model)
+    HET = hoppingeltype(DQMC, model)
+    GET = greenseltype(DQMC, model)
+    HMT = hopping_matrix_type(DQMC, model)
+    GMT = greens_matrix_type(DQMC, model)
+    IMT = interaction_matrix_type(DQMC, model)
     stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
     ut_stack = UnequalTimeStack{GET, GMT}()
     
