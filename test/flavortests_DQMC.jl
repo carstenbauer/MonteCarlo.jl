@@ -35,29 +35,29 @@ end
 
     mc = DQMC(m, beta=5.0, checkerboard=true, delta_tau=0.1)
     MonteCarlo.init_hopping_matrices(mc, m)
-    hop_mat_exp_chkr = foldl(*,mc.s.chkr_hop_half) * sqrt.(mc.s.chkr_mu)
-    r = MonteCarlo.effreldiff(mc.s.hopping_matrix_exp,hop_mat_exp_chkr)
+    hop_mat_exp_chkr = foldl(*,mc.stack.chkr_hop_half) * sqrt.(mc.stack.chkr_mu)
+    r = MonteCarlo.effreldiff(mc.stack.hopping_matrix_exp,hop_mat_exp_chkr)
     r[findall(x -> x==zero(x), hop_mat_exp_chkr)] .= 0.
-    @test maximum(MonteCarlo.absdiff(mc.s.hopping_matrix_exp,hop_mat_exp_chkr)) <= mc.p.delta_tau
+    @test maximum(MonteCarlo.absdiff(mc.stack.hopping_matrix_exp,hop_mat_exp_chkr)) <= mc.parameters.delta_tau
 
     # initial greens test
     mc = DQMC(m, beta=5.0, safe_mult=1)
-    MonteCarlo.build_stack(mc, mc.s)
+    MonteCarlo.build_stack(mc, mc.stack)
     MonteCarlo.propagate(mc)
     # With this we effectively test calculate_greens without wrap_greens
-    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice)
-    MonteCarlo.wrap_greens!(mc, greens, mc.s.current_slice+1, -1)
-    @test greens ≈ mc.s.greens
+    greens, = calculate_greens_and_logdet(mc, mc.stack.current_slice)
+    MonteCarlo.wrap_greens!(mc, greens, mc.stack.current_slice+1, -1)
+    @test greens ≈ mc.stack.greens
     # here with a single implied wrap
-    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice-1)
-    @test maximum(MonteCarlo.absdiff(greens, mc.s.greens)) < 1e-12
+    greens, = calculate_greens_and_logdet(mc, mc.stack.current_slice-1)
+    @test maximum(MonteCarlo.absdiff(greens, mc.stack.greens)) < 1e-12
 
     # wrap greens test
     for k in 0:9
-        MonteCarlo.wrap_greens!(mc, mc.s.greens, mc.s.current_slice - k, -1)
+        MonteCarlo.wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice - k, -1)
     end
-    greens, = calculate_greens_and_logdet(mc, mc.s.current_slice-11)
-    @test maximum(MonteCarlo.absdiff(greens, mc.s.greens)) < 1e-9
+    greens, = calculate_greens_and_logdet(mc, mc.stack.current_slice-11)
+    @test maximum(MonteCarlo.absdiff(greens, mc.stack.greens)) < 1e-9
 
     # Check greens reconstruction used in replay
     mc = DQMC(m, beta=5.0, safe_mult=5)
@@ -77,27 +77,27 @@ end
     MonteCarlo.initialize_stack(dqmc, dqmc.ut_stack)
 
     MonteCarlo.build_stack(dqmc, dqmc.ut_stack)
-    MonteCarlo.build_stack(dqmc, dqmc.s)
+    MonteCarlo.build_stack(dqmc, dqmc.stack)
         
     # test B(τ, 1) / B_l1 stacks
-    @test dqmc.s.u_stack ≈ dqmc.ut_stack.forward_u_stack
-    @test dqmc.s.d_stack ≈ dqmc.ut_stack.forward_d_stack
-    @test dqmc.s.t_stack ≈ dqmc.ut_stack.forward_t_stack
+    @test dqmc.stack.u_stack ≈ dqmc.ut_stack.forward_u_stack
+    @test dqmc.stack.d_stack ≈ dqmc.ut_stack.forward_d_stack
+    @test dqmc.stack.t_stack ≈ dqmc.ut_stack.forward_t_stack
 
     # generate B(β, τ) / B_Nl stacks
-    while dqmc.s.direction == -1
+    while dqmc.stack.direction == -1
         MonteCarlo.propagate(dqmc)
     end
 
     # test B(β, τ) / B_Nl stacks
-    # Note: dqmc.s doesn't generate the full stack here
-    @test dqmc.s.u_stack[2:end] ≈ dqmc.ut_stack.backward_u_stack[2:end]
-    @test dqmc.s.d_stack[2:end] ≈ dqmc.ut_stack.backward_d_stack[2:end]
-    @test dqmc.s.t_stack[2:end] ≈ dqmc.ut_stack.backward_t_stack[2:end]
+    # Note: dqmc.stack doesn't generate the full stack here
+    @test dqmc.stack.u_stack[2:end] ≈ dqmc.ut_stack.backward_u_stack[2:end]
+    @test dqmc.stack.d_stack[2:end] ≈ dqmc.ut_stack.backward_d_stack[2:end]
+    @test dqmc.stack.t_stack[2:end] ≈ dqmc.ut_stack.backward_t_stack[2:end]
 
     while !(
             MonteCarlo.current_slice(dqmc) == 1 &&
-            dqmc.s.direction == -1
+            dqmc.stack.direction == -1
         )
         MonteCarlo.propagate(dqmc)
     end
@@ -127,26 +127,26 @@ end
     Gk0s = [deepcopy(MonteCarlo.greens(dqmc, slice, 0)) for slice in 0:MonteCarlo.nslices(dqmc)]
     
     # Calculated from UnequalTimeStack (high precision)
-    it = MonteCarlo.GreensIterator(dqmc, :, 0, dqmc.p.safe_mult)
+    it = MonteCarlo.GreensIterator(dqmc, :, 0, dqmc.parameters.safe_mult)
     for (i, G) in enumerate(it)
         @test maximum(abs.(G .- Gk0s[i])) < 1e-14
     end
 
-    # Calculated from mc.s.greens using UDT decompositions (lower precision)
-    it = MonteCarlo.GreensIterator(dqmc, :, 0, 4dqmc.p.safe_mult)
+    # Calculated from mc.stack.greens using UDT decompositions (lower precision)
+    it = MonteCarlo.GreensIterator(dqmc, :, 0, 4dqmc.parameters.safe_mult)
     for (i, G) in enumerate(it)
         @test maximum(abs.(G .- Gk0s[i])) < 1e-11
     end
 
     Gkks = map(0:MonteCarlo.nslices(dqmc)) do slice
         g = MonteCarlo.calculate_greens(dqmc, slice)
-        deepcopy(MonteCarlo._greens!(dqmc, dqmc.s.greens_temp, g))
+        deepcopy(MonteCarlo._greens!(dqmc, dqmc.stack.greens_temp, g))
     end
     G0ks = [deepcopy(MonteCarlo.greens(dqmc, 0, slice)) for slice in 0:MonteCarlo.nslices(dqmc)]
-    MonteCarlo.calculate_greens(dqmc, 0) # restore mc.s.greens
+    MonteCarlo.calculate_greens(dqmc, 0) # restore mc.stack.greens
 
     # high precision
-    it = MonteCarlo.CombinedGreensIterator(dqmc, dqmc.p.safe_mult)
+    it = MonteCarlo.CombinedGreensIterator(dqmc, dqmc.parameters.safe_mult)
     for (i, (G0k, Gk0, Gkk)) in enumerate(it)
         @test maximum(abs.(Gk0 .- Gk0s[i+1])) < 1e-14
         @test maximum(abs.(G0k .- G0ks[i+1])) < 1e-14
@@ -154,7 +154,7 @@ end
     end
 
     # low precision
-    it = MonteCarlo.CombinedGreensIterator(dqmc, 4dqmc.p.safe_mult)
+    it = MonteCarlo.CombinedGreensIterator(dqmc, 4dqmc.parameters.safe_mult)
     for (i, (G0k, Gk0, Gkk)) in enumerate(it)
         @test maximum(abs.(Gk0 .- Gk0s[i+1])) < 1e-10
         @test maximum(abs.(G0k .- G0ks[i+1])) < 1e-10
@@ -179,7 +179,7 @@ end
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
                 thermalization = 1, sweeps = 2, measure_rate = 1
             )
-            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.p.beta)"
+            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.parameters.beta)"
 
             dqmc[:G] = greens_measurement(dqmc, model)
             @time run!(dqmc, verbose=false)
@@ -193,7 +193,7 @@ end
             T = Matrix(MonteCarlo.hopping_matrix(dqmc, model))
             # Doing an eigenvalue decomposition makes this pretty stable
             vals, U = eigen(exp(-T))
-            D = Diagonal(vals)^(dqmc.p.beta)
+            D = Diagonal(vals)^(dqmc.parameters.beta)
 
             # Don't believe "Quantum Monte Carlo Methods", this is the right
             # formula (believe dos Santos DQMC review instead)

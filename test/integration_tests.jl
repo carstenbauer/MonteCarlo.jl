@@ -41,7 +41,7 @@ end
 
     # Check measurements
     measured = measurements(mc)
-    atol = 4mc.p.delta_tau^2
+    atol = 4mc.parameters.delta_tau^2
 
     # Greens
     @test [
@@ -112,7 +112,7 @@ end
 
     # Check measurements
     measured = measurements(mc)
-    atol = 2mc.p.delta_tau^2
+    atol = 2mc.parameters.delta_tau^2
 
     # Greens
     @test [

@@ -88,8 +88,8 @@ end
 
 
 function test_dqmc(mc, x)
-    for f in fieldnames(typeof(mc.p))
-        @test getfield(mc.p, f) == getfield(x.p, f)
+    for f in fieldnames(typeof(mc.parameters))
+        @test getfield(mc.parameters, f) == getfield(x.parameters, f)
     end
     # @test mc.conf == x.conf
     @test mc.model.mu == x.model.mu
@@ -183,7 +183,7 @@ end
 
     state = run!(
         mc, verbose = false,
-        safe_before = now() + Second(1),
+        safe_before = now() + Second(2),
         grace_period = Millisecond(0),
         resumable_filename = "resumable_testfile.jld2"
     )

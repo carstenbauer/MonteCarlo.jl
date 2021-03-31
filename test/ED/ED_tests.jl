@@ -105,7 +105,7 @@ end
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
                 thermalization = 1, sweeps = 2, measure_rate=1
             )
-            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.p.beta)"
+            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.parameters.beta)"
 
             dqmc[:G]    = greens_measurement(dqmc, model)
             l1s = [0, 3, 5, 7, 3, 0]
@@ -130,7 +130,7 @@ end
             T = Matrix(MonteCarlo.hopping_matrix(dqmc, model))
             # Doing an eigenvalue decomposition makes this pretty stable
             vals, U = eigen(exp(-T))
-            D = Diagonal(vals)^(dqmc.p.beta)
+            D = Diagonal(vals)^(dqmc.parameters.beta)
 
             # G = I - U * inv(I + D) * adjoint(U)
             G = U * inv(I + D) * adjoint(U)
@@ -142,7 +142,7 @@ end
                 # G_DQMC is smaller because it doesn't differentiate between spin up/down
                 @testset "Greens" begin
                     G_DQMC = mean(dqmc.measurements[:G])
-                    G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.p.beta)
+                    G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.parameters.beta)
                     @test check(G_DQMC, G_ED[1:size(G_DQMC, 1), 1:size(G_DQMC, 2)], atol, rtol)
                     @test check(G, G_ED[1:size(G_DQMC, 1), 1:size(G_DQMC, 2)], atol, rtol)
                     @test check(G_DQMC, G, atol, rtol)
@@ -151,7 +151,7 @@ end
                 for (i, tau1, tau2) in zip(eachindex(l1s), 0.1l1s, 0.1l2s)
                     UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
                     M = size(UTG, 1)
-                    ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l, beta=dqmc.p.beta)
+                    ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l, beta=dqmc.parameters.beta)
 
                     @testset "[$i] $tau1 -> $tau2" begin
                         for k in 1:M, l in 1:M
@@ -179,7 +179,7 @@ end
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
                 thermalization = 10_000, sweeps = 10_000, global_moves=true, print_rate=1000
             )
-            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.p.beta), 10k + 10k sweeps"
+            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.parameters.beta), 10k + 10k sweeps"
 
             dqmc[:G]    = greens_measurement(dqmc, model)
             dqmc[:E]    = total_energy(dqmc, model)
@@ -217,8 +217,8 @@ end
             @time run!(dqmc, verbose=true)
             
             # Absolute tolerance from Trotter decompositon
-            atol = 2dqmc.p.delta_tau^2
-            rtol = 2dqmc.p.delta_tau^2
+            atol = 2dqmc.parameters.delta_tau^2
+            rtol = 2dqmc.parameters.delta_tau^2
             N = length(lattice(model))
         
             @info "Running ED"
@@ -227,7 +227,7 @@ end
 
                 @testset "(total) energy" begin
                     dqmc_E = mean(dqmc[:E])
-                    ED_E = energy(H, beta = dqmc.p.beta)
+                    ED_E = energy(H, beta = dqmc.parameters.beta)
                     @test dqmc_E ≈ ED_E atol=atol rtol=rtol
                 end
             
@@ -237,7 +237,7 @@ end
                     occs = mean(dqmc.measurements[:Occs])                                   # measuring
                     # occs2 = mean(MonteCarlo.occupations(dqmc.measurements[:Greens]))            # wrapping
                     # occs3 = mean(MonteCarlo.OccupationMeasurement(dqmc.measurements[:Greens]))  # copying
-                    G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.p.beta)
+                    G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.parameters.beta)
                     for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
                         @test check(G_DQMC[i, j], G_ED[i, j], atol, rtol)
                     end
@@ -254,7 +254,7 @@ end
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDC], dqmc, model)
                         ED_CDC[dir] += expectation_value(
                             charge_density_correlation(trg, src),
-                            H, beta = dqmc.p.beta, N_sites = N
+                            H, beta = dqmc.parameters.beta, N_sites = N
                         )
                     end
                     @test check(ED_CDC/N, CDC, atol, rtol)
@@ -263,14 +263,14 @@ end
                 @testset "Magnetization x" begin
                     Mx = mean(dqmc.measurements[:Mx])
                     for site in 1:length(Mx)
-                        ED_Mx = expectation_value(m_x(site), H, beta = dqmc.p.beta, N_sites = N)
+                        ED_Mx = expectation_value(m_x(site), H, beta = dqmc.parameters.beta, N_sites = N)
                         @test check(ED_Mx, Mx[site], atol, rtol)
                     end
                 end
                 @testset "Magnetization y" begin
                     My = mean(dqmc.measurements[:My])
                     for site in 1:length(My)
-                        ED_My = expectation_value(m_y(site), H, beta = dqmc.p.beta, N_sites = N)
+                        ED_My = expectation_value(m_y(site), H, beta = dqmc.parameters.beta, N_sites = N)
                         @test check(ED_My, My[site], atol, rtol)
                     end
                 end
@@ -278,7 +278,7 @@ end
                     Mz = mean(dqmc.measurements[:Mz])
                     ΔMz = std_error(dqmc.measurements[:Mz])
                     for site in 1:length(Mz)
-                        ED_Mz = expectation_value(m_z(site), H, beta = dqmc.p.beta, N_sites = N)
+                        ED_Mz = expectation_value(m_z(site), H, beta = dqmc.parameters.beta, N_sites = N)
                         @test check(ED_Mz, Mz[site], atol, rtol)
                     end
                 end
@@ -289,7 +289,7 @@ end
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCx], dqmc, model)
                         ED_SDCx[dir] += expectation_value(
                             spin_density_correlation_x(trg, src),
-                            H, beta = dqmc.p.beta, N_sites = N
+                            H, beta = dqmc.parameters.beta, N_sites = N
                         )
                     end
                     @test check(ED_SDCx/N, SDCx, atol, rtol)
@@ -300,7 +300,7 @@ end
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCy], dqmc, model)
                         ED_SDCy[dir] += expectation_value(
                             spin_density_correlation_y(trg, src),
-                            H, beta = dqmc.p.beta, N_sites = N
+                            H, beta = dqmc.parameters.beta, N_sites = N
                         )
                     end
                     @test check(ED_SDCy/N, SDCy, atol, rtol)
@@ -311,7 +311,7 @@ end
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCz], dqmc, model)
                         ED_SDCz[dir] += expectation_value(
                             spin_density_correlation_z(trg, src),
-                            H, beta = dqmc.p.beta, N_sites = N
+                            H, beta = dqmc.parameters.beta, N_sites = N
                         )
                     end
                     @test check(ED_SDCz/N, SDCz, atol, rtol)
@@ -324,7 +324,7 @@ end
                             MonteCarlo.EachLocalQuadByDistance{4}(dqmc, model)
                         ED_PC[dirs] += expectation_value(
                             pairing_correlation(src1, trg1, src2, trg2), 
-                            H, beta = dqmc.p.beta, N_sites = N
+                            H, beta = dqmc.parameters.beta, N_sites = N
                         )
                     end
                     @test check(ED_PC/N, PC, atol, rtol)
@@ -339,7 +339,7 @@ end
                         UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
                         # ΔUTG = std_error(dqmc.measurements[Symbol(:UTG, i)])
                         M = size(UTG, 1)
-                        ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l, beta=dqmc.p.beta)
+                        ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l, beta=dqmc.parameters.beta)
 
                         @testset "[$i] $tau1 -> $tau2" begin
                             for k in 1:M, l in 1:M
@@ -361,7 +361,7 @@ end
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDS], dqmc, model)
                         ED_CDS[dir] += expectation_value_integrated(
                             number_operator(trg), number_operator(src), H, 
-                            step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
+                            step = dqmc.parameters.delta_tau, beta = dqmc.parameters.beta, N_sites = N
                         )
                     end
                     @test check(ED_CDS/N, CDS, atol, rtol)
@@ -373,8 +373,8 @@ end
                     ED_SDSx = zeros(ComplexF64, size(SDSx))
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSx], dqmc, model)
                         ED_SDSx[dir] += expectation_value_integrated(
-                            m_x(trg), m_x(src), H, step = dqmc.p.delta_tau, 
-                            beta = dqmc.p.beta, N_sites = N
+                            m_x(trg), m_x(src), H, step = dqmc.parameters.delta_tau, 
+                            beta = dqmc.parameters.beta, N_sites = N
                         )
                     end
                     @test check(ED_SDSx/N, SDSx, atol, rtol)
@@ -384,8 +384,8 @@ end
                     ED_SDSy = zeros(ComplexF64, size(SDSy))
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSy], dqmc, model)
                         ED_SDSy[dir] += expectation_value_integrated(
-                            m_y(trg), m_y(src), H, step = dqmc.p.delta_tau, 
-                            beta = dqmc.p.beta, N_sites = N
+                            m_y(trg), m_y(src), H, step = dqmc.parameters.delta_tau, 
+                            beta = dqmc.parameters.beta, N_sites = N
                         )
                     end
                     @test check(ED_SDSy/N, SDSy, atol, rtol)
@@ -395,8 +395,8 @@ end
                     ED_SDSz = zeros(ComplexF64, size(SDSz))
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSz], dqmc, model)
                         ED_SDSz[dir] += expectation_value_integrated(
-                            m_z(trg), m_z(src), H, step = dqmc.p.delta_tau, 
-                            beta = dqmc.p.beta, N_sites = N
+                            m_z(trg), m_z(src), H, step = dqmc.parameters.delta_tau, 
+                            beta = dqmc.parameters.beta, N_sites = N
                         )
                     end
                     @test check(ED_SDSz/N, SDSz, atol, rtol)
@@ -420,7 +420,7 @@ end
                                 p = sign1*sign2
                                 p, _state
                             end,
-                            H, step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
+                            H, step = dqmc.parameters.delta_tau, beta = dqmc.parameters.beta, N_sites = N
                         )
                     end
                     @test check(ED_PS/N, PS, atol, rtol)
@@ -429,14 +429,14 @@ end
                 @testset "Current Current Susceptibility" begin
                     CCS = mean(dqmc.measurements[:CCS])
                     ED_CCS = zeros(Float64, size(CCS))
-                    T = dqmc.s.hopping_matrix
+                    T = dqmc.stack.hopping_matrix
                     for (dirs, src1, trg1, src2, trg2) in 
                             MonteCarlo.EachLocalQuadBySyncedDistance{4}(dqmc, model)
                         ED_CCS[dirs] -= expectation_value_integrated(
                             # actually the order of this doesn't seem to matter
                             current_density(src2, trg2, T), 
                             current_density(src1, trg1, T),
-                            H, step = dqmc.p.delta_tau, beta = dqmc.p.beta, N_sites = N
+                            H, step = dqmc.parameters.delta_tau, beta = dqmc.parameters.beta, N_sites = N
                         )
                     end
                     @test check(ED_CCS/N, CCS, atol, rtol)
