@@ -255,7 +255,7 @@ mutable struct NoUpdate <: AbstractGlobalUpdate
     sampling_rate::Float64
 end
 NoUpdate(sampling_rate = 1e-10) = NoUpdate(0, -1, sampling_rate)
-NoUpdate(mc, model, sampling_rate=1e-10) = NoUpdate(sampling_rate)
+NoUpdate(mc, model::Model, sampling_rate=1e-10) = NoUpdate(sampling_rate)
 function global_update(u::NoUpdate, args...)
     # We don't want to update total because that'll eventually trigger the
     # adaptive process. But we may still want to know how often this was used...

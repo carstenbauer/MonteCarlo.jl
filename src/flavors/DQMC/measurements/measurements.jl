@@ -425,7 +425,7 @@ end
 
 @inline function nonintE_kernel(mc, model, G::AbstractArray)
     # <T> = \sum Tji * (Iij - Gij) = - \sum Tji * (Gij - Iij)
-    T = tack.hopping_matrix
+    T = mc.stack.hopping_matrix
     nonintE(T, G)
 end
 

@@ -29,8 +29,8 @@ end
     mc2.conf = deepcopy(mc1.conf)
     MonteCarlo.init_hopping_matrices(mc1, m)
     MonteCarlo.init_hopping_matrices(mc2, m)
-    MonteCarlo.build_stack(mc1, mc1.s)
-    MonteCarlo.build_stack(mc2, mc2.s)
+    MonteCarlo.build_stack(mc1, mc1.stack)
+    MonteCarlo.build_stack(mc2, mc2.stack)
     @test MonteCarlo.slice_matrix(mc1, m, 1, 1.) == MonteCarlo.slice_matrix(mc2, m, 1, 1.)
 
     mc = DQMC(m, beta=5.0, checkerboard=true, delta_tau=0.1)

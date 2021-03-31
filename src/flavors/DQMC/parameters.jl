@@ -128,6 +128,7 @@ function DQMCParameters(;
     else
         error("Invalid keyword arguments to DQMCParameters $nt")
     end
+    
     DQMCParameters(
         global_moves,
         global_rate,

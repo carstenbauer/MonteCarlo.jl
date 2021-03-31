@@ -201,7 +201,7 @@ end
 Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
 """
 @inline function energy_boson(mc::DQMC, m::HubbardModelAttractive, hsfield = conf(mc))
-    dtau = mc.p.delta_tau
+    dtau = mc.parameters.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
 end

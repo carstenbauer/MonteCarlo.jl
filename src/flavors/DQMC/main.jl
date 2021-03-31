@@ -14,7 +14,7 @@ include("parameters.jl")
 # with one of its constituents. For example `initialize_stack` requires 
 # a ::DQMC to figure out how large a bunch of matrices need to be, but 
 # logically fits in `stack.jl`.
-struct DQMC{
+mutable struct DQMC{
         M <: Model, CB <: Checkerboard, ConfType <: Any, RT <: AbstractRecorder, 
         Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack,
         # UST <: AbstractUpdateScheduler

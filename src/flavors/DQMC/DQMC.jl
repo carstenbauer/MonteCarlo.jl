@@ -61,8 +61,7 @@ function DQMC(model::M;
     analysis = DQMCAnalysis()
     CB = checkerboard ? CheckerboardTrue : CheckerboardFalse
 
-    compressed_conf = compress(DQMC, model, conf)
-    recorder = recorder{typeof(compressed_conf)}(recording_rate)
+    recorder = recorder(DQMC, M, recording_rate)
 
     mc = DQMC(
         CB, 
@@ -112,7 +111,6 @@ function DQMC(
         thermalization_measurements, measurements
     )
 end
-
 
 # convenience
 @inline beta(mc::DQMC) = mc.parameters.beta
