@@ -10,18 +10,14 @@ include("abstract.jl")
 include("parameters.jl")
 
 
-# The DQMC implementation requires a bit of splitting. Many methods and structs
-# use the DQMC type in some capacity, so we need to define it first. However 
-# methods connected closely to DQMC need those structs and methods as well.
-# Therefore we'll put the type definition here for now.
-
-# TODO
-# - Is there a better way to make this concretely typed?
-
-
-mutable struct DQMC{
+# There are a bunch of functions that require the DQMC type, but logically fit 
+# with one of its constituents. For example `initialize_stack` requires 
+# a ::DQMC to figure out how large a bunch of matrices need to be, but 
+# logically fits in `stack.jl`.
+struct DQMC{
         M <: Model, CB <: Checkerboard, ConfType <: Any, RT <: AbstractRecorder, 
-        Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack
+        Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack,
+        # UST <: AbstractUpdateScheduler
     } <: MonteCarloFlavor
 
     model::M
@@ -38,66 +34,20 @@ mutable struct DQMC{
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 
-
-    function DQMC{M, CB, ConfType, RT, Stack, UTStack}(; kwargs...) where {
+    function DQMC{M, CB, ConfType, RT, Stack, UTStack}(args...) where {
             M <: Model, CB <: Checkerboard, ConfType <: Any, 
             RT <: AbstractRecorder, 
             Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack
         }
-        complete!(new{M, CB, ConfType, RT, Stack, UTStack}(), kwargs)
+        
+        @assert isconcretetype(M)
+        @assert isconcretetype(ConfType)
+        @assert isconcretetype(Stack)
+        @assert isconcretetype(UTStack)
+        @assert isconcretetype(RT)
+        
+        new{M, CB, ConfType, RT, Stack, UTStack}(args...)
     end
-    function DQMC(CB::Type{<:Checkerboard}; kwargs...)
-        DQMC{
-            Model, CB, Any, AbstractRecorder, 
-            AbstractDQMCStack, AbstractDQMCStack
-        }(; kwargs...)
-    end
-    function DQMC{CB}(
-            model::M,
-            conf::ConfType,
-            last_sweep::Int,
-            s::Stack,
-            ut_stack::UTStack,
-            p::DQMCParameters,
-            a::DQMCAnalysis,
-            configs::RT,
-            thermalization_measurements::Dict{Symbol, AbstractMeasurement},
-            measurements::Dict{Symbol, AbstractMeasurement}
-        ) where {
-            M <: Model, CB <: Checkerboard, ConfType <: Any, 
-            RT <: AbstractRecorder, 
-            Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack
-        }
-        new{M, CB, ConfType, RT, Stack, UTStack}(
-            model, conf, last_sweep, s, ut_stack, p, a, configs, 
-            thermalization_measurements, measurements
-        )
-    end
-    function DQMC{M, CB, C, RT, S, UTS}(args...) where {M, CB, C, RT, S, UTS}
-        DQMC{CB}(args...)
-    end
-end
-
-
-function complete!(a::DQMC, kwargs)
-    for (field, val) in kwargs
-        setfield!(a, field, val)
-    end
-    make_concrete!(a)
-end
-
-function make_concrete!(a::DQMC{M, CB, C, RT, S, UTS}) where {M, CB, C, RT, S, UTS}
-    Ts = (
-        isdefined(a, :model) ? typeof(a.model) : M, 
-        CB, 
-        isdefined(a, :conf) ? typeof(a.conf) : C, 
-        isdefined(a, :configs) ? typeof(a.configs) : RT, 
-        isdefined(a, :s) ? typeof(a.s) : S,
-        isdefined(a, :ut_stack) ? typeof(a.ut_stack) : UTS
-    )
-    all(Ts .== (M, CB, C, RT, S, UTS)) && return a
-    data = [(f, getfield(a, f)) for f in fieldnames(DQMC) if isdefined(a, f)]
-    DQMC{Ts...}(; data...)
 end
 
 

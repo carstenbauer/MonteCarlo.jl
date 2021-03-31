@@ -36,26 +36,31 @@ function _load(data, ::Type{T}) where T <: DQMC
 
     CB = CB_type(data["type"])
     @assert CB <: Checkerboard
-    mc = DQMC(CB)
-    mc.parameters = _load(data["Parameters"], data["Parameters"]["type"])
-    mc.analysis = _load(data["Analysis"], data["Analysis"]["type"])
-    mc.conf = data["conf"]
-    mc.recorder = _load(data["configs"], data["configs"]["type"])
-    mc.last_sweep = data["last_sweep"]
-    mc.model = _load(data["Model"], data["Model"]["type"])
+    parameters = _load(data["Parameters"], data["Parameters"]["type"])
+    analysis = _load(data["Analysis"], data["Analysis"]["type"])
+    conf = data["conf"]
+    recorder = _load(data["configs"], data["configs"]["type"])
+    last_sweep = data["last_sweep"]
+    model = _load(data["Model"], data["Model"]["type"])
 
-    measurements = _load(data["Measurements"], Measurements)
-    mc.thermalization_measurements = measurements[:TH]
-    mc.measurements = measurements[:ME]
+    combined_measurements = _load(data["Measurements"], Measurements)
+    thermalization_measurements = combined_measurements[:TH]
+    measurements = combined_measurements[:ME]
     HET = hoppingeltype(DQMC, mc.model)
     GET = greenseltype(DQMC, mc.model)
     HMT = hopping_matrix_type(DQMC, mc.model)
     GMT = greens_matrix_type(DQMC, mc.model)
     IMT = interaction_matrix_type(DQMC, mc.model)
-    mc.stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
-    mc.ut_stack = UnequalTimeStack{GET, GMT}()
+    stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
+    ut_stack = UnequalTimeStack{GET, GMT}()
     
-    make_concrete!(mc)
+    DQMC(
+        CB, 
+        model, conf, last_sweep, 
+        stack, ut_stack, 
+        parameters, analysis, 
+        recorder, thermalization_measurements, measurements
+    )
 end
 
 #   save_parameters(file::JLDFile, p::DQMCParameters, entryname="Parameters")

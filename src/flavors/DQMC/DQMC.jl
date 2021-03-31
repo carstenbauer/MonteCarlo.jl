@@ -31,7 +31,7 @@ simulation
 - `last_sweep = 0`: Sets the index of the last finished sweep. The simulation
 will start with sweep `last_sweep + 1`.
 """
-function DQMC(m::M;
+function DQMC(model::M;
         seed::Int=-1,
         checkerboard::Bool=false,
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
@@ -40,36 +40,50 @@ function DQMC(m::M;
         measure_rate = 10,
         recorder = ConfigRecorder,
         recording_rate = measure_rate,
+        # global_update_sequence = nothing,
+        # global_update_pool = nothing,
         kwargs...
     ) where M<:Model
     # default params
     # paramskwargs = filter(kw->kw[1] in fieldnames(DQMCParameters), kwargs)
-    p = DQMCParameters(measure_rate = measure_rate; kwargs...)
+    parameters = DQMCParameters(measure_rate = measure_rate; kwargs...)
 
-    HET = hoppingeltype(DQMC, m)
-    GET = greenseltype(DQMC, m)
-    HMT = hopping_matrix_type(DQMC, m)
-    GMT = greens_matrix_type(DQMC, m)
-    IMT = interaction_matrix_type(DQMC, m)
+    HET = hoppingeltype(DQMC, model)
+    GET = greenseltype(DQMC, model)
+    HMT = hopping_matrix_type(DQMC, model)
+    GMT = greens_matrix_type(DQMC, model)
+    IMT = interaction_matrix_type(DQMC, model)
     stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
     ut_stack = UnequalTimeStack{GET, GMT}()
 
-    conf = rand(DQMC, m, p.slices)
+    seed == -1 || Random.seed!(seed)
+    conf = rand(DQMC, model, parameters.slices)
     analysis = DQMCAnalysis()
     CB = checkerboard ? CheckerboardTrue : CheckerboardFalse
 
-    mc = DQMC{M, CB, typeof(conf), recorder, DQMCStack, AbstractDQMCStack}(
-        model = m, conf = conf, last_sweep = last_sweep, s = stack,
-        ut_stack = ut_stack, p = p, a = analysis,
-        thermalization_measurements = thermalization_measurements,
-        measurements = measurements
+    compressed_conf = compress(DQMC, model, conf)
+    recorder = recorder{typeof(compressed_conf)}(recording_rate)
+
+    mc = DQMC(
+        CB, 
+        model, conf, last_sweep,
+        stack, ut_stack, # scheduler,
+        parameters, analysis,
+        recorder, thermalization_measurements, measurements
     )
 
-    mc.configs = recorder(mc, m, recording_rate)
-    seed == -1 || Random.seed!(seed)
-    mc.conf = conf
+    # I hate this
+    # if global_update_sequence === nothing
+    #     mc.stackcheduler = EmptyScheduler()
+    # elseif global_update_pool === nothing
+    #     mc.stackcheduler = SimpleScheduler(mc, global_update_sequence)
+    # else
+    #     mc.stackcheduler = AdaptiveScheduler(mc, global_update_sequence, global_update_pool)
+    # end
+
+    
     init!(mc)
-    return make_concrete!(mc)
+    return mc
 end
 
 
@@ -80,8 +94,24 @@ end
 Create a determinant quantum Monte Carlo simulation for model `m` with
 (keyword) parameters as specified in the dictionary/named tuple `params`.
 """
-DQMC(m::Model, params::Dict{Symbol, T}) where T = DQMC(m; params...)
+DQMC(m::Model, params::Dict{Symbol}) = DQMC(m; params...)
 DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
+
+# Simplified constructor
+function DQMC(
+        CB, model::M, conf::ConfType, last_sweep,
+        stack::Stack, ut_stack::UTStack, # scheduler::UST,
+        parameters, analysis,
+        recorder::RT,
+        thermalization_measurements, measurements
+    ) where {M, ConfType, RT, Stack, UTStack}
+
+    DQMC{M, CB, ConfType, RT, Stack, UTStack}(
+        model, conf, last_sweep, stack, ut_stack, 
+        parameters, analysis, recorder,
+        thermalization_measurements, measurements
+    )
+end
 
 
 # convenience
@@ -111,11 +141,6 @@ function Base.show(io::IO, mc::DQMC)
     print(io, "Measurements: ", N_th_meas + N_me_meas, " ($N_th_meas + $N_me_meas)")
 end
 Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
-
-function ConfigRecorder(mc::DQMC, model::Model, rate = 10)
-    ConfigRecorder{typeof(compress(mc, model, conf(mc)))}(rate)
-end
-
 
 
 function init!(mc::DQMC)
