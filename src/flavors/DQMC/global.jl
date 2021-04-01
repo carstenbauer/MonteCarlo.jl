@@ -26,13 +26,10 @@
 # - add this to DQMC
 
 
+
 ################################################################################
 ### Scheduler
 ################################################################################
-
-
-
-abstract type AbstractUpdateScheduler end
 
 
 
@@ -41,13 +38,15 @@ abstract type AbstractUpdateScheduler end
 
 Schedules no global updates.
 """
-struct EmptyScheduler <: AbstractUpdateScheduler end
+struct EmptyScheduler <: AbstractUpdateScheduler
+    EmptyScheduler(args...; kwargs...) = new()
+end
 global_update(::EmptyScheduler, args...) = 0
 
 
 
 """
-    SimpleScheduler(mc, updates...)
+    SimpleScheduler(::Type{<: DQMC}, model, updates...)
 
 Schedules global updates in the order specified through `updates...`. For example
 `SimpleScheduler(mc, GlobalFlip(), GlobalFlip(), GlobalShuffle())` would generate
@@ -59,12 +58,28 @@ mutable struct SimpleScheduler{CT, T <: Tuple} <: AbstractUpdateScheduler
     temp::Vector{Float64}
     sequence::T
     idx::Int64
+
+    # For loading
+    function SimpleScheduler(conf::T1, temp, sequence::T2, idx) where {T1, T2}
+        new{T1, T2}(conf, temp, sequence, idx)
+    end
+
+    function SimpleScheduler(::Type{<: DQMC}, model::Model, updates...)
+        dummy = rand(DQMC, model, 1)
+        obj = new{typeof(dummy), typeof(updates)}()
+        obj.sequence = updates
+        obj.idx = 0
+        obj
+    end
 end
 
-function SimpleScheduler(mc::DQMC, updates...)
+
+function init!(s::SimpleScheduler, mc::DQMC, model::Model)
     N = length(lattice(mc))
     flv = nflavors(mc.model)
-    SimpleScheduler(copy(conf(dqmc)), zeros(Float64, flv*N), updates, 0)
+    s.conf = copy(conf(dqmc))
+    s.temp = zeros(Float64, flv*N)
+    s
 end
 
 function global_update(s::SimpleScheduler, mc::DQMC, model)
@@ -74,51 +89,91 @@ end
 
 
 
+
+struct Adaptive end
+
+# """
+#     AdaptiveScheduler
+
+# DO NOT USE!
+
+# The idea with this is to adaptive adjust how frequently global updates are used.
+# With this you could just throw a bunch of global updates at a problem and let 
+# the simulation figure out which ones are worth doing.
+
+# Notes:
+# - low acceptance rate <=> bad update => do it less
+# - this needs a "grace period" to collect stats before starting to adjust rates
+# - this should probably adjust asymptotically?
+# - one should be able to exclude updates (e.g. ReplicaExchange)
+
+# Draft:
+# Add wrapper for updates that should have an adaptive sampling rate
+#     mutable struct AdaptiveUpdate{T}
+#         accepted::Int
+#         total::Int
+#         sampling_rate::Float64
+#         update::T
+#     end
+
+# everyone starts with a sampling_rate of 1.0 (or whatever is specified)
+# pick update according to sampling rates:
+#     p = (sr1 + sr2 + ... srN) * rand()
+#     cumsum = 0.0
+#     for update in adaptive_updates
+#         cumsum += update.sampling_rate
+#         if p < cumsum
+#             # perform update
+#             break
+#         end
+#     end
+
+# The sequence and the updates we do are somewhat disconnected... We probably want 
+# something like
+#     AdaptiveScheduler(
+#         mc, 
+#         (Adaptive(), Adaptive(), ReplicaExchange()), 
+#         (StaticUpdate(NoUpdate(), 0.1), GlobalShuffle(), GlobalFlip())
+#     )
+# where we need something like "StaticUpdate" specifically for NoUpdate...? Or 
+# maybe we can special-case this in the first place and give it a sampling rate?
+# """
 """
-    AdaptiveScheduler
+    AdaptiveScheduler(::Type{<: DQMC}, model::Model, sequence::Tuple, pool::Tuple; kwargs...])
 
-DO NOT USE!
+Creates an adaptive scheduler which prioritizes updates that succeed more 
+frequently. 
 
-The idea with this is to adaptive adjust how frequently global updates are used.
-With this you could just throw a bunch of global updates at a problem and let 
-the simulation figure out which ones are worth doing.
+`sequence` defines the static sequence of global updates, with 
+`Adaptive()` as a proxy for adaptive updates. When polling the scheduler 
+`Adaptive()` will be replaced by one of the updates in pool based on their 
+success rate.
 
-Notes:
-- low acceptance rate <=> bad update => do it less
-- this needs a "grace period" to collect stats before starting to adjust rates
-- this should probably adjust asymptotically?
-- one should be able to exclude updates (e.g. ReplicaExchange)
+Example:
+```
+AdaptiveScheduler(
+    DQMC, model, 
+    (Adaptive(), ReplicaExchange()), 
+    (GlobalFlip(), GlobalShuffle())
+)
+```
+This setup will perform one of `GlobalFlip()` and `GlobalShuffle()` followed by 
+a `ReplicaExchange()` update, repeating after that. The latter will always be a 
+`ReplicaExchange()` while the former will happen based on the relative 
+sampling rates which are sluggishly derived from acceptance rates. 
 
-Draft:
-Add wrapper for updates that should have an adaptive sampling rate
-    mutable struct AdaptiveUpdate{T}
-        accepted::Int
-        total::Int
-        sampling_rate::Float64
-        update::T
-    end
+If those sampling rates fall below a certain threshhold they may be set to 0. 
+If all updates drop to 0 acceptance rate, `NoUpdate()` is performed instead. 
+(`NoUpdate()` is always added and has a static probability of `1e-10`.)
 
-everyone starts with a sampling_rate of 1.0 (or whatever is specified)
-pick update according to sampling rates:
-    p = (sr1 + sr2 + ... srN) * rand()
-    cumsum = 0.0
-    for update in adaptive_updates
-        cumsum += update.sampling_rate
-        if p < cumsum
-            # perform update
-            break
-        end
-    end
-
-The sequence and the updates we do are somewhat disconnected... We probably want 
-something like
-    AdaptiveScheduler(
-        mc, 
-        (Adaptive(), Adaptive(), ReplicaExchange()), 
-        (StaticUpdate(NoUpdate(), 0.1), GlobalShuffle(), GlobalFlip())
-    )
-where we need something like "StaticUpdate" specifically for NoUpdate...? Or 
-maybe we can special-case this in the first place and give it a sampling rate?
+### Keyword Arguments:
+- `minimum_sampling_rate = 0.01`: This defines the threshhold under which the 
+sampling rate is set to 0.
+- `grace_period = 99`: This sets a minimum number of times an update needs to 
+be called before its sampling rate is adjusted. 
+- `adaptive_rate = 9.0`: Controls how fast the sampling rate is adjusted to the 
+acceptance rate. More means slower. This follows the formula 
+`(adaptive_rate * sampling_rate + accepted/total) / (adaptive_rate + 1)`
 """
 mutable struct AdaptiveScheduler{CT, T1, T2} <: AbstractUpdateScheduler
     # below this, the sampling rate is set to 0. Basing this on sampling rate
@@ -137,34 +192,51 @@ mutable struct AdaptiveScheduler{CT, T1, T2} <: AbstractUpdateScheduler
     adaptive_pool::T1
     sequence::T2
     idx::Int
-end
-struct Adaptive end
 
-function AdaptiveScheduler(
-        mc, sequence, pool;
-        minimum_sampling_rate = 0.01, grace_period = 99, adaptive_rate = 9.0
-    )
+    # for loading
+    function AdaptiveScheduler(msr, gp, ar, c::T1, t, ap::T2, s::T3, i) where {T1, T2, T3}
+        new{T1, T2, T3}(msr, gp, ar, c, t, ap, s, i)
+    end
 
-    adaptive_pool = map(pool) do update
-        if update isa NoUpdate || update isa AdaptiveUpdate
-            return update
-        else
-            AdaptiveUpdate(update)
+    function AdaptiveScheduler(
+            ::Type{<: DQMC}, model::Model, sequence, pool;
+            minimum_sampling_rate = 0.01, grace_period = 99, adaptive_rate = 9.0
+        )
+
+        adaptive_pool = map(pool) do update
+            if update isa NoUpdate || update isa AdaptiveUpdate
+                return update
+            else
+                AdaptiveUpdate(update)
+            end
         end
-    end
 
-    if !(NoUpdate() in adaptive_pool)
-        adaptive_pool = tuple(adaptive_pool..., NoUpdate())
-    end
+        if !(NoUpdate() in adaptive_pool)
+            adaptive_pool = tuple(adaptive_pool..., NoUpdate())
+        end
 
+        adaptive_pool = Tuple(adaptive_pool)
+        sequence = Tuple(sequence)
+        dummy = rand(DQMC, model, 1)
+
+        obj = new{typeof(dummy), typeof(adaptive_pool), typeof(sequence)}()
+        obj.minimum_sampling_rate = minimum_sampling_rate
+        obj.grace_period = grace_period
+        obj.adaptive_rate = adaptive_rate
+        obj.adaptive_pool = adaptive_pool
+        obj.sequence = sequence
+        obj.idx = 0
+
+        obj
+    end
+end
+
+function init!(s::AdaptiveScheduler, mc::DQMC, model::Model)
     N = length(lattice(mc))
     flv = nflavors(mc.model)
-
-    AdaptiveScheduler(
-        minimum_sampling_rate, grace_period, adaptive_rate,
-        similar(conf(mc)), zeros(Float64, flv*N),
-        Tuple(adaptive_pool), Tuple(sequence), 0
-    )
+    s.conf = copy(conf(mc))
+    s.temp = zeros(Float64, flv*N)
+    s
 end
 
 function global_update(s::AdaptiveScheduler, mc::DQMC, model)
@@ -225,7 +297,7 @@ Wraps any generic global update, keeps track of the number of update attempts
 and the number of successes for adaptive sampling. This should be used with the
 adaptive scheduler but shouldn't create any problems otherwise.
 """
-struct AdaptiveUpdate{T}
+mutable struct AdaptiveUpdate{T}
     accepted::Int
     total::Int
     sampling_rate::Float64
@@ -275,7 +347,8 @@ struct GlobalFlip <: AbstractGlobalUpdate end
 GlobalFlip(mc, model) = GlobalFlip()
 
 function global_update(::GlobalFlip, mc, model, temp_conf, temp_vec)
-    @. temp_conf = -conf(mc)
+    c = conf(mc)
+    @. temp_conf = -c
     global_update(mc, model, temp_conf, temp_vec)
 end
 

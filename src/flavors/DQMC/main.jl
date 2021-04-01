@@ -17,7 +17,7 @@ include("parameters.jl")
 mutable struct DQMC{
         M <: Model, CB <: Checkerboard, ConfType <: Any, RT <: AbstractRecorder, 
         Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack,
-        # UST <: AbstractUpdateScheduler
+        US <: AbstractUpdateScheduler
     } <: MonteCarloFlavor
 
     model::M
@@ -26,7 +26,7 @@ mutable struct DQMC{
 
     stack::Stack # s -> stack 
     ut_stack::UTStack
-    # scheduler::UST
+    scheduler::US
     parameters::DQMCParameters # p -> parameters
     analysis::DQMCAnalysis # a -> analysis
 
@@ -34,10 +34,11 @@ mutable struct DQMC{
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 
-    function DQMC{M, CB, ConfType, RT, Stack, UTStack}(args...) where {
+    function DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(args...) where {
             M <: Model, CB <: Checkerboard, ConfType <: Any, 
             RT <: AbstractRecorder, 
-            Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack
+            Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack,
+            US <: AbstractUpdateScheduler
         }
         
         @assert isconcretetype(M)
@@ -45,8 +46,9 @@ mutable struct DQMC{
         @assert isconcretetype(Stack)
         @assert isconcretetype(UTStack)
         @assert isconcretetype(RT)
+        @assert isconcretetype(US)
         
-        new{M, CB, ConfType, RT, Stack, UTStack}(args...)
+        new{M, CB, ConfType, RT, Stack, UTStack, US}(args...)
     end
 end
 

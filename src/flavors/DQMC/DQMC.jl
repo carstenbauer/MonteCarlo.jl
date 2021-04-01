@@ -40,8 +40,7 @@ function DQMC(model::M;
         measure_rate = 10,
         recorder = ConfigRecorder,
         recording_rate = measure_rate,
-        # global_update_sequence = nothing,
-        # global_update_pool = nothing,
+        scheduler = EmptyScheduler(DQMC, model),
         kwargs...
     ) where M<:Model
     # default params
@@ -66,20 +65,10 @@ function DQMC(model::M;
     mc = DQMC(
         CB, 
         model, conf, last_sweep,
-        stack, ut_stack, # scheduler,
+        stack, ut_stack, scheduler,
         parameters, analysis,
         recorder, thermalization_measurements, measurements
     )
-
-    # I hate this
-    # if global_update_sequence === nothing
-    #     mc.stackcheduler = EmptyScheduler()
-    # elseif global_update_pool === nothing
-    #     mc.stackcheduler = SimpleScheduler(mc, global_update_sequence)
-    # else
-    #     mc.stackcheduler = AdaptiveScheduler(mc, global_update_sequence, global_update_pool)
-    # end
-
     
     init!(mc)
     return mc
@@ -99,15 +88,15 @@ DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
 # Simplified constructor
 function DQMC(
         CB, model::M, conf::ConfType, last_sweep,
-        stack::Stack, ut_stack::UTStack, # scheduler::UST,
+        stack::Stack, ut_stack::UTStack, scheduler::US,
         parameters, analysis,
         recorder::RT,
         thermalization_measurements, measurements
-    ) where {M, ConfType, RT, Stack, UTStack}
+    ) where {M, ConfType, RT, Stack, UTStack, US}
 
-    DQMC{M, CB, ConfType, RT, Stack, UTStack}(
+    DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(
         model, conf, last_sweep, stack, ut_stack, 
-        parameters, analysis, recorder,
+        scheduler, parameters, analysis, recorder,
         thermalization_measurements, measurements
     )
 end
@@ -144,6 +133,7 @@ Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
 function init!(mc::DQMC)
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc, mc.stack)
+    init!(mc.scheduler, mc, mc.model)
     nothing
 end
 @deprecate resume_init!(mc::DQMC) init!(mc) false
@@ -336,8 +326,10 @@ function update(mc::DQMC, i::Int)
     #        mc.stack.direction == -1 && iszero(mod(i, mc.parameters.global_rate))
     if mc.parameters.global_moves && current_slice(mc) == 1 &&
         mc.stack.direction == 1 && iszero(mod(i, mc.parameters.global_rate))
+
         mc.analysis.prop_global += 1
-        b = global_move(mc, mc.model)
+        # b = global_move(mc, mc.model)
+        b = global_update(mc.scheduler, mc, mc.model)
         mc.analysis.acc_global += b
         mc.analysis.acc_rate_global += b
     end

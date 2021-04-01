@@ -4,6 +4,10 @@ abstract type Checkerboard end
 struct CheckerboardTrue <: Checkerboard end
 struct CheckerboardFalse <: Checkerboard end
 
+abstract type AbstractUpdateScheduler end
+init!(s::AbstractUpdateScheduler, mc, model) = s
+
+
 
 """
     build_checkerboard(l::Lattice) -> checkerboard, groups, n_groups
