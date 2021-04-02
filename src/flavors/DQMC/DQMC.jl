@@ -233,24 +233,16 @@ See also: [`resume!`](@ref)
 
         if mod(i, mc.parameters.print_rate) == 0
             mc.analysis.acc_rate = mc.analysis.acc_rate / (mc.parameters.print_rate * 2 * nslices(mc))
-            mc.analysis.acc_rate_global = mc.analysis.acc_rate_global / (mc.parameters.print_rate / mc.parameters.global_rate)
             sweep_dur = (time() - _time)/mc.parameters.print_rate
             max_sweep_duration = max(max_sweep_duration, sweep_dur)
             if verbose
                 println("\t", i)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur)
                 @printf("\t\tacc rate (local) : %.1f%%\n", mc.analysis.acc_rate*100)
-                if !(mc.scheduler isa EmptyScheduler)
-                    @printf("\t\tacc rate (global): %.1f%%\n", mc.analysis.acc_rate_global*100)
-                    @printf(
-                        "\t\tacc rate (global, overall): %.1f%%\n",
-                        mc.analysis.acc_global/mc.analysis.prop_global*100
-                    )
-                end
+                show_statistics(mc.scheduler, "\t\t")
             end
 
             mc.analysis.acc_rate = 0.0
-            mc.analysis.acc_rate_global = 0.0
             flush(stdout)
             _time = time()
         end
@@ -274,7 +266,6 @@ See also: [`resume!`](@ref)
     end
 
     mc.analysis.acc_rate = mc.analysis.acc_local / mc.analysis.prop_local
-    mc.analysis.acc_rate_global = mc.analysis.acc_global / mc.analysis.prop_global
 
     if verbose
         if length(mc.analysis.imaginary_probability) > 0
@@ -324,11 +315,7 @@ function update(mc::DQMC, i::Int)
     if current_slice(mc) == 1 && mc.stack.direction == 1 && 
         iszero(mod(i, mc.parameters.global_rate))
 
-        mc.analysis.prop_global += 1
-        # b = global_move(mc, mc.model)
         b = global_update(mc.scheduler, mc, mc.model)
-        mc.analysis.acc_global += b
-        mc.analysis.acc_rate_global += b
     end
 
     # local moves

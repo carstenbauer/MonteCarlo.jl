@@ -46,9 +46,6 @@ Analysis data of determinant quantum Monte Carlo (DQMC) simulations.
     acc_rate::Float64 = 0.
     prop_local::Int = 0
     acc_local::Int = 0
-    acc_rate_global::Float64 = 0.
-    prop_global::Int = 0
-    acc_global::Int = 0
 
     imaginary_probability::MagnitudeStats = MagnitudeStats()
     negative_probability::MagnitudeStats = MagnitudeStats()

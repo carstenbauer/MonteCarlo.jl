@@ -21,10 +21,17 @@
 # TODO
 # - Should each update collect statistics? Should DQMC not?
 #   - Since we can mix updates it might be nice to have the global stats as well
+#   - yes they should and the global stats can be based on local ones
 # - FileIO
 # - remove old global_move
-# - add this to DQMC
 
+
+# parallel
+# I think we can make good use of the "trick" TimerOutput uses for debug 
+# timings - redefining a function.
+# In this case we can have a send/receive that does nothing originally, and gets
+# changed when a global updater is created, referencing its conf.
+# We don't need this for yield(), that can be based on a simple variable...
 
 
 ################################################################################
@@ -42,6 +49,7 @@ struct EmptyScheduler <: AbstractUpdateScheduler
     EmptyScheduler(args...; kwargs...) = new()
 end
 global_update(::EmptyScheduler, args...) = 0
+show_statistics(::EmptyScheduler, prefix="") = nothing
 
 
 
@@ -87,57 +95,36 @@ function global_update(s::SimpleScheduler, mc::DQMC, model)
     global_update(s.sequence[s.idx], mc, model, s.conf, s.temp)
 end
 
+function show_statistics(s::SimpleScheduler, prefix="")
+    println(prefix, "Global update statistics (since start):")
+    cum_accepted = 0
+    cum_total = 0
+    for update in s.sequence
+        update isa NoUpdate && continue
+        @printf(
+            "%s\t%s %0.3f\% accepted (%i / %i)\n",
+            prefix, name(update), update.accepted/update.total, 
+            update.accepted, update.total
+        )
+        cum_accepted += update.accepted
+        cum_total += update.total
+    end
+    @printf(
+        "%s\tTotal %0.3f accepted ($i / $i)"
+        prefix, cum_accepted/cum_total, cum_accepted, cum_total
+    )
+    nothing
+end
 
 
 
+"""
+    Adaptive()
+
+A placeholder for adaptive updates in the `AdaptiveScheduler`.
+"""
 struct Adaptive end
 
-# """
-#     AdaptiveScheduler
-
-# DO NOT USE!
-
-# The idea with this is to adaptive adjust how frequently global updates are used.
-# With this you could just throw a bunch of global updates at a problem and let 
-# the simulation figure out which ones are worth doing.
-
-# Notes:
-# - low acceptance rate <=> bad update => do it less
-# - this needs a "grace period" to collect stats before starting to adjust rates
-# - this should probably adjust asymptotically?
-# - one should be able to exclude updates (e.g. ReplicaExchange)
-
-# Draft:
-# Add wrapper for updates that should have an adaptive sampling rate
-#     mutable struct AdaptiveUpdate{T}
-#         accepted::Int
-#         total::Int
-#         sampling_rate::Float64
-#         update::T
-#     end
-
-# everyone starts with a sampling_rate of 1.0 (or whatever is specified)
-# pick update according to sampling rates:
-#     p = (sr1 + sr2 + ... srN) * rand()
-#     cumsum = 0.0
-#     for update in adaptive_updates
-#         cumsum += update.sampling_rate
-#         if p < cumsum
-#             # perform update
-#             break
-#         end
-#     end
-
-# The sequence and the updates we do are somewhat disconnected... We probably want 
-# something like
-#     AdaptiveScheduler(
-#         mc, 
-#         (Adaptive(), Adaptive(), ReplicaExchange()), 
-#         (StaticUpdate(NoUpdate(), 0.1), GlobalShuffle(), GlobalFlip())
-#     )
-# where we need something like "StaticUpdate" specifically for NoUpdate...? Or 
-# maybe we can special-case this in the first place and give it a sampling rate?
-# """
 """
     AdaptiveScheduler(::Type{<: DQMC}, model::Model, sequence::Tuple, pool::Tuple; kwargs...])
 
@@ -258,7 +245,7 @@ function global_update(s::AdaptiveScheduler, mc::DQMC, model)
 
                 # start adjusting sampling rate if we have sampled more than 
                 # <grace_period> times
-                if update.total > s.grace_period
+                if !(update isa NoUpdate) && update.total > s.grace_period
                     update.sampling_rate = (
                         s.adaptive_rate * update.sampling_rate + 
                         update.accepted / update.total
@@ -279,6 +266,41 @@ function global_update(s::AdaptiveScheduler, mc::DQMC, model)
     end
 end
 
+function show_statistics(s::AdaptiveScheduler, prefix="")
+    println(prefix, "Global update statistics (since start):")
+    cum_accepted = 0
+    cum_total = 0
+    for update in s.sequence
+        # here NoUpdate()'s are static, so they represent "skip global here"
+        # Adaptive()'s are give by updates from adaptive pool
+        update isa NoUpdate && continue
+        update isa Adaptive && continue
+        @printf(
+            "%s\t%s %0.3f\% accepted (%i / %i)\n",
+            prefix, name(update), update.accepted/update.total, 
+            update.accepted, update.total
+        )
+        cum_accepted += update.accepted
+        cum_total += update.total
+    end
+    for update in s.adaptive_pool
+        # here NoUpdate()'s may replace a global update, so they kinda count
+        @printf(
+            "%s\t%s %0.3f\% accepted (%i / %i)\n",
+            prefix, name(update), update.accepted/update.total, 
+            update.accepted, update.total
+        )
+        cum_accepted += update.accepted
+        cum_total += update.total
+    end
+    @printf(
+        "%s\tTotal %0.3f accepted ($i / $i)"
+        prefix, cum_accepted/cum_total, cum_accepted, cum_total
+    )
+    nothing
+end
+
+
 
 
 ################################################################################
@@ -288,30 +310,6 @@ end
 
 
 abstract type AbstractGlobalUpdate end
-
-
-"""
-    AdaptiveUpdate(update[, expected_acceptance_rate = 0.5])
-
-Wraps any generic global update, keeps track of the number of update attempts 
-and the number of successes for adaptive sampling. This should be used with the
-adaptive scheduler but shouldn't create any problems otherwise.
-"""
-mutable struct AdaptiveUpdate{T}
-    accepted::Int
-    total::Int
-    sampling_rate::Float64
-    update::T
-end
-function AdaptiveUpdate(update::AbstractGlobalUpdate, sampling_rate=0.5)
-    AdaptiveUpdate(0, 0, sampling_rate, update)
-end
-@inline function global_update(u::AdaptiveUpdate, mc, m, tc, tv)
-    u.total += 1
-    accepted = global_update(u.update, mc, m, tc, tv)
-    u.accepted += accepted
-    return accepted
-end
 
 
 
@@ -329,52 +327,65 @@ end
 NoUpdate(sampling_rate = 1e-10) = NoUpdate(0, -1, sampling_rate)
 NoUpdate(mc, model::Model, sampling_rate=1e-10) = NoUpdate(sampling_rate)
 function global_update(u::NoUpdate, args...)
-    # We don't want to update total because that'll eventually trigger the
-    # adaptive process. But we may still want to know how often this was used...
-    # So let's keep track of that in accepted instead
-    u.accepted += 1
-    # we count this as "denied global update
+    u.total += 1
+    # we count this as "denied" global update
     return 0
 end
 
 
 """
-    GlobalFlip([mc, model])
+    GlobalFlip([mc, model], [sampling_rate = 0.5])
 
 A global update that flips the configuration (±1 -> ∓1).
 """
-struct GlobalFlip <: AbstractGlobalUpdate end
-GlobalFlip(mc, model) = GlobalFlip()
+mutable struct GlobalFlip <: AbstractGlobalUpdate 
+    accepted::Int
+    total::Int
+    sampling_rate::Float64
+end
+GlobalFlip(sampling_rate = 0.5) = GlobalFlip(0, 0, sampling_rate)
+GlobalFlip(mc, model, sampling_rate = 0.5) = GlobalFlip(0, 0, sampling_rate)
 
-function global_update(::GlobalFlip, mc, model, temp_conf, temp_vec)
+function global_update(u::GlobalFlip, mc, model, temp_conf, temp_vec)
     c = conf(mc)
     @. temp_conf = -c
-    global_update(mc, model, temp_conf, temp_vec)
+    accepted = global_update(mc, model, temp_conf, temp_vec)
+    u.total += 1
+    u.accepted += accepted
+    accepted
 end
 
 
 
 """
-    GlobalShuffle([mc, model])
+    GlobalShuffle([mc, model, [sampling_rate = 0.5])
 
 A global update that shuffles the current configuration. Note that this is not 
 local to a time slice.
 """
-struct GlobalShuffle <: AbstractGlobalUpdate end
-GlobalShuffle(mc, model) = GlobalShuffle()
+mutable struct GlobalShuffle <: AbstractGlobalUpdate 
+    accepted::Int
+    total::Int
+    sampling_rate::Float64
+end
+GlobalShuffle(sampling_rate = 0.5) = GlobalShuffle(0, 0, sampling_rate)
+GlobalShuffle(mc, model, sampling_rate = 0.5) = GlobalShuffle(0, 0, sampling_rate)
 
-function global_update(::GlobalShuffle, mc, model, temp_conf, temp_vec)
+function global_update(u::GlobalShuffle, mc, model, temp_conf, temp_vec)
     copyto!(temp_conf, conf(mc))
     shuffle!(temp_conf)
-    global_update(mc, model, temp_conf, temp_vec)
+    accepted = global_update(mc, model, temp_conf, temp_vec)
+    u.total += 1
+    u.accepted += accepted
+    accepted
 end
 
 
 
-# I.e. we trade or not
+# I.e. we >trade< or not
 # struct ReplicaExchange <: AbstractGlobalUpdate end 
 
-# I.e. we give confs to each other and do things independently
+# I.e. we gift confs to each other and do accept them independently.
 # struct ReplicaGift <: AbstractGlobalUpdate
 
 
