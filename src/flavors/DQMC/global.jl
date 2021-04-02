@@ -53,6 +53,7 @@ show_statistics(::EmptyScheduler, prefix="") = nothing
 
 
 
+
 """
     SimpleScheduler(::Type{<: DQMC}, model, updates...)
 
@@ -116,6 +117,15 @@ function show_statistics(s::SimpleScheduler, prefix="")
     nothing
 end
 
+function Base.show(io::IO, s::SimpleScheduler)
+    sequence = mapreduce(
+        i -> name(s.sequence[mod1(i, length(s.sequence))]),
+        (a, b) -> "$a -> $b",
+        s.idx+1:length(s.sequence)+1
+    )
+    println(io, "SimpleScheduler(): $sequence (repeat)")
+end
+
 
 
 """
@@ -124,6 +134,7 @@ end
 A placeholder for adaptive updates in the `AdaptiveScheduler`.
 """
 struct Adaptive end
+name(::Adaptive) = "Adaptive"
 
 """
     AdaptiveScheduler(::Type{<: DQMC}, model::Model, sequence::Tuple, pool::Tuple; kwargs...])
@@ -300,6 +311,22 @@ function show_statistics(s::AdaptiveScheduler, prefix="")
     nothing
 end
 
+function Base.show(io::IO, s::AdaptiveScheduler)
+    sequence = mapreduce(
+        i -> name(s.sequence[mod1(i, length(s.sequence))]),
+        (a, b) -> "$a -> $b",
+        s.idx+1:length(s.sequence)+1
+    )
+    total_weight = mapreduce(x -> x.sampling_rate, +, s.adaptive_pool)
+    pool = mapreduce((a, b) -> "$a, $b", s.idx+1:length(s.sequence)+1) do i
+        update = s.adaptive_pool[mod1(i, length(s.sequence))]
+        @sprintf("%0.2f\% %s", update.sampling_rate / total_weight name(update))
+    end
+    println(io, "AdaptiveScheduler():")
+    println(io, "\t$sequence (repeat)")
+    println(io, "with Adaptive() = ($pool)")
+end
+
 
 
 
@@ -331,6 +358,8 @@ function global_update(u::NoUpdate, args...)
     # we count this as "denied" global update
     return 0
 end
+name(::NoUpdate) = "NoUpdate"
+
 
 
 """
@@ -345,6 +374,7 @@ mutable struct GlobalFlip <: AbstractGlobalUpdate
 end
 GlobalFlip(sampling_rate = 0.5) = GlobalFlip(0, 0, sampling_rate)
 GlobalFlip(mc, model, sampling_rate = 0.5) = GlobalFlip(0, 0, sampling_rate)
+name(::GlobalFlip) = "GlobalFlip"
 
 function global_update(u::GlobalFlip, mc, model, temp_conf, temp_vec)
     c = conf(mc)
@@ -370,6 +400,7 @@ mutable struct GlobalShuffle <: AbstractGlobalUpdate
 end
 GlobalShuffle(sampling_rate = 0.5) = GlobalShuffle(0, 0, sampling_rate)
 GlobalShuffle(mc, model, sampling_rate = 0.5) = GlobalShuffle(0, 0, sampling_rate)
+name(::GlobalShuffle) = "GlobalShuffle"
 
 function global_update(u::GlobalShuffle, mc, model, temp_conf, temp_vec)
     copyto!(temp_conf, conf(mc))
