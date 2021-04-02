@@ -33,7 +33,6 @@ If you construct `DQMCParameters` from scratch you need to specify two of
 `beta = delta_tau * slices`.
 """
 struct DQMCParameters
-    global_moves::Bool
     global_rate::Int
 
     thermalization::Int
@@ -54,7 +53,6 @@ end
 
 function DQMCParameters(
         p::DQMCParameters;
-        global_moves = p.global_moves,
         global_rate = p.global_rate,
         thermalization = p.thermalization,
         sweeps = p.sweeps,
@@ -72,7 +70,6 @@ function DQMCParameters(
         push!(kwargs, :beta => p.beta)
     end
     DQMCParameters(
-        global_moves = global_moves,
         global_rate = global_rate,
         thermalization = thermalization,
         sweeps = sweeps,
@@ -88,7 +85,6 @@ function DQMCParameters(
 end
 
 function DQMCParameters(;
-        global_moves::Bool  = false,
         global_rate::Int    = 5,
         thermalization::Int = 100,
         sweeps::Int         = 100,
@@ -130,7 +126,6 @@ function DQMCParameters(;
     end
     
     DQMCParameters(
-        global_moves,
         global_rate,
         thermalization,
         sweeps,

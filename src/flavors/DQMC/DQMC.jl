@@ -26,8 +26,7 @@ multiplications, a UDT decomposition is used to stabilize the product.
 - `slices::Int = beta / delta_tau`: Number of imaginary time slice in the
 simulation
 - `measure_rate = 10`: Number of sweeps discarded between every measurement.
-- `global_moves = false`:: Currently not used
-- `global_rate = 5`: Currently not used
+- `global_rate = 5`: Rate at which the scheduler is asked to do a global update.
 - `last_sweep = 0`: Sets the index of the last finished sweep. The simulation
 will start with sweep `last_sweep + 1`.
 """
@@ -241,7 +240,7 @@ See also: [`resume!`](@ref)
                 println("\t", i)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur)
                 @printf("\t\tacc rate (local) : %.1f%%\n", mc.analysis.acc_rate*100)
-                if mc.parameters.global_moves
+                if !(mc.scheduler isa EmptyScheduler)
                     @printf("\t\tacc rate (global): %.1f%%\n", mc.analysis.acc_rate_global*100)
                     @printf(
                         "\t\tacc rate (global, overall): %.1f%%\n",
@@ -322,10 +321,8 @@ function update(mc::DQMC, i::Int)
 
     # global move
     # note - current_slice and direction are critical here
-    # if mc.parameters.global_moves && current_slice(mc) == nslices(mc) &&
-    #        mc.stack.direction == -1 && iszero(mod(i, mc.parameters.global_rate))
-    if mc.parameters.global_moves && current_slice(mc) == 1 &&
-        mc.stack.direction == 1 && iszero(mod(i, mc.parameters.global_rate))
+    if current_slice(mc) == 1 && mc.stack.direction == 1 && 
+        iszero(mod(i, mc.parameters.global_rate))
 
         mc.analysis.prop_global += 1
         # b = global_move(mc, mc.model)
@@ -440,13 +437,7 @@ function replay!(
 
 
     if measure_rate != mc.parameters.measure_rate
-        mc.parameters = DQMCParameters(
-            mc.parameters.global_moves, mc.parameters.global_rate,
-            mc.parameters.thermalization, mc.parameters.sweeps,
-            mc.parameters.silent, mc.parameters.check_sign_problem,mc.parameters.check_propagation_error,
-            mc.parameters.safe_mult, mc.parameters.delta_tau, mc.parameters.beta, mc.parameters.slices,
-            measure_rate, mc.parameters.print_rate
-        )
+        mc.parameters = DQMCParameters(mc.parameters, measure_rate = measure_rate)
     end
 
     verbose && println("Preparing Green's function stack")
