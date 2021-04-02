@@ -193,7 +193,7 @@ end
     )
 
     @test state == false
-    cs = deepcopy(mc.configs)
+    cs = deepcopy(mc.recorder)
     @assert length(cs) > 1 "No measurements have been taken. Test with more time!"
     L = length(cs)
 
@@ -208,7 +208,7 @@ end
     )
 
     @test state == false
-    cs = deepcopy(mc.configs)
+    cs = deepcopy(mc.recorder)
     @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
     @test isfile("resumable_testfile.jld2")
 
@@ -217,7 +217,7 @@ end
     model = HubbardModelAttractive(2, 2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, sweeps=100length(cs), measure_rate=100)
     state = run!(mc, verbose = false)
-    @test mc.configs.configs == cs.configs
-    @test mc.configs.rate == cs.rate
+    @test mc.recorder.configs == cs.configs
+    @test mc.recorder.rate == cs.rate
     rm("resumable_testfile.jld2")
 end
