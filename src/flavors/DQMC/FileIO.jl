@@ -73,8 +73,6 @@ function save_parameters(file::JLDFile, p::DQMCParameters, entryname::String="Pa
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(p))
 
-    write(file, entryname * "/global_moves", Int(p.global_moves))
-    write(file, entryname * "/global_rate", p.global_rate)
     write(file, entryname * "/thermalization", p.thermalization)
     write(file, entryname * "/sweeps", p.sweeps)
     write(file, entryname * "/silent", Int(p.silent))
@@ -100,8 +98,6 @@ function _load(data, ::Type{T}) where T <: DQMCParameters
     end
 
     data["type"](
-        Bool(data["global_moves"]),
-        data["global_rate"],
         data["thermalization"],
         data["sweeps"],
         Bool(data["silent"]),

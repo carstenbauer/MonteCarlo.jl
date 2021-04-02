@@ -89,7 +89,7 @@ include("ED.jl")
 end
 
 
-@testset "Exact Greens comparison (ED)" begin
+@testset "Exact Greens comparison (ED, tiny systems)" begin
     # These are theoretically the same but their implementation differs on
     # some level. To make sure both are correct it makes sense to check both here.
     models = (
@@ -177,7 +177,10 @@ end
             Random.seed!(123)
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
-                thermalization = 10_000, sweeps = 10_000, global_moves=true, print_rate=1000
+                thermalization = 10_000, sweeps = 10_000, print_rate=1000,
+                scheduler = AdaptiveScheduler(
+                    DQMC, model, (Adaptive(),), (GlobalShuffle(), GlobalFlip())
+                )
             )
             @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.parameters.beta), 10k + 10k sweeps"
 

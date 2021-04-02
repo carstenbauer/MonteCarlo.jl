@@ -163,7 +163,7 @@ end
 end
 
 
-@testset "Exact Greens comparison (Analytic)" begin
+@testset "Exact Greens comparison (Analytic, medium systems)" begin
     # These are theoretically the same but their implementation differs on
     # some level. To make sure both are correct it makes sense to check both here.
     models = (

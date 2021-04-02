@@ -53,6 +53,8 @@ export spin_density, spin_density_correlation, spin_density_susceptibility
 export pairing, pairing_correlation, pairing_susceptibility
 export current_current_susceptibility
 export noninteracting_energy, interacting_energy, total_energy
+export EmptyScheduler, SimpleScheduler, AdaptiveScheduler
+export Adaptive, NoUpdate, GlobalFlip, GlobalShuffle
 # export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")
