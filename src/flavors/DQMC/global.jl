@@ -86,7 +86,7 @@ end
 function init!(s::SimpleScheduler, mc::DQMC, model::Model)
     N = length(lattice(mc))
     flv = nflavors(mc.model)
-    s.conf = copy(conf(dqmc))
+    s.conf = copy(conf(mc))
     s.temp = zeros(Float64, flv*N)
     s
 end
@@ -103,16 +103,17 @@ function show_statistics(s::SimpleScheduler, prefix="")
     for update in s.sequence
         update isa NoUpdate && continue
         @printf(
-            "%s\t%s %0.3f\% accepted (%i / %i)\n",
-            prefix, name(update), update.accepted/update.total, 
-            update.accepted, update.total
+            "%s\t%s %0.1f%s accepted (%i / %i)\n",
+            prefix, rpad(name(update), 20), 100update.accepted/max(1, update.total), 
+            "%", update.accepted, update.total
         )
         cum_accepted += update.accepted
         cum_total += update.total
     end
     @printf(
-        "%s\tTotal %0.3f accepted ($i / $i)"
-        prefix, cum_accepted/cum_total, cum_accepted, cum_total
+        "%s\t%s %0.1f%s accepted (%i / %i)\n",
+        prefix, rpad("Total", 20), 100cum_accepted/cum_total, 
+        "%", cum_accepted, cum_total
     )
     nothing
 end
@@ -121,9 +122,9 @@ function Base.show(io::IO, s::SimpleScheduler)
     sequence = mapreduce(
         i -> name(s.sequence[mod1(i, length(s.sequence))]),
         (a, b) -> "$a -> $b",
-        s.idx+1:length(s.sequence)+1
+        s.idx+1 : s.idx+length(s.sequence)
     )
-    println(io, "SimpleScheduler(): $sequence (repeat)")
+    print(io, "SimpleScheduler(): $sequence -> (repeat)")
 end
 
 
@@ -197,17 +198,9 @@ mutable struct AdaptiveScheduler{CT, T1, T2} <: AbstractUpdateScheduler
     end
 
     function AdaptiveScheduler(
-            ::Type{<: DQMC}, model::Model, sequence, pool;
+            ::Type{<: DQMC}, model::Model, sequence, adaptive_pool;
             minimum_sampling_rate = 0.01, grace_period = 99, adaptive_rate = 9.0
         )
-
-        adaptive_pool = map(pool) do update
-            if update isa NoUpdate || update isa AdaptiveUpdate
-                return update
-            else
-                AdaptiveUpdate(update)
-            end
-        end
 
         if !(NoUpdate() in adaptive_pool)
             adaptive_pool = tuple(adaptive_pool..., NoUpdate())
@@ -287,9 +280,9 @@ function show_statistics(s::AdaptiveScheduler, prefix="")
         update isa NoUpdate && continue
         update isa Adaptive && continue
         @printf(
-            "%s\t%s %0.3f\% accepted (%i / %i)\n",
-            prefix, name(update), update.accepted/update.total, 
-            update.accepted, update.total
+            "%s\t%s %2.1f%s accepted (%i / %i)\n",
+            prefix, rpad(name(update), 20), 100update.accepted/max(1, update.total), 
+            "%", update.accepted, update.total
         )
         cum_accepted += update.accepted
         cum_total += update.total
@@ -297,16 +290,17 @@ function show_statistics(s::AdaptiveScheduler, prefix="")
     for update in s.adaptive_pool
         # here NoUpdate()'s may replace a global update, so they kinda count
         @printf(
-            "%s\t%s %0.3f\% accepted (%i / %i)\n",
-            prefix, name(update), update.accepted/update.total, 
-            update.accepted, update.total
+            "%s\t%s %2.1f%s accepted (%i / %i)\n",
+            prefix, rpad(name(update), 20), 100update.accepted/max(1, update.total), 
+            "%", update.accepted, update.total
         )
         cum_accepted += update.accepted
         cum_total += update.total
     end
     @printf(
-        "%s\tTotal %0.3f accepted ($i / $i)"
-        prefix, cum_accepted/cum_total, cum_accepted, cum_total
+        "%s\t%s %2.1f%s accepted (%i / %i)\n",
+        prefix, rpad("Total", 20), 100cum_accepted/cum_total, 
+        "%", cum_accepted, cum_total
     )
     nothing
 end
@@ -315,16 +309,15 @@ function Base.show(io::IO, s::AdaptiveScheduler)
     sequence = mapreduce(
         i -> name(s.sequence[mod1(i, length(s.sequence))]),
         (a, b) -> "$a -> $b",
-        s.idx+1:length(s.sequence)+1
+        s.idx+1 : s.idx+length(s.sequence)
     )
     total_weight = mapreduce(x -> x.sampling_rate, +, s.adaptive_pool)
-    pool = mapreduce((a, b) -> "$a, $b", s.idx+1:length(s.sequence)+1) do i
-        update = s.adaptive_pool[mod1(i, length(s.sequence))]
-        @sprintf("%0.2f\% %s", update.sampling_rate / total_weight name(update))
+    pool = mapreduce((a, b) -> "$a, $b", s.adaptive_pool) do update
+        @sprintf("%0.0f%s %s", 100update.sampling_rate / total_weight, "%", name(update))
     end
     println(io, "AdaptiveScheduler():")
-    println(io, "\t$sequence (repeat)")
-    println(io, "with Adaptive() = ($pool)")
+    println(io, "\t$sequence -> (repeat)")
+    print(io, "\twith Adaptive() = ($pool)")
 end
 
 
@@ -351,7 +344,7 @@ mutable struct NoUpdate <: AbstractGlobalUpdate
     total::Int
     sampling_rate::Float64
 end
-NoUpdate(sampling_rate = 1e-10) = NoUpdate(0, -1, sampling_rate)
+NoUpdate(sampling_rate = 1e-10) = NoUpdate(0, 0, sampling_rate)
 NoUpdate(mc, model::Model, sampling_rate=1e-10) = NoUpdate(sampling_rate)
 function global_update(u::NoUpdate, args...)
     u.total += 1
@@ -373,7 +366,7 @@ mutable struct GlobalFlip <: AbstractGlobalUpdate
     sampling_rate::Float64
 end
 GlobalFlip(sampling_rate = 0.5) = GlobalFlip(0, 0, sampling_rate)
-GlobalFlip(mc, model, sampling_rate = 0.5) = GlobalFlip(0, 0, sampling_rate)
+GlobalFlip(mc, model::Model, sampling_rate = 0.5) = GlobalFlip(0, 0, sampling_rate)
 name(::GlobalFlip) = "GlobalFlip"
 
 function global_update(u::GlobalFlip, mc, model, temp_conf, temp_vec)
@@ -399,7 +392,7 @@ mutable struct GlobalShuffle <: AbstractGlobalUpdate
     sampling_rate::Float64
 end
 GlobalShuffle(sampling_rate = 0.5) = GlobalShuffle(0, 0, sampling_rate)
-GlobalShuffle(mc, model, sampling_rate = 0.5) = GlobalShuffle(0, 0, sampling_rate)
+GlobalShuffle(mc, model::Model, sampling_rate = 0.5) = GlobalShuffle(0, 0, sampling_rate)
 name(::GlobalShuffle) = "GlobalShuffle"
 
 function global_update(u::GlobalShuffle, mc, model, temp_conf, temp_vec)
