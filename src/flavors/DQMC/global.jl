@@ -40,6 +40,9 @@
 
 
 
+abstract type AbstractGlobalUpdate end
+
+
 """
     EmptyScheduler()
 
@@ -50,7 +53,12 @@ struct EmptyScheduler <: AbstractUpdateScheduler
 end
 global_update(::EmptyScheduler, args...) = 0
 show_statistics(::EmptyScheduler, prefix="") = nothing
-
+function save_scheduler(file::JLDFile, s::EmptyScheduler, entryname::String="/Scheduler")
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(s))
+    nothing
+end
+_load(data, ::Type{<: EmptyScheduler}, ::Type, model) = EmptyScheduler()
 
 
 
@@ -73,7 +81,7 @@ mutable struct SimpleScheduler{CT, T <: Tuple} <: AbstractUpdateScheduler
         new{T1, T2}(conf, temp, sequence, idx)
     end
 
-    function SimpleScheduler(::Type{<: DQMC}, model::Model, updates...)
+    function SimpleScheduler(::Type{<: DQMC}, model::Model, updates::AbstractGlobalUpdate...)
         dummy = rand(DQMC, model, 1)
         obj = new{typeof(dummy), typeof(updates)}()
         obj.sequence = updates
@@ -125,6 +133,19 @@ function Base.show(io::IO, s::SimpleScheduler)
         s.idx+1 : s.idx+length(s.sequence)
     )
     print(io, "SimpleScheduler(): $sequence -> (repeat)")
+end
+
+function save_scheduler(file::JLDFile, s::SimpleScheduler, entryname::String="/Scheduler")
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(s))
+    write(file, entryname * "/sequence", s.sequence)
+    write(file, entryname * "/idx", s.idx)
+    nothing
+end
+function _load(data, ::Type{<: SimpleScheduler}, ::Type{<: DQMC}, model)
+    s = SimpleScheduler(DQMC, model, data["sequence"], data["pool"])
+    s.idx = data["idx"]
+    s
 end
 
 
@@ -202,7 +223,7 @@ mutable struct AdaptiveScheduler{CT, T1, T2} <: AbstractUpdateScheduler
             minimum_sampling_rate = 0.01, grace_period = 99, adaptive_rate = 9.0
         )
 
-        if !(NoUpdate() in adaptive_pool)
+        if !any(x -> x isa NoUpdate, adaptive_pool)
             adaptive_pool = tuple(adaptive_pool..., NoUpdate())
         end
 
@@ -320,16 +341,32 @@ function Base.show(io::IO, s::AdaptiveScheduler)
     print(io, "\twith Adaptive() = ($pool)")
 end
 
+function save_scheduler(file::JLDFile, s::AdaptiveScheduler, entryname::String="/Scheduler")
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/type", typeof(s))
+    write(file, entryname * "/sequence", s.sequence)
+    write(file, entryname * "/pool", s.adaptive_pool)
+    write(file, entryname * "/minimum_sampling_rate", s.minimum_sampling_rate)
+    write(file, entryname * "/grace_period", s.grace_period)
+    write(file, entryname * "/adaptive_rate", s.adaptive_rate)
+    write(file, entryname * "/idx", s.idx)
+    nothing
+end
+function _load(data, ::Type{<: AdaptiveScheduler}, ::Type{<: DQMC}, model)
+    s = AdaptiveScheduler(DQMC, model, data["sequence"], data["pool"])
+    s.minimum_sampling_rate = data["minimum_sampling_rate"]
+    s.grace_period = data["grace_period"]
+    s.adaptive_rate = data["adaptive_rate"]
+    s.idx = data["idx"]
+    s
+end
+
 
 
 
 ################################################################################
 ### Updates
 ################################################################################
-
-
-
-abstract type AbstractGlobalUpdate end
 
 
 

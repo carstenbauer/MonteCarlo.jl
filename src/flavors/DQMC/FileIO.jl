@@ -11,7 +11,7 @@
 #
 # When saving a simulation the default `entryname` is `MC`
 function save_mc(file::JLDFile, mc::DQMC, entryname::String="MC")
-    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/VERSION", 2)
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.parameters, entryname * "/Parameters")
     save_analysis(file, mc.analysis, entryname * "/Analysis")
@@ -20,6 +20,7 @@ function save_mc(file::JLDFile, mc::DQMC, entryname::String="MC")
     write(file, entryname * "/last_sweep", mc.last_sweep)
     save_measurements(file, mc, entryname * "/Measurements")
     save_model(file, mc.model, entryname * "/Model")
+    save_scheduler(file, mc.scheduler, entryname * "/Scheduler")
     nothing
 end
 
@@ -30,7 +31,7 @@ CB_type(T::DataType) = T.parameters[2]
 #
 # Loads a DQMC from a given `data` dictionary produced by `JLD.load(filename)`.
 function _load(data, ::Type{T}) where T <: DQMC
-    if !(data["VERSION"] == 1)
+    if data["VERSION"] > 2
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
 
@@ -42,10 +43,16 @@ function _load(data, ::Type{T}) where T <: DQMC
     recorder = _load(data["configs"], data["configs"]["type"])
     last_sweep = data["last_sweep"]
     model = _load(data["Model"], data["Model"]["type"])
+    scheduler = if haskey(data, "Scheduler")
+        _load(data["Scheduler"], data["Scheduler"]["type"], DQMC, model)
+    else
+        EmptyScheduler()
+    end
 
     combined_measurements = _load(data["Measurements"], Measurements)
     thermalization_measurements = combined_measurements[:TH]
     measurements = combined_measurements[:ME]
+
     HET = hoppingeltype(DQMC, model)
     GET = greenseltype(DQMC, model)
     HMT = hopping_matrix_type(DQMC, model)
@@ -57,7 +64,7 @@ function _load(data, ::Type{T}) where T <: DQMC
     DQMC(
         CB, 
         model, conf, last_sweep, 
-        stack, ut_stack, 
+        stack, ut_stack, scheduler,
         parameters, analysis, 
         recorder, thermalization_measurements, measurements
     )

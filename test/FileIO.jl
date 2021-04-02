@@ -150,6 +150,10 @@ function test_dqmc(mc, x)
     nothing
 end
 
+for file in readdir()
+    (endswith(file, "jld") || endswith(file, "jld2")) && rm(file)
+end
+
 @testset "DQMC" begin
     model = HubbardModelAttractive(4, 2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
