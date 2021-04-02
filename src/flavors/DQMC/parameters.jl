@@ -8,8 +8,6 @@ If an old set of parameters `p` is passed a copy will be generated. Any
 parameter passed via kwargs will replace the respective parameter in the copy.
 
 ## Keyword Arguments:
-- `global_moves = false`: Should global updates be enabled?
-- `global_rate = 5`: A global update is performed every `global_rate` sweeps.
 - `thermalization = 100`: Number of thermalization sweeps. (First MC stage)
 - `sweeps = 100`: Number of measurement sweeps. (Second MC stage)
 - `silent = false`: Should error printing be supressed? (They are still recorded
@@ -33,8 +31,6 @@ If you construct `DQMCParameters` from scratch you need to specify two of
 `beta = delta_tau * slices`.
 """
 struct DQMCParameters
-    global_rate::Int
-
     thermalization::Int
     sweeps::Int
     
@@ -53,7 +49,6 @@ end
 
 function DQMCParameters(
         p::DQMCParameters;
-        global_rate = p.global_rate,
         thermalization = p.thermalization,
         sweeps = p.sweeps,
         silent = p.silent, 
@@ -70,7 +65,6 @@ function DQMCParameters(
         push!(kwargs, :beta => p.beta)
     end
     DQMCParameters(
-        global_rate = global_rate,
         thermalization = thermalization,
         sweeps = sweeps,
         silent = silent,
@@ -85,7 +79,6 @@ function DQMCParameters(
 end
 
 function DQMCParameters(;
-        global_rate::Int    = 5,
         thermalization::Int = 100,
         sweeps::Int         = 100,
         silent::Bool        = false,
@@ -126,7 +119,6 @@ function DQMCParameters(;
     end
     
     DQMCParameters(
-        global_rate,
         thermalization,
         sweeps,
         silent, 

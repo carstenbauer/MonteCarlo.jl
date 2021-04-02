@@ -26,7 +26,6 @@ multiplications, a UDT decomposition is used to stabilize the product.
 - `slices::Int = beta / delta_tau`: Number of imaginary time slice in the
 simulation
 - `measure_rate = 10`: Number of sweeps discarded between every measurement.
-- `global_rate = 5`: Rate at which the scheduler is asked to do a global update.
 - `last_sweep = 0`: Sets the index of the last finished sweep. The simulation
 will start with sweep `last_sweep + 1`.
 """
@@ -312,9 +311,7 @@ function update(mc::DQMC, i::Int)
 
     # global move
     # note - current_slice and direction are critical here
-    if current_slice(mc) == 1 && mc.stack.direction == 1 && 
-        iszero(mod(i, mc.parameters.global_rate))
-
+    if current_slice(mc) == 1 && mc.stack.direction == 1
         b = global_update(mc.scheduler, mc, mc.model)
     end
 
