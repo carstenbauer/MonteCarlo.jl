@@ -18,13 +18,6 @@
 # Note:
 # ReplicaExchange fits here as an AbstractGlobalUpdate
 
-# TODO
-# - Should each update collect statistics? Should DQMC not?
-#   - Since we can mix updates it might be nice to have the global stats as well
-#   - yes they should and the global stats can be based on local ones
-# - FileIO
-# - remove old global_move
-
 
 # parallel
 # I think we can make good use of the "trick" TimerOutput uses for debug 
@@ -40,7 +33,40 @@
 
 
 
+# TODO: rewrite
+"""
+    AbstractGlobalUpdate
+
+A global update should be a struct inhereting from AbstractGlobalUpdate, i.e.
+
+```
+struct MyGlobalUpdate <: AbstractGlobalUpdate
+    ...
+end
+```
+
+with whatever fields are required. It should implement a method
+
+```
+function global_update(u::MyGlobalUpdate, mc, model, temp_conf, temp_vec)
+    temp_conf = ...
+    return global_update(mc, model, temp_conf, temp_vec)
+end
+```
+
+which performs the update by creating a new conf in `temp_conf` (which you may
+overwrite and assume to be overwritten before the next call) and passing that 
+to the standard global Metropolis update implented in 
+`global_update(mc, model, temp_conf, temp_vec)`. 
+
+Behind the scenes, the scheduler may wrap `MyGlobalUpdate` in 
+`AcceptanceStatistics` which collects the number of requested and accepted 
+updates. It is expected that you return `0` if the update is denied or `1` if it
+is accepted (as does the `global_update` returned above). 
+"""
 abstract type AbstractGlobalUpdate end
+Base.show(io::IO, u::AbstractGlobalUpdate) = print(io, name(u))
+
 
 
 """
@@ -83,6 +109,7 @@ mutable struct SimpleScheduler{CT, T <: Tuple} <: AbstractUpdateScheduler
 
     function SimpleScheduler(::Type{<: DQMC}, model::Model, updates::AbstractGlobalUpdate...)
         dummy = rand(DQMC, model, 1)
+        updates = map(AcceptanceStatistics, updates)
         obj = new{typeof(dummy), typeof(updates)}()
         obj.sequence = updates
         obj.idx = 0
@@ -109,7 +136,7 @@ function show_statistics(s::SimpleScheduler, prefix="")
     cum_accepted = 0
     cum_total = 0
     for update in s.sequence
-        update isa NoUpdate && continue
+        update isa AcceptanceStatistics{NoUpdate} && continue
         @printf(
             "%s\t%s %0.1f%s accepted (%i / %i)\n",
             prefix, rpad(name(update), 20), 100update.accepted/max(1, update.total), 
@@ -157,6 +184,8 @@ A placeholder for adaptive updates in the `AdaptiveScheduler`.
 """
 struct Adaptive end
 name(::Adaptive) = "Adaptive"
+
+
 
 """
     AdaptiveScheduler(::Type{<: DQMC}, model::Model, sequence::Tuple, pool::Tuple; kwargs...])
@@ -210,22 +239,37 @@ mutable struct AdaptiveScheduler{CT, T1, T2} <: AbstractUpdateScheduler
     temp::Vector{Float64}
 
     adaptive_pool::T1
+    sampling_rates::Vector{Float64}
     sequence::T2
     idx::Int
 
     # for loading
-    function AdaptiveScheduler(msr, gp, ar, c::T1, t, ap::T2, s::T3, i) where {T1, T2, T3}
-        new{T1, T2, T3}(msr, gp, ar, c, t, ap, s, i)
+    function AdaptiveScheduler(msr, gp, ar, c::CT, t, ap::T1, sr, s::T2, i) where {CT, T1, T2}
+        new{CT, T1, T2}(msr, gp, ar, c, t, ap, sr, s, i)
     end
 
     function AdaptiveScheduler(
-            ::Type{<: DQMC}, model::Model, sequence, adaptive_pool;
+            ::Type{<: DQMC}, model::Model, sequence, pool;
             minimum_sampling_rate = 0.01, grace_period = 99, adaptive_rate = 9.0
         )
 
-        if !any(x -> x isa NoUpdate, adaptive_pool)
-            adaptive_pool = tuple(adaptive_pool..., NoUpdate())
+        # sampling rate x after i steps with constant acceptance rate p:
+        # x_i = (c/c+1)^i x_0 + a * \sum_{i} c^{i-1} / (c+1)^i
+        # where c is the adaptive rate and x_0 is the initial samplign rate.
+        # Minimum time to discard:
+        i_min = ceil(Int, log(
+            adaptive_rate / (adaptive_rate+1), 
+            minimum_sampling_rate / 0.5
+        ))
+        @info("Minimum number of samples for discard: $grace_period + $i_min")
+
+        if !any(x -> x isa NoUpdate, pool)
+            pool = tuple(pool..., NoUpdate())
         end
+
+        # Wrap in AcceptanceStatistics
+        adaptive_pool = map(AcceptanceStatistics, pool)
+        sequence = map(AcceptanceStatistics, sequence)
 
         adaptive_pool = Tuple(adaptive_pool)
         sequence = Tuple(sequence)
@@ -236,6 +280,7 @@ mutable struct AdaptiveScheduler{CT, T1, T2} <: AbstractUpdateScheduler
         obj.grace_period = grace_period
         obj.adaptive_rate = adaptive_rate
         obj.adaptive_pool = adaptive_pool
+        obj.sampling_rates = [u isa AcceptanceStatistics{NoUpdate} ? 1e-10 : 0.5 for u in adaptive_pool]
         obj.sequence = sequence
         obj.idx = 0
 
@@ -257,34 +302,35 @@ function global_update(s::AdaptiveScheduler, mc::DQMC, model)
     if s.sequence[s.idx] === Adaptive()
         # Find appropriate (i.e. with probability matching sampling rates) 
         # update from adaptive pool
-        total_weight = mapreduce(x -> x.sampling_rate, +, s.adaptive_pool)
-        p = total_weight * rand()
-        sum = 0.0
-
-        for update in s.adaptive_pool
-            sum += update.sampling_rate
-            
-            # if sum goes beyond p we have an appropriate update
-            if p < sum
-                accepted = global_update(update, mc, model, s.conf, s.temp)
-
-                # start adjusting sampling rate if we have sampled more than 
-                # <grace_period> times
-                if !(update isa NoUpdate) && update.total > s.grace_period
-                    update.sampling_rate = (
-                        s.adaptive_rate * update.sampling_rate + 
-                        update.accepted / update.total
-                    ) / (s.adaptive_rate + 1)
-                    
-                    # Hit miniomum threshold - this can no longer be accepted.
-                    if update.sampling_rate < s.minimum_sampling_rate
-                        update.sampling_rate = 0.0
-                    end
-                end
-
-                return accepted
+        total_weight = sum(s.sampling_rates)
+        target = rand() * total_weight
+        current_weight = 0.0
+        idx = 1
+        while idx < length(s.sampling_rates)
+            current_weight += s.sampling_rates[idx]
+            if target <= current_weight
+                break
+            else
+                idx += 1
             end
         end
+
+        # Apply the update and adjust sampling rate
+        update = s.adaptive_pool[idx]
+        accepted = global_update(update, mc, model, s.conf, s.temp)
+        if !(update isa AcceptanceStatistics{NoUpdate}) && update.total > s.grace_period
+            s.sampling_rates[idx] = (
+                s.adaptive_rate * s.sampling_rates[idx] + 
+                update.accepted / update.total
+            ) / (s.adaptive_rate + 1)
+            
+            # Hit miniomum threshold - this can no longer be accepted.
+            if s.sampling_rates[idx] < s.minimum_sampling_rate
+                s.sampling_rates[idx] = 0.0
+            end
+        end
+
+        return accepted
     else
         # Some sort of non-adaptive update, just perform it.
         return global_update(s.sequence[s.idx], mc, model, s.conf, s.temp)
@@ -298,7 +344,7 @@ function show_statistics(s::AdaptiveScheduler, prefix="")
     for update in s.sequence
         # here NoUpdate()'s are static, so they represent "skip global here"
         # Adaptive()'s are give by updates from adaptive pool
-        update isa NoUpdate && continue
+        update isa AcceptanceStatistics{NoUpdate} && continue
         update isa Adaptive && continue
         @printf(
             "%s\t%s %2.1f%s accepted (%i / %i)\n",
@@ -332,9 +378,9 @@ function Base.show(io::IO, s::AdaptiveScheduler)
         (a, b) -> "$a -> $b",
         s.idx+1 : s.idx+length(s.sequence)
     )
-    total_weight = mapreduce(x -> x.sampling_rate, +, s.adaptive_pool)
-    pool = mapreduce((a, b) -> "$a, $b", s.adaptive_pool) do update
-        @sprintf("%0.0f%s %s", 100update.sampling_rate / total_weight, "%", name(update))
+    total_weight = sum(s.sampling_rates)
+    pool = mapreduce((a, b) -> "$a, $b", s.sampling_rates, s.adaptive_pool) do sr, u
+        @sprintf("%0.0f%s %s", 100sr / total_weight, "%", name(u))
     end
     println(io, "AdaptiveScheduler():")
     println(io, "\t$sequence -> (repeat)")
@@ -345,6 +391,7 @@ function save_scheduler(file::JLDFile, s::AdaptiveScheduler, entryname::String="
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(s))
     write(file, entryname * "/sequence", s.sequence)
+    write(file, entryname * "/sampling_rates", s.sampling_rates)
     write(file, entryname * "/pool", s.adaptive_pool)
     write(file, entryname * "/minimum_sampling_rate", s.minimum_sampling_rate)
     write(file, entryname * "/grace_period", s.grace_period)
@@ -354,6 +401,7 @@ function save_scheduler(file::JLDFile, s::AdaptiveScheduler, entryname::String="
 end
 function _load(data, ::Type{<: AdaptiveScheduler}, ::Type{<: DQMC}, model)
     s = AdaptiveScheduler(DQMC, model, data["sequence"], data["pool"])
+    s.sampling_rates = data["sampling_rates"]
     s.minimum_sampling_rate = data["minimum_sampling_rate"]
     s.grace_period = data["grace_period"]
     s.adaptive_rate = data["adaptive_rate"]
@@ -370,21 +418,40 @@ end
 
 
 
+# Should this inherit from AbstractGlobalUpdate?
+mutable struct AcceptanceStatistics{Update <: AbstractGlobalUpdate}
+    accepted::Int
+    total::Int
+    update::Update
+end
+AcceptanceStatistics(update) = AcceptanceStatistics(0, 0, update)
+AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
+AcceptanceStatistics(proxy::Adaptive) = proxy
+name(w::AcceptanceStatistics) = name(w.update)
+function global_update(w::AcceptanceStatistics, mc, m, tc, tv)
+    accepted = global_update(w.update, mc, m, tc, tv)
+    w.total += 1
+    w.accepted += accepted
+    return accepted
+end
+function Base.show(io::IO, u::AcceptanceStatistics)
+    @printf(io,
+        "%s with %i/%i = %0.1f%c accepted", 
+        name(u), u.accepted, u.total, u.accepted/max(1, u.accepted), '%'
+    )
+end
+
+
+
 """
     NoUpdate([mc, model], [sampling_rate = 1e-10])
 
 A global update that does nothing. Mostly used internally to keep the adaptive 
 scheduler running if all (other) updates are ignored.
 """
-mutable struct NoUpdate <: AbstractGlobalUpdate
-    accepted::Int
-    total::Int
-    sampling_rate::Float64
-end
-NoUpdate(sampling_rate = 1e-10) = NoUpdate(0, 0, sampling_rate)
-NoUpdate(mc, model::Model, sampling_rate=1e-10) = NoUpdate(sampling_rate)
+struct NoUpdate <: AbstractGlobalUpdate end
+NoUpdate(mc, model) = NoUpdate()
 function global_update(u::NoUpdate, args...)
-    u.total += 1
     # we count this as "denied" global update
     return 0
 end
@@ -397,22 +464,14 @@ name(::NoUpdate) = "NoUpdate"
 
 A global update that flips the configuration (±1 -> ∓1).
 """
-mutable struct GlobalFlip <: AbstractGlobalUpdate 
-    accepted::Int
-    total::Int
-    sampling_rate::Float64
-end
-GlobalFlip(sampling_rate = 0.5) = GlobalFlip(0, 0, sampling_rate)
-GlobalFlip(mc, model::Model, sampling_rate = 0.5) = GlobalFlip(0, 0, sampling_rate)
+struct GlobalFlip <: AbstractGlobalUpdate end
+GlobalFlip(mc, model) = GlobalFlip()
 name(::GlobalFlip) = "GlobalFlip"
 
 function global_update(u::GlobalFlip, mc, model, temp_conf, temp_vec)
     c = conf(mc)
     @. temp_conf = -c
-    accepted = global_update(mc, model, temp_conf, temp_vec)
-    u.total += 1
-    u.accepted += accepted
-    accepted
+    return global_update(mc, model, temp_conf, temp_vec)
 end
 
 
@@ -423,22 +482,15 @@ end
 A global update that shuffles the current configuration. Note that this is not 
 local to a time slice.
 """
-mutable struct GlobalShuffle <: AbstractGlobalUpdate 
-    accepted::Int
-    total::Int
-    sampling_rate::Float64
-end
-GlobalShuffle(sampling_rate = 0.5) = GlobalShuffle(0, 0, sampling_rate)
-GlobalShuffle(mc, model::Model, sampling_rate = 0.5) = GlobalShuffle(0, 0, sampling_rate)
+struct GlobalShuffle <: AbstractGlobalUpdate end
+GlobalShuffle(mc, model) = GlobalShuffle()
 name(::GlobalShuffle) = "GlobalShuffle"
+
 
 function global_update(u::GlobalShuffle, mc, model, temp_conf, temp_vec)
     copyto!(temp_conf, conf(mc))
     shuffle!(temp_conf)
-    accepted = global_update(mc, model, temp_conf, temp_vec)
-    u.total += 1
-    u.accepted += accepted
-    accepted
+    return global_update(mc, model, temp_conf, temp_vec)
 end
 
 
@@ -446,7 +498,7 @@ end
 # I.e. we >trade< or not
 # struct ReplicaExchange <: AbstractGlobalUpdate end 
 
-# I.e. we gift confs to each other and do accept them independently.
+# I.e. we gift confs to each other and accept them independently.
 # struct ReplicaGift <: AbstractGlobalUpdate
 
 
