@@ -114,7 +114,7 @@ function test_dqmc(mc, x)
     end
     for (k, v) in mc.measurements
         for f in fieldnames(typeof(v))
-            v isa MonteCarlo.DQMCMeasurement && f == :output && continue
+            v isa MonteCarlo.DQMCMeasurement && f == :temp && continue
             r = if getfield(v, f) isa LightObservable
                 # TODO
                 # implement == for LightObservable in MonteCarloObservable
