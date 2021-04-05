@@ -28,7 +28,7 @@
 
     # rand, conftype
     Random.seed!(123)
-    @test rand(MC, m) == IsingSpin[-1 -1 1 -1 1 1 1 -1; -1 1 1 -1 -1 1 1 1; -1 1 1 1 1 1 -1 1; -1 1 1 1 -1 -1 1 1; 1 1 1 -1 1 -1 -1 -1; 1 -1 -1 -1 1 1 -1 1; -1 -1 1 1 1 1 -1 1; 1 -1 1 -1 -1 -1 1 1]
+    @test rand(MC, m) == IsingSpin[1 -1 -1 1 1 -1 1 1; -1 1 1 1 1 -1 1 -1; -1 -1 -1 -1 1 1 1 -1; -1 1 1 -1 -1 -1 -1 -1; 1 -1 1 1 1 1 -1 1; 1 -1 -1 1 -1 -1 -1 1; -1 1 -1 -1 -1 1 -1 1; 1 -1 -1 1 -1 1 -1 1]
 
     # propose, accept
     @test MonteCarlo.propose_local(mc, m, 13, conff) == (1352.0, nothing)

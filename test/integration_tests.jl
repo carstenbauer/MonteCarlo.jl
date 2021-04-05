@@ -6,21 +6,21 @@
 
     # Check measurements
     measured = measurements(mc)
-    @test   25.47  ≈ measured[:Magn].M |> mean         atol=0.01
+    @test   25.61  ≈ measured[:Magn].M |> mean         atol=0.01
     @test    0.82  ≈ measured[:Magn].M |> std_error    atol=0.01
-    @test  887.    ≈ measured[:Magn].M2 |> mean        atol=1.0
-    @test   46.    ≈ measured[:Magn].M2 |> std_error   atol=1.0
-    @test    0.398 ≈ measured[:Magn].m |> mean         atol=0.001
+    @test  903.    ≈ measured[:Magn].M2 |> mean        atol=1.0
+    @test   47.    ≈ measured[:Magn].M2 |> std_error   atol=1.0
+    @test    0.400 ≈ measured[:Magn].m |> mean         atol=0.001
     @test    0.013 ≈ measured[:Magn].m |> std_error    atol=0.001
-    @test    1.300 ≈ measured[:Magn].chi |> mean       atol=0.001
+    @test    1.354 ≈ measured[:Magn].chi |> mean       atol=0.001
 
     @test  -59.10  ≈ measured[:Energy].E |> mean       atol=0.01
-    @test    0.88  ≈ measured[:Energy].E |> std_error  atol=0.01
-    @test 3799.    ≈ measured[:Energy].E2 |> mean      atol=1.0
-    @test  111.    ≈ measured[:Energy].E2 |> std_error atol=1.0
+    @test    0.97  ≈ measured[:Energy].E |> std_error  atol=0.01
+    @test 3838.    ≈ measured[:Energy].E2 |> mean      atol=1.0
+    @test  125.    ≈ measured[:Energy].E2 |> std_error atol=1.0
     @test   -0.924 ≈ measured[:Energy].e |> mean       atol=0.001
-    @test    0.014 ≈ measured[:Energy].e |> std_error  atol=0.001
-    @test    0.585 ≈ measured[:Energy].C |> mean       atol=0.001
+    @test    0.015 ≈ measured[:Energy].e |> std_error  atol=0.001
+    @test    0.66  ≈ measured[:Energy].C |> mean       atol=0.01
 
     @test isempty(mc.configs) == true
 end
