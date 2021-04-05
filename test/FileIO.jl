@@ -99,6 +99,7 @@ function test_dqmc(mc, x)
         @test getfield(mc.model.l, f) == getfield(x.model.l, f)
     end
     @test mc.model.flv == x.model.flv
+    @test mc.scheduler == x.scheduler
     for (k, v) in mc.thermalization_measurements
         for f in fieldnames(typeof(v))
             r = if getfield(v, f) isa LightObservable
