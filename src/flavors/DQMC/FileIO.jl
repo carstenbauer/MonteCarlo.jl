@@ -46,7 +46,12 @@ function _load(data, ::Type{T}) where T <: DQMC
     scheduler = if haskey(data, "Scheduler")
         _load(data["Scheduler"], data["Scheduler"]["type"], DQMC, model)
     else
-        EmptyScheduler()
+        if haskey(data["Parameters"], "global_moves") && Bool(data["Parameters"]["global_moves"])
+            @warn "Replacing `global_moves = true` with an empty SimpleScheduler"
+            SimpleScheduler(DQMC, model, NoUpdate())
+        else
+            EmptyScheduler()
+        end
     end
 
     combined_measurements = _load(data["Measurements"], Measurements)
