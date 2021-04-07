@@ -174,7 +174,7 @@ end
 
     for model in models
         @testset "$(typeof(model))" begin
-            Random.seed!(1234)
+            Random.seed!(123)
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
                 thermalization = 10_000, sweeps = 10_000, print_rate=1000,
@@ -221,7 +221,7 @@ end
             
             # Absolute tolerance from Trotter decompositon
             atol = 2dqmc.parameters.delta_tau^2
-            rtol = 2dqmc.parameters.delta_tau^2
+            rtol = 2.5dqmc.parameters.delta_tau^2
             N = length(lattice(model))
         
             @info "Running ED"
@@ -338,7 +338,8 @@ end
                 ################################################################
 
                 @testset "Unequal Time Greens" begin
-                    for (i, tau1, tau2) in zip(eachindex(l1s), 0.1l1s, 0.1l2s)
+                    dt = dqmc.parameters.delta_tau
+                    for (i, tau1, tau2) in zip(eachindex(l1s), dt * l1s, dt * l2s)
                         UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
                         # ΔUTG = std_error(dqmc.measurements[Symbol(:UTG, i)])
                         M = size(UTG, 1)
