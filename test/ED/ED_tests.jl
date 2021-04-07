@@ -220,8 +220,8 @@ end
             @time run!(dqmc, verbose=true)
             
             # Absolute tolerance from Trotter decompositon
-            atol = 2dqmc.parameters.delta_tau^2
-            rtol = 2.5dqmc.parameters.delta_tau^2
+            atol = 2.5dqmc.parameters.delta_tau^2
+            rtol = 2dqmc.parameters.delta_tau^2
             N = length(lattice(model))
         
             @info "Running ED"
