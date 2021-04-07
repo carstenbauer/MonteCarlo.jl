@@ -174,7 +174,7 @@ end
 
     for model in models
         @testset "$(typeof(model))" begin
-            Random.seed!(123)
+            Random.seed!(1234)
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
                 thermalization = 10_000, sweeps = 10_000, print_rate=1000,
