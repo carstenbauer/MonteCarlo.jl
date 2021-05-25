@@ -6,7 +6,7 @@ using Reexport
 import MonteCarloObservable.AbstractObservable
 using Parameters, Requires
 using TimerOutputs, LoopVectorization, StructArrays
-using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random
+using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random, Distributed
 
 import JLD, JLD2
 # To allow switching between JLD and JLD2:
@@ -55,6 +55,7 @@ export current_current_susceptibility
 export noninteracting_energy, interacting_energy, total_energy
 export EmptyScheduler, SimpleScheduler, AdaptiveScheduler
 export Adaptive, NoUpdate, GlobalFlip, GlobalShuffle
+export ReplicaExchange, ReplicaPull, connect, disconnect
 # export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")
