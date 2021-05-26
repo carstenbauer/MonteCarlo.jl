@@ -144,7 +144,7 @@ end
 
 
 
-@bm function propose_global_from_conf(mc::DQMC, m::Model, conf::AbstractArray, temp)
+@bm function propose_global_from_conf(mc::DQMC, m::Model, conf::AbstractArray)
     # I don't think we need this...
     @assert mc.stack.current_slice == 1
     @assert mc.stack.direction == 1
@@ -152,7 +152,7 @@ end
     # This should be just after calculating greens, so mc.stack.Dl is from the UDT
     # decomposed G
     # We need an independent temp vector here as inv_det changes Dl, Dr and tempv
-    temp .= mc.stack.Dl
+    mc.stack.tempvf .= mc.stack.Dl
 
     # This is essentially reverse_build_stack + partial calculate_greens
     # after this: G = Ur Tr^-1 Dr^-1 Ul^† Tl^†
@@ -164,8 +164,8 @@ end
     # This loop helps with stability - it multiplies large and small numbers
     # whihc avoid reaching extremely large or small (typemin/max) floats
     detratio = 1.0
-    for i in eachindex(temp)
-        detratio *= temp[i] * mc.stack.Dr[i]
+    for i in eachindex(mc.stack.tempvf)
+        detratio *= mc.stack.tempvf[i] * mc.stack.Dr[i]
     end
     ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
     
@@ -196,11 +196,12 @@ end
 
 
 # This does a MC update with the given temp_conf as the proposed new_conf
-function global_update(mc::DQMC, model::Model, temp_conf::AbstractArray, temp_vec::Vector{Float64})
-    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, temp_conf, temp_vec)
+function global_update(mc::DQMC, model::Model, temp_conf::AbstractArray)
+    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, temp_conf)
 
     p = exp(- ΔE_boson) * detratio
     @assert imag(p) == 0.0 "p = $p should always be real because ΔE_boson = $ΔE_boson and detratio = $detratio should always be real..."
+    @info p
 
     # Gibbs/Heat bath
     # p = p / (1.0 + p)
@@ -282,10 +283,10 @@ struct GlobalFlip <: AbstractGlobalUpdate end
 GlobalFlip(mc, model) = GlobalFlip()
 name(::GlobalFlip) = "GlobalFlip"
 
-function global_update(u::GlobalFlip, mc, model, temp_conf, temp_vec)
+function global_update(u::GlobalFlip, mc, model, temp_conf)
     c = conf(mc)
     @. temp_conf = -c
-    return global_update(mc, model, temp_conf, temp_vec)
+    return global_update(mc, model, temp_conf)
 end
 
 
@@ -301,8 +302,8 @@ GlobalShuffle(mc, model) = GlobalShuffle()
 name(::GlobalShuffle) = "GlobalShuffle"
 
 
-function global_update(u::GlobalShuffle, mc, model, temp_conf, temp_vec)
+function global_update(u::GlobalShuffle, mc, model, temp_conf)
     copyto!(temp_conf, conf(mc))
     shuffle!(temp_conf)
-    return global_update(mc, model, temp_conf, temp_vec)
+    return global_update(mc, model, temp_conf)
 end

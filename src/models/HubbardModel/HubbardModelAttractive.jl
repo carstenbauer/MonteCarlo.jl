@@ -154,7 +154,7 @@ end
     nothing
 end
 
-@bm function propose_global_from_conf(mc::DQMC, m::HubbardModelAttractive, conf::AbstractArray, temp)
+@bm function propose_global_from_conf(mc::DQMC, m::HubbardModelAttractive, conf::AbstractArray)
     # G = calculate_greens(mc, current_slice(mc)-1, mc.s.greens_temp)
     # @assert G ≈ mc.s.greens
     # D = copy(mc.s.Dl)
@@ -176,15 +176,15 @@ end
 
     # This should be just after calculating greens, so mc.s.Dl is from the UDT
     # decomposed G
-    copyto!(temp, mc.stack.Dl)
+    copyto!(mc.stack.tempvf, mc.stack.Dl)
 
     # -1?
     inv_det(mc, current_slice(mc)-1, conf)
 
     # This may help with stability
     detratio = 1.0
-    for i in eachindex(temp)
-        detratio *= temp[i] * mc.stack.Dr[i]
+    for i in eachindex(mc.stack.tempvf)
+        detratio *= mc.stack.tempvf[i] * mc.stack.Dr[i]
         # detratio *= mc.s.Dl[i] / D[i]
     end
     ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)

@@ -43,7 +43,6 @@ a sequence `GlobalFlip() > GlobalFlip() > GlobalShuffle() > repeat`.
 mutable struct SimpleScheduler{CT, T <: Tuple} <: AbstractUpdateScheduler
     # temporary
     conf::CT
-    temp::Vector{Float64}
     sequence::T
     idx::Int64
 
@@ -64,17 +63,14 @@ end
 
 
 function init!(s::SimpleScheduler, mc::DQMC, model::Model)
-    N = length(lattice(mc))
-    flv = nflavors(mc.model)
     s.conf = copy(conf(mc))
-    s.temp = zeros(Float64, flv*N)
     generate_communication_functions(mc.conf)
     s
 end
 
 function global_update(s::SimpleScheduler, mc::DQMC, model)
     s.idx = mod1(s.idx + 1, length(s.sequence))
-    global_update(s.sequence[s.idx], mc, model, s.conf, s.temp)
+    global_update(s.sequence[s.idx], mc, model, s.conf)
 end
 
 function show_statistics(s::SimpleScheduler, prefix="")
@@ -188,7 +184,6 @@ mutable struct AdaptiveScheduler{CT, T1, T2} <: AbstractUpdateScheduler
     adaptive_rate::Float64 # 9.0?
 
     conf::CT
-    temp::Vector{Float64}
 
     adaptive_pool::T1
     sampling_rates::Vector{Float64}
@@ -241,10 +236,7 @@ mutable struct AdaptiveScheduler{CT, T1, T2} <: AbstractUpdateScheduler
 end
 
 function init!(s::AdaptiveScheduler, mc::DQMC, model::Model)
-    N = length(lattice(mc))
-    flv = nflavors(mc.model)
     s.conf = copy(conf(mc))
-    s.temp = zeros(Float64, flv*N)
     generate_communication_functions(mc.conf)
     s
 end
@@ -270,7 +262,7 @@ function global_update(s::AdaptiveScheduler, mc::DQMC, model)
 
         # Apply the update and adjust sampling rate
         update = s.adaptive_pool[idx]
-        accepted = global_update(update, mc, model, s.conf, s.temp)
+        accepted = global_update(update, mc, model, s.conf)
         if !(update isa AcceptanceStatistics{NoUpdate}) && update.total > s.grace_period
             s.sampling_rates[idx] = (
                 s.adaptive_rate * s.sampling_rates[idx] + 
@@ -286,7 +278,7 @@ function global_update(s::AdaptiveScheduler, mc::DQMC, model)
         return accepted
     else
         # Some sort of non-adaptive update, just perform it.
-        return global_update(s.sequence[s.idx], mc, model, s.conf, s.temp)
+        return global_update(s.sequence[s.idx], mc, model, s.conf)
     end
 end
 
@@ -375,8 +367,8 @@ AcceptanceStatistics(update) = AcceptanceStatistics(0, 0, update)
 AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
 AcceptanceStatistics(proxy::Adaptive) = proxy
 name(w::AcceptanceStatistics) = name(w.update)
-function global_update(w::AcceptanceStatistics, mc, m, tc, tv)
-    accepted = global_update(w.update, mc, m, tc, tv)
+function global_update(w::AcceptanceStatistics, mc, m, tc)
+    accepted = global_update(w.update, mc, m, tc)
     w.total += 1
     w.accepted += accepted
     return accepted

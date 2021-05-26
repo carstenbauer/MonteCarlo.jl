@@ -18,6 +18,7 @@ mutable struct DQMCStack{
     Tr::GreensMatType
     pivot::Vector{Int64}
     tempv::Vector{GreensElType}
+    tempvf::Vector{Float64}
 
     greens::GreensMatType
     greens_temp::GreensMatType
@@ -132,6 +133,7 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
     # can be changed anywhere
     mc.stack.pivot = Vector{Int64}(undef, flv*N)
     mc.stack.tempv = Vector{GreensElType}(undef, flv*N)
+    mc.stack.tempvf = Vector{Float64}(undef, flv*N)
 
     # can be changed anywhere
     mc.stack.tmp1 = GreensMatType(undef, flv*N, flv*N)
