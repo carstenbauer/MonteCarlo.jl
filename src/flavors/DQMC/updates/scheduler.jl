@@ -75,13 +75,14 @@ function show_statistics(s::SimpleScheduler, prefix="")
     cum_total  = mapreduce(u -> u isa AcceptanceStatistics ? u.total : 0, +, s.sequence)
 
     accumulated = flatten_sequence_statistics(s.sequence)
-    show_accumulated_sequence(accumulated, prefix * "\t")
-
+    show_accumulated_sequence(accumulated, prefix * "\t", cum_total)
+        
     p = @sprintf("%2.1f", 100cum_accepted/max(1, cum_total))
-    println(
-        "$prefix\t", rpad("Total", 20), " ", lpad(p, 5), "% accepted", 
-        "   (", round(Int, cum_accepted), " / $cum_total)"
-    )
+    s = rpad("Total", 20) * " " * lpad(p, 5) * "% accepted" *
+        "   (" * string(round(Int, cum_accepted)) * " / $cum_total)"
+
+    println(prefix, '\t', '-' ^ length(s))
+    println("$prefix\t", s)
 
     nothing
 end
@@ -178,7 +179,7 @@ mutable struct AdaptiveScheduler{CT, PT, ST} <: AbstractUpdateScheduler
         )
         # Without local updates we have no sweep increment
         sequence = map(AcceptanceStatistics, vcat(sequence...))
-        if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, updates)
+        if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, sequence)
             error("The scheduler requires local updates, but none were passed.")
         end
 
@@ -242,12 +243,12 @@ function update(s::AdaptiveScheduler, mc::DQMC, model)
         end
 
         # Apply the update and adjust sampling rate
-        update = s.adaptive_pool[idx]
-        accepted = update(update, mc, model, s.conf)
-        if !(update isa AcceptanceStatistics{NoUpdate}) && update.total > s.grace_period
+        updater = s.adaptive_pool[idx]
+        accepted = update(updater, mc, model, s.conf)
+        if !(updater isa AcceptanceStatistics{NoUpdate}) && updater.total > s.grace_period
             s.sampling_rates[idx] = (
                 s.adaptive_rate * s.sampling_rates[idx] + 
-                update.accepted / update.total
+                updater.accepted / updater.total
             ) / (s.adaptive_rate + 1)
             
             # Hit miniomum threshold - this can no longer be accepted.
@@ -273,13 +274,15 @@ function show_statistics(s::AdaptiveScheduler, prefix="")
 
     accumulated = flatten_sequence_statistics(s.adaptive_pool)
     flatten_sequence_statistics(s.sequence, accumulated)
-    show_accumulated_sequence(accumulated, prefix * "\t")
+    show_accumulated_sequence(accumulated, prefix * "\t", cum_total)
 
     p = @sprintf("%2.1f", 100cum_accepted/max(1, cum_total))
-    println(
-        "$prefix\t", rpad("Total", 20), " ", lpad(p, 5), "% accepted", 
-        "   (", round(Int, cum_accepted), " / $cum_total)"
-    )
+    s = rpad("Total", 20) * " " * lpad(p, 5) * "% accepted" *
+        "   (" * string(round(Int, cum_accepted)) * " / $cum_total)"
+
+    println(prefix, '\t', '-' ^ length(s))
+    println("$prefix\t", s)
+
     nothing
 end
 
@@ -370,19 +373,23 @@ function flatten_sequence_statistics(sequence, accumulated::Dict = Dict{String, 
     accumulated
 end
 
-function show_accumulated_sequence(accumulated, prefix = "")
-    for (key, (acc, total)) in accumulated
+function show_accumulated_sequence(accumulated, prefix = "", max_total=0)
+    N = length(string(max_total))
+    sorted = sort!(collect(accumulated), by = x -> x[2][1] / max(1, x[2][2]))
+    for (key, (acc, total)) in sorted
+        total == 0 && continue
         p = @sprintf("%2.1f", 100acc / max(1, total))
         println(
-            prefix, rpad(key, 20), " ", lpad(p, 5), "% accepted",  
-            "   (", round(Int, acc), " / $total)"
+            prefix, rpad(key, 20), " ", lpad(p, 5), "% accepted",  "   (", 
+            lpad(string(round(Int, acc)), N), " / ", lpad(string(total), N), ")"
         )
     end
 
     nothing
 end
 
-function show_sequence(sequence, prefix = "")
+function show_sequence(sequence, prefix = "", max_total=0)
+    N = length(string(max_total))
     for update in sequence
         if update isa AcceptanceStatistics{NoUpdate} ||
             update isa Adaptive || !(update isa AcceptanceStatistics)
@@ -391,8 +398,9 @@ function show_sequence(sequence, prefix = "")
 
         p = @sprintf("%2.1f", 100update.accepted/max(1, update.total))
         println(
-            prefix, rpad(name(update), 20), " ", lpad(p, 5), "% accepted", 
-            "(", round(Int, update.accepted), " / ", update.total, ")"
+            prefix, rpad(name(update), 20), " ", lpad(p, 5), "% accepted", "(", 
+            lpad(string(round(Int, update.accepted)), N), " / ", 
+            lpad(string(update.total), N), ")"
         )
     end
 

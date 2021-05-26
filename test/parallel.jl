@@ -14,21 +14,31 @@ addprocs(2)
     model = HubbardModelAttractive(4, 2, U = 1.0, mu = mu)
     
     println("Creating scheduler")
-    scheduler = SimpleScheduler(
-        DQMC, model, 
-        GlobalFlip(),
-        GlobalShuffle(),
-        ReplicaExchange(pool[1]),
-        GlobalFlip(),
-        GlobalShuffle(),
-        ReplicaPull()
+    # scheduler = SimpleScheduler(
+    #     DQMC, model, 
+    #     LocalSweep(3), GlobalFlip(),
+    #     LocalSweep(3), GlobalShuffle(),
+    #     LocalSweep(3), ReplicaExchange(pool[1]),
+    #     LocalSweep(3), GlobalFlip(),
+    #     LocalSweep(3), GlobalShuffle(),
+    #     LocalSweep(3), ReplicaPull()
+    # )
+    scheduler = AdaptiveScheduler(
+        DQMC, model,
+        (
+            LocalSweep(3), Adaptive(), 
+            LocalSweep(3), ReplicaPull(), 
+            LocalSweep(3), Adaptive(), 
+            LocalSweep(3), ReplicaExchange(pool[1])
+        ),
+        (GlobalFlip(), GlobalShuffle())
     )
 
     println("Creating dqmc")
     dqmc = DQMC(
         model, 
         beta=5.0, recorder=Discarder, scheduler = scheduler,
-        thermalization=1000, sweeps=1000
+        thermalization=10000, sweeps=10000
     )
 
     dqmc[:G]    = greens_measurement(dqmc, model)
@@ -49,13 +59,13 @@ addprocs(2)
     dqmc
 end
 
-@everywhere MonteCarlo.enable_benchmarks()
-@everywhere MonteCarlo.reset_timer!()
-
 begin
-    dqmcs = pmap(simulate, [1.0, 0.5])
+    @everywhere MonteCarlo.enable_benchmarks()
+    dqmcs = pmap(simulate, [1.0, 0.0])
+    @everywhere MonteCarlo.reset_timer!()
+    dqmcs = pmap(simulate, [1.0, 0.0])
     MonteCarlo.show_statistics(dqmcs[1].scheduler)
     MonteCarlo.show_statistics(dqmcs[2].scheduler)
 end
 
-TOs = pmap(_ -> MonteCarlo.TimerOutputs.DEFAULT_TIMER, workers())
+TOs = pmap(_ -> MonteCarlo.TimerOutputs.DEFAULT_TIMER, workers());
