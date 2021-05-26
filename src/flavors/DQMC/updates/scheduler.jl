@@ -16,7 +16,7 @@ Schedules no global updates.
 struct EmptyScheduler <: AbstractUpdateScheduler
     EmptyScheduler(args...; kwargs...) = new()
 end
-global_update(::EmptyScheduler, args...) = 0
+update(::EmptyScheduler, args...) = 0
 show_statistics(::EmptyScheduler, prefix="") = nothing
 function save_scheduler(file::JLDFile, s::EmptyScheduler, entryname::String="/Scheduler")
     write(file, entryname * "/VERSION", 1)
@@ -68,9 +68,9 @@ function init!(s::SimpleScheduler, mc::DQMC, model::Model)
     s
 end
 
-function global_update(s::SimpleScheduler, mc::DQMC, model)
+function update(s::SimpleScheduler, mc::DQMC, model)
     s.idx = mod1(s.idx + 1, length(s.sequence))
-    global_update(s.sequence[s.idx], mc, model, s.conf)
+    update(s.sequence[s.idx], mc, model, s.conf)
 end
 
 function show_statistics(s::SimpleScheduler, prefix="")
@@ -241,7 +241,7 @@ function init!(s::AdaptiveScheduler, mc::DQMC, model::Model)
     s
 end
 
-function global_update(s::AdaptiveScheduler, mc::DQMC, model)
+function update(s::AdaptiveScheduler, mc::DQMC, model)
     s.idx = mod1(s.idx + 1, length(s.sequence))
     
     if s.sequence[s.idx] === Adaptive()
@@ -262,7 +262,7 @@ function global_update(s::AdaptiveScheduler, mc::DQMC, model)
 
         # Apply the update and adjust sampling rate
         update = s.adaptive_pool[idx]
-        accepted = global_update(update, mc, model, s.conf)
+        accepted = update(update, mc, model, s.conf)
         if !(update isa AcceptanceStatistics{NoUpdate}) && update.total > s.grace_period
             s.sampling_rates[idx] = (
                 s.adaptive_rate * s.sampling_rates[idx] + 
@@ -278,7 +278,7 @@ function global_update(s::AdaptiveScheduler, mc::DQMC, model)
         return accepted
     else
         # Some sort of non-adaptive update, just perform it.
-        return global_update(s.sequence[s.idx], mc, model, s.conf)
+        return update(s.sequence[s.idx], mc, model, s.conf)
     end
 end
 
@@ -367,8 +367,8 @@ AcceptanceStatistics(update) = AcceptanceStatistics(0, 0, update)
 AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
 AcceptanceStatistics(proxy::Adaptive) = proxy
 name(w::AcceptanceStatistics) = name(w.update)
-function global_update(w::AcceptanceStatistics, mc, m, tc)
-    accepted = global_update(w.update, mc, m, tc)
+function update(w::AcceptanceStatistics, mc, m, tc)
+    accepted = update(w.update, mc, m, tc)
     w.total += 1
     w.accepted += accepted
     return accepted

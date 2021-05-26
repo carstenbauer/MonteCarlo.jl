@@ -99,7 +99,7 @@ end
 ReplicaExchange(mc, model, target) = ReplicaExchange(target)
 name(::ReplicaExchange) = "ReplicaExchange"
 
-@bm function global_update(u::ReplicaExchange, mc, model, temp_conf, temp_vec)
+@bm function update(u::ReplicaExchange, mc, model, temp_conf)
     # Need to sync at the start here because else th weights might be based on different confs
     # barrier
     wait_for_remote(u.target)
@@ -109,7 +109,7 @@ name(::ReplicaExchange) = "ReplicaExchange"
     temp_conf .= conf
 
     # compute weight
-    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, temp_conf, temp_vec)
+    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, temp_conf)
     local_weight = exp(- ΔE_boson) * detratio
     local_prob = rand()
     
@@ -144,12 +144,12 @@ ReplicaPull() = ReplicaPull(1)
 ReplicaPull(mc::MonteCarloFlavor, model::Model) = ReplicaPull(1)
 name(::ReplicaPull) = "ReplicaPull"
 
-@bm function global_update(u::ReplicaPull, mc, model, temp_conf, temp_vec)
+@bm function update(u::ReplicaPull, mc, model, temp_conf)
     # cycle first to make sure the idx is in bounds
     @sync if !isempty(connected_ids)
         idx = mod1(u.cycle_idx, length(connected_ids))
         conf = pull_conf_from_remote(connected_ids[idx])
         temp_conf .= conf
     end
-    return global_update(mc, model, temp_conf, temp_vec)
+    return global_update(mc, model, temp_conf)
 end

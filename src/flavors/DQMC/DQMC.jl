@@ -312,7 +312,7 @@ function update(mc::DQMC, i::Int)
     # global move
     # note - current_slice and direction are critical here
     if current_slice(mc) == 1 && mc.stack.direction == 1
-        b = global_update(mc.scheduler, mc, mc.model)
+        b = update(mc.scheduler, mc, mc.model)
     end
 
     # local moves
