@@ -38,7 +38,7 @@ function DQMC(model::M;
         measure_rate = 10,
         recorder = ConfigRecorder,
         recording_rate = measure_rate,
-        scheduler = EmptyScheduler(DQMC, model),
+        scheduler = SimpleScheduler(DQMC, model, LocalSweep()),
         kwargs...
     ) where M<:Model
     # default params
@@ -204,50 +204,48 @@ See also: [`resume!`](@ref)
 
     _time = time()
     verbose && println("\n\nThermalization stage - ", thermalization)
-    # do_th_measurements && prepare!(mc.thermalization_measurements, mc, mc.model)
-    # mc.last_sweep:total_sweeps won't change when last_sweep is changed
-    for i in mc.last_sweep+1:total_sweeps
-        verbose && (i == thermalization + 1) && println("\n\nMeasurement stage - ", sweeps)
 
+    while mc.last_sweep < total_sweeps
+        verbose && (mc.last_sweep == thermalization + 1) && println("\n\nMeasurement stage - ", sweeps)
+        
+        # Perform whatever update is scheduled next
         update(mc.scheduler, mc, mc.model)
 
-        if i ≤ thermalization
-            if iszero(i % mc.parameters.measure_rate)
+        # Trigger measurements
+        if mc.last_sweep ≤ thermalization
+            if iszero(mc.last_sweep % mc.parameters.measure_rate)
                 for (requirement, group) in th_groups
-                    apply!(requirement, group, mc, mc.model, i)
+                    apply!(requirement, group, mc, mc.model, mc.last_sweep)
                 end
             end
         else
-            push!(mc.recorder, mc, mc.model, i)
-            if iszero(i % mc.parameters.measure_rate)
+            push!(mc.recorder, mc, mc.model, mc.last_sweep)
+            if iszero(mc.last_sweep % mc.parameters.measure_rate)
                 for (requirement, group) in groups
-                    apply!(requirement, group, mc, mc.model, i)
+                    apply!(requirement, group, mc, mc.model, mc.last_sweep)
                 end
             end
         end
 
-
-        if mod(i, mc.parameters.print_rate) == 0
-            mc.analysis.acc_rate = mc.analysis.acc_rate / (mc.parameters.print_rate * 2 * nslices(mc))
+        # Show sweep statistics - i.e. time/sweep, acceptance rates
+        if mod(mc.last_sweep, mc.parameters.print_rate) == 0
             sweep_dur = (time() - _time)/mc.parameters.print_rate
             max_sweep_duration = max(max_sweep_duration, sweep_dur)
             if verbose
-                println("\t", i)
+                println("\t", mc.last_sweep)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur)
-                @printf("\t\tacc rate (local) : %.1f%%\n", mc.analysis.acc_rate*100)
                 show_statistics(mc.scheduler, "\t\t")
             end
 
-            mc.analysis.acc_rate = 0.0
             flush(stdout)
             _time = time()
         end
 
-
+        # Trigger checkpoitn safe/early exit save
         if safe_before - now() < Millisecond(grace_period) +
                 Millisecond(round(Int, 2e3max_sweep_duration))
 
-            println("Early save initiated for sweep #$i.\n")
+            println("Early save initiated for sweep #$(mc.last_sweep).\n")
             verbose && println("Current time: ", Dates.format(now(), "d.u yyyy HH:MM"))
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
             save(resumable_filename, mc, overwrite = overwrite, rename = false)
@@ -261,8 +259,7 @@ See also: [`resume!`](@ref)
         end
     end
 
-    mc.analysis.acc_rate = mc.analysis.acc_local / mc.analysis.prop_local
-
+    # Print (numerical) error information
     if verbose
         if length(mc.analysis.imaginary_probability) > 0
             s = mc.analysis.imaginary_probability
@@ -287,6 +284,7 @@ See also: [`resume!`](@ref)
         end
     end
 
+    # Total timings
     end_time = now()
     if verbose
         println("\nEnded: ", Dates.format(end_time, "d.u yyyy HH:MM"))
@@ -297,74 +295,6 @@ See also: [`resume!`](@ref)
     return true
 end
 
-"""
-    update(mc::DQMC, i::Int)
-
-Propagates the Green's function and performs local and global updates at
-current imaginary time slice.
-"""
-function update(mc::DQMC, i::Int)
-    propagate(mc)
-
-    # global move
-    # note - current_slice and direction are critical here
-    if current_slice(mc) == 1 && mc.stack.direction == 1
-        b = update(mc.scheduler, mc, mc.model)
-    end
-
-    # local moves
-    sweep_spatial(mc)
-
-    nothing
-end
-
-"""
-    sweep_spatial(mc::DQMC)
-
-Performs a sweep of local moves along spatial dimension at current
-imaginary time slice.
-"""
-@bm function sweep_spatial(mc::DQMC)
-    m = model(mc)
-    N = size(conf(mc), 1)
-    acc_rate = 0.0
-
-    # @inbounds for i in rand(1:N, N)
-    @inbounds for i in 1:N
-        detratio, ΔE_boson, passthrough = propose_local(mc, m, i, current_slice(mc), conf(mc))
-        mc.analysis.prop_local += 1
-
-        if mc.parameters.check_sign_problem
-            if abs(imag(detratio)) > 1e-6
-                push!(mc.analysis.imaginary_probability, abs(imag(detratio)))
-                mc.parameters.silent || @printf(
-                    "Did you expect a sign problem? imag. detratio:  %.9e\n", 
-                    abs(imag(detratio))
-                )
-            end
-            if real(detratio) < 0.0
-                push!(mc.analysis.negative_probability, real(detratio))
-                mc.parameters.silent || @printf(
-                    "Did you expect a sign problem? negative detratio %.9e\n",
-                    real(detratio)
-                )
-            end
-        end
-        p = real(exp(- ΔE_boson) * detratio)
-
-        # Gibbs/Heat bath
-        # p = p / (1.0 + p)
-        # Metropolis
-        if p > 1 || rand() < p
-            accept_local!(mc, m, i, current_slice(mc), conf(mc), detratio, ΔE_boson, passthrough)
-            # Δ, detratio,ΔE_boson)
-            acc_rate += 1.0
-            mc.analysis.acc_local += 1
-        end
-    end
-    mc.analysis.acc_rate += acc_rate / N
-    nothing
-end
 
 """
     replay(mc::DQMC[; configurations::Iterable = mc.recorder; kwargs...])
