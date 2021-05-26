@@ -208,27 +208,24 @@ See also: [`resume!`](@ref)
     # mc.last_sweep:total_sweeps won't change when last_sweep is changed
     for i in mc.last_sweep+1:total_sweeps
         verbose && (i == thermalization + 1) && println("\n\nMeasurement stage - ", sweeps)
-        for u in 1:2 * nslices(mc)
-            update(mc, i)
 
-            if current_slice(mc) == 1 && i ≤ thermalization && 
-                mc.stack.direction == 1 && iszero(i % mc.parameters.measure_rate)
-                if iszero(i % mc.parameters.measure_rate)
-                    for (requirement, group) in th_groups
-                        apply!(requirement, group, mc, mc.model, i)
-                    end
+        update(mc.scheduler, mc, mc.model)
+
+        if i ≤ thermalization
+            if iszero(i % mc.parameters.measure_rate)
+                for (requirement, group) in th_groups
+                    apply!(requirement, group, mc, mc.model, i)
                 end
             end
-            if current_slice(mc) == 1 && mc.stack.direction == 1 && i > thermalization
-                push!(mc.recorder, mc, mc.model, i)
-                if iszero(i % mc.parameters.measure_rate)
-                    for (requirement, group) in groups
-                        apply!(requirement, group, mc, mc.model, i)
-                    end
+        else
+            push!(mc.recorder, mc, mc.model, i)
+            if iszero(i % mc.parameters.measure_rate)
+                for (requirement, group) in groups
+                    apply!(requirement, group, mc, mc.model, i)
                 end
             end
         end
-        mc.last_sweep = i
+
 
         if mod(i, mc.parameters.print_rate) == 0
             mc.analysis.acc_rate = mc.analysis.acc_rate / (mc.parameters.print_rate * 2 * nslices(mc))

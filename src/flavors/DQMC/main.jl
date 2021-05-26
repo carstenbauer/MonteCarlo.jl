@@ -71,6 +71,7 @@ include("slice_matrices.jl")
 # functions necessary to calculate and perform those updates.
 # include("global.jl")
 include("updates/scheduler.jl")
+include("updates/local_updates.jl")
 include("updates/global_updates.jl")
 include("updates/parallel_updates.jl")
 

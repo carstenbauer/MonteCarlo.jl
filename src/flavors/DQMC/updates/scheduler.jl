@@ -2,6 +2,12 @@
 # classical MC as well
 
 
+
+abstract type AbstractUpdate end
+abstract type AbstractLocalUpdate end
+
+
+
 ################################################################################
 ### EmptyScheduler
 ################################################################################
@@ -359,11 +365,11 @@ end
 # Should this inherit from AbstractGlobalUpdate?
 # This is required for AdaptiveScheduler
 mutable struct AcceptanceStatistics{Update}
-    accepted::Int
+    accepted::Float64
     total::Int
     update::Update
 end
-AcceptanceStatistics(update) = AcceptanceStatistics(0, 0, update)
+AcceptanceStatistics(update) = AcceptanceStatistics(0.0, 0, update)
 AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
 AcceptanceStatistics(proxy::Adaptive) = proxy
 name(w::AcceptanceStatistics) = name(w.update)

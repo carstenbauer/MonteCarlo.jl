@@ -201,7 +201,7 @@ function global_update(mc::DQMC, model::Model, temp_conf::AbstractArray)
 
     p = exp(- ΔE_boson) * detratio
     @assert imag(p) == 0.0 "p = $p should always be real because ΔE_boson = $ΔE_boson and detratio = $detratio should always be real..."
-    @info p
+    # @info p
 
     # Gibbs/Heat bath
     # p = p / (1.0 + p)
@@ -253,7 +253,7 @@ Behind the scenes, the scheduler may wrap `MyGlobalUpdate` in
 updates. It is expected that you return `0` if the update is denied or `1` if it
 is accepted (as does the `global_update` returned above). 
 """
-abstract type AbstractGlobalUpdate end
+abstract type AbstractGlobalUpdate <: AbstractUpdate end
 Base.show(io::IO, u::AbstractGlobalUpdate) = print(io, name(u))
 
 
