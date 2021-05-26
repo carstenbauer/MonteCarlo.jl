@@ -77,11 +77,12 @@ function show_statistics(s::SimpleScheduler, prefix="")
     accumulated = flatten_sequence_statistics(s.sequence)
     show_accumulated_sequence(accumulated, prefix * "\t")
 
-    @printf(
-        "%s\t%s %2.1f%s accepted (%i / %i)\n",
-        prefix, rpad("Total", 20), 100cum_accepted/cum_total, 
-        "%", cum_accepted, cum_total
+    p = @sprintf("%2.1f", 100cum_accepted/max(1, cum_total))
+    println(
+        "$prefix\t", rpad("Total", 20), " ", lpad(p, 5), "% accepted", 
+        "   (", round(Int, cum_accepted), " / $cum_total)"
     )
+
     nothing
 end
 
@@ -274,10 +275,10 @@ function show_statistics(s::AdaptiveScheduler, prefix="")
     flatten_sequence_statistics(s.sequence, accumulated)
     show_accumulated_sequence(accumulated, prefix * "\t")
 
-    @printf(
-        "%s\t%s %2.1f%s accepted (%i / %i)\n",
-        prefix, rpad("Total", 20), 100cum_accepted/cum_total, 
-        "%", cum_accepted, cum_total
+    p = @sprintf("%2.1f", 100cum_accepted/max(1, cum_total))
+    println(
+        "$prefix\t", rpad("Total", 20), " ", lpad(p, 5), "% accepted", 
+        "   (", round(Int, cum_accepted), " / $cum_total)"
     )
     nothing
 end
@@ -371,9 +372,10 @@ end
 
 function show_accumulated_sequence(accumulated, prefix = "")
     for (key, (acc, total)) in accumulated
-        @printf(
-            "%s%s %2.1f%s accepted (%i / %i)\n",
-            prefix, rpad(key, 20), 100acc / max(1, total),  "%", acc, total
+        p = @sprintf("%2.1f", 100acc / max(1, total))
+        println(
+            prefix, rpad(key, 20), " ", lpad(p, 5), "% accepted",  
+            "   (", round(Int, acc), " / $total)"
         )
     end
 
@@ -387,10 +389,10 @@ function show_sequence(sequence, prefix = "")
             continue
         end
 
-        @printf(
-            "%s%s %2.1f%s accepted (%i / %i)\n",
-            prefix, rpad(name(update), 20), 100update.accepted/max(1, update.total), 
-            "%", update.accepted, update.total
+        p = @sprintf("%2.1f", 100update.accepted/max(1, update.total))
+        println(
+            prefix, rpad(name(update), 20), " ", lpad(p, 5), "% accepted", 
+            "(", round(Int, update.accepted), " / ", update.total, ")"
         )
     end
 
