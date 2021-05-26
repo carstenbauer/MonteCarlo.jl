@@ -199,7 +199,7 @@ See also: [`resume!`](@ref)
     # fresh stack
     verbose && println("Preparing Green's function stack")
     init!(mc)
-    build_stack(mc, mc.stack)
+    reverse_build_stack(mc, mc.stack)
     propagate(mc)
 
     _time = time()
