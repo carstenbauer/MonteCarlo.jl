@@ -70,9 +70,9 @@ include("slice_matrices.jl")
 # Contains global update schedulers, the updates themselves as well as some 
 # functions necessary to calculate and perform those updates.
 # include("global.jl")
-include("scheduler.jl")
-include("global_updates.jl")
-include("parallel_updates.jl")
+include("updates/scheduler.jl")
+include("updates/global_updates.jl")
+include("updates/parallel_updates.jl")
 
 # Contains the "main/top-level" simulation code. Specifically construction and
 # initialization of the DQMC type, convenience functions, `run!` and `replay!`, 
