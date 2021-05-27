@@ -237,9 +237,9 @@ end
 with whatever fields are required. It should implement a method
 
 ```
-function update(u::MyGlobalUpdate, mc, model, temp_conf)
-    temp_conf = ...
-    return global_update(mc, model, temp_conf)
+function update(u::MyGlobalUpdate, mc, model)
+    mc.temp_conf = ...
+    return global_update(mc, model, mc.temp_conf)
 end
 ```
 
@@ -283,10 +283,10 @@ struct GlobalFlip <: AbstractGlobalUpdate end
 GlobalFlip(mc, model) = GlobalFlip()
 name(::GlobalFlip) = "GlobalFlip"
 
-function update(u::GlobalFlip, mc, model, temp_conf)
+function update(u::GlobalFlip, mc, model)
     c = conf(mc)
-    @. temp_conf = -c
-    return global_update(mc, model, temp_conf)
+    @. mc.temp_conf = -c
+    return global_update(mc, model, mc.temp_conf)
 end
 
 
@@ -302,8 +302,8 @@ GlobalShuffle(mc, model) = GlobalShuffle()
 name(::GlobalShuffle) = "GlobalShuffle"
 
 
-function update(u::GlobalShuffle, mc, model, temp_conf)
-    copyto!(temp_conf, conf(mc))
-    shuffle!(temp_conf)
-    return global_update(mc, model, temp_conf)
+function update(u::GlobalShuffle, mc, model)
+    copyto!(mc.temp_conf, conf(mc))
+    shuffle!(mc.temp_conf)
+    return global_update(mc, model, mc.temp_conf)
 end

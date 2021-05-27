@@ -44,14 +44,12 @@ function _load(data, ::Type{T}) where T <: DQMC
     last_sweep = data["last_sweep"]
     model = _load(data["Model"], data["Model"]["type"])
     scheduler = if haskey(data, "Scheduler")
-        _load(data["Scheduler"], data["Scheduler"]["type"], DQMC, model)
+        _load(data["Scheduler"], data["Scheduler"]["type"])
     else
         if haskey(data["Parameters"], "global_moves") && Bool(data["Parameters"]["global_moves"])
             @warn "Replacing `global_moves = true` with an empty SimpleScheduler"
-            SimpleScheduler(DQMC, model, NoUpdate())
-        else
-            EmptyScheduler()
         end
+        SimpleScheduler(LocalSweep())
     end
 
     combined_measurements = _load(data["Measurements"], Measurements)
@@ -68,7 +66,7 @@ function _load(data, ::Type{T}) where T <: DQMC
     
     DQMC(
         CB, 
-        model, conf, last_sweep, 
+        model, conf, deepcopy(conf), last_sweep, 
         stack, ut_stack, scheduler,
         parameters, analysis, 
         recorder, thermalization_measurements, measurements

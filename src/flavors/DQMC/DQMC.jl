@@ -38,7 +38,7 @@ function DQMC(model::M;
         measure_rate = 10,
         recorder = ConfigRecorder,
         recording_rate = measure_rate,
-        scheduler = SimpleScheduler(DQMC, model, LocalSweep()),
+        scheduler = SimpleScheduler(LocalSweep()),
         kwargs...
     ) where M<:Model
     # default params
@@ -62,7 +62,7 @@ function DQMC(model::M;
 
     mc = DQMC(
         CB, 
-        model, conf, last_sweep,
+        model, conf, deepcopy(conf), last_sweep,
         stack, ut_stack, scheduler,
         parameters, analysis,
         recorder, thermalization_measurements, measurements
@@ -85,7 +85,7 @@ DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
 
 # Simplified constructor
 function DQMC(
-        CB, model::M, conf::ConfType, last_sweep,
+        CB, model::M, conf::ConfType, temp_conf::ConfType, last_sweep,
         stack::Stack, ut_stack::UTStack, scheduler::US,
         parameters, analysis,
         recorder::RT,
@@ -93,7 +93,7 @@ function DQMC(
     ) where {M, ConfType, RT, Stack, UTStack, US}
 
     DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(
-        model, conf, last_sweep, stack, ut_stack, 
+        model, conf, temp_conf, last_sweep, stack, ut_stack, 
         scheduler, parameters, analysis, recorder,
         thermalization_measurements, measurements
     )
@@ -131,7 +131,7 @@ Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
 function init!(mc::DQMC)
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc, mc.stack)
-    init!(mc.scheduler, mc, mc.model)
+    generate_communication_functions(mc.conf)
     nothing
 end
 @deprecate resume_init!(mc::DQMC) init!(mc) false

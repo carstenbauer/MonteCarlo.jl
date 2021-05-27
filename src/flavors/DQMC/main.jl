@@ -22,6 +22,7 @@ mutable struct DQMC{
 
     model::M
     conf::ConfType
+    temp_conf::ConfType
     last_sweep::Int
 
     stack::Stack # s -> stack 

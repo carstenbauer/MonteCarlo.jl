@@ -91,25 +91,23 @@ abstract type AbstractParallelUpdate <: AbstractGlobalUpdate end
 
 
 # I.e. we >trade< or not
-# struct ReplicaExchange <: AbstractGlobalUpdate end 
-# TODO: It would be better to use the temp_conf in the scheduler...
 struct ReplicaExchange <: AbstractParallelUpdate
     target::Int
 end
 ReplicaExchange(mc, model, target) = ReplicaExchange(target)
 name(::ReplicaExchange) = "ReplicaExchange"
 
-@bm function update(u::ReplicaExchange, mc, model, temp_conf)
+@bm function update(u::ReplicaExchange, mc, model)
     # Need to sync at the start here because else th weights might be based on different confs
     # barrier
     wait_for_remote(u.target)
 
     # swap conf
     conf = pull_conf_from_remote(u.target)
-    temp_conf .= conf
+    mc.temp_conf .= conf
 
     # compute weight
-    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, temp_conf)
+    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, mc.temp_conf)
     local_weight = exp(- ΔE_boson) * detratio
     local_prob = rand()
     
@@ -126,7 +124,7 @@ name(::ReplicaExchange) = "ReplicaExchange"
     # processes. 
     w = local_weight * remote_weight
     if ifelse(myid() < u.target, local_prob, remote_prob) < w
-        accept_global!(mc, model, temp_conf, passthrough)
+        accept_global!(mc, model, mc.temp_conf, passthrough)
         return 1
     end
 
@@ -144,12 +142,12 @@ ReplicaPull() = ReplicaPull(1)
 ReplicaPull(mc::MonteCarloFlavor, model::Model) = ReplicaPull(1)
 name(::ReplicaPull) = "ReplicaPull"
 
-@bm function update(u::ReplicaPull, mc, model, temp_conf)
+@bm function update(u::ReplicaPull, mc, model)
     # cycle first to make sure the idx is in bounds
     @sync if !isempty(connected_ids)
         idx = mod1(u.cycle_idx, length(connected_ids))
         conf = pull_conf_from_remote(connected_ids[idx])
-        temp_conf .= conf
+        mc.temp_conf .= conf
     end
-    return global_update(mc, model, temp_conf)
+    return global_update(mc, model, mc.temp_conf)
 end

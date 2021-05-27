@@ -24,32 +24,29 @@ name(::Adaptive) = "Adaptive"
 
 
 """
-    SimpleScheduler(::Type{<: DQMC}, model, updates...)
+    SimpleScheduler(updates...)
 
 Schedules global updates in the order specified through `updates...`. For example
 `SimpleScheduler(mc, GlobalFlip(), GlobalFlip(), GlobalShuffle())` would generate
 a sequence `GlobalFlip() > GlobalFlip() > GlobalShuffle() > repeat`.
 """
-mutable struct SimpleScheduler{CT, ST} <: AbstractUpdateScheduler
-    # temporary
-    conf::CT
+mutable struct SimpleScheduler{ST} <: AbstractUpdateScheduler
     sequence::ST
     idx::Int64
 
     # For loading
-    function SimpleScheduler(conf::CT, sequence::ST, idx) where {CT, ST}
-        new{CT, ST}(conf, sequence, idx)
+    function SimpleScheduler(sequence::ST, idx::Int) where {ST}
+        new{ST}(sequence, idx)
     end
 
-    function SimpleScheduler(::Type{<: DQMC}, model::Model, updates...)
+    function SimpleScheduler(updates::AbstractUpdate...)
         # Without local sweeps we don't have a sweep increment
         updates = map(AcceptanceStatistics, Tuple(vcat(updates...)))
         if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, updates)
             error("The scheduler requires local updates, but none were passed.")
         end
         any(isa.(updates, Adaptive)) && error("SimpleScheduler cannot process Adaptive. Use AdaptiveScheduler.")
-        dummy = rand(DQMC, model, 1)
-        obj = new{typeof(dummy), typeof(updates)}()
+        obj = new{typeof(updates)}()
         obj.sequence = updates
         obj.idx = 0
         obj
@@ -57,15 +54,9 @@ mutable struct SimpleScheduler{CT, ST} <: AbstractUpdateScheduler
 end
 
 
-function init!(s::SimpleScheduler, mc::DQMC, model::Model)
-    s.conf = copy(conf(mc))
-    generate_communication_functions(mc.conf)
-    s
-end
-
 function update(s::SimpleScheduler, mc::DQMC, model)
     s.idx = mod1(s.idx + 1, length(s.sequence))
-    update(s.sequence[s.idx], mc, model, s.conf)
+    update(s.sequence[s.idx], mc, model)
 end
 
 function show_statistics(s::SimpleScheduler, prefix="")
@@ -99,10 +90,8 @@ function save_scheduler(file::JLDFile, s::SimpleScheduler, entryname::String="/S
     write(file, entryname * "/idx", s.idx)
     nothing
 end
-function _load(data, ::Type{<: SimpleScheduler}, ::Type{<: DQMC}, model)
-    s = SimpleScheduler(DQMC, model, data["sequence"], data["pool"])
-    s.idx = data["idx"]
-    s
+function _load(data, ::Type{<: SimpleScheduler})
+    SimpleScheduler(data["sequence"], data["idx"])
 end
 
 
@@ -150,7 +139,7 @@ be called before its sampling rate is adjusted.
 acceptance rate. More means slower. This follows the formula 
 `(adaptive_rate * sampling_rate + accepted/total) / (adaptive_rate + 1)`
 """
-mutable struct AdaptiveScheduler{CT, PT, ST} <: AbstractUpdateScheduler
+mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
     # below this, the sampling rate is set to 0. Basing this on sampling rate
     # should allow us to make things a bit smoother and avoid bad luck.
     minimum_sampling_rate::Float64 # 0.01?
@@ -161,20 +150,17 @@ mutable struct AdaptiveScheduler{CT, PT, ST} <: AbstractUpdateScheduler
     # 0 = use current probability as sampling rate
     adaptive_rate::Float64 # 9.0?
 
-    conf::CT
-
     adaptive_pool::PT
     sampling_rates::Vector{Float64}
     sequence::ST
     idx::Int
 
     # for loading
-    function AdaptiveScheduler(msr, gp, ar, c::CT, ap::PT, sr, s::ST, i) where {CT, PT, ST}
-        new{CT, PT, ST}(msr, gp, ar, c, ap, sr, s, i)
+    function AdaptiveScheduler(msr, gp, ar, ap::PT, sr, s::ST, i) where {PT, ST}
+        new{PT, ST}(msr, gp, ar, ap, sr, s, i)
     end
 
-    function AdaptiveScheduler(
-            ::Type{<: DQMC}, model::Model, sequence, pool;
+    function AdaptiveScheduler(sequence, pool;
             minimum_sampling_rate = 0.01, grace_period = 99, adaptive_rate = 9.0
         )
         # Without local updates we have no sweep increment
@@ -202,9 +188,8 @@ mutable struct AdaptiveScheduler{CT, PT, ST} <: AbstractUpdateScheduler
 
         adaptive_pool = Tuple(adaptive_pool)
         sequence = Tuple(sequence)
-        dummy = rand(DQMC, model, 1)
 
-        obj = new{typeof(dummy), typeof(adaptive_pool), typeof(sequence)}()
+        obj = new{typeof(adaptive_pool), typeof(sequence)}()
         obj.minimum_sampling_rate = minimum_sampling_rate
         obj.grace_period = grace_period
         obj.adaptive_rate = adaptive_rate
@@ -215,12 +200,6 @@ mutable struct AdaptiveScheduler{CT, PT, ST} <: AbstractUpdateScheduler
 
         obj
     end
-end
-
-function init!(s::AdaptiveScheduler, mc::DQMC, model::Model)
-    s.conf = copy(conf(mc))
-    generate_communication_functions(mc.conf)
-    s
 end
 
 function update(s::AdaptiveScheduler, mc::DQMC, model)
@@ -244,7 +223,7 @@ function update(s::AdaptiveScheduler, mc::DQMC, model)
 
         # Apply the update and adjust sampling rate
         updater = s.adaptive_pool[idx]
-        accepted = update(updater, mc, model, s.conf)
+        accepted = update(updater, mc, model)
         if !(updater isa AcceptanceStatistics{NoUpdate}) && updater.total > s.grace_period
             s.sampling_rates[idx] = (
                 s.adaptive_rate * s.sampling_rates[idx] + 
@@ -260,7 +239,7 @@ function update(s::AdaptiveScheduler, mc::DQMC, model)
         return accepted
     else
         # Some sort of non-adaptive update, just perform it.
-        return update(s.sequence[s.idx], mc, model, s.conf)
+        return update(s.sequence[s.idx], mc, model)
     end
 end
 
@@ -309,8 +288,8 @@ function save_scheduler(file::JLDFile, s::AdaptiveScheduler, entryname::String="
     write(file, entryname * "/idx", s.idx)
     nothing
 end
-function _load(data, ::Type{<: AdaptiveScheduler}, ::Type{<: DQMC}, model)
-    s = AdaptiveScheduler(DQMC, model, data["sequence"], data["pool"])
+function _load(data, ::Type{<: AdaptiveScheduler})
+    s = AdaptiveScheduler(data["sequence"], data["pool"])
     s.sampling_rates = data["sampling_rates"]
     s.minimum_sampling_rate = data["minimum_sampling_rate"]
     s.grace_period = data["grace_period"]
@@ -332,8 +311,8 @@ AcceptanceStatistics(update) = AcceptanceStatistics(0.0, 0, update)
 AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
 AcceptanceStatistics(proxy::Adaptive) = proxy
 name(w::AcceptanceStatistics) = name(w.update)
-function update(w::AcceptanceStatistics, mc, m, tc)
-    accepted = update(w.update, mc, m, tc)
+function update(w::AcceptanceStatistics, mc, m)
+    accepted = update(w.update, mc, m)
     w.total += 1
     w.accepted += accepted
     return accepted

@@ -15,7 +15,6 @@ addprocs(2)
     
     println("Creating scheduler")
     # scheduler = SimpleScheduler(
-    #     DQMC, model, 
     #     LocalSweep(3), GlobalFlip(),
     #     LocalSweep(3), GlobalShuffle(),
     #     LocalSweep(3), ReplicaExchange(pool[1]),
@@ -24,7 +23,6 @@ addprocs(2)
     #     LocalSweep(3), ReplicaPull()
     # )
     scheduler = AdaptiveScheduler(
-        DQMC, model,
         (
             LocalSweep(3), Adaptive(), 
             LocalSweep(3), ReplicaPull(), 
@@ -61,9 +59,9 @@ end
 
 begin
     @everywhere MonteCarlo.enable_benchmarks()
-    dqmcs = pmap(simulate, [1.0, 0.0])
+    @time dqmcs = pmap(simulate, [1.0, 0.0])
     @everywhere MonteCarlo.reset_timer!()
-    dqmcs = pmap(simulate, [1.0, 0.0])
+    @time dqmcs = pmap(simulate, [1.0, 0.0])
     MonteCarlo.show_statistics(dqmcs[1].scheduler)
     MonteCarlo.show_statistics(dqmcs[2].scheduler)
 end

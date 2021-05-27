@@ -71,10 +71,3 @@ struct LocalSweep <: AbstractLocalUpdate end
 LocalSweep(N) = [LocalSweep() for _ in 1:N]
 update(::LocalSweep, mc::DQMC, model) = local_sweep(mc, model) / 2length(conf(mc))
 name(::LocalSweep) = "LocalSweep"
-
-function update(w::AcceptanceStatistics{LocalSweep}, mc, m, tc)
-    accepted = update(w.update, mc, m)
-    w.total += 1
-    w.accepted += accepted
-    return accepted
-end
