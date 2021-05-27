@@ -205,6 +205,7 @@ See also: [`resume!`](@ref)
     _time = time()
     verbose && println("\n\nThermalization stage - ", thermalization)
 
+    next_print = (div(mc.last_sweep, mc.parameters.print_rate) + 1) * mc.parameters.print_rate
     while mc.last_sweep < total_sweeps
         verbose && (mc.last_sweep == thermalization + 1) && println("\n\nMeasurement stage - ", sweeps)
         
@@ -228,7 +229,8 @@ See also: [`resume!`](@ref)
         end
 
         # Show sweep statistics - i.e. time/sweep, acceptance rates
-        if mod(mc.last_sweep, mc.parameters.print_rate) == 0
+        if mc.last_sweep >= next_print
+            next_print += mc.parameters.print_rate
             sweep_dur = (time() - _time)/mc.parameters.print_rate
             max_sweep_duration = max(max_sweep_duration, sweep_dur)
             if verbose

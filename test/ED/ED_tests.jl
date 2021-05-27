@@ -178,9 +178,9 @@ end
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
                 thermalization = 10_000, sweeps = 10_000, print_rate=1000,
-                scheduler = AdaptiveScheduler(
-                    DQMC, model, (Adaptive(),), (GlobalShuffle(), GlobalFlip())
-                )
+                # scheduler = AdaptiveScheduler(
+                #     (LocalSweep(10), Adaptive(),), (GlobalShuffle(), GlobalFlip())
+                # )
             )
             @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.parameters.beta), 10k + 10k sweeps"
 
@@ -217,7 +217,7 @@ end
 
             # MonteCarlo.enable_benchmarks()
 
-            @time run!(dqmc, verbose=true)
+            @time run!(dqmc, verbose=!true)
             
             # Absolute tolerance from Trotter decompositon
             atol = 2.5dqmc.parameters.delta_tau^2

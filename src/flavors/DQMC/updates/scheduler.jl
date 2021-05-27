@@ -3,7 +3,7 @@
 
 
 abstract type AbstractUpdate end
-abstract type AbstractLocalUpdate end
+abstract type AbstractLocalUpdate <: AbstractUpdate end
 
 
 
@@ -52,7 +52,6 @@ mutable struct SimpleScheduler{ST} <: AbstractUpdateScheduler
         obj
     end
 end
-
 
 function update(s::SimpleScheduler, mc::DQMC, model)
     s.idx = mod1(s.idx + 1, length(s.sequence))
@@ -172,7 +171,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
         # sampling rate x after i steps with constant acceptance rate p:
         # x_i = (c/c+1)^i x_0 + a * \sum_{i} c^{i-1} / (c+1)^i
         # where c is the adaptive rate and x_0 is the initial samplign rate.
-        # Minimum time to discard:
+        # Minimum number of samples to discard:
         i_min = ceil(Int, log(
             adaptive_rate / (adaptive_rate+1), 
             minimum_sampling_rate / 0.5
@@ -302,7 +301,7 @@ end
 
 # Should this inherit from AbstractGlobalUpdate?
 # This is required for AdaptiveScheduler
-mutable struct AcceptanceStatistics{Update}
+mutable struct AcceptanceStatistics{Update <: AbstractUpdate}
     accepted::Float64
     total::Int
     update::Update
@@ -411,4 +410,16 @@ function combine_sequence_to_string(sequence)
     end
 
     output
+end
+
+# Literally just for tests
+for T in (SimpleScheduler, AdaptiveScheduler, AcceptanceStatistics)
+    @eval begin
+        function Base.:(==)(a::$T, b::$T)
+            for field in fieldnames($T)
+                getfield(a, field) == getfield(b, field) || return false
+            end
+            return true
+        end
+    end
 end
