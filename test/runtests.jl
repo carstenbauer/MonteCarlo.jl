@@ -73,6 +73,10 @@ end
         include("flavortests_DQMC.jl")
     end
 
+    @testset "Scheduler & (DQMC) Updates" begin
+        include("updates.jl")
+    end
+
     @testset "Measurements" begin
         include("measurements.jl")
     end

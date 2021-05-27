@@ -39,7 +39,7 @@ mutable struct SimpleScheduler{ST} <: AbstractUpdateScheduler
         new{ST}(sequence, idx)
     end
 
-    function SimpleScheduler(updates::AbstractUpdate...)
+    function SimpleScheduler(updates...)
         # Without local sweeps we don't have a sweep increment
         updates = map(AcceptanceStatistics, Tuple(vcat(updates...)))
         if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, updates)
