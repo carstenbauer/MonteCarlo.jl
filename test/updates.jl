@@ -13,6 +13,14 @@
     @test ReplicaPull <: MonteCarlo.AbstractParallelUpdate
 end
 
+struct BadUpdate <: MonteCarlo.AbstractLocalUpdate end
+MonteCarlo.name(::BadUpdate) = "BadUpdate"
+MonteCarlo.update(::BadUpdate, args...) = 0.0
+
+struct GoodUpdate <: MonteCarlo.AbstractLocalUpdate end
+MonteCarlo.name(::GoodUpdate) = "GoodUpdate"
+MonteCarlo.update(::GoodUpdate, args...) = 1.0
+
 @testset "Scheduler" begin
     model = HubbardModelAttractive(2,2)
 
@@ -62,26 +70,28 @@ end
         @test mc.scheduler.sequence[3].accepted == accepted
         @test mc.scheduler.idx == 3
         @test mc.last_sweep == 2
+    end
+
+    schedulers = (
+        SimpleScheduler(GoodUpdate(), GoodUpdate(), BadUpdate()),
+        AdaptiveScheduler((GoodUpdate(), GoodUpdate(), BadUpdate()), tuple())
+    )
+    for scheduler in schedulers
+        mc = DQMC(model, beta=1.0, scheduler = scheduler)
+        MonteCarlo.reverse_build_stack(mc, mc.stack)
+        MonteCarlo.propagate(mc)
 
         for _ in 1:300
             MonteCarlo.update(mc.scheduler, mc, mc.model)
         end
 
-        # io = IOBuffer()
-        # MonteCarlo.show_statistics(io, mc.scheduler)
-        # @test String(take!(io)) == "Update statistics (since start):\n\tLocalSweep            93.1% accepted   (211 / 227)\n\tGlobalFlip           100.0% accepted   ( 76 /  76)\n\t--------------------------------------------------\n\tTotal                 94.8% accepted   (287 / 303)\n"
+        io = IOBuffer()
+        MonteCarlo.show_statistics(io, mc.scheduler)
+        @test String(take!(io)) == "Update statistics (since start):\n\tBadUpdate              0.0% accepted   (  0 / 100)\n\tGoodUpdate           100.0% accepted   (200 / 200)\n\t--------------------------------------------------\n\tTotal                 66.7% accepted   (200 / 300)\n"
     end
 end
 
 @testset "AdaptiveScheduler" begin
-    struct BadUpdate <: MonteCarlo.AbstractLocalUpdate end
-    MonteCarlo.name(::BadUpdate) = "BadUpdate"
-    MonteCarlo.update(::BadUpdate, args...) = 0.0
-
-    struct GoodUpdate <: MonteCarlo.AbstractLocalUpdate end
-    MonteCarlo.name(::GoodUpdate) = "GoodUpdate"
-    MonteCarlo.update(::GoodUpdate, args...) = 1.0
-
     scheduler = AdaptiveScheduler(
         (BadUpdate(), Adaptive()), 
         (GoodUpdate(), BadUpdate())
