@@ -1,7 +1,6 @@
 IsingMeasurement = MonteCarlo.IsingMeasurement
 AbstractObservable = MonteCarloObservable.AbstractObservable
 
-struct DummyModel <: Model end
 struct DummyMeasurement <: AbstractMeasurement end
 
 @testset "Type Hierarchy" begin

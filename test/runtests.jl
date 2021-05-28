@@ -3,6 +3,11 @@ using Test
 using LinearAlgebra, Random, Dates
 using MonteCarlo: @bm, TimerOutputs
 
+struct DummyModel <: MonteCarlo.Model 
+    lattice
+end
+DummyModel() = DummyModel(SquareLattice(2))
+
 # check elementwise, not matrix norm
 function check(A::Array, B::Array, atol, rtol=atol)
     for (x, y) in zip(A, B)

@@ -3,7 +3,7 @@
 
 Draw random configuration.
 """
-Base.rand(::Type{DQMC}, m::Model, nslices::Int) = MethodError(rand, (DQMC, m, nslices))
+Base.rand(::Type{DQMC}, m::Model, nslices::Int) = throw(MethodError(rand, (DQMC, m, nslices)))
 
 
 """
@@ -33,7 +33,7 @@ A matrix element is the hopping amplitude for a hopping process: \$j,\\sigma '
 Regarding the order of indices, if `T[i, σ, j, σ']` is your desired 4D hopping 
 array, then `reshape(T, (n_sites * n_flavors, :))` is the hopping matrix.
 """
-hopping_matrix(mc::DQMC, m::Model) = MethodError(hopping_matrix, (mc, m))
+hopping_matrix(mc::DQMC, m::Model) = throw(MethodError(hopping_matrix, (mc, m)))
 
 
 """
@@ -52,7 +52,7 @@ This is a performance critical method and one might consider efficient in-place
 function interaction_matrix_exp!(
         mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.
     )
-    MethodError(interaction_matrix_exp!, (mc, m, result, conf, slice, power))
+    throw(MethodError(interaction_matrix_exp!, (mc, m, result, conf, slice, power)))
 end
 
 """
@@ -66,7 +66,9 @@ forwarded to `accept_local!`).
 
 See also [`accept_local!`](@ref).
 """
-propose_local(mc::DQMC, m::Model, i::Int, conf) = MethodError(propose_local, (mc, m, i, conf))
+function propose_local(mc::DQMC, m::Model, i::Int, conf)
+    throw(MethodError(propose_local, (mc, m, i, conf)))
+end
 
 """
     accept_local(mc::DQMC, m::Model, i::Int, slice::Int, conf, detratio, ΔE_boson, passthrough)
@@ -80,5 +82,5 @@ See also [`propose_local`](@ref).
 function accept_local!(
         mc::DQMC, m::Model, i::Int, slice::Int, conf, detratio, ΔE_boson, passthrough
     )
-    MethodError(accept_local!, (mc, m, i, slice, conf, detratio, ΔE_boson, passthrough))
+    throw(MethodError(accept_local!, (mc, m, i, slice, conf, detratio, ΔE_boson, passthrough)))
 end

@@ -54,9 +54,12 @@ end
 
 
 """
-    energy(mc::DQMC, m::Model, conf)
+    energy_boson(mc::DQMC, m::Model, conf)
 
 Calculate bosonic part (non-Green's function determinant part) of energy for 
 configuration `conf` for Model `m`.
+
+This is required for global and parallel updates as well as boson energy 
+measurements.
 """
-energy_boson(mc::DQMC, m::Model, conf) = 0.
+energy_boson(mc::DQMC, m::Model, conf) = throw(MethodError(energy_boson, (mc, m, conf)))
