@@ -68,6 +68,7 @@ end
 
 
 struct LocalSweep <: AbstractLocalUpdate end
+LocalSweep(mc, model, N=1) = N == 1 ? LocalSweep() : LocalSweep(N)
 LocalSweep(N) = [LocalSweep() for _ in 1:N]
 update(::LocalSweep, mc::DQMC, model) = local_sweep(mc, model) / 2length(conf(mc))
 name(::LocalSweep) = "LocalSweep"

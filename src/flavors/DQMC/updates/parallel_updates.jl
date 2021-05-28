@@ -141,6 +141,7 @@ end
 ReplicaPull() = ReplicaPull(1)
 ReplicaPull(mc::MonteCarloFlavor, model::Model) = ReplicaPull(1)
 name(::ReplicaPull) = "ReplicaPull"
+Base.:(==)(a::ReplicaPull, b::ReplicaPull) = a.cycle_idx == b.cycle_idx
 
 @bm function update(u::ReplicaPull, mc, model)
     # cycle first to make sure the idx is in bounds

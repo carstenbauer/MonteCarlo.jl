@@ -236,7 +236,7 @@ See also: [`resume!`](@ref)
             if verbose
                 println("\t", mc.last_sweep)
                 @printf("\t\tsweep dur: %.3fs\n", sweep_dur)
-                show_statistics(mc.scheduler, "\t\t")
+                show_statistics(stdout, mc.scheduler, "\t\t")
             end
 
             flush(stdout)

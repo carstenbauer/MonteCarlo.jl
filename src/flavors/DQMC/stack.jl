@@ -257,6 +257,21 @@ Build slice matrix stack from scratch.
 end
 
 
+@bm function reverse_build_stack(mc::DQMC, ::DQMCStack)
+    copyto!(mc.stack.u_stack[end], I)
+    mc.stack.d_stack[end] .= one(eltype(mc.stack.d_stack[end]))
+    copyto!(mc.stack.t_stack[end], I)
+
+    @inbounds for i in length(mc.stack.ranges):-1:1
+        add_slice_sequence_right(mc, i)
+    end
+
+    mc.stack.current_slice = 0
+    mc.stack.direction = 1
+
+    nothing
+end
+
 
 ################################################################################
 ### Slice matrix stack manipulations/updates

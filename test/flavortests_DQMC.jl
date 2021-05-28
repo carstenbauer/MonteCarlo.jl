@@ -11,9 +11,30 @@ include("testfunctions.jl")
 
     P4 = MonteCarlo.DQMCParameters(delta_tau=0.1, slices=50)
     @test all((P4.beta, P4.delta_tau, P4.slices) .== (5.0, 0.1, 50))
+
+    @test parameters(P4) == (beta = 5.0, delta_tau = 0.1, thermalization = 100, sweeps = 100)
 end
 
-@testset "DQMC" begin
+@testset "DQMC utilities " begin
+    m = HubbardModelAttractive(8, 1);
+
+    # constructors
+    dqmc = DQMC(m; beta=5.0)
+
+    @test MonteCarlo.beta(dqmc) == dqmc.parameters.beta
+    @test MonteCarlo.nslices(dqmc) == dqmc.parameters.slices
+    @test MonteCarlo.current_slice(dqmc) == dqmc.stack.current_slice
+    @test MonteCarlo.configurations(dqmc) == dqmc.recorder
+    @test MonteCarlo.parameters(dqmc) == merge(
+        parameters(dqmc.parameters), parameters(dqmc.model)
+    )
+
+    io = IOBuffer()
+    show(io, dqmc)
+    @test String(take!(io)) == "Determinant quantum Monte Carlo simulation\nModel: attractive Hubbard model, 8 sites\nBeta: 5.0 (T ≈ 0.2)\nMeasurements: 0 (0 + 0)"
+end
+
+@testset "DQMC stack" begin
     m = HubbardModelAttractive(8, 1);
 
     # constructors
@@ -68,6 +89,39 @@ end
         @test G1 ≈ G2
     end
 
+    # check reverse_build_stack
+    m = HubbardModelAttractive(8, 1);
+    mc1 = DQMC(m; beta=5.0)
+    MonteCarlo.init!(mc1)
+    MonteCarlo.build_stack(mc1, mc1.stack)
+    MonteCarlo.propagate(mc1)
+    for t in 1:MonteCarlo.nslices(mc1)
+        MonteCarlo.propagate(mc1)
+    end
+
+    m = HubbardModelAttractive(8, 1);
+    mc2 = DQMC(m; beta=5.0)
+    mc2.conf .= mc1.conf
+    MonteCarlo.init!(mc2)
+    MonteCarlo.reverse_build_stack(mc2, mc2.stack)
+    MonteCarlo.propagate(mc2)
+
+    @test mc1.stack.current_slice == mc2.stack.current_slice
+    @test mc1.stack.direction == mc2.stack.direction
+    @test mc1.stack.greens ≈ mc2.stack.greens
+    for field in (:u_stack, :d_stack, :t_stack)
+        for i in 1:mc1.stack.n_elements
+            @test getfield(mc1.stack, field)[i] ≈ getfield(mc2.stack, field)[i]
+        end
+    end
+
+    for field in (:Ul, :Ur, :Dl, :Dr, :Tl, :Tr)
+        @test getfield(mc1.stack, field) ≈ getfield(mc2.stack, field)
+    end
+    
+end
+
+@testset "LinAlg and Slice Matrices" begin
     include("slice_matrices.jl")
 end
 

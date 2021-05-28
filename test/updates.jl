@@ -32,6 +32,7 @@ end
         AdaptiveScheduler((LocalSweep(), GlobalFlip(), LocalSweep(2)), tuple()),
     )
     for scheduler in schedulers
+        Random.seed!(123)
         @test scheduler.sequence == MonteCarlo.AcceptanceStatistics.(
             (LocalSweep(), GlobalFlip(), LocalSweep(), LocalSweep())
         )
@@ -61,6 +62,14 @@ end
         @test mc.scheduler.sequence[3].accepted == accepted
         @test mc.scheduler.idx == 3
         @test mc.last_sweep == 2
+
+        for _ in 1:300
+            MonteCarlo.update(mc.scheduler, mc, mc.model)
+        end
+
+        io = IOBuffer()
+        MonteCarlo.show_statistics(io, mc.scheduler)
+        @test String(take!(io)) == "Update statistics (since start):\n\tLocalSweep            93.1% accepted   (211 / 227)\n\tGlobalFlip           100.0% accepted   ( 76 /  76)\n\t--------------------------------------------------\n\tTotal                 94.8% accepted   (287 / 303)\n"
     end
 end
 
@@ -201,4 +210,22 @@ using MonteCarlo: conf, current_slice, nslices
     MonteCarlo.update(GlobalShuffle(), mc, model)
     @test sum(mc.temp_conf) == sum(c)
     @test mc.temp_conf != c
+end
+
+@testset "Utilities/Printing" begin
+    @test MonteCarlo.name(NoUpdate()) == "NoUpdate"
+    @test MonteCarlo.name(LocalSweep()) == "LocalSweep"
+    @test MonteCarlo.name(GlobalFlip()) == "GlobalFlip"
+    @test MonteCarlo.name(GlobalShuffle()) == "GlobalShuffle"
+    @test MonteCarlo.name(ReplicaExchange(1)) == "ReplicaExchange"
+    @test MonteCarlo.name(ReplicaPull()) == "ReplicaPull"
+    @test MonteCarlo.name(Adaptive()) == "Adaptive"
+
+    # Idk if I want to keep these methods...
+    model = HubbardModelAttractive(2,2) 
+    mc = DQMC(model, beta=1.0)
+    for T in (LocalSweep, GlobalFlip, GlobalShuffle, NoUpdate, ReplicaPull)
+        @test T(mc, model) == T()
+    end
+    @test ReplicaExchange(mc, model, 1) == ReplicaExchange(1)
 end

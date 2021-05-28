@@ -121,22 +121,6 @@ end
 end
 
 
-@bm function reverse_build_stack(mc::DQMC, ::DQMCStack)
-    copyto!(mc.stack.u_stack[end], I)
-    mc.stack.d_stack[end] .= one(eltype(mc.stack.d_stack[end]))
-    copyto!(mc.stack.t_stack[end], I)
-
-    @inbounds for i in length(mc.stack.ranges):-1:1
-        add_slice_sequence_right(mc, i)
-    end
-
-    mc.stack.current_slice = 0
-    mc.stack.direction = 1
-
-    nothing
-end
-
-
 
 ################################################################################
 ### Global update (working)
@@ -254,7 +238,6 @@ updates. It is expected that you return `0` if the update is denied or `1` if it
 is accepted (as does the `global_update` returned above). 
 """
 abstract type AbstractGlobalUpdate <: AbstractUpdate end
-Base.show(io::IO, u::AbstractGlobalUpdate) = print(io, name(u))
 
 
 

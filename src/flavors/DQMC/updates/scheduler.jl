@@ -58,21 +58,21 @@ function update(s::SimpleScheduler, mc::DQMC, model)
     update(s.sequence[s.idx], mc, model)
 end
 
-function show_statistics(s::SimpleScheduler, prefix="")
-    println(prefix, "Global update statistics (since start):")
+function show_statistics(io::IO, s::SimpleScheduler, prefix="")
+    println(io, prefix, "Update statistics (since start):")
 
     cum_accepted  = mapreduce(u -> u isa AcceptanceStatistics ? u.accepted : 0, +, s.sequence)
     cum_total  = mapreduce(u -> u isa AcceptanceStatistics ? u.total : 0, +, s.sequence)
 
     accumulated = flatten_sequence_statistics(s.sequence)
-    show_accumulated_sequence(accumulated, prefix * "\t", cum_total)
+    show_accumulated_sequence(io, accumulated, prefix * "\t", cum_total)
         
     p = @sprintf("%2.1f", 100cum_accepted/max(1, cum_total))
     s = rpad("Total", 20) * " " * lpad(p, 5) * "% accepted" *
         "   (" * string(round(Int, cum_accepted)) * " / $cum_total)"
 
-    println(prefix, '\t', '-' ^ length(s))
-    println("$prefix\t", s)
+    println(io, prefix, '\t', '-' ^ length(s))
+    println(io, "$prefix\t", s)
 
     nothing
 end
@@ -242,8 +242,8 @@ function update(s::AdaptiveScheduler, mc::DQMC, model)
     end
 end
 
-function show_statistics(s::AdaptiveScheduler, prefix="")
-    println(prefix, "Update statistics (since start):")
+function show_statistics(io::IO, s::AdaptiveScheduler, prefix="")
+    println(io, prefix, "Update statistics (since start):")
 
     cum_accepted  = mapreduce(u -> u isa AcceptanceStatistics ? u.accepted : 0, +, s.sequence)
     cum_accepted += mapreduce(u -> u isa AcceptanceStatistics ? u.accepted : 0, +, s.adaptive_pool)
@@ -252,14 +252,14 @@ function show_statistics(s::AdaptiveScheduler, prefix="")
 
     accumulated = flatten_sequence_statistics(s.adaptive_pool)
     flatten_sequence_statistics(s.sequence, accumulated)
-    show_accumulated_sequence(accumulated, prefix * "\t", cum_total)
+    show_accumulated_sequence(io, accumulated, prefix * "\t", cum_total)
 
     p = @sprintf("%2.1f", 100cum_accepted/max(1, cum_total))
     s = rpad("Total", 20) * " " * lpad(p, 5) * "% accepted" *
         "   (" * string(round(Int, cum_accepted)) * " / $cum_total)"
 
-    println(prefix, '\t', '-' ^ length(s))
-    println("$prefix\t", s)
+    println(io, prefix, '\t', '-' ^ length(s))
+    println(io, "$prefix\t", s)
 
     nothing
 end
@@ -351,14 +351,14 @@ function flatten_sequence_statistics(sequence, accumulated::Dict = Dict{String, 
     accumulated
 end
 
-function show_accumulated_sequence(accumulated, prefix = "", max_total=0)
+function show_accumulated_sequence(io::IO, accumulated, prefix = "", max_total=0)
     N = length(string(max_total))
     sorted = sort!(collect(accumulated), by = x -> x[2][1] / max(1, x[2][2]))
     for (key, (acc, total)) in sorted
         total == 0 && continue
         p = @sprintf("%2.1f", 100acc / max(1, total))
         println(
-            prefix, rpad(key, 20), " ", lpad(p, 5), "% accepted",  "   (", 
+            io, prefix, rpad(key, 20), " ", lpad(p, 5), "% accepted",  "   (", 
             lpad(string(round(Int, acc)), N), " / ", lpad(string(total), N), ")"
         )
     end
@@ -366,7 +366,7 @@ function show_accumulated_sequence(accumulated, prefix = "", max_total=0)
     nothing
 end
 
-function show_sequence(sequence, prefix = "", max_total=0)
+function show_sequence(io::IO, sequence, prefix = "", max_total=0)
     N = length(string(max_total))
     for update in sequence
         if update isa AcceptanceStatistics{NoUpdate} ||
@@ -376,7 +376,7 @@ function show_sequence(sequence, prefix = "", max_total=0)
 
         p = @sprintf("%2.1f", 100update.accepted/max(1, update.total))
         println(
-            prefix, rpad(name(update), 20), " ", lpad(p, 5), "% accepted", "(", 
+            io, prefix, rpad(name(update), 20), " ", lpad(p, 5), "% accepted", "(", 
             lpad(string(round(Int, update.accepted)), N), " / ", 
             lpad(string(update.total), N), ")"
         )
