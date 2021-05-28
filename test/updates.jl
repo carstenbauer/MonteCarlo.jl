@@ -222,6 +222,42 @@ using MonteCarlo: conf, current_slice, nslices
     @test mc.temp_conf != c
 end
 
+using Distributed
+@testset "Parallel" begin
+    @test isempty(MonteCarlo.connected_ids)
+    
+    # backend
+    MonteCarlo.add_worker!(myid())
+    @test MonteCarlo.connected_ids == [myid()]
+    MonteCarlo.add_worker!(myid())
+    @test MonteCarlo.connected_ids == [myid()]
+    MonteCarlo.add_worker!(-1)
+    @test MonteCarlo.connected_ids == [myid(), -1]
+    MonteCarlo.remove_worker!(-1)
+    @test MonteCarlo.connected_ids == [myid()]
+    MonteCarlo.remove_worker!(myid())
+    @test MonteCarlo.connected_ids == Int[]
+
+    connect(myid()) 
+    yield()
+    @test MonteCarlo.connected_ids == [myid()]
+    disconnect(myid())
+    yield()
+    @test MonteCarlo.connected_ids == Int[]
+    connect([myid()]) 
+    yield()
+    @test MonteCarlo.connected_ids == [myid()]
+    disconnect([myid()])
+    yield()
+    @test MonteCarlo.connected_ids == Int[]
+
+    @test !isready(MonteCarlo.weight_probability)
+    MonteCarlo.put_weight_prob!(myid(), 0.9, 0.6)
+    yield()
+    @test isready(MonteCarlo.weight_probability)
+    @test take!(MonteCarlo.weight_probability) == (myid(), 0.9, 0.6)
+end
+
 @testset "Utilities/Printing" begin
     @test MonteCarlo.name(NoUpdate()) == "NoUpdate"
     @test MonteCarlo.name(LocalSweep()) == "LocalSweep"
