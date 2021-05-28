@@ -32,15 +32,16 @@ function connect(targets::Vector; wait = false)
     nothing
 end
 # here we do care, because otherwise remote might be requesting from us when we're gone
-function disconnect(targets...)
-    # maybe this could just be a @sync...
-    # I'm not sure if that would block other tasks though, like a remote saying "Hey diconnect me"
-    done = zeros(Bool, length(targets))
-    for (i, target) in enumerate(targets)
-        @async done[i] = remotecall_fetch(remove_worker!, target, myid())
-    end
-    while !all(done)
-        yield()
+disconnect(targets...; wait = false) = disconnect(collect(targets), wait = wait)
+function disconnect(targets; wait=false)
+    if wait
+        @sync for target in targets
+            @async remotecall_wait(remove_worker!, target, myid())
+        end
+    else
+        for target in targets
+            remotecall(remove_worker!, target, myid())
+        end
     end
     nothing
 end
@@ -57,12 +58,14 @@ end
 # 2 process barrier
 const wait_for = Channel{Int}(1)
 waiting_on() = isready(wait_for) ? take!(wait_for) : -1
-function wait_for_remote(id)
+function wait_for_remote(id, timeout=Inf)
+    t0 = time()
     put!(wait_for, id)
     maybe_me = remotecall_fetch(waiting_on, id)
 
     if maybe_me != myid()
         while !isempty(wait_for)
+            time() - t0 > timeout && return false
             yield()
         end
     else
@@ -70,7 +73,7 @@ function wait_for_remote(id)
         isready(wait_for) && take!(wait_for)
     end
 
-    nothing
+    return true
 end
 
 function generate_communication_functions(local_conf)
@@ -90,17 +93,29 @@ end
 abstract type AbstractParallelUpdate <: AbstractGlobalUpdate end
 
 
-# I.e. we >trade< or not
+"""
+    ReplicaExchange([mc, model], target[, timeout = 600.0])
+
+Represents a replica exchange update with a given `target` worker.
+
+Note that this update is blocking, i.e. a simulation will wait on its partner to
+perform the update. You can define a `timeout` in seconds to avoid the simulation
+getting stuck for too long.
+"""
 struct ReplicaExchange <: AbstractParallelUpdate
     target::Int
+    timeout::Float64
 end
-ReplicaExchange(mc, model, target) = ReplicaExchange(target)
+ReplicaExchange(target) = ReplicaExchange(target, 600.0)
+ReplicaExchange(mc, model, target, timeout=600.0) = ReplicaExchange(target, timeout)
 name(::ReplicaExchange) = "ReplicaExchange"
 
 @bm function update(u::ReplicaExchange, mc, model)
     # Need to sync at the start here because else th weights might be based on different confs
     # barrier
-    wait_for_remote(u.target)
+    if !wait_for_remote(u.target, u.timeout)
+        return 0
+    end
 
     # swap conf
     conf = pull_conf_from_remote(u.target)
@@ -133,8 +148,18 @@ end
 
 
 
-# I.e. we gift/push confs to each other and accept them independently.
-# struct ReplicaPush <: AbstractGlobalUpdate
+"""
+    ReplicaPull([mc, model])
+
+This update will pull a configuration from a connected worker and attempt a 
+global update with it. The target worker will be cycled as the simulation 
+progresses.
+
+To connect workers for this update, the remote worker has to call 
+`connect(this_worker)`.
+
+This update only blocks locally.
+"""
 mutable struct ReplicaPull <: AbstractParallelUpdate
     cycle_idx::Int
 end

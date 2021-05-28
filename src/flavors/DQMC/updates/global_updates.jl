@@ -206,59 +206,12 @@ end
 
 
 
-# TODO: rewrite
-"""
-    AbstractGlobalUpdate
-
-A global update should be a struct inhereting from AbstractGlobalUpdate, i.e.
-
-```
-struct MyGlobalUpdate <: AbstractGlobalUpdate
-    ...
-end
-```
-
-with whatever fields are required. It should implement a method
-
-```
-function update(u::MyGlobalUpdate, mc, model)
-    mc.temp_conf = ...
-    return global_update(mc, model, mc.temp_conf)
-end
-```
-
-which performs the update by creating a new conf in `temp_conf` (which you may
-overwrite and assume to be overwritten before the next call) and passing that 
-to the standard global Metropolis update implented in 
-`global_update(mc, model, temp_conf, temp_vec)`. 
-
-Behind the scenes, the scheduler may wrap `MyGlobalUpdate` in 
-`AcceptanceStatistics` which collects the number of requested and accepted 
-updates. It is expected that you return `0` if the update is denied or `1` if it
-is accepted (as does the `global_update` returned above). 
-"""
 abstract type AbstractGlobalUpdate <: AbstractUpdate end
 
 
 
 """
-    NoUpdate([mc, model], [sampling_rate = 1e-10])
-
-A global update that does nothing. Mostly used internally to keep the adaptive 
-scheduler running if all (other) updates are ignored.
-"""
-struct NoUpdate <: AbstractGlobalUpdate end
-NoUpdate(mc, model) = NoUpdate()
-function update(u::NoUpdate, args...)
-    # we count this as "denied" global update
-    return 0
-end
-name(::NoUpdate) = "NoUpdate"
-
-
-
-"""
-    GlobalFlip([mc, model], [sampling_rate = 0.5])
+    GlobalFlip([mc, model])
 
 A global update that flips the configuration (±1 -> ∓1).
 """
@@ -275,7 +228,7 @@ end
 
 
 """
-    GlobalShuffle([mc, model, [sampling_rate = 0.5])
+    GlobalShuffle([mc, model])
 
 A global update that shuffles the current configuration. Note that this is not 
 local to a time slice.

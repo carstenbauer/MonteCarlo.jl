@@ -1,9 +1,57 @@
 # This file should probably be moved to the general directory and used by 
 # classical MC as well
 
+"""
+    AbstractUpdate
 
+A update should be a struct inhereting from AbstractUpdate or one of its 
+abstract children `AbstractLocalUpdate`, `AbstractGlobalUpdate` or 
+`AbstractParallelUpdate`. 
+
+```
+struct MyGlobalUpdate <: MonteCarlo.AbstractGlobalUpdate
+    ...
+end
+```
+
+It should implement the methods
+
+```
+function MonteCarlo.update(u::MyGlobalUpdate, mc, model)
+    mc.temp_conf = ...
+    return global_update(mc, model, mc.temp_conf)
+end
+MonteCarlo.name(::MyGlobalUpdate) = "MyGlobalUpdate"
+```
+
+The latter is used for printing statistics of the scheduler. The former defines
+what the implemented update does. Usually this means creating a new 
+configuration and handing it to `global_update` to do a standard Metropolis 
+update. Note that you can and should use `mc.temp_conf` as temporary storage.
+
+Behind the scenes, the scheduler will wrap `MyGlobalUpdate` in 
+`AcceptanceStatistics` which collects the number of requested and accepted 
+updates. It is expected that you return `0` if the update is denied or `1` if it
+is accepted (as does the `global_update` returned above). 
+"""
 abstract type AbstractUpdate end
 abstract type AbstractLocalUpdate <: AbstractUpdate end
+
+
+
+"""
+    NoUpdate([mc, model])
+
+An update that does nothing. Used internally to keep the adaptive scheduler 
+running if all (other) adaptive updates are discarded.
+"""
+struct NoUpdate <: AbstractUpdate end
+NoUpdate(mc, model) = NoUpdate()
+function update(u::NoUpdate, args...)
+    # we count this as "denied" global update
+    return 0
+end
+name(::NoUpdate) = "NoUpdate"
 
 
 
@@ -26,9 +74,24 @@ name(::Adaptive) = "Adaptive"
 """
     SimpleScheduler(updates...)
 
-Schedules global updates in the order specified through `updates...`. For example
-`SimpleScheduler(mc, GlobalFlip(), GlobalFlip(), GlobalShuffle())` would generate
-a sequence `GlobalFlip() > GlobalFlip() > GlobalShuffle() > repeat`.
+Schedules updates in the order specified through `updates...`. Note that local 
+updates (`LocalSweep([N=1])`) always needs to be part of those updates, as they
+define what a sweep is.
+
+Example:
+```
+scheduler = SimpleScheduler(
+    LocalSweep(10), 
+    GlobalFlip(), 
+    GlobalShuffle(), 
+    LocalSweep(10), 
+    ReplicaExchange(3)
+)
+```
+This defines a scheduler that performs 10 local sweeps, then attempts a global 
+flip of the configuration, then a global shuffle, another 10 local sweeps and
+a replica exchange with worker 3. After the replica exchange the sequence 
+repeats from the start. 
 """
 mutable struct SimpleScheduler{ST} <: AbstractUpdateScheduler
     sequence::ST
@@ -102,31 +165,31 @@ end
 
 
 """
-    AdaptiveScheduler(::Type{<: DQMC}, model::Model, sequence::Tuple, pool::Tuple; kwargs...])
+    AdaptiveScheduler(sequence::Tuple, pool::Tuple; kwargs...])
 
 Creates an adaptive scheduler which prioritizes updates that succeed more 
 frequently. 
 
 `sequence` defines the static sequence of global updates, with 
 `Adaptive()` as a proxy for adaptive updates. When polling the scheduler 
-`Adaptive()` will be replaced by one of the updates in pool based on their 
+`Adaptive()` will be replaced by one of the updates in `pool` based on their 
 success rate.
 
 Example:
 ```
-AdaptiveScheduler(
-    DQMC, model, 
-    (Adaptive(), ReplicaExchange()), 
+scheduler = AdaptiveScheduler(
+    (Adaptive(), LocalSweep(10), ReplicaExchange(3)), 
     (GlobalFlip(), GlobalShuffle())
 )
 ```
 This setup will perform one of `GlobalFlip()` and `GlobalShuffle()` followed by 
-a `ReplicaExchange()` update, repeating after that. The latter will always be a 
-`ReplicaExchange()` while the former will happen based on the relative 
-sampling rates which are sluggishly derived from acceptance rates. 
+10 local sweeps, a `ReplicaExchange(3)` update, repeating after that. The 
+replica exchange will always be a `ReplicaExchange()` while the ealier global
+update will be picked based on their relative sampling rates which are sluggishly 
+derived from acceptance rates. 
 
 If those sampling rates fall below a certain threshhold they may be set to 0. 
-If all updates drop to 0 acceptance rate, `NoUpdate()` is performed instead. 
+If all updates drop to 0 sampling rate, `NoUpdate()` is performed instead. 
 (`NoUpdate()` is always added and has a static probability of `1e-10`.)
 
 ### Keyword Arguments:
@@ -139,15 +202,9 @@ acceptance rate. More means slower. This follows the formula
 `(adaptive_rate * sampling_rate + accepted/total) / (adaptive_rate + 1)`
 """
 mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
-    # below this, the sampling rate is set to 0. Basing this on sampling rate
-    # should allow us to make things a bit smoother and avoid bad luck.
-    minimum_sampling_rate::Float64 # 0.01?
-    # some number of sweeps where we just collect statistics
-    grace_period::Int # 100?
-    # Weight for how slowly sampling_rate changes.
-    # sampling_rate = (adaptive_rate * sampling_rate + accepted/total) / (adaptive_rate+1)
-    # 0 = use current probability as sampling rate
-    adaptive_rate::Float64 # 9.0?
+    minimum_sampling_rate::Float64
+    grace_period::Int
+    adaptive_rate::Float64
 
     adaptive_pool::PT
     sampling_rates::Vector{Float64}
@@ -170,7 +227,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
 
         # sampling rate x after i steps with constant acceptance rate p:
         # x_i = (c/c+1)^i x_0 + a * \sum_{i} c^{i-1} / (c+1)^i
-        # where c is the adaptive rate and x_0 is the initial samplign rate.
+        # where c is the adaptive rate and x_0 is the initial sampling rate.
         # Minimum number of samples to discard:
         i_min = ceil(Int, log(
             adaptive_rate / (adaptive_rate+1), 

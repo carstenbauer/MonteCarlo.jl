@@ -243,7 +243,7 @@ See also: [`resume!`](@ref)
             _time = time()
         end
 
-        # Trigger checkpoitn safe/early exit save
+        # Trigger checkpoint safe/early exit save
         if safe_before - now() < Millisecond(grace_period) +
                 Millisecond(round(Int, 2e3max_sweep_duration))
 
@@ -252,7 +252,7 @@ See also: [`resume!`](@ref)
             verbose && println("Target time:  ", Dates.format(safe_before, "d.u yyyy HH:MM"))
             save(resumable_filename, mc, overwrite = overwrite, rename = false)
             verbose && println("\nEarly save finished")
-
+            disconnect(connected_ids)
             return false
         elseif (now() - last_checkpoint) > safe_every
             verbose && println("Performing scheduled save.")
@@ -260,6 +260,8 @@ See also: [`resume!`](@ref)
             save(resumable_filename, mc, overwrite = overwrite, rename = false)
         end
     end
+
+    disconnect(connected_ids)
 
     # Print (numerical) error information
     if verbose
