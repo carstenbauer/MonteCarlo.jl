@@ -106,9 +106,9 @@ end
     @test scheduler.sequence[1].total == 100
     # no adaptive stuff yet, both updates should be picked at 50%
     @test scheduler.adaptive_pool[1].accepted == scheduler.adaptive_pool[1].total
-    @test 40 <= scheduler.adaptive_pool[1].total <= 60
+    @test 30 <= scheduler.adaptive_pool[1].total <= 70
     @test scheduler.adaptive_pool[2].accepted == 0
-    @test 40 <= scheduler.adaptive_pool[2].total <= 60
+    @test 30 <= scheduler.adaptive_pool[2].total <= 70
 
     # Checks with adaptive corrections
     for _ in 1:800
