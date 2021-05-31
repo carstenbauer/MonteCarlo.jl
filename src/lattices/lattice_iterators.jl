@@ -642,8 +642,8 @@ or is it a reciprocal lattice vector?
 `SuperfluidDensity` works similarly to `ApplySymmetries` - it contains some 
 additional information that should be used to transform the result of of the 
 given lattice iterator. In this case the additional information is a set of 
-directional indices `directions` and two vectors `longitudinal` and `transversal`
-in reciprocal space.
+directional indices `directions` and the related `longitudinal` and `transversal`
+vectors in reciprocal space.
 
 The point of this wrapper is to calculate the Fourier transform 
 `O(q) = ∑_r0 ∑_Δr O(r_0, Δr) (exp(-i q_l Δr) - exp(-i q_t Δr))`

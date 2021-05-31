@@ -41,7 +41,8 @@ include("lattices/deprecated.jl")
 # export directions, RawMask, DistanceMask # maybe getorder?
 export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
 export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, 
-        EachLocalQuadByDistance, EachLocalQuadBySyncedDistance, Sum
+        EachLocalQuadByDistance, EachLocalQuadBySyncedDistance, 
+        Sum, ApplySymmetries, SuperfluidDensity
 export neighbors, directions
 
 include("flavors/MC/MC.jl")
