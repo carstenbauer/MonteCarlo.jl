@@ -42,7 +42,7 @@ include("lattices/deprecated.jl")
 export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
 export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, 
         EachLocalQuadByDistance, EachLocalQuadBySyncedDistance, 
-        Sum, ApplySymmetries, SuperfluidDensity
+        Sum, ApplySymmetries
 export neighbors, directions
 
 include("flavors/MC/MC.jl")
@@ -52,8 +52,9 @@ export boson_energy_measurement, greens_measurement, occupation, magnetization
 export charge_density, charge_density_correlation, charge_density_susceptibility
 export spin_density, spin_density_correlation, spin_density_susceptibility
 export pairing, pairing_correlation, pairing_susceptibility
-export current_current_susceptibility
+export current_current_susceptibility, superfluid_density
 export noninteracting_energy, interacting_energy, total_energy
+
 export EmptyScheduler, SimpleScheduler, AdaptiveScheduler
 export Adaptive, NoUpdate, LocalSweep, GlobalFlip, GlobalShuffle
 export ReplicaExchange, ReplicaPull, connect, disconnect

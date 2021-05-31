@@ -318,7 +318,7 @@ using MonteCarlo: directed_norm
 
     @testset "SuperfluidDensity Wrapper" begin
         iter = EachSitePairByDistance(dqmc1, dqmc1.model)
-        wrapped = SuperfluidDensity{EachSitePairByDistance}(
+        wrapped = MonteCarlo.SuperfluidDensity{EachSitePairByDistance}(
             1:3, [[1, 0], [0, 1], [1, 1]], [[0, 1], [1, 0], [1, -1]]
         )(dqmc1, dqmc1.model)
 
