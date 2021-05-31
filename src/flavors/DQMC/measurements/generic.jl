@@ -315,7 +315,63 @@ end
 
 
 ################################################################################
-### LatticeIterator related
+### apply Lattice Iterators 
+################################################################################
+
+
+
+# Call kernel for each site (linear index)
+@bm function apply!(iter::DirectLatticeIterator, measurement, mc::DQMC, model, packed_greens)
+    for i in iter
+        measurement.temp[i] += measurement.kernel(mc, model, i, packed_greens)
+    end
+    nothing
+end
+
+# Call kernel for each pair (src, trg) (Nsties² total)
+@bm function apply!(iter::EachSitePair, measurement, mc::DQMC, model, packed_greens)
+    for (i, j) in iter
+        measurement.temp[i, j] += measurement.kernel(mc, model, (i, j), packed_greens)
+    end
+    nothing
+end
+
+# Call kernel for each pair (site, site) (i.e. on-site) 
+@bm function apply!(iter::OnSite, measurement, mc::DQMC, model, packed_greens)
+    for (i, j) in iter
+        measurement.temp[i] += measurement.kernel(mc, model, (i, j), packed_greens)
+    end
+    nothing
+end
+
+@bm function apply!(iter::DeferredLatticeIterator, measurement, mc::DQMC, model, packed_greens)
+    @inbounds for idxs in iter
+        measurement.temp[first(idxs)] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
+    end
+    nothing
+end
+
+
+# Sums
+@bm function apply!(iter::Sum{<: DirectLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
+    @inbounds for idxs in iter
+        measurement.temp[1] += measurement.kernel(mc, model, idxs, packed_greens)
+    end
+    nothing
+end
+@bm function apply!(iter::Sum{<: DeferredLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
+    @inbounds for idxs in iter
+        measurement.temp[1] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
+    end
+    nothing
+end
+
+@inline apply!(s::LatticeIterationWrapper, m, mc, model, pg) = apply!(s.iter, m, mc, model, pg)
+
+
+
+################################################################################
+### LatticeIterator preparation and finalization
 ################################################################################
 
 
@@ -379,84 +435,3 @@ function commit!(s::_SuperfluidDensity{<: EachLocalQuadBySyncedDistance}, m)
     end
     push!(m.observable, final)
 end
-
-
-# finish!(::Nothing, model, m) = nothing # handled in measure!
-# finish!(::AbstractLatticeIterator, model, m) = push!(m.observable, m.temp)
-# function finish!(::AbstractLatticeIterator, model, m, factor)
-#     m.temp .*= factor
-#     push!(m.observable, m.temp)
-# end
-# function finish!(::DeferredLatticeIterator, model, m, factor=1.0)
-#     m.temp .*= factor / length(lattice(model))
-#     push!(m.observable, m.temp)
-# end
-
-# # Awkward
-# finish!(s::Sum{<:AbstractLatticeIterator}, model, m) = push!(m.observable, m.temp[1])
-# function finish!(s::Sum{<:AbstractLatticeIterator}, model, m, factor)
-#     push!(m.observable, m.temp[1] * factor)
-# end
-# function finish!(s::Sum{<:DeferredLatticeIterator}, model, m, factor=1.0)
-#     push!(m.observable, m.temp[1] * factor / length(lattice(model)))
-# end
-
-# function finish!(s::_ApplySymmetries{<:AbstractLatticeIterator}, model, m)
-#     push!(m.observable, m.temp[1])
-# end
-# function finish!(s::_ApplySymmetries{<:AbstractLatticeIterator}, model, m, factor)
-#     push!(m.observable, m.temp[1] * factor)
-# end
-# function finish!(s::_ApplySymmetries{<:DeferredLatticeIterator}, model, m, factor=1.0)
-#     push!(m.observable, m.temp[1] * factor / length(lattice(model)))
-# end
-
-
-
-# Call kernel for each site (linear index)
-@bm function apply!(iter::DirectLatticeIterator, measurement, mc::DQMC, model, packed_greens)
-    for i in iter
-        measurement.temp[i] += measurement.kernel(mc, model, i, packed_greens)
-    end
-    nothing
-end
-
-# Call kernel for each pair (src, trg) (Nsties² total)
-@bm function apply!(iter::EachSitePair, measurement, mc::DQMC, model, packed_greens)
-    for (i, j) in iter
-        measurement.temp[i, j] += measurement.kernel(mc, model, (i, j), packed_greens)
-    end
-    nothing
-end
-
-# Call kernel for each pair (site, site) (i.e. on-site) 
-@bm function apply!(iter::OnSite, measurement, mc::DQMC, model, packed_greens)
-    for (i, j) in iter
-        measurement.temp[i] += measurement.kernel(mc, model, (i, j), packed_greens)
-    end
-    nothing
-end
-
-@bm function apply!(iter::DeferredLatticeIterator, measurement, mc::DQMC, model, packed_greens)
-    @inbounds for idxs in iter
-        measurement.temp[first(idxs)] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
-    end
-    nothing
-end
-
-
-# Sums
-@bm function apply!(iter::Sum{<: DirectLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
-    @inbounds for idxs in iter
-        measurement.temp[1] += measurement.kernel(mc, model, idxs, packed_greens)
-    end
-    nothing
-end
-@bm function apply!(iter::Sum{<: DeferredLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
-    @inbounds for idxs in iter
-        measurement.temp[1] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
-    end
-    nothing
-end
-
-@inline apply!(s::LatticeIterationWrapper, m, mc, model, pg) = apply!(s.iter, m, mc, model, pg)

@@ -562,17 +562,36 @@ Base.eltype(s::Sum) = eltype(s.iter)
 
 
 # This is a weird monster :(
-# The idea is that we uses constructs a thin wrapper
+# The idea is that we construct a thin wrapper
 # li = ApplySymmetries{EachLocalQuadByDistance{5}}(sym1, sym2, ...)
 # which contains weights for different neighbors in the given symmetries
 # The backend then bundles all of these and constructs one thick wrapper by
 # calling
 # li(dqmc, model)
 # This then actually contains the udnerlying lattice iterator
+
+"""
+    ApplySymmetries{lattice_iterator_type}(symmetries...)
+
+`ApplySymmetries` is a wrapper for a `DeferredLatticeIterator`. It is meant to
+specify how results from different directions are to be added up.
+
+For example `T = EachLocalQuadByDistance{5}` specifies 4 site tuples where two
+sites have set distances between them - one of the first 5 smallest ones. In a 
+square lattice these would be on-site (1) and the four nearest neighbors (2-5).
+We may use `iter = ApplySymmetries{}([1], [0, 1, 1, 1, 1])` to specify how 
+results in these directions should be added up. The first rule would be s-wave,
+the second extended s-wave.
+These rules will be applied for DQMCMeasurements during the simulation. I.e. 
+first, the normal iteration and summation from `EachLocalQuadByDistance` is 
+performed. After that we have 5 values for each direction. These are then 
+weighted by each "symmetry" in `ApplySymmetries` to give the final result, saved
+in the DQMCMeasurement.
+"""
 struct ApplySymmetries{LI <: DeferredLatticeIterator, N, T} <: LatticeIterationWrapper{LI}
     symmetries::NTuple{N, Vector{T}}
 end
-function ApplySymmetries{LI}(symmetries::Vector{T}...) where {LI <: AbstractLatticeIterator, T}
+function ApplySymmetries{LI}(symmetries::Vector{T}...) where {LI <: DeferredLatticeIterator, T}
     ApplySymmetries{LI, length(symmetries), T}(symmetries)
 end
 
@@ -617,12 +636,26 @@ So is longitudinal/transversal just
 or is it a reciprocal lattice vector?
 =#
 
+"""
+    SuperfluidDensity{lattice_iterator_type}(directions, longitudinal, transversal)
+
+`SuperfluidDensity` works similarly to `ApplySymmetries` - it contains some 
+additional information that should be used to transform the result of of the 
+given lattice iterator. In this case the additional information is a set of 
+directional indices `directions` and two vectors `longitudinal` and `transversal`
+in reciprocal space.
+
+The point of this wrapper is to calculate the Fourier transform 
+`O(q) = ∑_r0 ∑_Δr O(r_0, Δr) (exp(-i q_l Δr) - exp(-i q_t Δr))`
+where q_l is `longitudinal` and q_t is transversal. The Δr ised in this formula 
+are restricted to the given `directions`.
+"""
 struct SuperfluidDensity{LI <: DeferredLatticeIterator, N} <: LatticeIterationWrapper{LI}
     dir_idxs::NTuple{N, Int}
     long_qs::NTuple{N, Vector{Float64}}
     trans_qs::NTuple{N, Vector{Float64}}
 end
-function SuperfluidDensity{LI}(directions, longitudinal, transversal) where {LI <: AbstractLatticeIterator}
+function SuperfluidDensity{LI}(directions, longitudinal, transversal) where {LI <: DeferredLatticeIterator}
     SuperfluidDensity{LI, length(directions)}(
         tuple(directions...), tuple(longitudinal...), tuple(transversal...)
     )
