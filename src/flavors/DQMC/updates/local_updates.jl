@@ -79,5 +79,5 @@ sites and `M` is the number of time slices.
 """
 LocalSweep(mc, model, N=1) = N == 1 ? LocalSweep() : LocalSweep(N)
 LocalSweep(N) = [LocalSweep() for _ in 1:N]
-update(::LocalSweep, mc::DQMC, model) = local_sweep(mc, model) / 2length(conf(mc))
+@bm update(::LocalSweep, mc::DQMC, model) = local_sweep(mc, model) / 2length(conf(mc))
 name(::LocalSweep) = "LocalSweep"

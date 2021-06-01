@@ -219,7 +219,7 @@ struct GlobalFlip <: AbstractGlobalUpdate end
 GlobalFlip(mc, model) = GlobalFlip()
 name(::GlobalFlip) = "GlobalFlip"
 
-function update(u::GlobalFlip, mc, model)
+@bm function update(u::GlobalFlip, mc, model)
     c = conf(mc)
     @. mc.temp_conf = -c
     return global_update(mc, model, mc.temp_conf)
@@ -238,7 +238,7 @@ GlobalShuffle(mc, model) = GlobalShuffle()
 name(::GlobalShuffle) = "GlobalShuffle"
 
 
-function update(u::GlobalShuffle, mc, model)
+@bm function update(u::GlobalShuffle, mc, model)
     copyto!(mc.temp_conf, conf(mc))
     shuffle!(mc.temp_conf)
     return global_update(mc, model, mc.temp_conf)
