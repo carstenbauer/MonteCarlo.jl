@@ -3,6 +3,11 @@ using Test
 using LinearAlgebra, Random, Dates
 using MonteCarlo: @bm, TimerOutputs
 
+struct DummyModel <: MonteCarlo.Model 
+    lattice
+end
+DummyModel() = DummyModel(SquareLattice(2))
+
 # check elementwise, not matrix norm
 function check(A::Array, B::Array, atol, rtol=atol)
     for (x, y) in zip(A, B)
@@ -13,7 +18,11 @@ function check(A::Array, B::Array, atol, rtol=atol)
     end
     true
 end
-check(x::Number, y::Number, atol, rtol) = isapprox(x, y, atol=atol, rtol=rtol)
+function check(x::Number, y::Number, atol, rtol=atol)
+    result = isapprox(x, y, atol=atol, rtol=rtol)
+    result || @info "$x ≉ $y"
+    result
+end
 
 # In case some test failed and left behind a .jld file
 for f in readdir()
@@ -67,6 +76,10 @@ end
     @testset "Flavors" begin
         # include("flavortests_MC.jl")
         include("flavortests_DQMC.jl")
+    end
+
+    @testset "Scheduler & (DQMC) Updates" begin
+        include("updates.jl")
     end
 
     @testset "Measurements" begin

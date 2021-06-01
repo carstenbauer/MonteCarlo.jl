@@ -61,7 +61,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 
 
 # Convenience
-@inline parameters(m::HubbardModelAttractive) = (L = m.L, t = m.t, U = m.U, mu = m.mu)
+@inline parameters(m::HubbardModelAttractive) = (N = length(m.l), t = m.t, U = -m.U, mu = m.mu)
 
 
 """
@@ -99,7 +99,7 @@ This is a performance critical method.
 """
 @inline @bm function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
             result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
-    dtau = mc.p.delta_tau
+    dtau = mc.parameters.delta_tau
     lambda = acosh(exp(0.5 * m.U * dtau))
 
     N = size(result, 1)
@@ -114,8 +114,8 @@ end
         mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf
     )
     # see for example dos Santos Introduction to quantum Monte-Carlo
-    greens = mc.s.greens
-    dtau = mc.p.delta_tau
+    greens = mc.stack.greens
+    dtau = mc.parameters.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
 
     @inbounds ΔE_boson = -2. * lambda * conf[i, slice]
@@ -129,7 +129,7 @@ end
 @inline @bm function accept_local!(
         mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, 
         detratio, ΔE_boson, γ)
-    greens = mc.s.greens
+    greens = mc.stack.greens
 
     # Unoptimized Version
     # u = -greens[:, i]
@@ -154,13 +154,54 @@ end
     nothing
 end
 
+@bm function propose_global_from_conf(mc::DQMC, m::HubbardModelAttractive, conf::AbstractArray)
+    # G = calculate_greens(mc, current_slice(mc)-1, mc.s.greens_temp)
+    # @assert G ≈ mc.s.greens
+    # D = copy(mc.s.Dl)
+    # new_greens = calculate_greens(mc, current_slice(mc)-1, mc.s.greens_temp, conf)
+    
+    # # Computing prod(D) is unstable at larger beta
+    # detratio = 1.0
+    # for i in eachindex(mc.s.Dl)
+    #     detratio *= (D[i] / mc.s.Dl[i])^2
+    # end
+    # ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
+    # return detratio, ΔE_Boson, new_greens
+
+
+    
+    # I don't think we need this...
+    @assert mc.stack.current_slice == 1
+    @assert mc.stack.direction == 1
+
+    # This should be just after calculating greens, so mc.s.Dl is from the UDT
+    # decomposed G
+    copyto!(mc.stack.tempvf, mc.stack.Dl)
+
+    # -1?
+    inv_det(mc, current_slice(mc)-1, conf)
+
+    # This may help with stability
+    detratio = 1.0
+    for i in eachindex(mc.stack.tempvf)
+        detratio *= mc.stack.tempvf[i] * mc.stack.Dr[i]
+        # detratio *= mc.s.Dl[i] / D[i]
+    end
+    ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
+    # new_greens = finish_calculate_greens(
+    #     mc.s.Ul, mc.s.Dl, mc.s.Tl, mc.s.Ur, mc.s.Dr, mc.s.Tr,
+    #     mc.s.greens_temp, mc.s.pivot, mc.s.tempv
+    # )
+    # @info detratio^2
+    return detratio^2, ΔE_Boson, nothing #new_greens
+end
+
 
 """
 Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
 """
-@inline function energy_boson(mc::DQMC, m::HubbardModelAttractive)
-    hsfiled = conf(mc)
-    dtau = mc.p.delta_tau
+@inline function energy_boson(mc::DQMC, m::HubbardModelAttractive, hsfield = conf(mc))
+    dtau = mc.parameters.delta_tau
     lambda = acosh(exp(m.U * dtau/2))
     return lambda * sum(hsfield)
 end
@@ -268,23 +309,46 @@ function pc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, pg::NTuple{4}
     src1, trg1, src2, trg2 = sites
     pg[3][src1, src2] * pg[3][trg1, trg2]
 end
+function pc_alt_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, packed_greens::NTuple{4})
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2, src1])
+end
+function pc_ref_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, packed_greens::NTuple{4})
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    Gl0[src1, src2] * Gl0[trg1, trg2] +
+    (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2, src1])
+end
 
 function cc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, pg::NTuple{4})
     src1, trg1, src2, trg2 = sites
     G00, G0l, Gl0, Gll = pg
-    N = length(lattice(mc))
-    T = mc.s.hopping_matrix
+    T = mc.stack.hopping_matrix
 
     # up-up counts, down-down counts, mixed only on 11s or 22s
     s1 = src1; t1 = trg1
     s2 = src2; t2 = trg2
-    output = 4.0 * 
-        (T[s1, t1] * Gll[t1, s1] - T[t1, s1] * Gll[s1, t1]) * 
-        (T[s2, t2] * G00[t2, s2] - T[t2, s2] * G00[s2, t2]) +
-        2.0 * T[t1, s1] * T[t2, s2] * (- G0l[s2, t1]) * Gl0[s1, t2] -
-        2.0 * T[s1, t1] * T[t2, s2] * (- G0l[s2, s1]) * Gl0[t1, t2] -
-        2.0 * T[t1, s1] * T[s2, t2] * (- G0l[t2, t1]) * Gl0[s1, s2] +
-        2.0 * T[s1, t1] * T[s2, t2] * (- G0l[t2, s1]) * Gl0[t1, s2]
+    output = -(
+        4.0 * (
+            T[t2, s2] * (I[s2, t2] - Gll[s2, t2]) - 
+            T[s2, t2] * (I[t2, s2] - Gll[t2, s2])
+        ) * (
+            T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - 
+            T[s1, t1] * (I[t1, s1] - G00[t1, s1])
+        ) +
+        - 2.0 * T[t2, s2] * T[t1, s1] * G0l[s1, t2] * Gl0[s2, t1] +
+        + 2.0 * T[t2, s2] * T[s1, t1] * G0l[t1, t2] * Gl0[s2, s1] +
+        + 2.0 * T[s2, t2] * T[t1, s1] * G0l[s1, s2] * Gl0[t2, t1] +
+        - 2.0 * T[s2, t2] * T[s1, t1] * G0l[t1, s2] * Gl0[t2, s1]
+    )
+    # output = 4.0 * 
+    #     (T[s1, t1] * Gll[t1, s1] - T[t1, s1] * Gll[s1, t1]) * 
+    #     (T[s2, t2] * G00[t2, s2] - T[t2, s2] * G00[s2, t2]) +
+    #     + 2.0 * T[t1, s1] * T[t2, s2] * (- G0l[s2, t1]) * Gl0[s1, t2] +
+    #     - 2.0 * T[s1, t1] * T[t2, s2] * (- G0l[s2, s1]) * Gl0[t1, t2] +
+    #     - 2.0 * T[t1, s1] * T[s2, t2] * (- G0l[t2, t1]) * Gl0[s1, s2] +
+    #     + 2.0 * T[s1, t1] * T[s2, t2] * (- G0l[t2, s1]) * Gl0[t1, s2] +
 
     output
 end

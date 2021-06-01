@@ -28,18 +28,26 @@ end
 
 
 # This has lattice_iteratorator = Nothing, because it straight up copies G
-function greens_measurement(mc::DQMC, model::Model, greens_iterator=Greens; kwargs...)
-    N = length(lattice(model)) * nflavors(model)
+function greens_measurement(
+        mc::DQMC, model::Model, greens_iterator=Greens; 
+        capacity = _default_capacity(mc), eltype = geltype(mc),
+        obs = let
+            N = length(lattice(model)) * nflavors(model)
+            LogBinner(zeros(eltype, (N, N)), capacity=capacity)
+        end, kwargs...
+    )
     Measurement(
-        mc, model, greens_iterator, Nothing, greens_kernel, shape = (N, N); kwargs...
+        mc, model, greens_iterator, Nothing, greens_kernel, 
+        obs = obs; kwargs...
     )
 end
 greens_kernel(mc, model, G::AbstractArray) = G
 
 
 
-function occupation(mc::DQMC, model::Model, kwargs...)
-    Measurement(mc, model, Greens, EachSiteAndFlavor, occupation_kernel; kwargs...)
+function occupation(mc::DQMC, model::Model; wrapper = nothing, kwargs...)
+    li = wrapper === nothing ? EachSiteAndFlavor : wrapper{EachSiteAndFlavor}
+    Measurement(mc, model, Greens, li, occupation_kernel; kwargs...)
 end
 occupation_kernel(mc, model, i::Integer, G::AbstractArray) = 1 - G[i, i]
 
@@ -47,10 +55,11 @@ occupation_kernel(mc, model, i::Integer, G::AbstractArray) = 1 - G[i, i]
 
 function charge_density(
         mc::DQMC, model::Model, greens_iterator; 
-        lattice_iterator = EachSitePairByDistance, kwargs...
+        wrapper = nothing, lattice_iterator = EachSitePairByDistance, kwargs...
     )
     checkflavors(model)
-    Measurement(mc, model, greens_iterator, lattice_iterator, cdc_kernel; kwargs...)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    Measurement(mc, model, greens_iterator, li, cdc_kernel; kwargs...)
 end
 charge_density_correlation(mc, m; kwargs...) = charge_density(mc, m, Greens; kwargs...)
 function charge_density_susceptibility(mc, m; kwargs...)
@@ -105,7 +114,7 @@ magnetization. To get the correct result, multiply the final result by `-1im`.
 """
 function magnetization(
         mc::DQMC, model::Model, dir::Symbol; 
-        lattice_iterator = EachSite, kwargs...
+        wrapper = nothing, lattice_iterator = EachSite, kwargs...
     )
     checkflavors(model)
     if     dir == :x; kernel = mx_kernel
@@ -113,7 +122,8 @@ function magnetization(
     elseif dir == :z; kernel = mz_kernel
     else throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
     end
-    Measurement(mc, model, Greens, lattice_iterator, kernel; kwargs...)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    Measurement(mc, model, Greens, li, kernel; kwargs...)
 end
 function mx_kernel(mc, model, i, G::AbstractArray)
     N = length(lattice(model))
@@ -132,7 +142,7 @@ end
 
 function spin_density(
         dqmc, model, dir::Symbol, greens_iterator; 
-        lattice_iterator = EachSitePairByDistance, kwargs...
+        wrapper = nothing, lattice_iterator = EachSitePairByDistance, kwargs...
     )
     checkflavors(model)
     if     dir == :x; kernel = sdc_x_kernel
@@ -140,7 +150,8 @@ function spin_density(
     elseif dir == :z; kernel = sdc_z_kernel
     else throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
     end
-    Measurement(dqmc, model, greens_iterator, lattice_iterator, kernel; kwargs...)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    Measurement(dqmc, model, greens_iterator, li, kernel; kwargs...)
 end
 spin_density_correlation(args...; kwargs...) = spin_density(args..., Greens; kwargs...)
 function spin_density_susceptibility(args...; kwargs...)
@@ -206,27 +217,63 @@ end
 
 function pairing(
         dqmc::DQMC, model::Model, greens_iterator; 
-        K = 1+length(neighbors(lattice(model), 1)),
+        K = 1+length(neighbors(lattice(model), 1)), wrapper = nothing, 
         lattice_iterator = EachLocalQuadByDistance{K}, kwargs...
     )
-    Measurement(dqmc, model, greens_iterator, lattice_iterator, pc_kernel; kwargs...)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    Measurement(dqmc, model, greens_iterator, li, pc_kernel; kwargs...)
 end
 pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens; kwargs...)
 pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator; kwargs...)
+
+
 function pc_kernel(mc, model, sites::NTuple{4}, G::AbstractArray)
-    src1, trg1, src2, trg2 = sites
-    # verified against ED for each (src1, src2, trg1, trg2)
-    # Δ_v(src1, trg1) Δ_v^†(src2, trg2)
-    # G_{i, j}^{↑, ↑} G_{i+d, j+d}^{↓, ↓} - G_{i, j+d}^{↑, ↓} G_{i+d, j}^{↓, ↑}
-    N = length(lattice(model))
-    G[src1, src2] * G[trg1+N, trg2+N] - G[src1, trg2+N] * G[trg1+N, src2]
+    pc_kernel(mc, model, sites, (G, G, G, G))
 end
 function pc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
+    # Δ_v(src1, trg1)(τ) Δ_v^†(src2, trg2)(0)
+    # G_{i, j}^{↑, ↑}(τ, 0) G_{i+d, j+d'}^{↓, ↓}(τ, 0) - 
+    # G_{i, j+d'}^{↑, ↓}(τ, 0) G_{i+d, j}^{↓, ↑}(τ, 0)
     Gl0[src1, src2] * Gl0[trg1+N, trg2+N] - Gl0[src1, trg2+N] * Gl0[trg1+N, src2]
 end
+
+function pc_alt_kernel(mc, model, sites::NTuple{4}, G::AbstractArray)
+    pc_alt_kernel(mc, model, sites, (G, G, G, G))
+end
+function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    N = length(lattice(model))
+    # Δ_v^†(src1, trg1)(τ) Δ_v(src2, trg2)(0)
+    # (I-G)_{j, i}^{↑, ↑}(0, τ) (I-G)_{j+d', i+d}^{↓, ↓}(0, τ) - 
+    # (I-G)_{j, i+d}^{↑, ↓}(0, τ) G_{j+d', i}^{↓, ↑}(0, τ)
+    (I[trg2, trg1] - G0l[trg2+N, trg1+N]) * (I[src2, src1] - G0l[src2, src1]) -
+    (I[src2, trg1] - G0l[src2, trg1+N]) * (I[trg2, src1] - G0l[trg2+N, src1])
+end
+
+function pc_combined_kernel(mc, model, sites::NTuple{4}, G)
+    # Δ^† Δ + Δ Δ^†
+    pc_kernel(mc, model, sites, G) + pc_alt_kernel(mc, model, sites, G)
+end
+
+
+function pc_ref_kernel(mc, model, sites::NTuple{4}, G::AbstractArray)
+    # Δ^† Δ + Δ Δ^† but ↑ and ↓ are swapped
+    pc_ref_kernel(mc, model, sites, (G, G, G, G))
+end
+function pc_ref_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    N = length(lattice(model))
+    Gl0[src1+N, src2+N] * Gl0[trg1, trg2] - 
+    Gl0[src1+N, trg2] * Gl0[trg1, src2+N] +
+    (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2+N, src1+N]) -
+    (I[src2, trg1] - G0l[src2+N, trg1]) * (I[trg2, src1] - G0l[trg2, src1+N])
+end
+
 
 
 
@@ -267,16 +314,72 @@ EachSyncedNNQuadByDistance{K}?
 function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
         K = 1+length(neighbors(lattice(model), 1)),
-        greens_iterator = CombinedGreensIterator,
+        greens_iterator = CombinedGreensIterator, wrapper = nothing,
         lattice_iterator = EachLocalQuadBySyncedDistance{K}, kwargs...
     )
-    Measurement(dqmc, model, greens_iterator, lattice_iterator, cc_kernel; kwargs...)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    Measurement(dqmc, model, greens_iterator, li, cc_kernel; kwargs...)
 end
+function superfluid_density(
+        dqmc::DQMC, model::Model, L; 
+        K = 1+length(neighbors(lattice(model), 1)), 
+        capacity = _default_capacity(dqmc),
+        obs = LogBinner(ComplexF64(0), capacity=capacity),
+        kwargs...
+    )
+    @assert K > 1
+    dirs = directions(lattice(model))
+    dir_idxs = 2:K
+    longs = normalize.(dirs[2:K]) * 1/L
+    trans = map(dirs[2:K]) do v
+        n = [normalize(v)..., 0]
+        u = cross([0,0,1], n)
+        u[1:2] / L
+    end
+    longs .*= 2pi
+    trans .*= 2pi
+    li = SuperfluidDensity{EachLocalQuadBySyncedDistance{K}}(
+        dir_idxs, longs, trans
+    )
+    Measurement(dqmc, model, CombinedGreensIterator, li, cc_kernel, obs=obs; kwargs...)
+end
+
 # current_current_correlation(mc, m; kwargs...) = current_current(mc, m, Greens; kwargs...)
 # current_current_susceptibility(mc, m; kwargs...) = current_current(mc, m, CombinedGreensIterator; kwargs...)
 
 function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
+    # Computes
+    # ⟨j_{t2-s2}(s2, l) j_{t1-s1}(s1, 0)⟩
+    # where t2-s2 (t1-s1) is usually a NN vector/jump, and
+    # j_{t2-s2}(s2, l) = i \sum_σ [T_{ts} c_t^†(l) c_s(τ) - T_{st} c_s^†(τ) c_t(τ)]
     src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    N = length(lattice(model))
+    T = mc.stack.hopping_matrix
+    output = zero(eltype(G00))
+
+    # Iterate through (spin up, spin down)
+    for σ1 in (0, N), σ2 in (0, N)
+        s1 = src1 + σ1; t1 = trg1 + σ1
+        s2 = src2 + σ2; t2 = trg2 + σ2
+        # Note: if H is real and Hermitian, T can be pulled out and the I's cancel
+        # Note: This matches crstnbr/dqmc if H real, Hermitian
+        # Note: I for G0l and Gl0 auto-cancels
+        output -= (
+                T[t2, s2] * (I[s2, t2] - Gll[s2, t2]) - 
+                T[s2, t2] * (I[t2, s2] - Gll[t2, s2])
+            ) * (
+                T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - 
+                T[s1, t1] * (I[t1, s1] - G00[t1, s1])
+            ) +
+            - T[t2, s2] * T[t1, s1] * G0l[s1, t2] * Gl0[s2, t1] +
+            + T[t2, s2] * T[s1, t1] * G0l[t1, t2] * Gl0[s2, s1] +
+            + T[s2, t2] * T[t1, s1] * G0l[s1, s2] * Gl0[t2, t1] +
+            - T[s2, t2] * T[s1, t1] * G0l[t1, s2] * Gl0[t2, s1]
+    end
+
+    # OLD PARTIALLY OUTDATED
+
     # This should compute 
     # ⟨j_{trg1-src1}(src1, τ) j_{trg2-src2}(src2, 0)⟩
     # where (trg-src) picks a direction (e.g. NN directions)
@@ -287,23 +390,7 @@ function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     # and t is assumed to be hopping matrix element, generalizing to
     # = i \sum\sigma (T[trg, src] c^\dagger(trg,\sigma, \tau) c(src, \sigma, \tau) - T[src, trg] c^\dagger(src, \sigma, \tau) c(trg, \sigma \tau))
     
-	G00, G0l, Gl0, Gll = packed_greens
-    N = length(lattice(model))
-    T = mc.s.hopping_matrix
-    output = zero(eltype(G00))
-
-    # Iterate through (spin up, spin down)
-    for σ1 in (0, N), σ2 in (0, N)
-        s1 = src1 + σ1; t1 = trg1 + σ1
-        s2 = src2 + σ2; t2 = trg2 + σ2
-        output += 
-            (T[s1, t1] * Gll[t1, s1] - T[t1, s1] * Gll[s1, t1]) * 
-            (T[s2, t2] * G00[t2, s2] - T[t2, s2] * G00[s2, t2]) +
-            T[t1, s1] * T[t2, s2] * (- G0l[s2, t1]) * Gl0[s1, t2] -
-            T[s1, t1] * T[t2, s2] * (- G0l[s2, s1]) * Gl0[t1, t2] -
-            T[t1, s1] * T[s2, t2] * (- G0l[t2, t1]) * Gl0[s1, s2] +
-            T[s1, t1] * T[s2, t2] * (- G0l[t2, s1]) * Gl0[t1, s2]
-            # Why no I? 
+            # Why no I? - delta_0l = 0
             # T[t1, s1] * T[t2, s2] * (I[s2, t1] - G0l[s2, t1]) * Gl0[s1, t2] -
             # T[s1, t1] * T[t2, s2] * (I[s2, s1] - G0l[s2, s1]) * Gl0[t1, t2] -
             # T[t1, s1] * T[s2, t2] * (I[t2, t1] - G0l[t2, t1]) * Gl0[s1, s2] +
@@ -322,8 +409,6 @@ function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
         # output += T[s1, t1] * T[s2, t2] *
         #     ((I[t1, s1] - Gll[t1, s1]) * (I[t2, s2] - G00[t2, s2]) +
         #     (I[t2, s1] - G0l[t2, s1]) * Gl0[t1, s2])
-    end
-
     output
 end
 
@@ -340,7 +425,7 @@ end
 
 @inline function nonintE_kernel(mc, model, G::AbstractArray)
     # <T> = \sum Tji * (Iij - Gij) = - \sum Tji * (Gij - Iij)
-    T = mc.s.hopping_matrix
+    T = mc.stack.hopping_matrix
     nonintE(T, G)
 end
 

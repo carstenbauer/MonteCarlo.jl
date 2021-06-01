@@ -7,9 +7,9 @@ using StableDQMC
 """
 Calculate effective(!) Green's function (direct, i.e. without stack) using QR DECOMPOSITION
 """
-function calculate_slice_matrix_chain(mc::DQMC, start::Int, stop::Int, safe_mult::Int=mc.p.safe_mult)
-    @assert 0 < start <= mc.p.slices
-    @assert 0 < stop <= mc.p.slices
+function calculate_slice_matrix_chain(mc::DQMC, start::Int, stop::Int, safe_mult::Int=mc.parameters.safe_mult)
+    @assert 0 < start <= mc.parameters.slices
+    @assert 0 < stop <= mc.parameters.slices
     @assert start <= stop
 
     flv = mc.model.flv
@@ -42,9 +42,9 @@ function calculate_slice_matrix_chain(mc::DQMC, start::Int, stop::Int, safe_mult
 end
 
 # Calculate (Ur, Dr, Tr)' = B(stop) ... B(start) => Ur,Dr, Tr = B(start)' ... B(stop)'
-function calculate_slice_matrix_chain_dagger(mc::DQMC, start::Int, stop::Int, safe_mult::Int=mc.p.safe_mult)
-    @assert 0 < start <= mc.p.slices
-    @assert 0 < stop <= mc.p.slices
+function calculate_slice_matrix_chain_dagger(mc::DQMC, start::Int, stop::Int, safe_mult::Int=mc.parameters.safe_mult)
+    @assert 0 < start <= mc.parameters.slices
+    @assert 0 < stop <= mc.parameters.slices
     @assert start <= stop
 
     flv = mc.model.flv
@@ -77,14 +77,14 @@ function calculate_slice_matrix_chain_dagger(mc::DQMC, start::Int, stop::Int, sa
 end
 
 # Calculate G(slice) = [1+B(slice-1)...B(1)B(M) ... B(slice)]^(-1) and its singular values in a stable manner
-function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.p.safe_mult)
+function calculate_greens_and_logdet(mc::DQMC, slice::Int, safe_mult::Int=mc.parameters.safe_mult)
     GreensType = MonteCarlo.geltype(mc)
     flv = mc.model.flv
     N = length(lattice(mc.model))
 
     # Calculate Ur,Dr,Tr=B(slice)' ... B(M)'
-    if slice+1 <= mc.p.slices
-        Ur, Dr, Tr = calculate_slice_matrix_chain_dagger(mc,slice+1,mc.p.slices, safe_mult)
+    if slice+1 <= mc.parameters.slices
+        Ur, Dr, Tr = calculate_slice_matrix_chain_dagger(mc,slice+1,mc.parameters.slices, safe_mult)
     else
         Ur = Matrix{GreensType}(I, flv * N, flv * N)
         Dr = ones(Float64, flv * N)

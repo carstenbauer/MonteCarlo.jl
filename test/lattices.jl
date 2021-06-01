@@ -144,6 +144,13 @@ using MonteCarlo: directed_norm
             end
 
             @test check
+
+            _dirs = directions(iter, lattice(dqmc))
+            check = true
+            for (v, u) in zip(dirs, _dirs)
+                check = check && (v ≈ u)
+            end
+            @test check
         end
     end
 
@@ -276,6 +283,60 @@ using MonteCarlo: directed_norm
             @test check2
         end
     end
+
+    @testset "Sum Wrapper" begin
+        iter = EachSitePairByDistance(dqmc1, dqmc1.model)
+        wrapped = Sum(iter)
+
+        @test eltype(wrapped) == eltype(iter)
+        @test length(wrapped) == length(iter)
+        
+        check = true
+        vals = collect(iter)
+        wals = collect(wrapped)
+        for (v, w) in zip(vals, wals)
+            check = check && (v == w)
+        end
+        @test check
+    end
+
+    @testset "Symmetry Wrapper" begin
+        iter = EachSitePairByDistance(dqmc1, dqmc1.model)
+        wrapped = ApplySymmetries{EachSitePairByDistance}([1], [0, 1, 1])(dqmc1, dqmc1.model)
+
+        @test eltype(wrapped) == eltype(iter)
+        @test length(wrapped) == length(iter)
+        
+        check = true
+        vals = collect(iter)
+        wals = collect(wrapped)
+        for (v, w) in zip(vals, wals)
+            check = check && (v == w)
+        end
+        @test check
+    end
+
+    @testset "SuperfluidDensity Wrapper" begin
+        iter = EachSitePairByDistance(dqmc1, dqmc1.model)
+        wrapped = MonteCarlo.SuperfluidDensity{EachSitePairByDistance}(
+            1:3, [[1, 0], [0, 1], [1, 1]], [[0, 1], [1, 0], [1, -1]]
+        )(dqmc1, dqmc1.model)
+
+        @test eltype(wrapped) == eltype(iter)
+        @test length(wrapped) == length(iter)
+        
+        check = true
+        vals = collect(iter)
+        wals = collect(wrapped)
+        for (v, w) in zip(vals, wals)
+            check = check && (v == w)
+        end
+        @test check
+    end
+
+
+    # TODO
+    # SymmetryWrapper, SuperfluidDensity wrapper
 end
 
 

@@ -101,10 +101,15 @@ function load(filename, groups::String...)
     data = if endswith(filename, "jld2")
         JLD2.jldopen(filename, "r") else JLD.load(filename)
     end
-    output = if haskey(data, "MC") && !("MC" in groups)
-        _load(data, "MC", groups...) else _load(data, groups...)
+    output = try 
+        if haskey(data, "MC") && !("MC" in groups)
+            _load(data, "MC", groups...) else _load(data, groups...)
+        end
+    catch e
+        @error exception=e
+    finally
+        endswith(filename, "jld2") && close(data)
     end
-    endswith(filename, "jld2") && close(data)
     output
 end
 _load(data, g1::String, g2::String, gs::String...) = _load(data[g1], g2, gs...)

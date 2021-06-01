@@ -25,7 +25,10 @@ struct ConfigRecorder{CT} <: AbstractRecorder
     configs::Vector{CT}
     rate::Int64
 end
-ConfigRecorder{CT}(rate = 10) where CT = ConfigRecorder{CT}(Vector{CT}(), rate)
+ConfigRecorder{CT}(rate::Integer = 10) where CT = ConfigRecorder{CT}(Vector{CT}(), rate)
+function ConfigRecorder(MC::Type, M::Type, rate::Integer = 10)
+    ConfigRecorder{compressed_conf_type(MC, M)}(rate)
+end
 function Base.push!(c::ConfigRecorder, mc, model, sweep)
     (sweep % c.rate == 0) && push!(c.configs, compress(mc, model, conf(mc)))
     nothing

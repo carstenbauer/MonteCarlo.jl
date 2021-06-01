@@ -62,7 +62,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelRepulsive) = print(io,
 
 
 # Convenience
-@inline parameters(m::HubbardModelRepulsive) = (L = m.L, t = m.t, U = m.U)
+@inline parameters(m::HubbardModelRepulsive) = (N = length(m.l), t = m.t, U = m.U)
 
 # optional optimization
 hopping_matrix_type(::Type{DQMC}, ::HubbardModelRepulsive) = BlockDiagonal{Float64, 2, Matrix{Float64}}
@@ -112,7 +112,7 @@ This is a performance critical method.
 """
 @inline @bm function interaction_matrix_exp!(mc::DQMC, model::HubbardModelRepulsive,
             result, conf::HubbardConf, slice::Int, power::Float64=1.)
-    dtau = mc.p.delta_tau
+    dtau = mc.parameters.delta_tau
     lambda = acosh(exp(0.5 * model.U * dtau))
     N = length(lattice(model))
     
@@ -129,8 +129,8 @@ end
         mc::DQMC, model::HubbardModelRepulsive, i::Int, slice::Int, conf::HubbardConf
     )
     N = length(model.l)
-    G = mc.s.greens
-    Δτ = mc.p.delta_tau
+    G = mc.stack.greens
+    Δτ = mc.parameters.delta_tau
     Δ = model.Δ
     R = model.R
 
@@ -162,7 +162,7 @@ end
 
     @bm "accept_local (init)" begin
         N = length(model.l)
-        G = mc.s.greens
+        G = mc.stack.greens
         IG = model.IG
         IGR = model.IGR
         Δ = model.Δ
@@ -207,8 +207,8 @@ end
         # BlockDiagonal version
         G1 = G.blocks[1]
         G2 = G.blocks[2]
-        temp1 = mc.s.greens_temp.blocks[1]
-        temp2 = mc.s.greens_temp.blocks[2]
+        temp1 = mc.stack.greens_temp.blocks[1]
+        temp2 = mc.stack.greens_temp.blocks[2]
 
         @avx for m in axes(G1, 1), n in axes(G1, 2)
             temp1[m, n] = IGR[m, 1] * G1[i, n]
@@ -232,13 +232,8 @@ end
 end
 
 
-"""
-Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
-"""
-@inline function energy_boson(mc::DQMC, m::HubbardModelRepulsive)
-    # dtau = mc.p.delta_tau
-    # lambda = acosh(exp(m.U * dtau/2))
-    # return lambda * sum(hsfield)
+@inline function energy_boson(mc::DQMC, m::HubbardModelRepulsive, hsfield = conf(mc))
+    # There is no purely bosonic part in the partition function
     0.0
 end
 

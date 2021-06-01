@@ -15,7 +15,7 @@ function vmuladd!(C::Matrix{T}, A::Matrix{T}, B::Matrix{T}, factor::T = T(1)) wh
 end
 function vmuladd!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}, factor::T = T(1)) where {T <: Real}
     @avx for m in 1:size(A, 1), n in 1:size(A, 2)
-        C[m,n] += factor * A[m,n] * B[n,n]
+        C[m,n] += factor * A[m,n] * B.diag[n]
     end
 end
 function vmuladd!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}, factor::T = T(1)) where {T <: Real}
@@ -116,7 +116,7 @@ end
 function rvmul!(A::CMat64, B::Diagonal{ComplexF64})
     @warn "Complex StructArrays are untested not really optimized." maxlog=10
     @inbounds for m in 1:size(A, 1), n in 1:size(A, 2)
-        A[m,n] = A[m, n] * B[n,n]
+        A[m,n] = A[m, n] * B.diag[n]
     end
 end
 
@@ -128,7 +128,7 @@ end
 function lvmul!(A::Diagonal{ComplexF64}, B::CMat64)
     @warn "Complex StructArrays are untested not really optimized." maxlog=10
     @inbounds for m in 1:size(B, 1), n in 1:size(B, 2)
-        B[m,n] = A[m, m] * B[m, n]
+        B[m,n] = A.diag[m] * B[m, n]
     end
 end
 

@@ -3,7 +3,8 @@ abstract type AbstractLatticeIterator end
 abstract type DirectLatticeIterator <: AbstractLatticeIterator end 
 # first index is a meta index (e.g. direction), rest for sites
 abstract type DeferredLatticeIterator <: AbstractLatticeIterator end 
-
+# Wraps a lattice iterator to do change what happens with the output
+abstract type LatticeIterationWrapper{LI <: AbstractLatticeIterator} <: AbstractLatticeIterator end
 
 
 ################################################################################
@@ -537,7 +538,7 @@ end
 
 
 
-struct Sum{LI <: AbstractLatticeIterator} <: AbstractLatticeIterator
+struct Sum{LI} <: LatticeIterationWrapper{LI}
     iter::LI
     function Sum{LI}(args...; kwargs...) where {LI <: AbstractLatticeIterator}
         new{LI}(LI(args...; kwargs...))
@@ -551,3 +552,130 @@ Base.iterate(s::Sum) = iterate(s.iter)
 Base.iterate(s::Sum, state) = iterate(s.iter, state)
 Base.length(s::Sum) = length(s.iter)
 Base.eltype(s::Sum) = eltype(s.iter)
+
+
+
+################################################################################
+### Symmetry Wrapper
+################################################################################
+
+
+
+# This is a weird monster :(
+# The idea is that we construct a thin wrapper
+# li = ApplySymmetries{EachLocalQuadByDistance{5}}(sym1, sym2, ...)
+# which contains weights for different neighbors in the given symmetries
+# The backend then bundles all of these and constructs one thick wrapper by
+# calling
+# li(dqmc, model)
+# This then actually contains the udnerlying lattice iterator
+
+"""
+    ApplySymmetries{lattice_iterator_type}(symmetries...)
+
+`ApplySymmetries` is a wrapper for a `DeferredLatticeIterator`. It is meant to
+specify how results from different directions are to be added up.
+
+For example `T = EachLocalQuadByDistance{5}` specifies 4 site tuples where two
+sites have set distances between them - one of the first 5 smallest ones. In a 
+square lattice these would be on-site (1) and the four nearest neighbors (2-5).
+We may use `iter = ApplySymmetries{}([1], [0, 1, 1, 1, 1])` to specify how 
+results in these directions should be added up. The first rule would be s-wave,
+the second extended s-wave.
+These rules will be applied for DQMCMeasurements during the simulation. I.e. 
+first, the normal iteration and summation from `EachLocalQuadByDistance` is 
+performed. After that we have 5 values for each direction. These are then 
+weighted by each "symmetry" in `ApplySymmetries` to give the final result, saved
+in the DQMCMeasurement.
+"""
+struct ApplySymmetries{LI <: DeferredLatticeIterator, N, T} <: LatticeIterationWrapper{LI}
+    symmetries::NTuple{N, Vector{T}}
+end
+function ApplySymmetries{LI}(symmetries::Vector{T}...) where {LI <: DeferredLatticeIterator, T}
+    ApplySymmetries{LI, length(symmetries), T}(symmetries)
+end
+
+struct _ApplySymmetries{LI <: DeferredLatticeIterator, N, T} <: LatticeIterationWrapper{LI}
+    iter::LI
+    symmetries::NTuple{N, T}
+end
+function (x::ApplySymmetries{LI})(mc, model) where {LI}
+    iter = LI(mc, model)
+    _ApplySymmetries(iter, x.symmetries)
+end
+
+Base.iterate(s::_ApplySymmetries) = iterate(s.iter)
+Base.iterate(s::_ApplySymmetries, state) = iterate(s.iter, state)
+Base.length(s::_ApplySymmetries) = length(s.iter)
+Base.eltype(s::_ApplySymmetries) = eltype(s.iter)
+
+
+
+################################################################################
+### Symmetry Wrapper
+################################################################################
+
+
+
+#=
+CCS[dr, (0, x, y, -x, -y)]
+Λxx = CCS[:, 2]
+Λxxq^L = dot(CCS[:, 2], exp(-dirs .* (1/L, 0))
+Λxxq^T = dot(CCS[:, 2], exp(-dirs .* (0, 1/L))
+ρs = Λxxq^L - Λxxq^T
+
+# Save:
+directions(iter)
+# Supply/Pick:
+dir_idx (xx)
+L
+
+So is longitudinal/transversal just 
+    1/L * normalize(NN_vector)
+    1/L * normalize(⟂ NN_vector)
+or is it a reciprocal lattice vector?
+=#
+
+"""
+    SuperfluidDensity{lattice_iterator_type}(directions, longitudinal, transversal)
+
+`SuperfluidDensity` works similarly to `ApplySymmetries` - it contains some 
+additional information that should be used to transform the result of of the 
+given lattice iterator. In this case the additional information is a set of 
+directional indices `directions` and the related `longitudinal` and `transversal`
+vectors in reciprocal space.
+
+The point of this wrapper is to calculate the Fourier transform 
+`O(q) = ∑_r0 ∑_Δr O(r_0, Δr) (exp(-i q_l Δr) - exp(-i q_t Δr))`
+where q_l is `longitudinal` and q_t is transversal. The Δr ised in this formula 
+are restricted to the given `directions`.
+"""
+struct SuperfluidDensity{LI <: DeferredLatticeIterator, N} <: LatticeIterationWrapper{LI}
+    dir_idxs::NTuple{N, Int}
+    long_qs::NTuple{N, Vector{Float64}}
+    trans_qs::NTuple{N, Vector{Float64}}
+end
+function SuperfluidDensity{LI}(directions, longitudinal, transversal) where {LI <: DeferredLatticeIterator}
+    SuperfluidDensity{LI, length(directions)}(
+        tuple(directions...), tuple(longitudinal...), tuple(transversal...)
+    )
+end
+
+struct _SuperfluidDensity{LI <: DeferredLatticeIterator, N} <: LatticeIterationWrapper{LI}
+    iter::LI
+
+    dirs::Vector{Vector{Float64}}
+    dir_idxs::NTuple{N, Int}
+    long_qs::NTuple{N, Vector{Float64}}
+    trans_qs::NTuple{N, Vector{Float64}}
+end
+function (x::SuperfluidDensity{LI})(mc, model) where {LI}
+    iter = LI(mc, model)
+    dirs = directions(lattice(model))
+    _SuperfluidDensity(iter, dirs, x.dir_idxs, x.long_qs, x.trans_qs)
+end
+
+Base.iterate(s::_SuperfluidDensity) = iterate(s.iter)
+Base.iterate(s::_SuperfluidDensity, state) = iterate(s.iter, state)
+Base.length(s::_SuperfluidDensity) = length(s.iter)
+Base.eltype(s::_SuperfluidDensity) = eltype(s.iter)

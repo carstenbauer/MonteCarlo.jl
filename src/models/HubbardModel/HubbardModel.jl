@@ -53,7 +53,8 @@ end
 
 
 # See configurations.jl - compression of configurations
-compress(::DQMC, ::HubbardModel, c) = BitArray(c .== 1)
+compress(mc::DQMC, ::HubbardModel, c) = BitArray(c .== 1)
+compressed_conf_type(::Type{<: DQMC}, ::Type{<: HubbardModel}) = BitArray
 function decompress(mc::DQMC{M, CB, CT}, ::HubbardModel, c) where {M, CB, CT}
     CT(2c .- 1)
 end

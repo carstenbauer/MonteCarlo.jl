@@ -40,7 +40,7 @@ end
 #     GreensEltype =  MonteCarlo.geltype(mc)
 #     N = length(mc.model.l)
 #     flv = mc.model.flv
-#     blocks = mc.s.n_elements
+#     blocks = mc.stack.n_elements
 
 #     sizeof(GreensEltype) * flv*N * flv*N * blocks * 4 +         # forward+backward U, T
 #     sizeof(GreensEltype) * flv*N * blocks * 2 +                 # forward+backward D
@@ -56,7 +56,7 @@ function initialize_stack(mc::DQMC, s::UnequalTimeStack)
     GreensMatType = gmattype(mc)
     N = length(lattice(mc))
     flv = nflavors(mc.model)
-    M = convert(Int, mc.p.slices / mc.p.safe_mult) + 1
+    M = convert(Int, mc.parameters.slices / mc.parameters.safe_mult) + 1
 
     # B_{n*safe_mult} ... B_1
     s.forward_idx = 1
@@ -84,8 +84,8 @@ function initialize_stack(mc::DQMC, s::UnequalTimeStack)
     s.T = GreensMatType(undef, flv*N, flv*N)
 
     # To avoid recalculating
-    last_update = -1
-    last_slices = (-1, -1)
+    s.last_update = -1
+    s.last_slices = (-1, -1)
 
     # maybe skip identities?
     copyto!(s.forward_u_stack[1], I)
@@ -106,59 +106,59 @@ end
 @bm function build_stack(mc::DQMC, s::UnequalTimeStack)
     # stack = [0, Δτ, 2Δτ, ..., β]
     if mc.last_sweep == s.last_update && all(s.inv_done) && 
-        (s.forward_idx == length(mc.s.ranges)+1) && (s.backward_idx == 1)
+        (s.forward_idx == length(mc.stack.ranges)+1) && (s.backward_idx == 1)
         return nothing
     end
 
     # forward
     @bm "forward build" begin
-        @inbounds for idx in 1:length(mc.s.ranges)
-            copyto!(mc.s.curr_U, s.forward_u_stack[idx])
-            for slice in mc.s.ranges[idx]
-                multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+        @inbounds for idx in 1:length(mc.stack.ranges)
+            copyto!(mc.stack.curr_U, s.forward_u_stack[idx])
+            for slice in mc.stack.ranges[idx]
+                multiply_slice_matrix_left!(mc, mc.model, slice, mc.stack.curr_U)
             end
-            vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(s.forward_d_stack[idx]))
+            vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(s.forward_d_stack[idx]))
             udt_AVX_pivot!(
                 s.forward_u_stack[idx+1], s.forward_d_stack[idx+1], 
-                mc.s.tmp1, mc.s.pivot, mc.s.tempv
+                mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv
             )
-            vmul!(s.forward_t_stack[idx+1], mc.s.tmp1, s.forward_t_stack[idx])
+            vmul!(s.forward_t_stack[idx+1], mc.stack.tmp1, s.forward_t_stack[idx])
         end
     end
 
     # backward
     @bm "backward build" begin
-        @inbounds for idx in length(mc.s.ranges):-1:1
-            copyto!(mc.s.curr_U, s.backward_u_stack[idx + 1])
-            for slice in reverse(mc.s.ranges[idx])
-                multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+        @inbounds for idx in length(mc.stack.ranges):-1:1
+            copyto!(mc.stack.curr_U, s.backward_u_stack[idx + 1])
+            for slice in reverse(mc.stack.ranges[idx])
+                multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.stack.curr_U)
             end
-            vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(s.backward_d_stack[idx + 1]))
+            vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(s.backward_d_stack[idx + 1]))
             udt_AVX_pivot!(
                 s.backward_u_stack[idx], s.backward_d_stack[idx], 
-                mc.s.tmp1, mc.s.pivot, mc.s.tempv
+                mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv
             )
-            vmul!(s.backward_t_stack[idx], mc.s.tmp1, s.backward_t_stack[idx+1])
+            vmul!(s.backward_t_stack[idx], mc.stack.tmp1, s.backward_t_stack[idx+1])
         end
     end
 
     # inverse
     # TODO should this multiply to U's instead?
     @bm "inverse build" begin
-        @inbounds for idx in 1:length(mc.s.ranges)
+        @inbounds for idx in 1:length(mc.stack.ranges)
             copyto!(s.inv_t_stack[idx], I)
-            for slice in reverse(mc.s.ranges[idx])
+            for slice in reverse(mc.stack.ranges[idx])
                 multiply_slice_matrix_inv_left!(mc, mc.model, slice, s.inv_t_stack[idx])
             end
             udt_AVX_pivot!(
                 s.inv_u_stack[idx], s.inv_d_stack[idx], s.inv_t_stack[idx], 
-                mc.s.pivot, mc.s.tempv
+                mc.stack.pivot, mc.stack.tempv
             )
         end
     end
 
     s.inv_done .= true
-    s.forward_idx = length(mc.s.ranges)+1
+    s.forward_idx = length(mc.stack.ranges)+1
     s.backward_idx = 1
     s.last_update = mc.last_sweep
 
@@ -171,22 +171,22 @@ end
         s.last_update = mc.last_sweep
         s.inv_done .= false
         s.forward_idx = 1
-        s.backward_idx = length(mc.s.ranges)+1
+        s.backward_idx = length(mc.stack.ranges)+1
     end
 
     # forward
     @bm "forward build" begin
         @inbounds for idx in s.forward_idx:upto-1
-            copyto!(mc.s.curr_U, s.forward_u_stack[idx])
-            for slice in mc.s.ranges[idx]
-                multiply_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+            copyto!(mc.stack.curr_U, s.forward_u_stack[idx])
+            for slice in mc.stack.ranges[idx]
+                multiply_slice_matrix_left!(mc, mc.model, slice, mc.stack.curr_U)
             end
-            vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(s.forward_d_stack[idx]))
+            vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(s.forward_d_stack[idx]))
             udt_AVX_pivot!(
                 s.forward_u_stack[idx+1], s.forward_d_stack[idx+1], 
-                mc.s.tmp1, mc.s.pivot, mc.s.tempv
+                mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv
             )
-            vmul!(s.forward_t_stack[idx+1], mc.s.tmp1, s.forward_t_stack[idx])
+            vmul!(s.forward_t_stack[idx+1], mc.stack.tmp1, s.forward_t_stack[idx])
         end
     end
 
@@ -199,22 +199,22 @@ end
         s.last_update = mc.last_sweep
         s.inv_done .= false
         s.forward_idx = 1
-        s.backward_idx = length(mc.s.ranges)+1
+        s.backward_idx = length(mc.stack.ranges)+1
     end
 
     # backward
     @bm "backward build" begin
         @inbounds for idx in s.backward_idx-1:-1:downto
-            copyto!(mc.s.curr_U, s.backward_u_stack[idx + 1])
-            for slice in reverse(mc.s.ranges[idx])
-                multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.s.curr_U)
+            copyto!(mc.stack.curr_U, s.backward_u_stack[idx + 1])
+            for slice in reverse(mc.stack.ranges[idx])
+                multiply_daggered_slice_matrix_left!(mc, mc.model, slice, mc.stack.curr_U)
             end
-            vmul!(mc.s.tmp1, mc.s.curr_U, Diagonal(s.backward_d_stack[idx + 1]))
+            vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(s.backward_d_stack[idx + 1]))
             udt_AVX_pivot!(
                 s.backward_u_stack[idx], s.backward_d_stack[idx], 
-                mc.s.tmp1, mc.s.pivot, mc.s.tempv
+                mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv
             )
-            vmul!(s.backward_t_stack[idx], mc.s.tmp1, s.backward_t_stack[idx+1])
+            vmul!(s.backward_t_stack[idx], mc.stack.tmp1, s.backward_t_stack[idx+1])
         end
     end
 
@@ -226,7 +226,7 @@ end
         s.last_update = mc.last_sweep
         s.inv_done .= false
         s.forward_idx = 1
-        s.backward_idx = length(mc.s.ranges)+1
+        s.backward_idx = length(mc.stack.ranges)+1
     end
 
     # inverse
@@ -235,12 +235,12 @@ end
             s.inv_done[idx] && continue
             s.inv_done[idx] = true
             copyto!(s.inv_t_stack[idx], I)
-            for slice in reverse(mc.s.ranges[idx])
+            for slice in reverse(mc.stack.ranges[idx])
                 multiply_slice_matrix_inv_left!(mc, mc.model, slice, s.inv_t_stack[idx])
             end
             udt_AVX_pivot!(
                 s.inv_u_stack[idx], s.inv_d_stack[idx], s.inv_t_stack[idx], 
-                mc.s.pivot, mc.s.tempv
+                mc.stack.pivot, mc.stack.tempv
             )
         end
     end
@@ -270,27 +270,27 @@ be overwritten (but are avaible as `output` and `temp`).
 """
 @bm greens(mc::DQMC, slice1::Int64, slice2::Int64) = copy(_greens!(mc, slice1, slice2))
 """
-    greens!(mc::DQMC, k, l[; output=mc.s.greens_temp, temp=mc.s.tmp1])
+    greens!(mc::DQMC, k, l[; output=mc.stack.greens_temp, temp=mc.stack.tmp1])
 """
 @bm function greens!(
         mc::DQMC, slice1::Int64, slice2::Int64; 
-        output = mc.s.greens_temp, temp = mc.s.tmp1
+        output = mc.stack.greens_temp, temp = mc.stack.tmp1
     ) 
     _greens!(mc, slice1, slice2, output, temp)
 end
 """
-    _greens!(mc::DQMC, k, l, output=mc.s.greens_temp, temp=mc.s.tmp1)
+    _greens!(mc::DQMC, k, l, output=mc.stack.greens_temp, temp=mc.stack.tmp1)
 """
 function _greens!(
         mc::DQMC, slice1::Int64, slice2::Int64,
-        output = mc.s.greens_temp, temp = mc.s.tmp1
+        output = mc.stack.greens_temp, temp = mc.stack.tmp1
     )
     calculate_greens(mc, slice1, slice2)
     return _greens!(mc, output, mc.ut_stack.greens, temp)
 end
 @bm function calculate_greens(mc::DQMC, slice1::Int64, slice2::Int64)
-    @assert 0 ≤ slice1 ≤ mc.p.slices
-    @assert 0 ≤ slice2 ≤ mc.p.slices
+    @assert 0 ≤ slice1 ≤ mc.parameters.slices
+    @assert 0 ≤ slice2 ≤ mc.parameters.slices
     s = mc.ut_stack
     if (s.last_slices != (slice1, slice2)) || (s.last_update != mc.last_sweep)
         s.last_slices = (slice1, slice2)
@@ -320,20 +320,20 @@ Default extra args are: (in order)
 * `U = s.U`
 * `D = s.D`
 * `T = s.T`
-* `tmp1 = mc.s.tmp1`
-* `tmp2 = mc.s.tmp2`
+* `tmp1 = mc.stack.tmp1`
+* `tmp2 = mc.stack.tmp2`
 """
 function compute_inverse_udt_block!(
         mc, s, low, high,
-        U = s.U, D = s.D, T = s.T, tmp1 = mc.s.tmp1, tmp2 = mc.s.tmp2
+        U = s.U, D = s.D, T = s.T, tmp1 = mc.stack.tmp1, tmp2 = mc.stack.tmp2
     )
     # @assert low ≤ high
     # B_{low+1}^-1 B_{low+2}^-1 ⋯ B_{high-1}^-1 B_high^-1
 
     # Combine pre-computed blocks
     @bm "inverse pre-computed" begin
-        lower = div(low+1 + mc.p.safe_mult - 2, mc.p.safe_mult) + 1
-        upper = div(high, mc.p.safe_mult)
+        lower = div(low+1 + mc.parameters.safe_mult - 2, mc.parameters.safe_mult) + 1
+        upper = div(high, mc.parameters.safe_mult)
         lazy_build_inv!(mc, s, lower, upper)
         copyto!(U, I)
         D .= 1
@@ -347,7 +347,7 @@ function compute_inverse_udt_block!(
             vmul!(tmp1, T, s.inv_u_stack[idx])
             vmul!(tmp2, Diagonal(D), tmp1)
             vmul!(tmp1, tmp2, Diagonal(s.inv_d_stack[idx]))
-            udt_AVX_pivot!(tmp2, D, tmp1, mc.s.pivot, mc.s.tempv)
+            udt_AVX_pivot!(tmp2, D, tmp1, mc.stack.pivot, mc.stack.tempv)
             vmul!(T, tmp1, s.inv_t_stack[idx])
             vmul!(tmp1, U, tmp2)
             copyto!(U, tmp1)
@@ -356,15 +356,15 @@ function compute_inverse_udt_block!(
 
     # remaining multiplications to reach specified bounds
     @bm "inverse fine tuning" begin
-        lower_slice = (lower-1) * mc.p.safe_mult + 1
-        upper_slice = upper * mc.p.safe_mult
+        lower_slice = (lower-1) * mc.parameters.safe_mult + 1
+        upper_slice = upper * mc.parameters.safe_mult
 
         for slice in min(lower_slice-1, high) : -1 : low+1
             multiply_slice_matrix_inv_left!(mc, mc.model, slice, U)
         end
         if min(lower_slice-1, high) ≥ low+1
             vmul!(tmp1, U, Diagonal(D))
-            udt_AVX_pivot!(U, D, tmp1, mc.s.pivot, mc.s.tempv)
+            udt_AVX_pivot!(U, D, tmp1, mc.stack.pivot, mc.stack.tempv)
             vmul!(tmp2, tmp1, T)
             copyto!(T, tmp2)
         end
@@ -383,25 +383,25 @@ end
 Computes a UDT block `U D T = B_slice B_{slice-1} ⋯ B_1`.
 
 Default extra args are: (in order)
-* `U = mc.s.Ul`
-* `D = mc.s.Dl`
-* `T = mc.s.Tl`
-* `tmp = mc.s.tmp1`
+* `U = mc.stack.Ul`
+* `D = mc.stack.Dl`
+* `T = mc.stack.Tl`
+* `tmp = mc.stack.tmp1`
 """
 function compute_forward_udt_block!(
         mc, s, slice, apply_pivot = Val(true),
-        U = mc.s.Ul, D = mc.s.Dl, T = mc.s.Tl, tmp = mc.s.tmp1,
+        U = mc.stack.Ul, D = mc.stack.Dl, T = mc.stack.Tl, tmp = mc.stack.tmp1,
     )
     # B(slice, 1) = B_slice B_{slice-1} ⋯ B_1 = Ul Dl Tl
     @bm "forward B" begin
-        idx = div(slice-1, mc.p.safe_mult)
+        idx = div(slice-1, mc.parameters.safe_mult)
         lazy_build_forward!(mc, s, idx+1)
         copyto!(T, s.forward_u_stack[idx+1])
-        for l in mc.p.safe_mult * idx + 1 : slice
+        for l in mc.parameters.safe_mult * idx + 1 : slice
             multiply_slice_matrix_left!(mc, mc.model, l, T)
         end
         vmul!(tmp, T, Diagonal(s.forward_d_stack[idx+1]))
-        udt_AVX_pivot!(U, D, tmp, mc.s.pivot, mc.s.tempv, apply_pivot)
+        udt_AVX_pivot!(U, D, tmp, mc.stack.pivot, mc.stack.tempv, apply_pivot)
         vmul!(T, tmp, s.forward_t_stack[idx+1])
     end
     return nothing
@@ -414,25 +414,25 @@ end
 Computes a UDT block `(U D T)^† = T^† D U^† = B_N B_{N-1} ⋯ B_slice`.
 
 Default extra args are: (in order)
-* `U = mc.s.Ur`
-* `D = mc.s.Dr`
-* `T = mc.s.Tr`
-* `tmp = mc.s.tmp1`
+* `U = mc.stack.Ur`
+* `D = mc.stack.Dr`
+* `T = mc.stack.Tr`
+* `tmp = mc.stack.tmp1`
 """
 function compute_backward_udt_block!(
         mc, s, slice,
-        U = mc.s.Ur, D = mc.s.Dr, T = mc.s.Tr, tmp = mc.s.tmp1
+        U = mc.stack.Ur, D = mc.stack.Dr, T = mc.stack.Tr, tmp = mc.stack.tmp1
     )
     # B(N, slice) = B_N B_{N-1} ⋯ B_{slice+1} = (Ur Dr Tr)^† = Tr^† Dr^† Ur^†
     @bm "backward B" begin
-        idx = div.(slice + mc.p.safe_mult - 1, mc.p.safe_mult)
+        idx = div.(slice + mc.parameters.safe_mult - 1, mc.parameters.safe_mult)
         lazy_build_backward!(mc, s, idx+1)
         copyto!(U, s.backward_u_stack[idx+1])
-        for l in mc.p.safe_mult * idx : -1 : slice+1
+        for l in mc.parameters.safe_mult * idx : -1 : slice+1
             multiply_daggered_slice_matrix_left!(mc, mc.model, l, U)
         end
         vmul!(tmp, U, Diagonal(s.backward_d_stack[idx+1]))
-        udt_AVX_pivot!(U, D, tmp, mc.s.pivot, mc.s.tempv)
+        udt_AVX_pivot!(U, D, tmp, mc.stack.pivot, mc.stack.tempv)
         vmul!(T, tmp, s.backward_t_stack[idx + 1])
     end
     return nothing
@@ -461,63 +461,63 @@ end
         # [B_{l+1}^-1 B_{l+2}^-1 ⋯ B_k^-1 + B_l ⋯ B_1 B_N ⋯ B_{k+1}]^-1
         # [U D T + Ul (Dl Tl Tr^† Dr) Ur^†]^-1
         @bm "B1" begin
-            vmul!(s.greens, mc.s.Tl, adjoint(mc.s.Tr))
-            vmul!(mc.s.tmp1, s.greens, Diagonal(mc.s.Dr))
-            vmul!(s.greens, Diagonal(mc.s.Dl), mc.s.tmp1)
+            vmul!(s.greens, mc.stack.Tl, adjoint(mc.stack.Tr))
+            vmul!(mc.stack.tmp1, s.greens, Diagonal(mc.stack.Dr))
+            vmul!(s.greens, Diagonal(mc.stack.Dl), mc.stack.tmp1)
         end
         # [U D T + Ul (G) Ur^†]^-1
         @bm "udt" begin
-            udt_AVX_pivot!(mc.s.Tr, mc.s.Dr, s.greens, mc.s.pivot, mc.s.tempv, Val(false))
+            udt_AVX_pivot!(mc.stack.Tr, mc.stack.Dr, s.greens, mc.stack.pivot, mc.stack.tempv, Val(false))
         end
         # [U D T + (Ul Tr) Dr (G Ur^†)]^-1
         @bm "B2" begin
-            vmul!(mc.s.Tl, mc.s.Ul, mc.s.Tr)
+            vmul!(mc.stack.Tl, mc.stack.Ul, mc.stack.Tr)
             # (G Ur^†) = (Ur / G)^-1
             # Ur := Ur / G
-            rdivp!(mc.s.Ur, s.greens, mc.s.Ul, mc.s.pivot) 
+            rdivp!(mc.stack.Ur, s.greens, mc.stack.Ul, mc.stack.pivot) 
         end
         # [U D T + Tl Dr Ur^-1]^-1
         # [U (D T Ur + U^† Tl Dr) Ur^-1]^-1
         # [U D_max (D_min T Ur 1/Dr_max + 1/D_max U^† Tl Dr_min) Dr_max Ur^-1]^-1
         @bm "B3" begin
             # 1/D_max U^† Tl Dr_min
-            vmul!(mc.s.Tr, adjoint(s.U), mc.s.Tl)
-            vmaxinv!(mc.s.Dl, s.D) # mc.s.Dl .= 1.0 ./ max.(1.0, s.D)
-            vmul!(mc.s.tmp1, Diagonal(mc.s.Dl), mc.s.Tr)
-            vmin!(mc.s.Dl, mc.s.Dr) # mc.s.Dl .= min.(1.0, mc.s.Dr)
-            vmul!(mc.s.Tr, mc.s.tmp1, Diagonal(mc.s.Dl))
+            vmul!(mc.stack.Tr, adjoint(s.U), mc.stack.Tl)
+            vmaxinv!(mc.stack.Dl, s.D) # mc.stack.Dl .= 1.0 ./ max.(1.0, s.D)
+            vmul!(mc.stack.tmp1, Diagonal(mc.stack.Dl), mc.stack.Tr)
+            vmin!(mc.stack.Dl, mc.stack.Dr) # mc.stack.Dl .= min.(1.0, mc.stack.Dr)
+            vmul!(mc.stack.Tr, mc.stack.tmp1, Diagonal(mc.stack.Dl))
         end
         # [U D_max (D_min T Ur 1/Dr_max + Tr) Dr_max Ur^-1]^-1
         @bm "B4" begin
             # D_min T Ur 1/Dr_max
-            vmul!(mc.s.Tl, s.T, mc.s.Ur)
-            vmin!(mc.s.Dl, s.D) # mc.s.Dl .= min.(1.0, s.D)
-            vmul!(mc.s.tmp1, Diagonal(mc.s.Dl), mc.s.Tl)
-            vmaxinv!(mc.s.Dl, mc.s.Dr) # mc.s.Dl .= 1.0 ./ max.(1.0, mc.s.Dr)
-            vmul!(mc.s.Tl, mc.s.tmp1, Diagonal(mc.s.Dl))
+            vmul!(mc.stack.Tl, s.T, mc.stack.Ur)
+            vmin!(mc.stack.Dl, s.D) # mc.stack.Dl .= min.(1.0, s.D)
+            vmul!(mc.stack.tmp1, Diagonal(mc.stack.Dl), mc.stack.Tl)
+            vmaxinv!(mc.stack.Dl, mc.stack.Dr) # mc.stack.Dl .= 1.0 ./ max.(1.0, mc.stack.Dr)
+            vmul!(mc.stack.Tl, mc.stack.tmp1, Diagonal(mc.stack.Dl))
         end
         # [U D_max (Tl + Tr) Dr_max Ur^-1]^-1
         @bm "sum, UDT" begin
-            rvadd!(mc.s.Tl, mc.s.Tr)
-            udt_AVX_pivot!(mc.s.Tr, mc.s.Dl, mc.s.Tl, mc.s.pivot, mc.s.tempv, Val(false))
+            rvadd!(mc.stack.Tl, mc.stack.Tr)
+            udt_AVX_pivot!(mc.stack.Tr, mc.stack.Dl, mc.stack.Tl, mc.stack.pivot, mc.stack.tempv, Val(false))
         end
         # [U D_max (Tr Dl Tl) Dr_max Ur^-1]^-1
         # Ur 1/Dr_max Tl^-1 1/Dl Tr^† D_max U^†
         @bm "B5" begin
             # [[((1/Dr_max) / Tl) 1/Dl] Tr^†] D_max
-            vmaxinv!(mc.s.Dr, mc.s.Dr) # mc.s.Dr .= 1.0 ./ max.(1.0, mc.s.Dr)
-            copyto!(mc.s.Ul, Diagonal(mc.s.Dr))
-            rdivp!(mc.s.Ul, mc.s.Tl, mc.s.tmp1, mc.s.pivot)
-            vinv!(mc.s.Dl) # mc.s.Dl[i] .= 1.0 ./ mc.s.Dl[i]
-            vmul!(mc.s.tmp1, mc.s.Ul, Diagonal(mc.s.Dl))
-            vmul!(mc.s.Ul, mc.s.tmp1, adjoint(mc.s.Tr))
-            vmaxinv!(mc.s.Dl, s.D) # mc.s.Dl .= 1.0 ./ max.(1.0, s.D)
-            vmul!(s.greens, mc.s.Ul, Diagonal(mc.s.Dl))
+            vmaxinv!(mc.stack.Dr, mc.stack.Dr) # mc.stack.Dr .= 1.0 ./ max.(1.0, mc.stack.Dr)
+            copyto!(mc.stack.Ul, Diagonal(mc.stack.Dr))
+            rdivp!(mc.stack.Ul, mc.stack.Tl, mc.stack.tmp1, mc.stack.pivot)
+            vinv!(mc.stack.Dl) # mc.stack.Dl[i] .= 1.0 ./ mc.stack.Dl[i]
+            vmul!(mc.stack.tmp1, mc.stack.Ul, Diagonal(mc.stack.Dl))
+            vmul!(mc.stack.Ul, mc.stack.tmp1, adjoint(mc.stack.Tr))
+            vmaxinv!(mc.stack.Dl, s.D) # mc.stack.Dl .= 1.0 ./ max.(1.0, s.D)
+            vmul!(s.greens, mc.stack.Ul, Diagonal(mc.stack.Dl))
         end
         # Ur G U^†
         @bm "B6" begin
-            vmul!(mc.s.Tr, s.greens, adjoint(s.U))
-            vmul!(s.greens, mc.s.Ur, mc.s.Tr)
+            vmul!(mc.stack.Tr, s.greens, adjoint(s.U))
+            vmul!(s.greens, mc.stack.Ur, mc.stack.Tr)
         end
     end
 
@@ -547,56 +547,56 @@ end
         # [T^-1 D^-1 U^† + (Ul Dl Tl Tr^† Dr Ur^†)^-1]^-1
         # [T^-1 D^-1 U^† + Ur (Dl Tl Tr^† Dr)^-1 Ul^†]^-1
         @bm "B1" begin
-            vmul!(s.greens, mc.s.Tl, adjoint(mc.s.Tr))
-            vmul!(mc.s.tmp1, Diagonal(mc.s.Dl), s.greens)
-            vmul!(s.greens, mc.s.tmp1, Diagonal(mc.s.Dr))
+            vmul!(s.greens, mc.stack.Tl, adjoint(mc.stack.Tr))
+            vmul!(mc.stack.tmp1, Diagonal(mc.stack.Dl), s.greens)
+            vmul!(s.greens, mc.stack.tmp1, Diagonal(mc.stack.Dr))
         end
         # [T^-1 D^-1 U^† + Ur G^-1 Ul^†]^-1
         @bm "udt" begin
-            udt_AVX_pivot!(mc.s.Tr, mc.s.Dr, s.greens, mc.s.pivot, mc.s.tempv, Val(false))
+            udt_AVX_pivot!(mc.stack.Tr, mc.stack.Dr, s.greens, mc.stack.pivot, mc.stack.tempv, Val(false))
         end
         # [T^-1 D^-1 U^† + Ur G^-1 Dr^-1 Tr^† Ul^†]^-1
         # [T^-1 D_min^-1 (D_max^-1 U^† (Ul Tr) Dr_min + D_min T Ur G^-1 Dr_max^-1) Dr_min^-1 (Ul Tr)^†]^-1
         @bm "B2" begin
             # D_max^-1 U^† (Ul Tr) Dr_min
-            vmul!(mc.s.Tl, mc.s.Ul, mc.s.Tr) # keep me alive
-            vmul!(mc.s.Ul, adjoint(s.U), mc.s.Tl)
-            vmaxinv!(mc.s.Dl, s.D)
-            vmul!(s.U, Diagonal(mc.s.Dl), mc.s.Ul)
-            vmin!(mc.s.Dl, mc.s.Dr)
-            vmul!(mc.s.Ul, s.U, Diagonal(mc.s.Dl))
+            vmul!(mc.stack.Tl, mc.stack.Ul, mc.stack.Tr) # keep me alive
+            vmul!(mc.stack.Ul, adjoint(s.U), mc.stack.Tl)
+            vmaxinv!(mc.stack.Dl, s.D)
+            vmul!(s.U, Diagonal(mc.stack.Dl), mc.stack.Ul)
+            vmin!(mc.stack.Dl, mc.stack.Dr)
+            vmul!(mc.stack.Ul, s.U, Diagonal(mc.stack.Dl))
         end
         # [T^-1 D_min^-1 (Ul + D_min T Ur G^-1 Dr_max^-1) Dr_min^-1 Tl^†]^-1
         @bm "B3" begin
             # D_min T Ur G^-1 Dr_max^-1
-            vmul!(s.U, s.T, mc.s.Ur)
-            rdivp!(s.U, s.greens, mc.s.Ur, mc.s.pivot)
-            vmin!(mc.s.Dl, s.D)
-            vmul!(mc.s.Ur, Diagonal(mc.s.Dl), s.U)
-            vmaxinv!(mc.s.Dl, mc.s.Dr)
-            vmul!(mc.s.Tr, mc.s.Ur, Diagonal(mc.s.Dl))
+            vmul!(s.U, s.T, mc.stack.Ur)
+            rdivp!(s.U, s.greens, mc.stack.Ur, mc.stack.pivot)
+            vmin!(mc.stack.Dl, s.D)
+            vmul!(mc.stack.Ur, Diagonal(mc.stack.Dl), s.U)
+            vmaxinv!(mc.stack.Dl, mc.stack.Dr)
+            vmul!(mc.stack.Tr, mc.stack.Ur, Diagonal(mc.stack.Dl))
         end
         # [T^-1 D_min^-1 (Ul + Tr) Dr_min^-1 Tl^†]^-1
         @bm "sum, udt" begin
-            rvadd!(mc.s.Tr, mc.s.Ul)
-            udt_AVX_pivot!(mc.s.Ul, mc.s.Dl, mc.s.Tr, mc.s.pivot, mc.s.tempv, Val(false))
+            rvadd!(mc.stack.Tr, mc.stack.Ul)
+            udt_AVX_pivot!(mc.stack.Ul, mc.stack.Dl, mc.stack.Tr, mc.stack.pivot, mc.stack.tempv, Val(false))
         end
         # [T^-1 D_min^-1 Ul Dl Tr Dr_min^-1 Tl^-1]^-1
         # Tl ({[(Dr_min / Tr) Dl^-1] Ul^†} D_min) T
         @bm "B4" begin
-            vmin!(mc.s.Dr, mc.s.Dr)
-            copyto!(s.U, Diagonal(mc.s.Dr))
-            rdivp!(s.U, mc.s.Tr, mc.s.Ur, mc.s.pivot)
-            vinv!(mc.s.Dl)
-            vmul!(mc.s.Ur, s.U, Diagonal(mc.s.Dl))
-            vmul!(s.U, mc.s.Ur, adjoint(mc.s.Ul))
+            vmin!(mc.stack.Dr, mc.stack.Dr)
+            copyto!(s.U, Diagonal(mc.stack.Dr))
+            rdivp!(s.U, mc.stack.Tr, mc.stack.Ur, mc.stack.pivot)
+            vinv!(mc.stack.Dl)
+            vmul!(mc.stack.Ur, s.U, Diagonal(mc.stack.Dl))
+            vmul!(s.U, mc.stack.Ur, adjoint(mc.stack.Ul))
             vmin!(s.D, s.D)
-            vmul!(mc.s.Ur, s.U, Diagonal(s.D))
+            vmul!(mc.stack.Ur, s.U, Diagonal(s.D))
         end
         # Tl Ur T
         @bm "B6" begin
-            vmul!(mc.s.Tr, mc.s.Ur, s.T)
-            vmul!(s.greens, mc.s.Tl, mc.s.Tr)
+            vmul!(mc.stack.Tr, mc.stack.Ur, s.T)
+            vmul!(s.greens, mc.stack.Tl, mc.stack.Tr)
             rmul!(s.greens, -1.0)
         end
     end
@@ -647,7 +647,7 @@ struct GreensIterator{slice1, slice2, T <: DQMC} <: AbstractUnequalTimeGreensIte
 end
 
 """
-    GreensIterator(mc::DQMC[, ks=Colon(), ls=0, recalculate=4mc.p.safe_mult])
+    GreensIterator(mc::DQMC[, ks=Colon(), ls=0, recalculate=4mc.parameters.safe_mult])
 
 Creates an Iterator which calculates all `[G[k <- l] for l in ls for k in ks]`
 efficiently. Currently only allows `ks = :, ls::Integer`. 
@@ -665,50 +665,50 @@ the UnequalTimeStack must not be overwritten. As such:
 - `greens!(mc, k, l)` will break iteration but remains valid (call before iterating)
 """
 function GreensIterator(
-        mc::T, slice1 = Colon(), slice2 = 0, recalculate = 4mc.p.safe_mult
+        mc::T, slice1 = Colon(), slice2 = 0, recalculate = 4mc.parameters.safe_mult
     ) where {T <: DQMC}
     GreensIterator{slice1, slice2, T}(mc, recalculate)
 end
 init!(it::GreensIterator) = initialize_stack(it.mc, it.mc.ut_stack)
-Base.length(it::GreensIterator{:, i}) where {i} = it.mc.p.slices + 1 - i
+Base.length(it::GreensIterator{:, i}) where {i} = it.mc.parameters.slices + 1 - i
 
 # Slower, versatile version:
 function Base.iterate(it::GreensIterator{:, i}) where {i}
     s = it.mc.ut_stack
     calculate_greens_full1!(it.mc, s, i, i)
     copyto!(s.T, s.greens)
-    udt_AVX_pivot!(s.U, s.D, s.T, it.mc.s.pivot, it.mc.s.tempv)
-    G = _greens!(it.mc, it.mc.s.curr_U, s.greens, it.mc.s.Ur)
+    udt_AVX_pivot!(s.U, s.D, s.T, it.mc.stack.pivot, it.mc.stack.tempv)
+    G = _greens!(it.mc, it.mc.stack.curr_U, s.greens, it.mc.stack.Ur)
     return (G, (i+1, i))
 end
 function Base.iterate(it::GreensIterator{:}, state)
     s = it.mc.ut_stack
     k, l = state
-    if k > it.mc.p.slices
+    if k > it.mc.parameters.slices
         return nothing
     elseif k % it.recalculate == 0
         # Recalculate
         calculate_greens_full1!(it.mc, s, k, l) # writes s.greens
-        G = _greens!(it.mc, it.mc.s.curr_U, s.greens, it.mc.s.Tl)
+        G = _greens!(it.mc, it.mc.stack.curr_U, s.greens, it.mc.stack.Tl)
         copyto!(s.T, s.greens)
-        udt_AVX_pivot!(s.U, s.D, s.T, it.mc.s.pivot, it.mc.s.tempv)
+        udt_AVX_pivot!(s.U, s.D, s.T, it.mc.stack.pivot, it.mc.stack.tempv)
         return (G, (k+1, l))
-    elseif k % it.mc.p.safe_mult == 0
+    elseif k % it.mc.parameters.safe_mult == 0
         # Stabilization
         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.U)
-        vmul!(it.mc.s.curr_U, s.U, Diagonal(s.D))
-        vmul!(it.mc.s.tmp1, it.mc.s.curr_U, s.T)
-        udt_AVX_pivot!(s.U, s.D, it.mc.s.curr_U, it.mc.s.pivot, it.mc.s.tempv)
-        vmul!(it.mc.s.tmp2, it.mc.s.curr_U, s.T)
-        copyto!(s.T, it.mc.s.tmp2)
-        G = _greens!(it.mc, it.mc.s.curr_U, it.mc.s.tmp1, it.mc.s.tmp2)
+        vmul!(it.mc.stack.curr_U, s.U, Diagonal(s.D))
+        vmul!(it.mc.stack.tmp1, it.mc.stack.curr_U, s.T)
+        udt_AVX_pivot!(s.U, s.D, it.mc.stack.curr_U, it.mc.stack.pivot, it.mc.stack.tempv)
+        vmul!(it.mc.stack.tmp2, it.mc.stack.curr_U, s.T)
+        copyto!(s.T, it.mc.stack.tmp2)
+        G = _greens!(it.mc, it.mc.stack.curr_U, it.mc.stack.tmp1, it.mc.stack.tmp2)
         return (G, (k+1, l))
     else
         # Quick advance
         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.U)
-        vmul!(it.mc.s.curr_U, s.U, Diagonal(s.D))
-        vmul!(it.mc.s.tmp1, it.mc.s.curr_U, s.T)
-        G = _greens!(it.mc, it.mc.s.curr_U, it.mc.s.tmp1, it.mc.s.Ur)
+        vmul!(it.mc.stack.curr_U, s.U, Diagonal(s.D))
+        vmul!(it.mc.stack.tmp1, it.mc.stack.curr_U, s.T)
+        G = _greens!(it.mc, it.mc.stack.curr_U, it.mc.stack.tmp1, it.mc.stack.Ur)
         s.last_slices = (-1, -1) # for safety
         return (G, (k+1, l))
     end
@@ -728,7 +728,7 @@ end
 
 
 """
-    CombinedGreensIterator(mc::DQMC, recalculate=4mc.p.safe_mult)
+    CombinedGreensIterator(mc::DQMC, recalculate=4mc.parameters.safe_mult)
 
 Returns an iterator which iterates `[(G[k, 0], G[k, k]) for k in 0:nslices-1]`. 
 Does a full recalculation of `G[k, 0]` and `G[k, k]` if `k % recalculate == 0`.
@@ -749,7 +749,7 @@ struct CombinedGreensIterator{T <: DQMC} <: AbstractUnequalTimeGreensIterator
 end
 
 function CombinedGreensIterator(
-        mc::T, model::Model; recalculate = 2mc.p.safe_mult, max_delta=1e-7
+        mc::T, model::Model; recalculate = 2mc.parameters.safe_mult, max_delta=1e-7
     ) where T
     if recalculate === nothing
         iter = CombinedGreensIterator{T}(mc, typemax(Int64))
@@ -759,7 +759,7 @@ function CombinedGreensIterator(
         CombinedGreensIterator{T}(mc, recalculate)
     end
 end
-function CombinedGreensIterator(mc::T; recalculate = 2mc.p.safe_mult, max_delta=1e-7) where T
+function CombinedGreensIterator(mc::T; recalculate = 2mc.parameters.safe_mult, max_delta=1e-7) where T
     if recalculate === nothing
         iter = CombinedGreensIterator{T}(mc, typemax(Int64))
         recalc = estimate_recalculate(iter, max_delta)
@@ -779,7 +779,7 @@ Base.length(it::CombinedGreensIterator) = nslices(it.mc)
 
 # Fast specialized version
 function Base.iterate(it::CombinedGreensIterator)
-    s = it.mc.s
+    s = it.mc.stack
     uts = it.mc.ut_stack
 
     # Need full built stack for curr_U to be save
@@ -798,22 +798,22 @@ function Base.iterate(it::CombinedGreensIterator)
     vsub!(s.Tr, s.Tl, I)
 
     # 
-    udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, it.mc.s.pivot, it.mc.s.tempv)
+    udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, it.mc.stack.pivot, it.mc.stack.tempv)
     copyto!(uts.U, s.Ul)
     copyto!(uts.D, s.Dl)
     copyto!(uts.T, s.Tl)
 
     # G01 = (G00-I)B_1^-1; then G0l+1 = G0l B_{l+1}^-1
-    udt_AVX_pivot!(s.Ur, s.Dr, s.Tr, it.mc.s.pivot, it.mc.s.tempv)
+    udt_AVX_pivot!(s.Ur, s.Dr, s.Tr, it.mc.stack.pivot, it.mc.stack.tempv)
 
     return iterate(it, 1)
 end
 # probably need extra temp variables
 function Base.iterate(it::CombinedGreensIterator, l)
     # l is 1-based
-    s = it.mc.s
+    s = it.mc.stack
     uts = it.mc.ut_stack
-    if l > it.mc.p.slices
+    if l > it.mc.parameters.slices
         return nothing
     elseif l % it.recalculate == 0 
         # Recalculation will overwrite 
@@ -842,7 +842,7 @@ function Base.iterate(it::CombinedGreensIterator, l)
 
         return ((G0l, Gl0, Gll), l+1)
 
-    elseif (l % it.recalculate) % it.mc.p.safe_mult == 0
+    elseif (l % it.recalculate) % it.mc.parameters.safe_mult == 0
         # Stabilization        
         # Reminder: These overwrite s.tmp1 and s.tmp2
         multiply_slice_matrix_left!(it.mc, it.mc.model, l, s.Ul) 
@@ -872,10 +872,10 @@ function Base.iterate(it::CombinedGreensIterator, l)
         # Gll
         vmul!(uts.tmp, uts.U, Diagonal(uts.D))
         vmul!(uts.greens, uts.tmp, uts.T)
-        udt_AVX_pivot!(s.curr_U, uts.D, uts.tmp, it.mc.s.pivot, it.mc.s.tempv)
+        udt_AVX_pivot!(s.curr_U, uts.D, uts.tmp, it.mc.stack.pivot, it.mc.stack.tempv)
         vmul!(uts.U, uts.tmp, uts.T)
         vmul!(uts.T, Diagonal(uts.D), uts.U)
-        udt_AVX_pivot!(uts.tmp, uts.D, uts.T, it.mc.s.pivot, it.mc.s.tempv)
+        udt_AVX_pivot!(uts.tmp, uts.D, uts.T, it.mc.stack.pivot, it.mc.stack.tempv)
         vmul!(uts.U, s.curr_U, uts.tmp)
         Gll = _greens!(it.mc, uts.greens, uts.greens, s.curr_U)
 

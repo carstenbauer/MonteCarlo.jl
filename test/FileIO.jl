@@ -88,8 +88,8 @@ end
 
 
 function test_dqmc(mc, x)
-    for f in fieldnames(typeof(mc.p))
-        @test getfield(mc.p, f) == getfield(x.p, f)
+    for f in fieldnames(typeof(mc.parameters))
+        @test getfield(mc.parameters, f) == getfield(x.parameters, f)
     end
     # @test mc.conf == x.conf
     @test mc.model.mu == x.model.mu
@@ -99,6 +99,7 @@ function test_dqmc(mc, x)
         @test getfield(mc.model.l, f) == getfield(x.model.l, f)
     end
     @test mc.model.flv == x.model.flv
+    @test mc.scheduler == x.scheduler
     for (k, v) in mc.thermalization_measurements
         for f in fieldnames(typeof(v))
             r = if getfield(v, f) isa LightObservable
@@ -114,7 +115,7 @@ function test_dqmc(mc, x)
     end
     for (k, v) in mc.measurements
         for f in fieldnames(typeof(v))
-            v isa MonteCarlo.DQMCMeasurement && f == :output && continue
+            v isa MonteCarlo.DQMCMeasurement && f == :temp && continue
             r = if getfield(v, f) isa LightObservable
                 # TODO
                 # implement == for LightObservable in MonteCarloObservable
@@ -150,6 +151,10 @@ function test_dqmc(mc, x)
     nothing
 end
 
+for file in readdir()
+    (endswith(file, "jld") || endswith(file, "jld2")) && rm(file)
+end
+
 @testset "DQMC" begin
     model = HubbardModelAttractive(4, 2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
@@ -183,13 +188,13 @@ end
 
     state = run!(
         mc, verbose = false,
-        safe_before = now() + Second(1),
+        safe_before = now() + Second(2),
         grace_period = Millisecond(0),
         resumable_filename = "resumable_testfile.jld2"
     )
 
     @test state == false
-    cs = deepcopy(mc.configs)
+    cs = deepcopy(mc.recorder)
     @assert length(cs) > 1 "No measurements have been taken. Test with more time!"
     L = length(cs)
 
@@ -204,7 +209,7 @@ end
     )
 
     @test state == false
-    cs = deepcopy(mc.configs)
+    cs = deepcopy(mc.recorder)
     @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
     @test isfile("resumable_testfile.jld2")
 
@@ -213,7 +218,7 @@ end
     model = HubbardModelAttractive(2, 2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, sweeps=100length(cs), measure_rate=100)
     state = run!(mc, verbose = false)
-    @test mc.configs.configs == cs.configs
-    @test mc.configs.rate == cs.rate
+    @test mc.recorder.configs == cs.configs
+    @test mc.recorder.rate == cs.rate
     rm("resumable_testfile.jld2")
 end

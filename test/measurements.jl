@@ -1,7 +1,6 @@
 IsingMeasurement = MonteCarlo.IsingMeasurement
 AbstractObservable = MonteCarloObservable.AbstractObservable
 
-struct DummyModel <: Model end
 struct DummyMeasurement <: AbstractMeasurement end
 
 @testset "Type Hierarchy" begin
@@ -160,8 +159,8 @@ end
 end
 
 function calc_measured_greens(mc::DQMC, G::Matrix)
-    eThalfminus = mc.s.hopping_matrix_exp
-    eThalfplus = mc.s.hopping_matrix_exp_inv
+    eThalfminus = mc.stack.hopping_matrix_exp
+    eThalfplus = mc.stack.hopping_matrix_exp_inv
 
     eThalfplus * G * eThalfminus
 end
@@ -169,18 +168,18 @@ end
 @testset "Measured Greens function" begin
     m = HubbardModelAttractive(8, 2, mu=0.5)
     mc = DQMC(m, beta=5.0, safe_mult=1)
-    MonteCarlo.build_stack(mc, mc.s)
+    MonteCarlo.build_stack(mc, mc.stack)
     MonteCarlo.propagate(mc)
 
     # greens(mc) matches expected output
-    @test greens(mc) ≈ calc_measured_greens(mc, mc.s.greens)
+    @test greens(mc) ≈ calc_measured_greens(mc, mc.stack.greens)
 
     # wrap greens test
     for k in 0:9
-        MonteCarlo.wrap_greens!(mc, mc.s.greens, mc.s.current_slice - k, -1)
+        MonteCarlo.wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice - k, -1)
     end
     # greens(mc) matches expected output
-    @test greens(mc) ≈ calc_measured_greens(mc, mc.s.greens)
+    @test greens(mc) ≈ calc_measured_greens(mc, mc.stack.greens)
 end
 
 # @testset "Uniform Fourier" begin

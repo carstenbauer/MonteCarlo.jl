@@ -36,8 +36,8 @@ end
 @testset "Slice Matrices" begin
     m = HubbardModelAttractive(8, 1)
     dqmc = DQMC(m, beta=5.0)
-    eT = dqmc.s.hopping_matrix_exp
-    eV = similar(dqmc.s.eV)
+    eT = dqmc.stack.hopping_matrix_exp
+    eV = similar(dqmc.stack.eV)
     A = similar(eT)
 
 
@@ -92,41 +92,41 @@ end
         # MonteCarlo.slice_matrix
         @test maximum(abs,
             MonteCarlo.slice_matrix(dqmc, m, slice, 1.) .- eT * eT * eV
-        ) < 2dqmc.p.delta_tau
+        ) < 2dqmc.parameters.delta_tau
         @test maximum(abs,
             MonteCarlo.slice_matrix(dqmc, m, slice, -1.) .- inv(eT * eT * eV)
-        ) < 2dqmc.p.delta_tau
+        ) < 2dqmc.parameters.delta_tau
         MonteCarlo.slice_matrix!(dqmc, m, slice, 1., A)
-        @test maximum(abs, A .- eT * eT * eV) < 2dqmc.p.delta_tau
+        @test maximum(abs, A .- eT * eT * eV) < 2dqmc.parameters.delta_tau
         MonteCarlo.slice_matrix!(dqmc, m, slice, -1., A)
-        @test maximum(abs, A .- inv(eT * eT * eV)) < 2dqmc.p.delta_tau
+        @test maximum(abs, A .- inv(eT * eT * eV)) < 2dqmc.parameters.delta_tau
 
         # MonteCarlo.multiply_slice_matrix...
         A = eT * eT * eV
         input = rand(size(A)...)
         result = A * input
         MonteCarlo.multiply_slice_matrix_left!(dqmc, m, slice, input)
-        @test maximum(abs, input .- result) < 2dqmc.p.delta_tau
+        @test maximum(abs, input .- result) < 2dqmc.parameters.delta_tau
         input = rand(size(A)...)
         result = input * A
         MonteCarlo.multiply_slice_matrix_right!(dqmc, m, slice, input)
-        @test maximum(abs, input .- result) < 2dqmc.p.delta_tau
+        @test maximum(abs, input .- result) < 2dqmc.parameters.delta_tau
 
         A = inv(eT * eT * eV)
         input = rand(size(A)...)
         result = A * input
         MonteCarlo.multiply_slice_matrix_inv_left!(dqmc, m, slice, input)
-        @test maximum(abs, input .- result) < 2dqmc.p.delta_tau
+        @test maximum(abs, input .- result) < 2dqmc.parameters.delta_tau
         input = rand(size(A)...)
         result = input * A
         MonteCarlo.multiply_slice_matrix_inv_right!(dqmc, m, slice, input)
-        @test maximum(abs, input .- result) < 2dqmc.p.delta_tau
+        @test maximum(abs, input .- result) < 2dqmc.parameters.delta_tau
 
         A = adjoint(eT * eT * eV)
         input = rand(size(A)...)
         result = A * input
         MonteCarlo.multiply_daggered_slice_matrix_left!(dqmc, m, slice, input)
-        @test maximum(abs, input .- result) < 2dqmc.p.delta_tau
+        @test maximum(abs, input .- result) < 2dqmc.parameters.delta_tau
     end
 end
 
@@ -144,58 +144,60 @@ using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
             A = rand(type, 16, 16)
             B = rand(type, 16, 16)
             C = rand(type, 16, 16)
+            atol = 100eps(Float64)
+            type == ComplexF64 && (atol *= sqrt(2))
 
             vmul!(C, A, B)
-            @test A * B ≈ C
+            @test A * B ≈ C atol = atol
 
             vmul!(C, A, B')
-            @test A * B' ≈ C
+            @test A * B' ≈ C atol = atol
 
             vmul!(C, A', B)
-            @test A' * B ≈ C
+            @test A' * B ≈ C atol = atol
 
             D = Diagonal(rand(16))
             vmul!(C, A, D)
-            @test A * D ≈ C
+            @test A * D ≈ C atol = atol
 
             copyto!(C, A)
             rvmul!(C, D)
-            @test A * D ≈ C
+            @test A * D ≈ C atol = atol
 
             copyto!(C, A)
             lvmul!(D, C)
-            @test D * A ≈ C
+            @test D * A ≈ C atol = atol
 
             copyto!(C, A)
             rvadd!(C, D)
-            @test A + D ≈ C
+            @test A + D ≈ C atol = atol
 
             copyto!(C, A)
             rvadd!(C, B)
-            @test A + B ≈ C
+            @test A + B ≈ C atol = atol
 
             vsub!(C, A, I)
-            @test A - I ≈ C
+            @test A - I ≈ C atol = atol
 
             if type == Float64
                 v = rand(16) .+ 0.5
                 w = copy(v)
                 
                 vmin!(v, w)
-                @test v ≈ min.(1.0, w)
+                @test v ≈ min.(1.0, w) atol = atol
 
                 vmininv!(v, w)
-                @test v ≈ 1.0 ./ min.(1.0, w)
+                @test v ≈ 1.0 ./ min.(1.0, w) atol = atol
                 
                 vmax!(v, w)
-                @test v ≈ max.(1.0, w)
+                @test v ≈ max.(1.0, w) atol = atol
 
                 vmaxinv!(v, w)
-                @test v ≈ 1.0 ./ max.(1.0, w)
+                @test v ≈ 1.0 ./ max.(1.0, w) atol = atol
 
                 v = copy(w)
                 vinv!(w)
-                @test w ≈ 1.0 ./ v
+                @test w ≈ 1.0 ./ v atol = atol
             end
         end
 
@@ -297,6 +299,7 @@ using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
     @testset "BlockDiagonal" begin
         b1 = rand(4, 4)
         b2 = rand(4, 4)
+        atol = 100eps(Float64)
 
         B = BlockDiagonal(b1, b2)
         @test B isa BlockDiagonal{Float64, 2, Matrix{Float64}}
@@ -321,39 +324,39 @@ using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
         # Test avx multiplications
         vmul!(B1, B2, B3)
         vmul!(M1, M2, M3)
-        @test M1 == B1
+        @test M1 ≈ B1 atol = atol
 
         vmul!(B1, B2, adjoint(B3))
         vmul!(M1, M2, adjoint(M3))
-        @test M1 == B1
+        @test M1 ≈ B1
 
         vmul!(B1, adjoint(B2), B3)
         vmul!(M1, adjoint(M2), M3)
-        @test M1 == B1
+        @test M1 ≈ B1 atol = atol
 
         D = Diagonal(rand(8))
         vmul!(B1, B2, D)
         vmul!(M1, M2, D)
-        @test M1 == B1
+        @test M1 ≈ B1 atol = atol
 
         rvmul!(B1, D)
         rvmul!(M1, D)
-        @test M1 == B1
+        @test M1 ≈ B1 atol = atol
 
         lvmul!(D, B1)
         lvmul!(D, M1)
-        @test M1 == B1
+        @test M1 ≈ B1 atol = atol
 
         rvadd!(B1, D)
         rvadd!(M1, D)
-        @test M1 ≈ B1
+        @test M1 ≈ B1 atol = atol
 
         rvadd!(B1, B2)
         rvadd!(M1, M2)
-        @test M1 ≈ B1
+        @test M1 ≈ B1 atol = atol
 
         vsub!(B1, B2, I)
-        @test M2 - I ≈ B1
+        @test M2 - I ≈ B1 atol = atol
 
         # Test UDT and rdivp!
         M2 = Matrix(B2)

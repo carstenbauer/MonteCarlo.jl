@@ -6,7 +6,7 @@ using Reexport
 import MonteCarloObservable.AbstractObservable
 using Parameters, Requires
 using TimerOutputs, LoopVectorization, StructArrays
-using Printf, SparseArrays, LinearAlgebra, Dates, Statistics
+using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random, Distributed
 
 import JLD, JLD2
 # To allow switching between JLD and JLD2:
@@ -41,18 +41,23 @@ include("lattices/deprecated.jl")
 # export directions, RawMask, DistanceMask # maybe getorder?
 export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
 export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, 
-        EachLocalQuadByDistance, EachLocalQuadBySyncedDistance, Sum
+        EachLocalQuadByDistance, EachLocalQuadBySyncedDistance, 
+        Sum, ApplySymmetries
 export neighbors, directions
 
 include("flavors/MC/MC.jl")
-include("flavors/DQMC/DQMC.jl")
+include("flavors/DQMC/main.jl")
 export Greens, GreensAt, CombinedGreensIterator
 export boson_energy_measurement, greens_measurement, occupation, magnetization
 export charge_density, charge_density_correlation, charge_density_susceptibility
 export spin_density, spin_density_correlation, spin_density_susceptibility
 export pairing, pairing_correlation, pairing_susceptibility
-export current_current_susceptibility
+export current_current_susceptibility, superfluid_density
 export noninteracting_energy, interacting_energy, total_energy
+
+export EmptyScheduler, SimpleScheduler, AdaptiveScheduler
+export Adaptive, NoUpdate, LocalSweep, GlobalFlip, GlobalShuffle
+export ReplicaExchange, ReplicaPull, connect, disconnect
 # export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")

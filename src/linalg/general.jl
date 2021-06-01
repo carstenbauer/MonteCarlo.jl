@@ -15,12 +15,12 @@ function vmul!(C::Matrix{T}, A::Matrix{T}, B::Matrix{T}) where {T <: Real}
 end
 function vmul!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}) where {T <: Real}
     @avx for m in 1:size(A, 1), n in 1:size(A, 2)
-        C[m,n] = A[m,n] * B[n,n]
+        C[m,n] = A[m,n] * B.diag[n]
     end
 end
 function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}) where {T <: Real}
     @avx for m in 1:size(C, 1), n in 1:size(C, 2)
-        C[m,n] = A[m,m] * B[m,n]
+        C[m,n] = A.diag[m] * B[m,n]
     end
 end
 function vmul!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}) where {T <: Real}
@@ -56,7 +56,7 @@ function vmul!(C::Matrix{T}, X1::Transpose{T}, X2::Transpose{T}) where {T <: Rea
 end
 function rvmul!(A::Matrix{T}, B::Diagonal{T}) where {T <: Real}
     @avx for m in 1:size(A, 1), n in 1:size(A, 2)
-        A[m,n] = A[m,n] * B[n,n]
+        A[m,n] = A[m,n] * B.diag[n]
     end
 end
 function lvmul!(A::Diagonal{T}, B::Matrix{T}) where {T <: Real}
