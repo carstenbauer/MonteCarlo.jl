@@ -84,8 +84,8 @@ function initialize_stack(mc::DQMC, s::UnequalTimeStack)
     s.T = GreensMatType(undef, flv*N, flv*N)
 
     # To avoid recalculating
-    last_update = -1
-    last_slices = (-1, -1)
+    s.last_update = -1
+    s.last_slices = (-1, -1)
 
     # maybe skip identities?
     copyto!(s.forward_u_stack[1], I)
