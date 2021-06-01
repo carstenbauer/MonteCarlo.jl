@@ -62,8 +62,8 @@ begin
     @time dqmcs = pmap(simulate, [1.0, 0.0])
     @everywhere MonteCarlo.reset_timer!()
     @time dqmcs = pmap(simulate, [1.0, 0.0])
-    MonteCarlo.show_statistics(dqmcs[1].scheduler)
-    MonteCarlo.show_statistics(dqmcs[2].scheduler)
+    MonteCarlo.show_statistics(stdout, dqmcs[1].scheduler)
+    MonteCarlo.show_statistics(stdout, dqmcs[2].scheduler)
 end
 
 TOs = pmap(_ -> MonteCarlo.TimerOutputs.DEFAULT_TIMER, workers());

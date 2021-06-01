@@ -56,23 +56,30 @@ end
 
 
 # 2 process barrier
-const wait_for = Channel{Int}(1)
-waiting_on() = isready(wait_for) ? take!(wait_for) : -1
-function wait_for_remote(id, timeout=Inf)
-    t0 = time()
-    put!(wait_for, id)
-    maybe_me = remotecall_fetch(waiting_on, id)
+const barrier_counter = Ref(1)
+const waiting_list = Set{Tuple{Int, Int}}()
 
-    if maybe_me != myid()
-        while !isempty(wait_for)
-            time() - t0 > timeout && return false
-            yield()
-        end
-    else
+function wait_for(id, counter)
+    push!(waiting_list, (id, counter))
+    filter!(x -> x[2] >= barrier_counter[], waiting_list)
+    nothing
+end
+
+function wait_for_remote(ids::Int...; timeout=Inf)
+    t0 = time()
+    for trg in ids
+        remotecall(wait_for, trg, myid(), barrier_counter[])
+    end
+    
+    while !all(trg -> (trg, barrier_counter[]) in waiting_list, ids)
         yield()
-        isready(wait_for) && take!(wait_for)
+        if time() - t0 > timeout
+            barrier_counter[] += 1
+            return false
+        end
     end
 
+    barrier_counter[] += 1
     return true
 end
 
@@ -113,7 +120,7 @@ name(::ReplicaExchange) = "ReplicaExchange"
 @bm function update(u::ReplicaExchange, mc, model)
     # Need to sync at the start here because else th weights might be based on different confs
     # barrier
-    if !wait_for_remote(u.target, u.timeout)
+    if !wait_for_remote(u.target, timeout = u.timeout)
         return 0
     end
 
