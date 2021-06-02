@@ -6,6 +6,9 @@ makedocs(
     sitename = "MonteCarlo.jl",
     pages = [
         "Introduction" => "index.md",
+        "DQMC" => [
+            "Introduction" => "DQMC/Introduction.md",
+        ],
         "Legacy" => [
             "Introduction" => "legacy/index.md",
             "Manual" => [
