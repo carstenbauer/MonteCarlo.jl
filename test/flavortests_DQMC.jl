@@ -39,7 +39,7 @@ end
     @test_throws ErrorException MonteCarlo.nflavors(m)
     @test_throws MethodError MonteCarlo.hopping_matrix(dqmc, m)
     @test_throws MethodError MonteCarlo.interaction_matrix_exp!(dqmc, m, zeros(2,2), zeros(2,2), 1, 1.0)
-    @test_throws MethodError MonteCarlo.propose_local(dqmc, m, 1, zeros(2,2))
+    @test_throws MethodError MonteCarlo.propose_local(dqmc, m, 1, 1, zeros(2,2))
     @test_throws MethodError MonteCarlo.accept_local!(dqmc, m, 1, 1, zeros(2,2), 1.0, 1.0, nothing)
 
     MonteCarlo.nflavors(::DummyModel) = 2
@@ -50,7 +50,7 @@ end
     @test MonteCarlo.interaction_matrix_type(DQMC, m) == Matrix{ComplexF64}
     @test MonteCarlo.init_interaction_matrix(m) == zeros(ComplexF64, 8, 8)
     @test_throws MethodError MonteCarlo.energy_boson(dqmc, m, MonteCarlo.conf(dqmc))
-    
+    @test parameters(m) == NamedTuple()
 end
 
 @testset "DQMC stack" begin
