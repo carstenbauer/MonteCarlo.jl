@@ -63,3 +63,6 @@ This is required for global and parallel updates as well as boson energy
 measurements.
 """
 energy_boson(mc::DQMC, m::Model, conf) = throw(MethodError(energy_boson, (mc, m, conf)))
+
+# Should collect the parameters of the model and lattice in a named tuple
+parameters(m::Model) = NamedTuple()

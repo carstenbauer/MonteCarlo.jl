@@ -38,7 +38,7 @@ hopping_matrix(mc::DQMC, m::Model) = throw(MethodError(hopping_matrix, (mc, m)))
 
 """
     interaction_matrix_exp!(
-        mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.
+        mc::DQMC, m::Model, result::AbstractArray, conf, slice::Int, power::Float64=1.
     ) -> nothing
 
 Calculate the interaction matrix exponential 
@@ -50,7 +50,7 @@ This is a performance critical method and one might consider efficient in-place
 (in `result`) construction.
 """
 function interaction_matrix_exp!(
-        mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.
+        mc::DQMC, m::Model, result::AbstractArray, conf, slice::Int, power::Float64=1.
     )
     throw(MethodError(interaction_matrix_exp!, (mc, m, result, conf, slice, power)))
 end
@@ -66,8 +66,8 @@ forwarded to `accept_local!`).
 
 See also [`accept_local!`](@ref).
 """
-function propose_local(mc::DQMC, m::Model, i::Int, conf)
-    throw(MethodError(propose_local, (mc, m, i, conf)))
+function propose_local(mc::DQMC, m::Model, i, slice, conf)
+    throw(MethodError(propose_local, (mc, m, i, slice, conf)))
 end
 
 """
