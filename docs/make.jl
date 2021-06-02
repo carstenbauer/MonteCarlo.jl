@@ -8,8 +8,9 @@ makedocs(
         "Introduction" => "index.md",
         "DQMC" => [
             "Introduction" => "DQMC/Introduction.md",
-            "Lattices" => "DQMC/lattice.md",
             "Model" => "DQMC/model.md",
+            "Lattices" => "DQMC/lattice.md",
+            "DQMC" => "DQMC/dqmc.md",
         ],
         "Legacy" => [
             "Introduction" => "legacy/index.md",
