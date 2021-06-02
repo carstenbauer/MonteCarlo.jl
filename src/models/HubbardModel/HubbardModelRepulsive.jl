@@ -111,7 +111,7 @@ and store it in `result::Matrix`.
 This is a performance critical method.
 """
 @inline @bm function interaction_matrix_exp!(mc::DQMC, model::HubbardModelRepulsive,
-            result, conf::HubbardConf, slice::Int, power::Float64=1.)
+            result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
     dtau = mc.parameters.delta_tau
     lambda = acosh(exp(0.5 * model.U * dtau))
     N = length(lattice(model))
