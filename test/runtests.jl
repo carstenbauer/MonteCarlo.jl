@@ -1,4 +1,5 @@
-using MonteCarlo, MonteCarloObservable, StableDQMC
+@time using MonteCarlo, MonteCarloObservable, StableDQMC
+#  3.567540 seconds (7.22 M allocations: 469.081 MiB, 4.08% gc time, 0.34% compilation time)
 using Test
 using LinearAlgebra, Random, Dates
 using MonteCarlo: @bm, TimerOutputs
@@ -37,7 +38,8 @@ macro benchmark_test(name, code)
 end
 
 @testset "All Tests" begin
-    @testset "Utilities" begin
+    println("Utilities")
+    @time @testset "Utilities" begin
         @bm function test1(x, y)
             sleep(x+y)
         end
@@ -63,38 +65,55 @@ end
         disable_benchmarks()
         @test !MonteCarlo.timeit_debug_enabled()
     end
+    # 0.473232 seconds (778.10 k allocations: 47.050 MiB, 2.72% gc time, 99.50% compilation time)
 
-    @testset "Lattices" begin
+    println("Lattices")
+    @time @testset "Lattices" begin
         include("lattices.jl")
     end
+    # 26.765963 seconds (50.23 M allocations: 2.407 GiB, 3.35% gc time, 58.25% compilation time)
 
-    @testset "Models" begin
+    println("Model")
+    @time @testset "Models" begin
         include("modeltests_IsingModel.jl")
         include("modeltests_HubbardModel.jl")
     end
+    # 11.418479 seconds (29.34 M allocations: 1.301 GiB, 4.78% gc time, 7.60% compilation time)
 
-    @testset "Flavors" begin
+    println("DQMC")
+    @time @testset "Flavors" begin
         # include("flavortests_MC.jl")
         include("flavortests_DQMC.jl")
     end
+    # 61.075442 seconds (107.31 M allocations: 6.180 GiB, 4.44% gc time, 5.18% compilation time)
 
-    @testset "Scheduler & (DQMC) Updates" begin
+    println("Scheduler")
+    @time @testset "Scheduler & (DQMC) Updates" begin
         include("updates.jl")
     end
+    # 12.962446 seconds (17.87 M allocations: 1017.561 MiB, 2.51% gc time, 7.02% compilation time)
 
-    @testset "Measurements" begin
+    println("Measurement")
+    @time @testset "Measurements" begin
         include("measurements.jl")
     end
+    # 13.129428 seconds (21.85 M allocations: 1.240 GiB, 4.31% gc time, 2.01% compilation time)
 
-    @testset "Intergration tests" begin
+    println("Integration")
+    @time @testset "Intergration tests" begin
         include("integration_tests.jl")
     end
+    # 20.755311 seconds (39.02 M allocations: 2.359 GiB, 3.11% gc time, 12.65% compilation time)
 
-    @testset "Exact Diagonalization" begin
+    println("ED")
+    @time @testset "Exact Diagonalization" begin
         include("ED/ED_tests.jl")
     end
+    # 61.415264 seconds (49.97 M allocations: 12.824 GiB, 2.79% gc time, 10.31% compilation time)
 
-    @testset "File IO" begin
+    println("File IO")
+    @time @testset "File IO" begin
         include("FileIO.jl")
     end
+    # 81.479393 seconds (120.31 M allocations: 5.953 GiB, 2.20% gc time, 5.36% compilation time)
 end
