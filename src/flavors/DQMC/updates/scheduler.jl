@@ -39,32 +39,6 @@ abstract type AbstractLocalUpdate <: AbstractUpdate end
 
 
 
-# Should this inherit from AbstractUpdate?
-# This is required for AdaptiveScheduler, used by both
-mutable struct AcceptanceStatistics{Update <: AbstractUpdate}
-    accepted::Float64
-    total::Int
-    update::Update
-end
-AcceptanceStatistics(update) = AcceptanceStatistics(0.0, 0, update)
-AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
-AcceptanceStatistics(proxy::Adaptive) = proxy
-name(w::AcceptanceStatistics) = name(w.update)
-function update(w::AcceptanceStatistics, mc, m)
-    accepted = update(w.update, mc, m)
-    w.total += 1
-    w.accepted += accepted
-    return accepted
-end
-function Base.show(io::IO, u::AcceptanceStatistics)
-    @printf(io,
-        "%s with %i/%i = %0.1f%c accepted", 
-        name(u), u.accepted, u.total, u.accepted/max(1, u.accepted), '%'
-    )
-end
-
-
-
 """
     NoUpdate([mc, model])
 
@@ -88,6 +62,32 @@ A placeholder for adaptive updates in the `AdaptiveScheduler`.
 """
 struct Adaptive <: AbstractUpdate end
 name(::Adaptive) = "Adaptive"
+
+
+
+# Should this inherit from AbstractUpdate?
+# This is required for AdaptiveScheduler, used by both
+mutable struct AcceptanceStatistics{Update <: AbstractUpdate}
+    accepted::Float64
+    total::Int
+    update::Update
+end
+AcceptanceStatistics(update) = AcceptanceStatistics(0.0, 0, update)
+AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
+AcceptanceStatistics(proxy::Adaptive) = proxy
+name(w::AcceptanceStatistics) = name(w.update)
+function update(w::AcceptanceStatistics, mc, m)
+    accepted = update(w.update, mc, m)
+    w.total += 1
+    w.accepted += accepted
+    return accepted
+end
+function Base.show(io::IO, u::AcceptanceStatistics)
+    @printf(io,
+        "%s with %i/%i = %0.1f%c accepted", 
+        name(u), u.accepted, u.total, u.accepted/max(1, u.accepted), '%'
+    )
+end
 
 
 
