@@ -12,7 +12,7 @@ makedocs(
             "Lattices" => "DQMC/lattice.md",
             "DQMC" => "DQMC/dqmc.md",
             "Configuration Recorder" => "DQMC/recorder.md",
-            
+            "Update Scheduler" => "DQMC/scheduler.md",
         ],
         "Legacy" => [
             "Introduction" => "legacy/index.md",
