@@ -13,6 +13,7 @@ makedocs(
             "DQMC" => "DQMC/dqmc.md",
             "Configuration Recorder" => "DQMC/recorder.md",
             "Update Scheduler" => "DQMC/scheduler.md",
+            "Measurements" => "DQMC/measurements.md",
         ],
         "Legacy" => [
             "Introduction" => "legacy/index.md",
