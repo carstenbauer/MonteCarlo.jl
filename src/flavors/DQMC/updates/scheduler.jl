@@ -65,6 +65,32 @@ name(::Adaptive) = "Adaptive"
 
 
 
+# Should this inherit from AbstractUpdate?
+# This is required for AdaptiveScheduler, used by both
+mutable struct AcceptanceStatistics{Update <: AbstractUpdate}
+    accepted::Float64
+    total::Int
+    update::Update
+end
+AcceptanceStatistics(update) = AcceptanceStatistics(0.0, 0, update)
+AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
+AcceptanceStatistics(proxy::Adaptive) = proxy
+name(w::AcceptanceStatistics) = name(w.update)
+function update(w::AcceptanceStatistics, mc, m)
+    accepted = update(w.update, mc, m)
+    w.total += 1
+    w.accepted += accepted
+    return accepted
+end
+function Base.show(io::IO, u::AcceptanceStatistics)
+    @printf(io,
+        "%s with %i/%i = %0.1f%c accepted", 
+        name(u), u.accepted, u.total, u.accepted/max(1, u.accepted), '%'
+    )
+end
+
+
+
 ################################################################################
 ### SimpleScheduler
 ################################################################################
@@ -193,7 +219,7 @@ If all updates drop to 0 sampling rate, `NoUpdate()` is performed instead.
 (`NoUpdate()` is always added and has a static probability of `1e-10`.)
 
 ### Keyword Arguments:
-- `minimum_sampling_rate = 0.01`: This defines the threshhold under which the 
+- `minimum_sampling_rate = 0.01`: This defines the threshold under which the 
 sampling rate is set to 0.
 - `grace_period = 99`: This sets a minimum number of times an update needs to 
 be called before its sampling rate is adjusted. 
@@ -352,32 +378,6 @@ function _load(data, ::Type{<: AdaptiveScheduler})
     s.adaptive_rate = data["adaptive_rate"]
     s.idx = data["idx"]
     s
-end
-
-
-
-# Should this inherit from AbstractGlobalUpdate?
-# This is required for AdaptiveScheduler
-mutable struct AcceptanceStatistics{Update <: AbstractUpdate}
-    accepted::Float64
-    total::Int
-    update::Update
-end
-AcceptanceStatistics(update) = AcceptanceStatistics(0.0, 0, update)
-AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
-AcceptanceStatistics(proxy::Adaptive) = proxy
-name(w::AcceptanceStatistics) = name(w.update)
-function update(w::AcceptanceStatistics, mc, m)
-    accepted = update(w.update, mc, m)
-    w.total += 1
-    w.accepted += accepted
-    return accepted
-end
-function Base.show(io::IO, u::AcceptanceStatistics)
-    @printf(io,
-        "%s with %i/%i = %0.1f%c accepted", 
-        name(u), u.accepted, u.total, u.accepted/max(1, u.accepted), '%'
-    )
 end
 
 

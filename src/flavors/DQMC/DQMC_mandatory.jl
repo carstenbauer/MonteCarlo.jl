@@ -3,7 +3,7 @@
 
 Draw random configuration.
 """
-Base.rand(::Type{DQMC}, m::Model, nslices::Int) = throw(MethodError(rand, (DQMC, m, nslices)))
+Base.rand(::Type{DQMC}, m::Model, nslices) = throw(MethodError(rand, (DQMC, m, nslices)))
 
 
 """
@@ -38,7 +38,7 @@ hopping_matrix(mc::DQMC, m::Model) = throw(MethodError(hopping_matrix, (mc, m)))
 
 """
     interaction_matrix_exp!(
-        mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.
+        mc::DQMC, m::Model, result::AbstractArray, conf, slice::Int, power::Float64=1.
     ) -> nothing
 
 Calculate the interaction matrix exponential 
@@ -49,9 +49,7 @@ not the interaction.
 This is a performance critical method and one might consider efficient in-place 
 (in `result`) construction.
 """
-function interaction_matrix_exp!(
-        mc::DQMC, m::Model, result::Matrix, conf, slice::Int, power::Float64=1.
-    )
+function interaction_matrix_exp!(mc::DQMC, m::Model, result::AbstractArray, conf, slice, power=1.0)
     throw(MethodError(interaction_matrix_exp!, (mc, m, result, conf, slice, power)))
 end
 
@@ -66,8 +64,8 @@ forwarded to `accept_local!`).
 
 See also [`accept_local!`](@ref).
 """
-function propose_local(mc::DQMC, m::Model, i::Int, conf)
-    throw(MethodError(propose_local, (mc, m, i, conf)))
+function propose_local(mc::DQMC, m::Model, i, slice, conf)
+    throw(MethodError(propose_local, (mc, m, i, slice, conf)))
 end
 
 """
@@ -79,8 +77,6 @@ correspond to output of `propose_local` for that local move.
 
 See also [`propose_local`](@ref).
 """
-function accept_local!(
-        mc::DQMC, m::Model, i::Int, slice::Int, conf, detratio, ΔE_boson, passthrough
-    )
+function accept_local!(mc::DQMC, m::Model, i, slice, conf, detratio, ΔE_boson, passthrough)
     throw(MethodError(accept_local!, (mc, m, i, slice, conf, detratio, ΔE_boson, passthrough)))
 end

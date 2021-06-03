@@ -170,7 +170,7 @@ See also: [`resume!`](@ref)
         safe_before::TimeType = now() + Year(100),
         safe_every::TimePeriod = Hour(10000),
         grace_period::TimePeriod = Minute(5),
-        resumable_filename::String = "resumable_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld",
+        resumable_filename::String = "resumable_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld2",
         overwrite = false
     )
 
