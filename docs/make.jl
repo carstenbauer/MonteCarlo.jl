@@ -11,6 +11,8 @@ makedocs(
             "Model" => "DQMC/model.md",
             "Lattices" => "DQMC/lattice.md",
             "DQMC" => "DQMC/dqmc.md",
+            "Configuration Recorder" => "DQMC/recorder.md",
+            
         ],
         "Legacy" => [
             "Introduction" => "legacy/index.md",
