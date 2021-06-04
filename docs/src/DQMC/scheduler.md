@@ -82,9 +82,11 @@ The `ReplicaExchange(target)` update requires a target worker, and it requires t
 
 The idea of a replica exchange update is to propose swapping configurations between two simulations. The exchange is based on the product of both of their acceptance probabilities. With $C_i$ the configuration of simulation $i$ and $w_i(C)$ the weight of simulation $i$ with the given configuration the acceptance probability is given by
 
+```math
 \begin{equation}
     p = \frac{w_1(C_2)}{w_1(C_1)} \cdot \frac{w_2(C_1)}{w_2(C_2)}
 \end{equation}
+```
 
 #### ReplicaPull
 

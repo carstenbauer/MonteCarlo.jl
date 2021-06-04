@@ -29,11 +29,11 @@ The spin density correlation $\langle S_\gamma S_\gamma \rangle$ in x-, y- or z-
 
 #### Pairing
 
-The pairing susceptibility $\Delta_v(src1, trg1)(\tau) \Delta_v^\dagger(src2, trg2)(0)$ can be calculated with `pairing_susceptibility(dqmc, model)`. The $\tau = 0$ pairing correlation follows from `pairing_correlation(dqmc, model)`.
+The pairing susceptibility $\Delta_v(s_1, t_1)(\tau) \Delta_v^\dagger(s_2, t_2)(0)$ can be calculated with `pairing_susceptibility(dqmc, model)`. The $\tau = 0$ pairing correlation follows from `pairing_correlation(dqmc, model)`.
 
 #### Current-Current Susceptibility
 
-`current_current_susceptibility(dqmc, model)` measures $\langle j_{t_2 - s_2}(s_2, l) j_{t_1 - s_1}(s_1, 0)\rangle$ with $j{t - s}(s, \tau) = \lange i \sum_\sigma [T_{ts} c_t^\dagger(\tau) c_s(\tau) - T_{st} c_s^\dagger(\tau) c_t(\tau)] \rangle$ where $i^2 = -1$ and $T$ is the hopping matrix.
+`current_current_susceptibility(dqmc, model)` measures $\langle j_{t_2 - s_2}(s_2, l) j_{t_1 - s_1}(s_1, 0)\rangle$ with $j_{t - s}(s, \tau) = \lange i \sum_\sigma [T_{ts} c_t^\dagger(\tau) c_s(\tau) - T_{st} c_s^\dagger(\tau) c_t(\tau)] \rangle$ where $i^2 = -1$ and $T$ is the hopping matrix.
 
 #### Superfluid Density
 

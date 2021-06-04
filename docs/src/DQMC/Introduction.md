@@ -4,7 +4,7 @@ Determinant Quantum Monte Carlo is a Quantum Monte Carlo algorithm for fermionic
 
 The minimal working example for a DQMC simulation is the following.
 
-```@example
+```julia
 using MonteCarlo
 
 model = HubbardModelAttractive(4, 2)
@@ -22,9 +22,11 @@ If you are interested in the derivation of DQMC you may check [Introduction to Q
 
 If you want to go through the source code, compare it and verify for yourself that it is correct there a couple of things that should be pointed out. Most educational sources use the assymmetric two term Suzuki-Trotter decomposition. We use the symmetric three term version for increased accuracy.
 
+```math
 \begin{align}
     B(l) = e^{-\Delta\tau \sum_l T+V(l)} = \prod_j e^{-\Delta\tau T/2} e^{-\Delta\tau V} e^{-\Delta\tau T/2} + \mathcal{O}(\Delta\tau^2)
 \end{align}
+```
 
 This change is however no trivial as the first or last element of the $B$ matrix/operator needs to be an exponentiated interaction. To get this we use an effective greens function, which cyclically permutes one exponentiation hopping term to the other end of the chain. This adjustment needs to be undone for the actual greens function, which happens in `greens()`.
 
