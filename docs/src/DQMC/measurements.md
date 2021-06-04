@@ -33,7 +33,7 @@ The pairing susceptibility $\Delta_v(s_1, t_1)(\tau) \Delta_v^\dagger(s_2, t_2)(
 
 #### Current-Current Susceptibility
 
-`current_current_susceptibility(dqmc, model)` measures $\langle j_{t_2 - s_2}(s_2, l) j_{t_1 - s_1}(s_1, 0)\rangle$ with $j_{t - s}(s, \tau) = \lange i \sum_\sigma [T_{ts} c_t^\dagger(\tau) c_s(\tau) - T_{st} c_s^\dagger(\tau) c_t(\tau)] \rangle$ where $i^2 = -1$ and $T$ is the hopping matrix.
+`current_current_susceptibility(dqmc, model)` measures ``\langle j_{t_2 - s_2}(s_2, l) j_{t_1 - s_1}(s_1, 0)\rangle$ with $j_{t - s}(s, \tau) = \lange i \sum_\sigma [T_{ts} c_t^\dagger(\tau) c_s(\tau) - T_{st} c_s^\dagger(\tau) c_t(\tau)] \rangle`` where $i^2 = -1$ and $T$ is the hopping matrix.
 
 #### Superfluid Density
 

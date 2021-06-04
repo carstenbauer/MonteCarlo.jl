@@ -20,12 +20,10 @@ In the following pages we will discuss the various components that go into a DQM
 
 If you are interested in the derivation of DQMC you may check [Introduction to Quantum Monte Carlo Simulations for fermionic Systems](https://doi.org/10.1590/S0103-97332003000100003), the book [Quantum Monte Carlo Methods](https://doi.org/10.1017/CBO9780511902581) or [World-line and Determinantal Quantum Monte Carlo Methods for Spins, Phonons and Electrons](https://doi.org/10.1007/978-3-540-74686-7_10). The first reference is most in-line with the implementation of this package.
 
-If you want to go through the source code, compare it and verify for yourself that it is correct there a couple of things that should be pointed out. Most educational sources use the assymmetric two term Suzuki-Trotter decomposition. We use the symmetric three term version for increased accuracy.
+If you want to go through the source code, compare it and verify for yourself that it is correct there a couple of things that should be pointed out. Most educational sources use the asymmetric two term Suzuki-Trotter decomposition. We use the symmetric three term version for increased accuracy.
 
 ```math
-\begin{align}
-    B(l) = e^{-\Delta\tau \sum_l T+V(l)} = \prod_j e^{-\Delta\tau T/2} e^{-\Delta\tau V} e^{-\Delta\tau T/2} + \mathcal{O}(\Delta\tau^2)
-\end{align}
+B(l) = e^{-\Delta\tau \sum_l T+V(l)} = \prod_j e^{-\Delta\tau T/2} e^{-\Delta\tau V} e^{-\Delta\tau T/2} + \mathcal{O}(\Delta\tau^2)
 ```
 
 This change is however no trivial as the first or last element of the $B$ matrix/operator needs to be an exponentiated interaction. To get this we use an effective greens function, which cyclically permutes one exponentiation hopping term to the other end of the chain. This adjustment needs to be undone for the actual greens function, which happens in `greens()`.

@@ -7,9 +7,7 @@ The `Model` is an abstract type whose concrete versions should implement lightwe
 The attractive (negative $U$) Hubbard model is given by
 
 ```math
-\begin{align}
-    \mathcal{H} = -t \sum_{\langle i,j \rangle, \sigma} \left( c^\dagger_{i\sigma} c_{j\sigma} + \text{h.c.} \right) - |U| \sum_j \left( n_{j\uparrow} - \frac{1}{2} \right) \left( n_{j\downarrow} - \frac{1}{2} \right) - \mu\sum_j n_{j},
-\end{align}
+\mathcal{H} = -t \sum_{\langle i,j \rangle, \sigma} \left( c^\dagger_{i\sigma} c_{j\sigma} + \text{h.c.} \right) - |U| \sum_j \left( n_{j\uparrow} - \frac{1}{2} \right) \left( n_{j\downarrow} - \frac{1}{2} \right) - \mu\sum_j n_{j},
 ```
 
 where $\sigma$ denotes spin, $t$ is the hopping amplitude, $U$ the on-site attractive interaction strength, $\mu$ the chemical potential and $\langle i, j \rangle$ indicates that the sum has to be taken over nearest neighbors. Note that (1) is written in particle-hole symmetric form such that $\mu = 0$ corresponds to half-filling.
@@ -21,9 +19,7 @@ The parameters $U = 1.0$, $t = 1.0$ and $\mu = 0$ as well as the lattice are sav
 The repulsive (positive $U$) Hubbard model is given by
 
 ```math
-\begin{align}
-    \mathcal{H} = -t \sum_{\langle i,j \rangle, \sigma} \left( c^\dagger_{i\sigma} c_{j\sigma} + \text{h.c.} \right) + |U| \sum_j \left( n_{j\uparrow} - \frac{1}{2} \right) \left( n_{j\downarrow} - \frac{1}{2} \right),
-\end{align}
+\mathcal{H} = -t \sum_{\langle i,j \rangle, \sigma} \left( c^\dagger_{i\sigma} c_{j\sigma} + \text{h.c.} \right) + |U| \sum_j \left( n_{j\uparrow} - \frac{1}{2} \right) \left( n_{j\downarrow} - \frac{1}{2} \right),
 ```
 
 where $\sigma$ denotes spin, $t$ is the hopping amplitude, $U$ the on-site repulsive interaction strength and $\langle i, j \rangle$ indicates that the sum has to be taken over nearest neighbors. This model does not include a chemical potential due to the sign problem.
