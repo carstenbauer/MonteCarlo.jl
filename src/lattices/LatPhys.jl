@@ -33,19 +33,19 @@ end
 @inline Base.length(l::LatPhysLattice) = numSites(l.lattice)
 @inline Base.ndims(l::LatPhysLattice) = ndims(l.lattice)
 function Base.size(l::LatPhysLattice)
-    N = numSites(l.lattice)
-    n = numSites(l.lattice.unitcell)
-    D = ndims(l)
-
-    @debug "Assuming lattice has equal size in each dimension"
-    N_ucs = div(N, n)
-    L = N_ucs^(1/D)
-    l = round(Int64, L)
-    if l - L ≈ 0.0
-        return tuple((l for _ in 1:D)...)
-    else
-        error("The computed linear system size does not match the number of sites.")
+    lattice_extend = latticeVectors(l.lattice)
+    uc_extend = latticeVectors(unitcell(l.lattice))
+    Ls = map(lattice_extend, uc_extend) do lv, ucv
+        scaling = lv ./ ucv
+        if all(x -> x ≈ scaling[1], scaling)
+            return scaling[1]
+        else
+            @warn "Irregular scaling of unitcell vectors $scaling"
+            NaN
+        end
     end
+
+    return tuple(Int64.(Ls)...)
 end
 
 @inline function neighbors(l::LatPhysLattice, directed::Val{true})

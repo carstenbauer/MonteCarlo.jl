@@ -321,7 +321,7 @@ function current_current_susceptibility(
     Measurement(dqmc, model, greens_iterator, li, cc_kernel; kwargs...)
 end
 function superfluid_density(
-        dqmc::DQMC, model::Model, L; 
+        dqmc::DQMC, model::Model, Ls = size(lattice(model)); 
         K = 1+length(neighbors(lattice(model), 1)), 
         capacity = _default_capacity(dqmc),
         obs = LogBinner(ComplexF64(0), capacity=capacity),
@@ -329,7 +329,36 @@ function superfluid_density(
     )
     @assert K > 1
     dirs = directions(lattice(model))
-    dir_idxs = 2:K
+
+    # Note: this only works with 2d vecs
+    # Note: longs and trans are epsilon-vectors, i.e. they're the smallest 
+    # step we can take in discrete reciprocal space
+    lvecs = lattice_vectors(lattice(model))
+    uc_vecs = lvecs ./ Ls
+    prefactor = 2pi / dot(lvcecs...)
+    rvecs = map(lv -> prefactor * cross([lv; 0], [0, 0, 1])[1, 2], lvecs)
+
+    # Note: this only works for 2d lattices... maybe
+    longs = []
+    trans = []
+    dir_idxs = []
+    for i in 2:K
+        if -uc_vecs[1] ≈ dirs[i] || uc_vecs[1] ≈ dirs[i]
+            push!(longs, rvecs[1])
+            push!(trans, rvecs[2])
+            push!(dir_idxs, i)
+        elseif -uc_vecs[2] ≈ dirs[i] || uc_vecs[2] ≈ dirs[i]
+            push!(longs, rvecs[2])
+            push!(trans, rvecs[1])
+            push!(dir_idxs, i)
+        else
+            # We kinda need the i, j from R = i*a_1 + j*a_2 here so we can
+            # construct the matching reciprocal vectors here
+            @error("Skipping $(dirs[i]) - not a nearest neighbor")
+        end
+    end
+
+    #=
     longs = normalize.(dirs[2:K]) * 1/L
     trans = map(dirs[2:K]) do v
         n = [normalize(v)..., 0]
@@ -338,6 +367,7 @@ function superfluid_density(
     end
     longs .*= 2pi
     trans .*= 2pi
+    =#
     li = SuperfluidDensity{EachLocalQuadBySyncedDistance{K}}(
         dir_idxs, longs, trans
     )
