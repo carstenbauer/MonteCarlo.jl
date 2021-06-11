@@ -15,6 +15,9 @@ makedocs(
             "Update Scheduler" => "DQMC/scheduler.md",
             "Measurements" => "DQMC/measurements.md",
         ],
+        "Examples" => [
+            "examples/triangular_Hubbard.md"
+        ],
         "Legacy" => [
             "Introduction" => "legacy/index.md",
             "Manual" => [
