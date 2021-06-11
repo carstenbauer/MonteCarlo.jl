@@ -2,6 +2,8 @@
 
 This example implements the model from the paper [Attractive Hubbard model on a triangular lattice](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.48.3976). This also serves as a cross-check for the DQMC and a few measurements, such as pairing correlations and occupations. 
 
+#### Simulation
+
 In the paper simulations were done with $500-1000$ sweeps and $\Delta\tau = 0.125$. The first figure is done with interaction strength $U = -4$, linear system size $L = 4$ at $\beta = 2, 5, 7$ for varying $\mu$. The following simulations should take about 2 minutes.
 
 ```julia
@@ -9,7 +11,7 @@ using MonteCarlo
 
 betas = (2.0, 5.0, 7.0)
 mus = vcat(-2.0, -1.5, -1.25:0.05:-1.0, -0.8:0.2:0.8, 0.9:0.05:1.25, 1.5, 2.0)
-lattice = TriangularLattice(4)
+lattice = TriangularLattice(6)
 dqmcs = []
 
 counter = 0
@@ -30,6 +32,8 @@ counter = 0
     push!(dqmcs, dqmc)
 end
 ```
+
+#### Processing Data
 
 After running all the simulations we need to do a little bit of post-processing on the measured data. 
 
@@ -66,6 +70,8 @@ for i in 0:2
     push!(Δpcs, dpcs)
 end
 ```
+
+#### Plotting
 
 With the data in a processed form we can now plot it. To make comparison easier, we plot our data directly over figure 1 from our [reference](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.48.397).
 
@@ -110,3 +116,15 @@ CairoMakie.save(joinpath(p, "docs/src/examples/assets/fig1_comparison.png"), fig
 ```
 
 ![](assets/fig1_comparison.png)
+
+#### Other runs
+
+The [paper](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.48.3976) has two more versions of the above plot for system sizes $L = 6$ and $L = 8$. These show significantly different results.
+
+For $L = 6$ we use `mus = vcat(-2.0:0.25:-0.25, -0.1:0.1:1.1, 1.25, 1.5, 2.0)` with the same parameters other than that. The simulation should take about 5 minutes.
+
+![](assets/fig2_comparison.png)
+
+For $L=8$ we use `mus = vcat(-2.0:0.5:-0.5, -0.1:0.1:1.1, 1.25, 1.5, 2.0)`. The resulting simulation takes about 25min.
+
+![](assets/fig3_comparison.png)
