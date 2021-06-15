@@ -114,6 +114,6 @@ has_bonds_table(::TriangularLattice) = HasBondsTable()
 
 function positions(l::TriangularLattice)
     idxs = l.lattice |> CartesianIndices .|> Tuple .|> collect
-    [[0.5, 0.8660254037844386] * idx[1] + [1, 0] * idx[2] for idx in idxs]
+    [[-0.5, 0.8660254037844386] * idx[1] + [1, 0] * idx[2] for idx in idxs]
 end
 lattice_vectors(l::TriangularLattice) = [[0.5, 0.8660254037844386] * l.Lx, [l.Ly, 0]]
