@@ -103,7 +103,7 @@ end
 
 
 """
-    magnetization_measurement(mc, model, dir[; lattice_iterator, kwargs...])
+    magnetization(mc, model, dir[; lattice_iterator, kwargs...])
 
 Returns the x, y or z magnetization measurement given `dir = :x`, `:y` or `:z`
 respectively.
@@ -335,8 +335,8 @@ function superfluid_density(
     # step we can take in discrete reciprocal space
     lvecs = lattice_vectors(lattice(model))
     uc_vecs = lvecs ./ Ls
-    prefactor = 2pi / dot(lvcecs...)
-    rvecs = map(lv -> prefactor * cross([lv; 0], [0, 0, 1])[1, 2], lvecs)
+    prefactor = 2pi / dot(lvecs...)
+    rvecs = map(lv -> prefactor * cross([lv; 0], [0, 0, 1])[[1, 2]], uc_vecs)
 
     # Note: this only works for 2d lattices... maybe
     longs = []
