@@ -146,9 +146,9 @@ To show what measurement we are taking, let us go through the derivation for cha
 
 Here we expanded the term into creation and annihilation operators, applied Wicks theorem and finally used $G_{ij}^{ss^\prime} = \langle c_i c_j^\dagger \rangle$ to express the term with Greens function elements. (We note that expectation values of two creation or two annihilation operators are always zero in DQMC and therefore dropped.) For the attractive Hubbard model, greens function elements with different spins $G_{ij}^{ss^\prime}$ are zero and $G_{ij}^{\uparrow\uparrow} = G_{ij}^{\downarrow\downarrow}$. Thus the full expectation value is given by
 
-\begin{equation}
+```math
 \langle n_i n_j \rangle = 4 (1 - G_{ii}^{ss}) (1 - G_{jj}^{s^\prime s^\prime}) + 2 (\delta_{ij} \delta_{ss^\prime} - G_{ji}^{s^\prime s}) G_{ij}^{ss^\prime}
-\end{equation}
+```
 
 This is what is implemented in MonteCarlo.jl. The paper on the other hand seems to only use the second term of this, and double the prefactor. Thus we will need to implement our own measurement. 
 
