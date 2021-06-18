@@ -17,17 +17,27 @@ end
 
 # constructors
 Operator(d, idxs...) = Operator(d, collect(idxs))
-create(indices...) = Operator(true, indices)
-annihilate(indices...) = Operator(false, indices)
+create(indices...) = Operator(true, collect(indices))
+annihilate(indices...) = Operator(false, collect(indices))
 c(indices...) = annihilate(indices...)
 cd(indices...) = create(indices...)
+
+struct Literal{T}
+    x::T
+end
+
+struct ExpectationValue{T}
+    x::T
+end
 
 # base extensions
 Base.:(==)(a::Operator, b::Operator) = a.daggered == b.daggered && a.indices == b.indices
 LinearAlgebra.adjoint(o::Operator) = Operator(!o.daggered, o.indices)
 const OpOrExpr = Union{Operator, MyExpr}
+Base.:(-)(a::OpOrExpr) = MyExpr(:*, Literal(-1), a)
 Base.:(*)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:*, a, b)
 Base.:(+)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:+, a, b)
+Base.:(-)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:+, a, Literal(-1), b)
 Base.:(*)(a::OpOrExpr, b::OpOrExpr, c, ds...) = *(MyExpr(:*, a, b), c, ds...)
 Base.:(+)(a::OpOrExpr, b::OpOrExpr, c, ds...) = +(MyExpr(:+, a, b), c, ds...)
 
@@ -51,6 +61,8 @@ function print_expr(e::MyExpr)
     e.head != :* && print(")")
     nothing
 end
+print_expr(l::Literal) = print(l.x)
+print_expr(e::ExpectationValue) = begin print("⟨"); print_expr(e.x); print("⟩") end
 print_expr(e) = print(e)
 
 
@@ -128,8 +140,7 @@ end
 
 
 # Wicks theorem
-# ⟨abcd⟩ ->  ⟨ab⟩⟨cd⟩ + ⟨ac⟩⟨bd⟩ + ⟨ad⟩⟨bc⟩
-# TODO: fix this sign ^
+# ⟨abcd⟩ ->  ⟨ab⟩⟨cd⟩ - ⟨ac⟩⟨bd⟩ + ⟨ad⟩⟨bc⟩ etc
 function wicks(e)
     if e.head == :+
         products = _wicks.(e.args)
@@ -142,13 +153,24 @@ end
 function _wicks(e)
     @assert e.head == :*
     @assert all(x -> x isa Operator, e.args)
-    combos = generate_pairings(e.args)
-    MyExpr(:+, map(c -> MyExpr(:*, c...), combos)...)
+    skip = filter(i -> !(e.args[i] isa Operator), eachindex(e.args))
+    groups = generate_pairings(e.args, copy(skip))
+    products = map(enumerate(groups)) do (i, g)
+        evs = map(p -> ExpectationValue(MyExpr(:*, p...)), g)
+        if isodd(i)
+            # index 1 3 5 ... have even numbers pair-permutations
+            MyExpr(:*, e.args[skip]..., evs...)
+        else
+            MyExpr(:*, Literal(-1), e.args[skip]..., evs...)
+            # vcat(Literal(-1), e.args[skip], g)
+        end
+    end
+    MyExpr(:+, products...)
 end
 
 function generate_pairings(v::Vector{T}, skip=Int[]) where T
     @assert length(v) % 2 == 0
-    combos = Vector{Pair{T}}[]
+    combos = Vector{Any}[]
     first_idx = findfirst(i -> !(i in skip), eachindex(v))
     push!(skip, first_idx)
 
@@ -158,7 +180,7 @@ function generate_pairings(v::Vector{T}, skip=Int[]) where T
                 rest = generate_pairings(v, [skip; i])
                 append!(combos, [vcat(Pair(v[first_idx], v[i]), r) for r in rest])
             else
-                push!(combos, Pair(v[first_idx], v[i]))
+                push!(combos, [Pair(v[first_idx], v[i])])
             end
         end
     end
