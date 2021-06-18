@@ -28,13 +28,14 @@ ExpectationValue(x::MyExpr) = MyExpr(:ExpectationValue, x)
 struct ArrayElement
     daggered::Bool
     indices::Vector{Any}
+    ArrayElement(d::Bool, idxs::Vector) = new(d, idxs)
 end
-ArrayElement(idxs...) = ArrayElement(collect(idxs))
+ArrayElement(idxs...) = ArrayElement(false, collect(idxs))
 
 # base extensions
 Base.:(==)(a::Operator, b::Operator) = a.daggered == b.daggered && a.indices == b.indices
 LinearAlgebra.adjoint(o::Operator) = Operator(!o.daggered, o.indices)
-const OpOrExpr = Union{Operator, MyExpr}
+const OpOrExpr = Union{ArrayElement, Operator, MyExpr}
 Base.:(-)(a::OpOrExpr) = MyExpr(:*, Literal(-1), a)
 Base.:(*)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:*, a, b)
 Base.:(+)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:+, a, b)
@@ -64,6 +65,7 @@ function print_expr(e::MyExpr)
     e.head == :+ && print(")")
     nothing
 end
+print_expr(e::ArrayElement) = print("A_{", join(string.(e.indices), ", "), "}")
 print_expr(e) = print(e)
 
 
