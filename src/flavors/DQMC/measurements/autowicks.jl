@@ -22,13 +22,14 @@ annihilate(indices...) = Operator(false, collect(indices))
 c(indices...) = annihilate(indices...)
 cd(indices...) = create(indices...)
 
-struct Literal{T}
-    x::T
-end
+Literal(x, args...) = MyExpr(:Literal, x, args...)
+ExpectationValue(x::MyExpr) = MyExpr(:ExpectationValue, x)
 
-struct ExpectationValue{T}
-    x::T
+struct ArrayElement
+    daggered::Bool
+    indices::Vector{Any}
 end
+ArrayElement(idxs...) = ArrayElement(collect(idxs))
 
 # base extensions
 Base.:(==)(a::Operator, b::Operator) = a.daggered == b.daggered && a.indices == b.indices
@@ -50,19 +51,19 @@ function Base.show(io::IO, o::Operator)
     join(io, string.(o.indices), ", ")
     print(io, "}")
 end
-Base.string(idx::VarIndex) = "ID$(idx.ID)"
 
 function print_expr(e::MyExpr)
-    e.head != :* && print("(")
+
+    e.head == :+ && print("(")
+    e.head == :ExpectationValue && print("⟨")
     for (i, child) in enumerate(e.args)
-        i != 1 && print(" ", e.head, " ")
+        i > 1 && print(" ", e.head, " ")
         print_expr(child)
     end
-    e.head != :* && print(")")
+    e.head == :ExpectationValue && print("⟩")
+    e.head == :+ && print(")")
     nothing
 end
-print_expr(l::Literal) = print(l.x)
-print_expr(e::ExpectationValue) = begin print("⟨"); print_expr(e.x); print("⟩") end
 print_expr(e) = print(e)
 
 
@@ -120,6 +121,11 @@ function _expand(e::MyExpr)
                 i += 1
             end
         end
+    elseif e.head == :ExpectationValue
+        if e.args[1].head == :+
+            terms = [MyExpr(:ExpectationValue, x) for x in e.args[1].args]
+            return MyExpr(:+, terms...)
+        end
     end
     return e
 end
@@ -143,8 +149,10 @@ end
 # ⟨abcd⟩ ->  ⟨ab⟩⟨cd⟩ - ⟨ac⟩⟨bd⟩ + ⟨ad⟩⟨bc⟩ etc
 function wicks(e)
     if e.head == :+
-        products = _wicks.(e.args)
+        products = wicks.(e.args)
         MyExpr(:+, products...)
+    elseif e.head == :ExpectationValue
+        wicks(e.args[1])
     else
         _wicks(e)
     end
@@ -156,7 +164,7 @@ function _wicks(e)
     skip = filter(i -> !(e.args[i] isa Operator), eachindex(e.args))
     groups = generate_pairings(e.args, copy(skip))
     products = map(enumerate(groups)) do (i, g)
-        evs = map(p -> ExpectationValue(MyExpr(:*, p...)), g)
+        evs = map(p -> MyExpr(:ExpectationValue, MyExpr(:*, p...)), g)
         if isodd(i)
             # index 1 3 5 ... have even numbers pair-permutations
             MyExpr(:*, e.args[skip]..., evs...)
