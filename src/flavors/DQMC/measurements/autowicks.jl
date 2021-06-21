@@ -1,72 +1,104 @@
+using Base: Callable
+# TODO
+# - need to re-add spin index
+# because that's a variable shift
+
 import LinearAlgebra
 
 # We wanna implement some special stuff which might be bad for Base.Expr
 struct MyExpr
     e::Expr
+
+    function MyExpr(e::Expr)
+        if e.head == :call
+            new(Expr(e.args...))
+        else
+            new(e)
+        end
+    end
 end
 MyExpr(args...) = MyExpr(flatten_once(Expr(args...)))
 Base.getproperty(e::MyExpr, field::Symbol) = getproperty(getfield(e, :e), field)
 Base.:(==)(a::MyExpr, b::MyExpr) = getfield(a, :e) == getfield(b, :e)
+expr2myexpr(x::Expr) = MyExpr(x)
+expr2myexpr(x) = x
 
 
 # I.e. a c or c^†
-struct Operator
+struct Operator{T1 <: Union{Integer, MyExpr, Symbol}, T2 <: Union{Integer, MyExpr, Symbol}}
+    name::Symbol
     daggered::Bool
-    indices::Vector{Any}
+    index::T1
+    time::T2
+    function Operator(n, d, i, t)
+        _i = expr2myexpr(i); _t = expr2myexpr(t)
+        new{typeof(_i), typeof(_t)}(n, d, _i, _t)
+    end
 end
 
 # constructors
-Operator(d, idxs...) = Operator(d, collect(idxs))
-create(indices...) = Operator(true, collect(indices))
-annihilate(indices...) = Operator(false, collect(indices))
-c(indices...) = annihilate(indices...)
-cd(indices...) = create(indices...)
+create(idx, time=0; name = :c) = Operator(name, true, idx, time)
+annihilate(idx, time=0; name = :c) = Operator(name, false, idx, time)
+c(idx, time=0; name = :c) = annihilate(idx, time, name=name)
+cd(idx, time=0; name = :c) = create(idx, time, name=name)
 
 Literal(x, args...) = MyExpr(:Literal, x, args...)
 ExpectationValue(x::MyExpr) = MyExpr(:ExpectationValue, x)
 
 struct ArrayElement
+    name::Symbol
     daggered::Bool
-    indices::Vector{Any}
-    ArrayElement(d::Bool, idxs::Vector) = new(d, idxs)
+    indices::Vector{Union{Integer, MyExpr, Symbol}}
+    ArrayElement(name::Symbol, d::Bool, idxs::Vector) = new(name, d, expr2myexpr.(idxs))
 end
-ArrayElement(idxs...) = ArrayElement(false, collect(idxs))
+ArrayElement(name::Symbol, idxs...) = ArrayElement(name, false, collect(idxs))
 
 # base extensions
-Base.:(==)(a::Operator, b::Operator) = a.daggered == b.daggered && a.indices == b.indices
-LinearAlgebra.adjoint(o::Operator) = Operator(!o.daggered, o.indices)
+function Base.:(==)(a::Operator, b::Operator)
+    a.name == b.name && a.daggered == b.daggered && a.index == b.index && a.time == b.time
+end
+LinearAlgebra.adjoint(o::Operator) = Operator(o.name, !o.daggered, o.index, o.time)
 const OpOrExpr = Union{ArrayElement, Operator, MyExpr}
 Base.:(-)(a::OpOrExpr) = MyExpr(:*, Literal(-1), a)
 Base.:(*)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:*, a, b)
 Base.:(+)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:+, a, b)
-Base.:(-)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:+, a, Literal(-1), b)
+Base.:(-)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:+, a, -b)
 Base.:(*)(a::OpOrExpr, b::OpOrExpr, c, ds...) = *(MyExpr(:*, a, b), c, ds...)
 Base.:(+)(a::OpOrExpr, b::OpOrExpr, c, ds...) = +(MyExpr(:+, a, b), c, ds...)
 
 
 # just printing
 function Base.show(io::IO, o::Operator)
-    print(io, "c")
+    print(io, o.name)
     o.daggered && print(io, "^†")
-    print(io, "_{")
-    join(io, string.(o.indices), ", ")
-    print(io, "}")
+    print(io, "_{", string(o.index), "}(", o.time, ")")
 end
 
-function print_expr(e::MyExpr)
-
-    e.head == :+ && print("(")
-    e.head == :ExpectationValue && print("⟨")
+ print_expr(e::MyExpr) = print_expr(stdout, e)
+function print_expr(io::IO, e::MyExpr)
+    _print_expr(io, e)
+    println(io)
+end
+function _print_expr(io, e::MyExpr)
+    e.head == :+ && print(io, "(")
+    e.head == :ExpectationValue && print(io, "⟨")
     for (i, child) in enumerate(e.args)
-        i > 1 && print(" ", e.head, " ")
-        print_expr(child)
+        i > 1 && print(io, " ", e.head, " ")
+        _print_expr(io, child)
     end
-    e.head == :ExpectationValue && print("⟩")
-    e.head == :+ && print(")")
+    e.head == :ExpectationValue && print(io, "⟩")
+    e.head == :+ && print(io, ")")
     nothing
 end
-print_expr(e::ArrayElement) = print("A_{", join(string.(e.indices), ", "), "}")
-print_expr(e) = print(e)
+function _print_expr(io, e::ArrayElement)
+    print(io, e.name, "_{")
+    for (i, idx) in enumerate(e.indices)
+        i > 1 && print(io, ", ")
+        _print_expr(io, idx)
+    end
+    print(io, "}")
+end
+_print_expr(io, e) = print(io, e)
 
 
 # expand a * (b + c) -> a*b + a*c
@@ -198,15 +230,6 @@ function generate_pairings(v::Vector{T}, skip=Int[]) where T
     return combos
 end
 
-# TODO
-# need to figure out spins
-# need to figure out times
-# need to add I - G
-
-struct GreensElement
-    idx::Tuple{Any, Any}
-    times::Tuple{Any, Any}
-end
 
 
 function to_greens(e::MyExpr)
@@ -224,16 +247,36 @@ end
 
 function _to_greens(e::MyExpr)
     @assert e.head == :*
-    @assert all(x -> x isa Pair, e.args)
 
-    for (i, (a, b)) in enumerate(e.args)
-        if a.daggered && !b.daggered
-            # c^† c - like
-        elseif !a.daggered && b.daggered
-            # c c^†
-            GreensElement(a.indices[1], b.indices[2])
+    outputs = []
+    for (i, x) in enumerate(e.args)
+        if x isa MyExpr && x.head == :ExpectationValue
+            y = x.args[1]
+            y.head == :* || error(y)
+            length(y.args) == 2 || error(y)
+            a, b = y.args
+            if a.daggered && !b.daggered
+                # c^† c - like
+                delta = if a.time == b.time
+                    ifelse(a.index == b.index, Literal(1), ArrayElement(:I, a.index, b.index))
+                elseif a.time isa Number && b.time isa Number
+                    0
+                else
+                    ArrayElement(:I, a.index, b.index) * ArrayElement(:I, a.time, b.time)
+                end
+                x = delta - ArrayElement(Symbol(:G, b.time, a.time), b.index, a.index)
+                push!(outputs, x)
+            elseif !a.daggered && b.daggered
+                # c c^†
+                # GreensElement(a.indices[1], b.indices[2])
+                push!(outputs, ArrayElement(Symbol(:G, a.time, b.time), a.index, b.index))
+            else
+                return 0.0
+            end
         else
-            return 0.0
+            push!(outputs, x)
         end
     end
+
+    return *(outputs...)
 end
