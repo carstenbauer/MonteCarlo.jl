@@ -292,3 +292,91 @@ function to_expr(e::MyExpr)
 end
 to_expr(ae::ArrayElement) = Expr(:ref, ae.name, to_expr.(ae.indices)...)
 to_expr(s::Symbol) = s
+
+
+
+function generate_kernel_function(
+        e::Expr; mc_type = Any, model_type = Any,
+        index_unpacking = default_index_unpacking(e),
+        greens_unpacking = default_greens_unpacking(e),
+    )
+
+    func_head = Expr(
+        :tuple,
+        Expr(Symbol("::"), :mc, Symbol(mc_type)),
+        Expr(Symbol("::"), :model, Symbol(model_type)),
+        :packed_indices, :packed_greens, 
+    )
+    func_body = Expr(
+        :block,
+        :(N = length(lattice(model))),
+        index_unpacking, greens_unpacking,
+        e
+    )
+    Expr(Symbol("->"), func_head, func_body)
+end
+
+function default_index_unpacking(e)
+    indices = filter(idx -> idx != :N, collect_indices(e))
+    if length(indices) == 2
+        @assert indices == Set([:i, :j])
+        return :(i, j = packed_indices)
+    elseif length(indices) == 4
+        @assert indices == Set([:i, :j, :k, :l])
+        return :(i, j, k, l = packed_indices)
+    else
+        error("We can only deal with 2 or 4 indices atm. $(length(indices))")
+    end
+end
+
+function default_greens_unpacking(e)
+    Gs = filter(idx -> idx != :N, collect_greens(e))
+    if length(Gs) == 1
+        @assert Gs == Set([:G00])
+        return :(G00 = packed_greens)
+    elseif length(Gs) == 4
+        @assert Gs == Set([:G00, :G0l, :Gl0, :Gll])
+        return :(G00, G0l, Gl0, Gll = packed_greens)
+    else
+        error("We can only deal with 2 or 4 indices atm. $(length(Gs))")
+    end
+end
+
+
+function collect_indices(e::Expr, indices=Set{Symbol}(), is_index=false)
+    if e.head in (:ref, :call)
+        for arg in e.args[2:end]
+            collect_indices(arg, indices, true)
+        end
+    elseif e.head == :block
+        for arg in e.args
+            collect_indices(arg, indices, is_index)
+        end
+    else
+        error("Failed to parse $(e.head)")
+    end
+    return indices
+end
+function collect_indices(s::Symbol, indices, is_index)
+    is_index && push!(indices, s)
+end
+collect_indices(_, _, _) = nothing
+
+function collect_greens(e::Expr, names=Set{Symbol}())
+    if e.head == :ref
+        @assert length(e.args) > 1
+        push!(names, e.args[1])
+    elseif e.head == :call
+        for arg in e.args[2:end]
+            collect_greens(arg, names)
+        end
+    elseif e.head == :block
+        for arg in e.args
+            collect_greens(arg, names)
+        end
+    else
+        error("Failed to parse $(e.head)")
+    end
+    return filter(name -> startswith(string(name), 'G'), names)
+end
+collect_greens(_, _) = nothing
