@@ -1,4 +1,3 @@
-using Base: Callable
 # TODO
 # - need to re-add spin index
 # because that's a variable shift
@@ -40,18 +39,17 @@ end
 create(idx, time=0; name = :c) = Operator(name, true, idx, time)
 annihilate(idx, time=0; name = :c) = Operator(name, false, idx, time)
 c(idx, time=0; name = :c) = annihilate(idx, time, name=name)
-cd(idx, time=0; name = :c) = create(idx, time, name=name)
+# cd(idx, time=0; name = :c) = create(idx, time, name=name)
 
 Literal(x, args...) = MyExpr(:Literal, x, args...)
 ExpectationValue(x::MyExpr) = MyExpr(:ExpectationValue, x)
 
 struct ArrayElement
     name::Symbol
-    daggered::Bool
     indices::Vector{Union{Integer, MyExpr, Symbol}}
-    ArrayElement(name::Symbol, d::Bool, idxs::Vector) = new(name, d, expr2myexpr.(idxs))
+    ArrayElement(name::Symbol, idxs::Vector) = new(name, expr2myexpr.(idxs))
 end
-ArrayElement(name::Symbol, idxs...) = ArrayElement(name, false, collect(idxs))
+ArrayElement(name::Symbol, idxs...) = ArrayElement(name, collect(idxs))
 
 # base extensions
 function Base.:(==)(a::Operator, b::Operator)
@@ -280,3 +278,17 @@ function _to_greens(e::MyExpr)
 
     return *(outputs...)
 end
+
+function to_expr(e::MyExpr)
+    if e.head in (:+, :*)
+        return Expr(:call, e.head, to_expr.(e.args)...)
+    elseif e.head == :Literal
+        return e.args[1]
+    elseif e.head == :ExpectationValue
+        error("Expectation values must be transformed.")
+    else
+        error("What is a $(e.head)?")
+    end
+end
+to_expr(ae::ArrayElement) = Expr(:ref, ae.name, to_expr.(ae.indices)...)
+to_expr(s::Symbol) = s
