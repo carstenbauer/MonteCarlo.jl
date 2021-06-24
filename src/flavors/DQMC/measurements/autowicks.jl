@@ -1,7 +1,3 @@
-# TODO
-# - need to re-add spin index
-# because that's a variable shift
-
 import LinearAlgebra
 
 # We wanna implement some special stuff which might be bad for Base.Expr
@@ -24,7 +20,7 @@ expr2myexpr(x) = x
 
 
 # I.e. a c or c^†
-struct Operator{T1 <: Union{Integer, MyExpr, Symbol}, T2 <: Union{Integer, MyExpr, Symbol}}
+struct Operator{T1, T2}
     name::Symbol
     daggered::Bool
     index::T1
@@ -41,12 +37,11 @@ annihilate(idx, time=0; name = :c) = Operator(name, false, idx, time)
 c(idx, time=0; name = :c) = annihilate(idx, time, name=name)
 # cd(idx, time=0; name = :c) = create(idx, time, name=name)
 
-Literal(x, args...) = MyExpr(:Literal, x, args...)
 ExpectationValue(x::MyExpr) = MyExpr(:ExpectationValue, x)
 
 struct ArrayElement
     name::Symbol
-    indices::Vector{Union{Integer, MyExpr, Symbol}}
+    indices::Vector{Any}
     ArrayElement(name::Symbol, idxs::Vector) = new(name, expr2myexpr.(idxs))
 end
 ArrayElement(name::Symbol, idxs...) = ArrayElement(name, collect(idxs))
@@ -57,15 +52,22 @@ function Base.:(==)(a::Operator, b::Operator)
 end
 LinearAlgebra.adjoint(o::Operator) = Operator(o.name, !o.daggered, o.index, o.time)
 const OpOrExpr = Union{ArrayElement, Operator, MyExpr}
-Base.:(-)(a::OpOrExpr) = MyExpr(:*, Literal(-1), a)
-Base.:(*)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:*, a, b)
-Base.:(+)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:+, a, b)
-Base.:(-)(a::OpOrExpr, b::OpOrExpr) = MyExpr(:+, a, -b)
-Base.:(*)(a::OpOrExpr, b::OpOrExpr, c, ds...) = *(MyExpr(:*, a, b), c, ds...)
-Base.:(+)(a::OpOrExpr, b::OpOrExpr, c, ds...) = +(MyExpr(:+, a, b), c, ds...)
+Base.:(-)(a::OpOrExpr) = MyExpr(:*, -1, a)
+for T1 in (OpOrExpr, Number), T2 in (OpOrExpr, Number)
+    T1 == Number && T2 == Number && continue
+    Base.:(*)(a::T1, b::T2) = MyExpr(:*, a, b)
+    Base.:(+)(a::T1, b::T2) = MyExpr(:+, a, b)
+    Base.:(-)(a::T1, b::T2) = MyExpr(:+, a, -b)
+    Base.:(*)(a::T1, b::T2, c, ds...) = *(MyExpr(:*, a, b), c, ds...)
+    Base.:(+)(a::T1, b::T2, c, ds...) = +(MyExpr(:+, a, b), c, ds...)
+end
 
 
-# just printing
+########################################
+### Printing
+########################################
+
+
 function Base.show(io::IO, o::Operator)
     print(io, o.name)
     o.daggered && print(io, "^†")
@@ -97,6 +99,11 @@ function _print_expr(io, e::ArrayElement)
     print(io, "}")
 end
 _print_expr(io, e) = print(io, e)
+
+
+########################################
+### Expand brackets & flatten tree
+########################################
 
 
 # expand a * (b + c) -> a*b + a*c
@@ -177,6 +184,11 @@ function flatten_once(e::Expr)
 end
 
 
+########################################
+### Apply Wicks theorem
+########################################
+
+
 # Wicks theorem
 # ⟨abcd⟩ ->  ⟨ab⟩⟨cd⟩ - ⟨ac⟩⟨bd⟩ + ⟨ad⟩⟨bc⟩ etc
 function wicks(e)
@@ -201,8 +213,7 @@ function _wicks(e)
             # index 1 3 5 ... have even numbers pair-permutations
             MyExpr(:*, e.args[skip]..., evs...)
         else
-            MyExpr(:*, Literal(-1), e.args[skip]..., evs...)
-            # vcat(Literal(-1), e.args[skip], g)
+            MyExpr(:*, -1, e.args[skip]..., evs...)
         end
     end
     MyExpr(:+, products...)
@@ -228,6 +239,10 @@ function generate_pairings(v::Vector{T}, skip=Int[]) where T
     return combos
 end
 
+
+########################################
+### convert expectation values to Greens functions
+########################################
 
 
 function to_greens(e::MyExpr)
@@ -256,7 +271,7 @@ function _to_greens(e::MyExpr)
             if a.daggered && !b.daggered
                 # c^† c - like
                 delta = if a.time == b.time
-                    ifelse(a.index == b.index, Literal(1), ArrayElement(:I, a.index, b.index))
+                    ifelse(a.index == b.index, 1, ArrayElement(:I, a.index, b.index))
                 elseif a.time isa Number && b.time isa Number
                     0
                 else
@@ -279,11 +294,110 @@ function _to_greens(e::MyExpr)
     return *(outputs...)
 end
 
+
+########################################
+### Replacements
+########################################
+
+
+struct PLACEHOLDER{T} end
+PLACEHOLDER() = PLACEHOLDER{Any}()
+struct REPLACEMENT
+    x::Int64
+end
+
+replace(e, replacements::Pair...) = _replace1(e, replacements)
+function _replace1(e, replacements::Tuple)
+    e = _replace2(e, replacements)
+    for (matchable, replacement) in replacements
+        is_match, captures = match(e, matchable)
+        if is_match
+            return apply_replace(replacement, captures)
+        end
+    end
+    return e
+end
+function _replace2(e::MyExpr, replacements)
+    MyExpr(
+        _replace1(e.head, replacements),
+        [_replace1(child, replacements) for child in e.args]...
+    )
+end
+function _replace2(ae::ArrayElement, replacements)
+    ArrayElement(
+        _replace1(ae.name, replacements),
+        [_replace1(idx, replacements) for idx in ae.indices]...
+    )
+end
+_replace2(e, replacements) = e
+
+
+match(e, ::PLACEHOLDER{Any}) = true, Any[e]
+match(e::T, ::PLACEHOLDER{T}) where {T} = true, Any[e]
+match(a, b) = a == b, Any[]
+function match(e::ArrayElement, m::ArrayElement)
+    passthrough = Any[]
+    if e.name != m.name || length(e.indices) != length(m.indices) 
+        return false, passthrough
+    end
+    for (a, b) in zip(e.indices, m.indices)
+        is_match, x = match(a, b)
+        is_match || return false, passthrough
+        passthrough = vcat(passthrough, x)
+    end
+    return true, passthrough
+end
+function match(e::MyExpr, m::MyExpr)
+    passthrough = Any[]
+    if e.head != m.head || length(e.args) != length(m.args) 
+        return false, passthrough
+    end
+    for (a, b) in zip(e.args, m.args)
+        is_match, x = match(a, b)
+        is_match || return false, passthrough
+        passthrough = vcat(passthrough, x)
+    end
+    return true, passthrough
+end
+
+
+apply_replace(r::REPLACEMENT, captures::Vector) = captures[r.x]
+apply_replace(x, captures::Vector) = x
+function apply_replace(r::MyExpr, captures::Vector)
+    MyExpr(
+        apply_replace(r.head, captures),
+        (apply_replace(x, captures) for x in r.args)...
+    )
+end
+function apply_replace(r::ArrayElement, captures::Vector)
+    ArrayElement(
+        apply_replace(r.name, captures),
+        (apply_replace(x, captures) for x in r.indices)...
+    )
+end
+
+
+function cleanup(e::MyExpr)
+    replace(
+        e,
+        MyExpr(:+, PLACEHOLDER(), 0) => REPLACEMENT(1),
+        MyExpr(:+, 0, PLACEHOLDER()) => REPLACEMENT(1),
+        MyExpr(:*, PLACEHOLDER(), 0) => 0,
+        MyExpr(:*, 0, PLACEHOLDER()) => 0,
+        MyExpr(:*, PLACEHOLDER(), 1) => REPLACEMENT(1),
+        MyExpr(:*, 1, PLACEHOLDER()) => REPLACEMENT(1),
+    )
+end
+
+
+########################################
+### To code
+########################################
+
+
 function to_expr(e::MyExpr)
     if e.head in (:+, :*)
         return Expr(:call, e.head, to_expr.(e.args)...)
-    elseif e.head == :Literal
-        return e.args[1]
     elseif e.head == :ExpectationValue
         error("Expectation values must be transformed.")
     else
@@ -380,3 +494,12 @@ function collect_greens(e::Expr, names=Set{Symbol}())
     return filter(name -> startswith(string(name), 'G'), names)
 end
 collect_greens(_, _) = nothing
+
+macro expand2formula(code)
+    code |> expand |> wicks |> to_greens |> to_expr
+end
+
+macro expand2kernel(code)
+    code |> expand |> wicks |> to_greens |> to_expr |> generate_kernel_function
+end
+
