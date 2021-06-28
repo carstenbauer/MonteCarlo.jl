@@ -12,6 +12,9 @@
 #           > resolves Mask (to Greens indices) 
 #               > calculate element from Wicks theorem
 
+# TODO
+# try replacing global function rather than creatin new local ones
+
 
 struct DQMCMeasurement{GI, LI, F <: Function, OT, T} <: AbstractMeasurement
     greens_iterator::GI
@@ -25,7 +28,7 @@ end
 function DQMCMeasurement(
         m::DQMCMeasurement;
         greens_iterator = m.greens_iterator, lattice_iterator = m.lattice_iterator,
-        kernel_code = m.kernel_code, kernel = eval(kernel_code),
+        kernel_code = m.kernel_code, kernel = @eval($kernel_code),
         observable = m.observable, temp = m.temp,
         capacity = nothing
     )
@@ -49,7 +52,7 @@ rebuild(B::T, capacity) where T = T(B, capacity=capacity)
 
 function Measurement(
         dqmc, _model, greens_iterator, lattice_iterator, kernel_code;
-        kernel = eval(kernel_code),
+        kernel = @eval($kernel_code),
         capacity = _default_capacity(dqmc), eltype = geltype(dqmc),
         temp = let
             shape = _get_temp_shape(dqmc, _model, lattice_iterator)
@@ -223,7 +226,7 @@ function _load(data, ::Type{T}) where {T <: DQMCMeasurement}
         kernel_code = data["kernel_code"]
         DQMCMeasurement(
             data["GI"], data["LI"], 
-            kernel_code, eval(kernel_code), 
+            kernel_code, @eval($kernel_code), 
             data["obs"], temp
         )
     end
@@ -326,7 +329,7 @@ end
 # Call kernel for each site (linear index)
 @bm function apply!(iter::DirectLatticeIterator, measurement, mc::DQMC, model, packed_greens)
     for i in iter
-        measurement.temp[i] += Base.invokelatest(measurement.kernel, mc, model, i, packed_greens)
+        measurement.temp[i] += measurement.kernel(mc, model, i, packed_greens)
     end
     nothing
 end
@@ -334,7 +337,7 @@ end
 # Call kernel for each pair (src, trg) (Nsties² total)
 @bm function apply!(iter::EachSitePair, measurement, mc::DQMC, model, packed_greens)
     for (i, j) in iter
-        measurement.temp[i, j] += Base.invokelatest(measurement.kernel, mc, model, (i, j), packed_greens)
+        measurement.temp[i, j] += measurement.kernel(mc, model, (i, j), packed_greens)
     end
     nothing
 end
@@ -342,14 +345,14 @@ end
 # Call kernel for each pair (site, site) (i.e. on-site) 
 @bm function apply!(iter::OnSite, measurement, mc::DQMC, model, packed_greens)
     for (i, j) in iter
-        measurement.temp[i] += Base.invokelatest(measurement.kernel, mc, model, (i, j), packed_greens)
+        measurement.temp[i] += measurement.kernel(mc, model, (i, j), packed_greens)
     end
     nothing
 end
 
 @bm function apply!(iter::DeferredLatticeIterator, measurement, mc::DQMC, model, packed_greens)
     @inbounds for idxs in iter
-        measurement.temp[first(idxs)] += Base.invokelatest(measurement.kernel, mc, model, idxs[2:end], packed_greens)
+        measurement.temp[first(idxs)] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
     end
     nothing
 end
@@ -358,13 +361,13 @@ end
 # Sums
 @bm function apply!(iter::Sum{<: DirectLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
     @inbounds for idxs in iter
-        measurement.temp[1] += Base.invokelatest(measurement.kernel, mc, model, idxs, packed_greens)
+        measurement.temp[1] += measurement.kernel(mc, model, idxs, packed_greens)
     end
     nothing
 end
 @bm function apply!(iter::Sum{<: DeferredLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
     @inbounds for idxs in iter
-        measurement.temp[1] += Base.invokelatest(measurement.kernel, mc, model, idxs[2:end], packed_greens)
+        measurement.temp[1] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
     end
     nothing
 end

@@ -278,14 +278,14 @@ function interacting_energy(dqmc, model::HubbardModelRepulsive; kwargs...)
     # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
     # with up-down = 0
     code = quote
-        (mc, model::HubbardModelRepulsive, G::AbstractArray) -> 
+        _iE_kernel(mc, model::HubbardModelRepulsive, G::AbstractArray) = 
             model.U * sum((diag(G.blocks[1]) .- 0.5) .* (diag(G.blocks[2]) .- 0.5))
     end
     Measurement(dqmc, model, Greens, Nothing, code; kwargs...)
 end
 function total_energy(dqmc, model::HubbardModelRepulsive; kwargs...)
     code = quote
-        (mc, model::HubbardModelRepulsive, G::AbstractArray) -> begin
+        function _tE_kernel(mc, model::HubbardModelRepulsive, G::AbstractArray)
             nonintE(mc.stack.hopping_matrix, G) +
             model.U * sum((diag(G.blocks[1]) .- 0.5) .* (diag(G.blocks[2]) .- 0.5))
         end

@@ -10,12 +10,12 @@ function _expand_indices(N)
     end
 end
 
-function equal_time_kernel(N, code)
+function equal_time_kernel(N, name, code)
     splatting, T = _expand_indices(N)
     # unequal time -> equal time just means that every G is at the same time
     # We define G00 etc here to more compactly define kernels
     quote
-        (mc, model, idxs::$T, G::AbstractArray) -> begin
+        function $name(mc, model, idxs::$T, G::AbstractArray)
             $splatting
             N = length(lattice(mc))
             G00 = G0l = Gl0 = Gll = G
@@ -24,10 +24,10 @@ function equal_time_kernel(N, code)
     end
 end
 
-function unequal_time_kernel(N, code)
+function unequal_time_kernel(N, name, code)
     splatting, T = _expand_indices(N)
     quote
-        (mc, model, idxs::$T, packed_greens::NTuple{4}) -> begin
+        function $name(mc, model, idxs::$T, packed_greens::NTuple{4})
             $splatting
             G00, G0l, Gl0, Gll = packed_greens
             N = length(lattice(mc))
@@ -41,11 +41,11 @@ end
 module _measurement_kernel_code
     using ..MonteCarlo: equal_time_kernel, unequal_time_kernel
 
-    const greens = :((mc, m, G::AbstractArray) -> G)
+    const greens = :(_greens_kernel(mc, m, G::AbstractArray) = G)
 
-    const occupation = :((mc, m, i::Integer, G::AbstractArray) -> 1 - G[i, i])
+    const occupation = :(_occupation_kernel(mc, m, i::Integer, G::AbstractArray) = 1 - G[i, i])
 
-    const equal_time_charge_density = equal_time_kernel(2, quote
+    const equal_time_charge_density = equal_time_kernel(2, :_etcd_kernel, quote
         # ⟨n↑n↑⟩
         (1 - G[i, i])       * (1 - G[j, j]) +
         (I[j, i] - G[j, i]) * G[i, j] +
@@ -61,7 +61,7 @@ module _measurement_kernel_code
     end)
     
     # Some I[i, j]'s drop here because of time-deltas
-    const unequal_time_charge_density = unequal_time_kernel(2, quote
+    const unequal_time_charge_density = unequal_time_kernel(2, :_etcd_kernel, quote
         # ⟨n↑(l)n↑⟩
         (1 - Gll[i, i]) * (1 - G00[j, j]) -
         G0l[j, i] * Gl0[i, j] +
@@ -76,43 +76,43 @@ module _measurement_kernel_code
         G0l[j+N, i+N] * Gl0[i+N, j+N]
     end)
 
-    const Mx = equal_time_kernel(1, :(-G[i+N, i] - G[i, i+N]))
-    const My = equal_time_kernel(1, :(G[i+N, i] - G[i, i+N]))
-    const Mz = equal_time_kernel(1, :(G[i+N, i+N] - G[i, i]))
+    const Mx = equal_time_kernel(1, :_etMx_kernel, :(-G[i+N, i] - G[i, i+N]))
+    const My = equal_time_kernel(1, :_etMy_kernel, :(G[i+N, i] - G[i, i+N]))
+    const Mz = equal_time_kernel(1, :_etMz_kernel, :(G[i+N, i+N] - G[i, i]))
 
-    const equal_time_spin_density_x = equal_time_kernel(2, quote
+    const equal_time_spin_density_x = equal_time_kernel(2, :_etsdx_kernel, quote
         G[i+N, i] * G[j+N, j] - G[j+N, i] * G[i+N, j] +
         G[i+N, i] * G[j, j+N] + (I[j, i] - G[j, i]) * G[i+N, j+N] +
         G[i, i+N] * G[j+N, j] + (I[j, i] - G[j+N, i+N]) * G[i, j] +
         G[i, i+N] * G[j, j+N] - G[j, i+N] * G[i, j+N]
     end)
-    const unequal_time_spin_density_x = unequal_time_kernel(2, quote
+    const unequal_time_spin_density_x = unequal_time_kernel(2, :_utsdx_kernel, quote
         Gll[i+N, i] * G00[j+N, j] - G0l[j+N, i] * Gl0[i+N, j] +
         Gll[i+N, i] * G00[j, j+N] - G0l[j, i] * Gl0[i+N, j+N] +
         Gll[i, i+N] * G00[j+N, j] - G0l[j+N, i+N] * Gl0[i, j] +
         Gll[i, i+N] * G00[j, j+N] - G0l[j, i+N] * Gl0[i, j+N]
     end)
 
-    const equal_time_spin_density_y = equal_time_kernel(2, quote
+    const equal_time_spin_density_y = equal_time_kernel(2, :_etsdy_kernel, quote
         - G[i+N, i] * G[j+N, j] + G[j+N, i] * G[i+N, j] +
           G[i+N, i] * G[j, j+N] + (I[j, i] - G[j, i]) * G[i+N, j+N] +
           G[i, i+N] * G[j+N, j] + (I[j, i] - G[j+N, i+N]) * G[i, j] -
           G[i, i+N] * G[j, j+N] + G[j, i+N] * G[i, j+N]
     end)
-    const unequal_time_spin_density_y = unequal_time_kernel(2, quote
+    const unequal_time_spin_density_y = unequal_time_kernel(2, :_utsdy_kernel, quote
         - Gll[i+N, i] * G00[j+N, j] + G0l[j+N, i] * Gl0[i+N, j] +
           Gll[i+N, i] * G00[j, j+N] - G0l[j, i] * Gl0[i+N, j+N] +
           Gll[i, i+N] * G00[j+N, j] - G0l[j+N, i+N] * Gl0[i, j] -
           Gll[i, i+N] * G00[j, j+N] + G0l[j, i+N] * Gl0[i, j+N]
     end)
 
-    const equal_time_spin_density_z = equal_time_kernel(2, quote
+    const equal_time_spin_density_z = equal_time_kernel(2, :_etsdz_kernel, quote
         (1 - G[i, i]) * (1 - G[j, j])         + (I[j, i] - G[j, i]) * G[i, j] -
         (1 - G[i, i]) * (1 - G[j+N, j+N])     + G[j+N, i] * G[i, j+N] -
         (1 - G[i+N, i+N]) * (1 - G[j, j])     + G[j, i+N] * G[i+N, j] +
         (1 - G[i+N, i+N]) * (1 - G[j+N, j+N]) + (I[j, i] - G[j+N, i+N]) * G[i+N, j+N]
     end)
-    const unequal_time_spin_density_z = unequal_time_kernel(2, quote
+    const unequal_time_spin_density_z = unequal_time_kernel(2, :_utsdz_kernel, quote
         (1 - Gll[i, i])     * (1 - G00[j, j])     - G0l[j, i] * Gl0[i, j] -
         (1 - Gll[i, i])     * (1 - G00[j+N, j+N]) + G0l[j+N, i] * Gl0[i, j+N] -
         (1 - Gll[i+N, i+N]) * (1 - G00[j, j])     + G0l[j, i+N] * Gl0[i+N, j] +
@@ -126,10 +126,10 @@ module _measurement_kernel_code
     # G_{i, j+d'}^{↑, ↓}(τ, 0) G_{i+d, j}^{↓, ↑}(τ, 0)
     const equal_time_pairing, unequal_time_pairing = let
         wicks = :(Gl0[i, k] * Gl0[j+N, l+N] - Gl0[i, l+N] * Gl0[j+N, k])
-        equal_time_kernel(4, wicks), unequal_time_kernel(4, wicks)
+        equal_time_kernel(4, :_etp_kernel, wicks), unequal_time_kernel(4, :_utp_kernel, wicks)
     end
 
-    const current_current = unequal_time_kernel(4, quote
+    const current_current = unequal_time_kernel(4, :_utcc_kernel, quote
         T = mc.stack.hopping_matrix
         output = zero(eltype(G00))
 
@@ -155,9 +155,9 @@ module _measurement_kernel_code
         output
     end)
 
-    const boson_energy = :((mc, m) -> energy_boson(mc, m))
+    const boson_energy = :(be_kernel(mc, m) = energy_boson(mc, m))
 
-    const noninteracting_energy = :((mc, m, G::AbstractArray) -> nonintE(mc.stack.hopping_matrix, G))
+    const noninteracting_energy = :(_niE_kernel(mc, m, G::AbstractArray) = nonintE(mc.stack.hopping_matrix, G))
 end
 
 
