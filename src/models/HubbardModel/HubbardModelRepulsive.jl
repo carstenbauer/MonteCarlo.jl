@@ -274,7 +274,25 @@ function _load(data, ::Type{T}) where T <: HubbardModelRepulsive
 end
 
 
-# See DQMC/measurements/measurements.jl
+function interacting_energy(dqmc, model::HubbardModelRepulsive; kwargs...)
+    # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
+    # with up-down = 0
+    code = quote
+        (mc, model::HubbardModelRepulsive, G::AbstractArray) -> 
+            model.U * sum((diag(G.blocks[1]) .- 0.5) .* (diag(G.blocks[2]) .- 0.5))
+    end
+    Measurement(dqmc, model, Greens, Nothing, code; kwargs...)
+end
+function total_energy(dqmc, model::HubbardModelRepulsive; kwargs...)
+    code = quote
+        (mc, model::HubbardModelRepulsive, G::AbstractArray) -> begin
+            nonintE(mc.stack.hopping_matrix, G) +
+            model.U * sum((diag(G.blocks[1]) .- 0.5) .* (diag(G.blocks[2]) .- 0.5))
+        end
+    end
+    Measurement(dqmc, model, Greens, Nothing, code; kwargs...)
+end
+# compat
 function intE_kernel(mc, model::HubbardModelRepulsive, G::BlockDiagonal)
     # up-down zero
     model.U * sum((diag(G.blocks[1]) .- 0.5) .* (diag(G.blocks[2]) .- 0.5))

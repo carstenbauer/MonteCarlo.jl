@@ -254,10 +254,154 @@ end
 ### Measurement overloads
 ################################################################################
 
+# This only really exists for compat. Otherwise these would be defined in the 
+# constructor
+module _measurement_kernel_code2
+    using ..MonteCarlo: equal_time_kernel, unequal_time_kernel
 
+    const equal_time_charge_density = equal_time_kernel(2, quote
+        4 * (1 - G[i, i]) * (1 - G[j, j]) + 2 * (I[j, i] - G[j, i]) * G[i, j]
+    end)
+    
+    # Some I[i, j]'s drop here because of time-deltas
+    const unequal_time_charge_density = unequal_time_kernel(2, quote
+        4 * (1 - Gll[i,i]) * (1 - G00[j,j]) - 2 * G0l[j,i] * Gl0[i,j]
+    end)
+
+    const Mx = equal_time_kernel(1, :(0.0))
+    const My = equal_time_kernel(1, :(0.0))
+    const Mz = equal_time_kernel(1, :(0.0))
+
+    # all dirs the same
+    const equal_time_spin_density = equal_time_kernel(2, :(2(I[j,i] - G[j,i]) * G[i,j]))
+    const unequal_time_spin_density = unequal_time_kernel(2, :(-2 * G0l[j,i] * Gl0[i,j]))
+
+    const equal_time_pairing, unequal_time_pairing = let
+        wicks = :(Gl0[i, k] * Gl0[j, l])
+        equal_time_kernel(4, wicks), unequal_time_kernel(4, wicks)
+    end
+
+    const current_current = unequal_time_kernel(4, quote
+        T = mc.stack.hopping_matrix
+        s1 = i; t1 = j; s2 = k; t2 = l
+        -(
+            4.0 * (
+                T[t2, s2] * (I[s2, t2] - Gll[s2, t2]) - 
+                T[s2, t2] * (I[t2, s2] - Gll[t2, s2])
+            ) * (
+                T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - 
+                T[s1, t1] * (I[t1, s1] - G00[t1, s1])
+            ) +
+            - 2.0 * T[t2, s2] * T[t1, s1] * G0l[s1, t2] * Gl0[s2, t1] +
+            + 2.0 * T[t2, s2] * T[s1, t1] * G0l[t1, t2] * Gl0[s2, s1] +
+            + 2.0 * T[s2, t2] * T[t1, s1] * G0l[s1, s2] * Gl0[t2, t1] +
+            - 2.0 * T[s2, t2] * T[s1, t1] * G0l[t1, s2] * Gl0[t2, s1]
+        )
+    end)
+end
 
 # Need some measurement overwrites because nflavors = 1
 checkflavors(::HubbardModelAttractive) = nothing
+
+function charge_density(
+        mc::DQMC, model::HubbardModelAttractive, greens_iterator; 
+        wrapper = nothing, lattice_iterator = EachSitePairByDistance, kwargs...
+    )
+    checkflavors(model)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    code = if greens_iterator == CombinedGreensIterator
+        _measurement_kernel_code2.unequal_time_charge_density
+    elseif greens_iterator == Greens
+        _measurement_kernel_code2.equal_time_charge_density
+    else
+        error("$greens_iterator not recongized")
+    end
+    Measurement(mc, model, greens_iterator, li, code; kwargs...)
+end
+
+function magnetization(
+        mc::DQMC, model::HubbardModelAttractive, dir::Symbol; 
+        wrapper = nothing, lattice_iterator = EachSite, kwargs...
+    )
+    checkflavors(model)
+    if dir == :x; 
+        code = _measurement_kernel_code2.Mx
+    elseif dir == :y; 
+        code = _measurement_kernel_code2.My
+    elseif dir == :z; 
+        code = _measurement_kernel_code2.Mz
+    else throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
+    end
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    Measurement(mc, model, Greens, li, code; kwargs...)
+end
+
+function spin_density(
+        dqmc, model::HubbardModelAttractive, dir::Symbol, greens_iterator; 
+        wrapper = nothing, lattice_iterator = EachSitePairByDistance, kwargs...
+    )
+    checkflavors(model)
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    dir in (:x, :y, :z) || throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
+    code = if greens_iterator == CombinedGreensIterator
+        _measurement_kernel_code2.unequal_time_spin_density
+    elseif greens_iterator == Greens
+        _measurement_kernel_code2.equal_time_spin_density
+    else
+        error("$greens_iterator not recongized")
+    end
+    Measurement(dqmc, model, greens_iterator, li, code; kwargs...)
+end
+
+function pairing(
+        dqmc::DQMC, model::HubbardModelAttractive, greens_iterator; 
+        K = 1+length(neighbors(lattice(model), 1)), wrapper = nothing, 
+        lattice_iterator = EachLocalQuadByDistance{K}, kwargs...
+    )
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    code = if greens_iterator == CombinedGreensIterator
+        _measurement_kernel_code2.unequal_time_pairing
+    elseif greens_iterator == Greens
+        _measurement_kernel_code2.equal_time_pairing
+    else
+        error("$greens_iterator not recongized")
+    end
+    Measurement(dqmc, model, greens_iterator, li, code; kwargs...)
+end
+
+function current_current_susceptibility(
+        dqmc::DQMC, model::HubbardModelAttractive; 
+        K = 1+length(neighbors(lattice(model), 1)),
+        greens_iterator = CombinedGreensIterator, wrapper = nothing,
+        lattice_iterator = EachLocalQuadBySyncedDistance{K}, kwargs...
+    )
+    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    code = _measurement_kernel_code2.current_current
+    Measurement(dqmc, model, greens_iterator, li, code; kwargs...)
+end
+
+function interacting_energy(dqmc, model::HubbardModelAttractive; kwargs...)
+    # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
+    # with up-up = down-down and up-down = 0
+    code = quote
+        (mc, model::HubbardModelAttractive, G::AbstractArray) -> - model.U * sum((diag(G) .- 0.5).^2)
+    end
+    Measurement(dqmc, model, Greens, Nothing, code; kwargs...)
+end
+function total_energy(dqmc, model::HubbardModelAttractive; kwargs...)
+    code = quote
+        (mc, model::HubbardModelAttractive, G::AbstractArray) -> begin
+            nonintE(mc.stack.hopping_matrix, G) - model.U * sum((diag(G) .- 0.5).^2)
+        end
+    end
+    Measurement(dqmc, model, Greens, Nothing, code; kwargs...)
+end
+
+
+################################################################################
+### compat
+################################################################################
+
 
 function cdc_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::AbstractArray)
     # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
@@ -352,8 +496,7 @@ function cc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, pg::NTuple{4}
 
     output
 end
-
-# See DQMC/measurements/measurements.jl
+# compat
 function intE_kernel(mc, model::HubbardModelAttractive, G::AbstractArray)
     # up-up = down-down, up-down zero
     - model.U * sum((diag(G) .- 0.5).^2)
