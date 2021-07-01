@@ -31,7 +31,7 @@ MonteCarloObservable = "0.3"
 Parameters = "0.12"
 Reexport = "0.2, 1.0"
 Requires = "0.5, 1.0"
-StructArrays = "0.4, 0.5"
+StructArrays = "0.4, 0.5, 0.6"
 TimerOutputs = "0.5.3"
 julia = "1.5"
 
