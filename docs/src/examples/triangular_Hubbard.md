@@ -145,7 +145,7 @@ The paper also investigates the charge density structure factor as a function of
 Here we expanded the term into creation and annihilation operators, applied Wicks theorem and finally used $G_{ij}^{ss^\prime} = \langle c_i c_j^\dagger \rangle$ to express the term with Greens function elements. (We note that expectation values of two creation or two annihilation operators are always zero in DQMC and are therefore dropped.) For the attractive Hubbard model, greens function elements with different spins $G_{ij}^{ss^\prime}$ are zero and $G_{ij}^{\uparrow\uparrow} = G_{ij}^{\downarrow\downarrow}$. Thus the full expectation value is given by
 
 ```math
-\langle n_i n_j \rangle = 2 (\delta_{ij} - G_{ji}) G_{ij}
+\langle n_i n_j \rangle - \langle n_{i, s} \rangle \langle n_{j, s^\prime} \rangle = 2 (\delta_{ij} - G_{ji}) G_{ij}
 ```
 
 which needs to be implemented as a function and passed to `MonteCarlo.Measurement` to be used.
