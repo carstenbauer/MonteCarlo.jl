@@ -99,17 +99,15 @@ function initialize_stack(mc::DQMC, s::UnequalTimeStack)
     s
 end
 
-########################################
-# Stack building (full & lazy)
-########################################
+
+
+################################################################################
+### Stack building (full & lazy)
+################################################################################
+
+
 
 @bm function build_stack(mc::DQMC, s::UnequalTimeStack)
-    # stack = [0, Δτ, 2Δτ, ..., β]
-    if mc.last_sweep == s.last_update && all(s.inv_done) && 
-        (s.forward_idx == length(mc.stack.ranges)+1) && (s.backward_idx == 1)
-        return nothing
-    end
-
     # forward
     @bm "forward build" begin
         @inbounds for idx in 1:length(mc.stack.ranges)
@@ -161,7 +159,20 @@ end
     s.forward_idx = length(mc.stack.ranges)+1
     s.backward_idx = 1
     s.last_update = mc.last_sweep
+    s.last_slices = (-1, -1)
 
+    nothing
+end
+
+@bm function lazy_build_stack(mc::DQMC, s::UnequalTimeStack)
+    # stack = [0, Δτ, 2Δτ, ..., β]
+    if mc.last_sweep == s.last_update && all(s.inv_done) && 
+        (s.forward_idx == length(mc.stack.ranges)+1) && (s.backward_idx == 1)
+        return nothing
+    end
+
+    build_stack(mc, s)
+    
     nothing
 end
 
