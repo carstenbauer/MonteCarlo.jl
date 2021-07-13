@@ -190,15 +190,6 @@ See also: [`resume!`](@ref)
         mc, mc.model, 
         [mc.measurements[k] for k in keys(mc.measurements) if !(k in ignore)]
     )
-    # Make sure the kernels are up to date
-    # this should work because it replaces a global function with the same name
-    # as refered to in m.kernel
-    for m in values(mc.thermalization_measurements)
-        @eval $(m.kernel_code)
-    end
-    for m in values(mc.measurements)
-        @eval $(m.kernel_code)
-    end
 
     start_time = now()
     last_checkpoint = now()

@@ -25,10 +25,12 @@ struct DQMCMeasurement{GI, LI, F <: Function, OT, T} <: AbstractMeasurement
     temp::T
 end
 
+missing_kernel(args...) = error("kernel couldn't be loaded.")
+
 function DQMCMeasurement(
         m::DQMCMeasurement;
         greens_iterator = m.greens_iterator, lattice_iterator = m.lattice_iterator,
-        kernel_code = m.kernel_code, kernel = @eval($kernel_code),
+        kernel_code = m.kernel_code, kernel = create_function(kernel_code),
         observable = m.observable, temp = m.temp,
         capacity = nothing
     )
@@ -52,7 +54,7 @@ rebuild(B::T, capacity) where T = T(B, capacity=capacity)
 
 function Measurement(
         dqmc, _model, greens_iterator, lattice_iterator, kernel_code;
-        kernel = @eval($kernel_code),
+        kernel = create_function(kernel_code),
         capacity = _default_capacity(dqmc), eltype = geltype(dqmc),
         temp = let
             shape = _get_temp_shape(dqmc, _model, lattice_iterator)
@@ -67,6 +69,37 @@ function Measurement(
     DQMCMeasurement(greens_iterator, lattice_iterator, kernel_code, kernel, obs, temp)
 end
 
+
+function replace_function_name!(e::Expr, name::Symbol)
+    if e.head == :(=)
+        if e.args[1] isa Expr && e.args[2].head == :block
+            # f() = ... expr
+            e.args[1].args[1] = name
+        elseif e.args[1] isa Symbol && e.args[2].head == :(->)
+            # f = (...) -> ... expr
+            e.args[1] = name
+        end
+    elseif e.head == :function
+        e.args[1].args[1] = name
+    elseif e.head == :block && e.args[1] isa LineNumberNode
+        replace_function_name!(e.args[2], name)
+    else
+        @error("Failed to process $e")
+    end
+    return e     
+end
+
+function create_function(e::Expr)
+    e == Expr(:NA) && return missing_kernel
+
+    name = Symbol(:_kernel_, randstring(16))
+    while isdefined(MonteCarlo, name)
+        name = Symbol(:_kernel_, randstring(16))
+    end
+    replace_function_name!(e, name)
+
+    Core.eval(MonteCarlo, e)
+end
 
 
 ################################################################################
@@ -226,14 +259,11 @@ function _load(data, ::Type{T}) where {T <: DQMCMeasurement}
         kernel_code = data["kernel_code"]
         DQMCMeasurement(
             data["GI"], data["LI"], 
-            kernel_code, @eval($kernel_code), 
+            kernel_code, create_function(kernel_code), 
             data["obs"], temp
         )
     end
 end
-
-missing_kernel(args...) = error("kernel couldn't be loaded.")
-
 
 
 ################################################################################
