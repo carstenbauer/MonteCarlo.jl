@@ -221,7 +221,7 @@ end
         return nothing
     end
 end
-ndirections(iter::EachSitePairByDistance) = length(iter.pairs)
+ndirections(iter::EachSitePairByDistance) = size(iter.pairs)
 Base.length(iter::EachSitePairByDistance) = iter.N
 Base.eltype(::EachSitePairByDistance) = NTuple{3, Int64}
 
