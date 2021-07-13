@@ -219,16 +219,16 @@ end
     MonteCarlo.calculate_greens(dqmc, 0) # restore mc.stack.greens
 
     # high precision
-    it = MonteCarlo.CombinedGreensIterator(dqmc, dqmc.parameters.safe_mult)
-    for (i, (G0k, Gk0, Gkk)) in enumerate(it)
+    it = MonteCarlo.CombinedGreensIterator(dqmc, recalculate = dqmc.parameters.safe_mult)
+    for (i, (G0k, Gk0, Gkk)) in enumerate(MonteCarlo.init(it))
         @test maximum(abs.(Gk0 .- Gk0s[i+1])) < 1e-14
         @test maximum(abs.(G0k .- G0ks[i+1])) < 1e-14
         @test maximum(abs.(Gkk .- Gkks[i+1])) < 1e-14
     end
 
     # low precision
-    it = MonteCarlo.CombinedGreensIterator(dqmc, 4dqmc.parameters.safe_mult)
-    for (i, (G0k, Gk0, Gkk)) in enumerate(it)
+    it = MonteCarlo.CombinedGreensIterator(dqmc, recalculate = 4dqmc.parameters.safe_mult)
+    for (i, (G0k, Gk0, Gkk)) in enumerate(MonteCarlo.init(it))
         @test maximum(abs.(Gk0 .- Gk0s[i+1])) < 1e-10
         @test maximum(abs.(G0k .- G0ks[i+1])) < 1e-10
         @test maximum(abs.(Gkk .- Gkks[i+1])) < 1e-10

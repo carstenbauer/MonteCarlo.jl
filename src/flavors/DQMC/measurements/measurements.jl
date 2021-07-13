@@ -41,7 +41,7 @@ end
 module _measurement_kernel_code
     using ..MonteCarlo: equal_time_kernel, unequal_time_kernel
 
-    const greens = :(_greens_kernel(mc, m, G::AbstractArray) = G)
+    const greens = :(_greens_kernel(mc, m, G::GreensMatrix) = G.val)
 
     const occupation = :(_occupation_kernel(mc, m, i::Integer, G::AbstractArray) = 1 - G[i, i])
 
@@ -427,6 +427,7 @@ end
 
 
 # TODO should this be moved/work differently?
+nonintE(T::AbstractArray, G::GreensMatrix) = nonintE(T, G.val)
 function nonintE(T::AbstractArray, G::AbstractArray)
     output = zero(eltype(G))
     for i in axes(G, 1), j in axes(G, 2)

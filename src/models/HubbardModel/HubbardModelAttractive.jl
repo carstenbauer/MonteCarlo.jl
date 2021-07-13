@@ -373,7 +373,9 @@ function current_current_susceptibility(
 end
 
 function interacting_energy(dqmc, model::HubbardModelAttractive; kwargs...)
-    # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
+    # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... 
+    # = U [G↑↑ G↓↓ - G↓↑ G↑↓ - 0.5 G↑↑ - 0.5 G↓↓ + G↑↓ + 0.25]
+    # = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
     # with up-up = down-down and up-down = 0
     code = quote
         _iE_kernel(mc, model::HubbardModelAttractive, G::AbstractArray) = 

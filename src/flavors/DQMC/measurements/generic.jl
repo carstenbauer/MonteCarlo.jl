@@ -178,10 +178,14 @@ Base.Nothing(::DQMC, ::Model) = nothing
 struct Greens <: AbstractGreensIterator end
 Greens(::DQMC, ::Model)= Greens()
 
-struct GreensAt{k, l} <: AbstractUnequalTimeGreensIterator end
-GreensAt(l::Integer) = GreensAt{l, l} 
-GreensAt(k::Integer, l::Integer) = GreensAt{k, l} 
-GreensAt{k, l}(::DQMC, ::Model) where {k, l} = GreensAt{k, l}() 
+struct GreensAt <: AbstractUnequalTimeGreensIterator
+    k::Int
+    l::Int
+end
+GreensAt(l::Integer) = GreensAt(l, l)
+GreensAt(k::Integer, l::Integer) = GreensAt(k, l)
+# GreensAt{k, l}(::DQMC, ::Model) where {k, l} = GreensAt(k, l)
+Base.:(==)(a::GreensAt, b::GreensAt) = (a.k == b.k) && (a.l == b.l)
 
 # maybe we want to some stuff to get custom indexing?
 # How would this integrate with greens iterators? maybe:
@@ -192,6 +196,7 @@ requires(::AbstractMeasurement) = (Nothing, Nothing)
 requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
 # TODO ApplySymmetries{LI}
 
+
 @bm function generate_groups(mc, model, measurements)
     # maybe instead:
     requirements = requires.(measurements)
@@ -199,7 +204,7 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
     LIs = unique(last.(requirements))
     lattice_iterators = map(T -> T(mc, model), LIs)
 
-    if any(T -> T <: AbstractUnequalTimeGreensIterator, GIs)
+    if any(x -> (x isa Type ? x : typeof(x)) <: AbstractUnequalTimeGreensIterator, GIs)
         initialize_stack(mc, mc.ut_stack)
     end
 
@@ -208,7 +213,7 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
     #     (lattice_iterator, measurement), 
     #     ...
     # ]
-    map(enumerate(GIs)) do (i, G)
+    output = map(enumerate(GIs)) do (i, G)
         ms = filter(m -> G == requires(m)[1], measurements)
         group = map(ms) do m
             LI = requires(m)[2]
@@ -216,8 +221,22 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
             @assert j !== nothing
             (lattice_iterators[j], m)
         end
-        G(mc, model) => group
+        (G isa Type ? G(mc, model) : G) => group
     end
+
+    if length(measurements) != mapreduce(x -> length(x[2]), +, output, init = 0)
+        for (G, group) in output
+            println(G)
+            for (li, m) in group
+                println("\t", typeof(li), typeof(m.kernel))
+            end
+        end
+        N = length(measurements)
+        M = mapreduce(x -> length(x[2]), +, output, init = 0)
+        error("Oh no. We lost some measurements. $N-> $M")
+    end
+
+    return output
 end
 
 
@@ -295,8 +314,8 @@ end
     nothing
 end
 
-@bm function apply!(::GreensAt{k, l}, combined::Vector{<: Tuple}, mc::DQMC, model, sweep) where {k, l}
-    G = greens!(mc, k, l)
+@bm function apply!(g::GreensAt, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+    G = greens!(mc, g.k, g.l)
     for (lattice_iterator, measurement) in combined
         prepare!(lattice_iterator, model, measurement)
         measure!(lattice_iterator, measurement, mc, model, sweep, G)
@@ -311,7 +330,7 @@ end
     end
 
     G00 = greens!(mc)
-    for (G0l, Gl0, Gll) in iter
+    for (G0l, Gl0, Gll) in init(mc, iter)
         for (lattice_iterator, measurement) in combined
             measure!(lattice_iterator, measurement, mc, model, sweep, (G00, G0l, Gl0, Gll))
         end
@@ -319,6 +338,23 @@ end
 
     for (lattice_iterator, measurement) in combined
         finish!(lattice_iterator, model, measurement, mc.parameters.delta_tau)
+    end
+    nothing
+end
+
+@bm function apply!(iter::AbstractGreensIterator, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+    for (lattice_iterator, measurement) in combined
+        prepare!(lattice_iterator, model, measurement)
+    end
+
+    for packed_greens in init(mc, iter)
+        for (lattice_iterator, measurement) in combined
+            measure!(lattice_iterator, measurement, mc, model, sweep, packed_greens)
+        end
+    end
+
+    for (lattice_iterator, measurement) in combined
+        finish!(lattice_iterator, model, measurement, 1.0)
     end
     nothing
 end
