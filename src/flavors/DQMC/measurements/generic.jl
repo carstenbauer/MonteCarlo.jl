@@ -93,12 +93,12 @@ function create_function(e::Expr)
     e == Expr(:NA) && return missing_kernel
 
     name = Symbol(:_kernel_, randstring(16))
-    while isdefined(MonteCarlo, name)
+    while isdefined(Main, name)
         name = Symbol(:_kernel_, randstring(16))
     end
     replace_function_name!(e, name)
 
-    Core.eval(MonteCarlo, e)
+    Core.eval(Main, e)
 end
 
 
