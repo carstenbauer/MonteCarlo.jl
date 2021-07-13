@@ -764,7 +764,7 @@ function Base.iterate(it::GreensIterator{:, i}) where {i}
     copyto!(s.T, s.greens)
     udt_AVX_pivot!(s.U, s.D, s.T, it.mc.stack.pivot, it.mc.stack.tempv)
     G = _greens!(it.mc, it.mc.stack.curr_U, s.greens, it.mc.stack.Ur)
-    return (G, (i+1, i))
+    return (GreensMatrix(i, i, G), (i+1, i))
 end
 function Base.iterate(it::GreensIterator{:}, state)
     s = it.mc.ut_stack
@@ -777,7 +777,7 @@ function Base.iterate(it::GreensIterator{:}, state)
         G = _greens!(it.mc, it.mc.stack.curr_U, s.greens, it.mc.stack.Tl)
         copyto!(s.T, s.greens)
         udt_AVX_pivot!(s.U, s.D, s.T, it.mc.stack.pivot, it.mc.stack.tempv)
-        return (G, (k+1, l))
+        return (GreensMatrix(k, l, G), (k+1, l))
     elseif k % it.mc.parameters.safe_mult == 0
         # Stabilization
         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.U)
@@ -787,7 +787,7 @@ function Base.iterate(it::GreensIterator{:}, state)
         vmul!(it.mc.stack.tmp2, it.mc.stack.curr_U, s.T)
         copyto!(s.T, it.mc.stack.tmp2)
         G = _greens!(it.mc, it.mc.stack.curr_U, it.mc.stack.tmp1, it.mc.stack.tmp2)
-        return (G, (k+1, l))
+        return (GreensMatrix(k, l, G), (k+1, l))
     else
         # Quick advance
         multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.U)
@@ -795,7 +795,7 @@ function Base.iterate(it::GreensIterator{:}, state)
         vmul!(it.mc.stack.tmp1, it.mc.stack.curr_U, s.T)
         G = _greens!(it.mc, it.mc.stack.curr_U, it.mc.stack.tmp1, it.mc.stack.Ur)
         s.last_slices = (-1, -1) # for safety
-        return (G, (k+1, l))
+        return (GreensMatrix(k, l, G), (k+1, l))
     end
 end
 """
@@ -806,8 +806,8 @@ the maximum differences for each. This can be used to check numerical stability.
 """
 function accuracy(iter::GreensIterator{:, l}) where {l}
     mc = iter.mc
-    Gk0s = [deepcopy(greens(mc, k, l)) for k in l:nslices(mc)]
-    [maximum(abs.(Gk0s[i] .- G)) for (i, G) in enumerate(iter)]
+    Gk0s = [deepcopy(greens(mc, k, l).val) for k in l:nslices(mc)]
+    [maximum(abs.(Gk0s[i] .- G.val)) for (i, G) in enumerate(iter)]
 end
 
 
@@ -1094,14 +1094,14 @@ end
 
 function accuracy(mc::DQMC, it::CombinedGreensIterator)
     iter = _CombinedGreensIterator(mc, it)
-    Gk0s = [deepcopy(greens(mc, k, 0)) for k in 1:nslices(mc)]
-    G0ks = [deepcopy(greens(mc, 0, k)) for k in 1:nslices(mc)]
-    Gkks = [deepcopy(greens(mc, k, k)) for k in 1:nslices(mc)]
+    Gk0s = [deepcopy(greens(mc, k, 0).val) for k in 1:nslices(mc)]
+    G0ks = [deepcopy(greens(mc, 0, k).val) for k in 1:nslices(mc)]
+    Gkks = [deepcopy(greens(mc, k, k).val) for k in 1:nslices(mc)]
     map(enumerate(iter)) do (i, Gs)
         (
-            maximum(abs.(G0ks[i] .- Gs[1])),
-            maximum(abs.(Gk0s[i] .- Gs[2])),
-            maximum(abs.(Gkks[i] .- Gs[3]))
+            maximum(abs.(G0ks[i] .- Gs[1].val)),
+            maximum(abs.(Gk0s[i] .- Gs[2].val)),
+            maximum(abs.(Gkks[i] .- Gs[3].val))
         )
     end
 end
