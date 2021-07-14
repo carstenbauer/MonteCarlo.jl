@@ -270,7 +270,19 @@ end
     @testset "CombinedGreensIterator" begin
         # high precision
         it = MonteCarlo.CombinedGreensIterator(dqmc, recalculate = dqmc.parameters.safe_mult)
-        for (i, (G0k, Gk0, Gkk)) in enumerate(MonteCarlo.init(dqmc, it))
+        @test it isa CombinedGreensIterator
+        @test it.recalculate == dqmc.parameters.safe_mult
+        @test it.start == 1
+        @test it.stop == MonteCarlo.nslices(dqmc)
+        @test length(it) == it.stop - it.start + 1
+
+        iter = init(it)
+        @test iter isa MonteCarlo._CombinedGreensIterator
+        @test iter.mc == dqmc
+        @test iter.spec == it
+        @test length(iter) == length(it)
+
+        for (i, (G0k, Gk0, Gkk)) in enumerate(iter)
             @test maximum(abs.(Gk0.val .- Gk0s[i+1])) < 1e-14
             @test maximum(abs.(G0k.val .- G0ks[i+1])) < 1e-14
             @test maximum(abs.(Gkk.val .- Gkks[i+1])) < 1e-14
