@@ -19,7 +19,6 @@
 struct DQMCMeasurement{GI, LI, F <: Function, OT, T} <: AbstractMeasurement
     greens_iterator::GI
     lattice_iterator::LI
-    kernel_code::Expr
     kernel::F
     observable::OT
     temp::T
@@ -30,31 +29,22 @@ missing_kernel(args...) = error("kernel couldn't be loaded.")
 function DQMCMeasurement(
         m::DQMCMeasurement;
         greens_iterator = m.greens_iterator, lattice_iterator = m.lattice_iterator,
-        kernel_code = m.kernel_code, kernel = create_function(kernel_code),
+        kernel = m.kernel,
         observable = m.observable, temp = m.temp,
         capacity = nothing
     )
     if capacity === nothing
-        DQMCMeasurement(
-            greens_iterator, lattice_iterator, 
-            kernel_code, kernel, 
-            observable, temp
-        )
+        DQMCMeasurement(greens_iterator, lattice_iterator, kernel, observable, temp)
     else
         binner = rebuild(observable, capacity)
-        DQMCMeasurement(
-            greens_iterator, lattice_iterator, 
-            kernel_code, kernel, 
-            binner, temp
-        )
+        DQMCMeasurement(greens_iterator, lattice_iterator, kernel, binner, temp)
     end
 end
 rebuild(B::LogBinner, capacity) = LogBinner(B, capacity=capacity)
 rebuild(B::T, capacity) where T = T(B, capacity=capacity)
 
 function Measurement(
-        dqmc, _model, greens_iterator, lattice_iterator, kernel_code;
-        kernel = create_function(kernel_code),
+        dqmc, _model, greens_iterator, lattice_iterator, kernel;
         capacity = _default_capacity(dqmc), eltype = geltype(dqmc),
         temp = let
             shape = _get_temp_shape(dqmc, _model, lattice_iterator)
@@ -66,40 +56,9 @@ function Measurement(
             LogBinner(_zero, capacity=capacity)
         end
     )
-    DQMCMeasurement(greens_iterator, lattice_iterator, kernel_code, kernel, obs, temp)
+    DQMCMeasurement(greens_iterator, lattice_iterator, kernel, obs, temp)
 end
 
-
-function replace_function_name!(e::Expr, name::Symbol)
-    if e.head == :(=)
-        if e.args[1] isa Expr && e.args[2].head == :block
-            # f() = ... expr
-            e.args[1].args[1] = name
-        elseif e.args[1] isa Symbol && e.args[2].head == :(->)
-            # f = (...) -> ... expr
-            e.args[1] = name
-        end
-    elseif e.head == :function
-        e.args[1].args[1] = name
-    elseif e.head == :block && e.args[1] isa LineNumberNode
-        replace_function_name!(e.args[2], name)
-    else
-        @error("Failed to process $e")
-    end
-    return e     
-end
-
-function create_function(e::Expr)
-    e == Expr(:NA) && return missing_kernel
-
-    name = Symbol(:_kernel_, randstring(16))
-    while isdefined(Main, name)
-        name = Symbol(:_kernel_, randstring(16))
-    end
-    replace_function_name!(e, name)
-
-    Core.eval(Main, e)
-end
 
 
 ################################################################################
@@ -254,11 +213,7 @@ function _save(file::JLDFile, m::DQMCMeasurement, key::String)
     write(file, "$key/GI", m.greens_iterator)
     write(file, "$key/LI", m.lattice_iterator)
     # maybe add module for eval?
-    if m.kernel_code == Expr(:NA)
-        write(file, "$key/kernel", m.kernel)
-    else
-        write(file, "$key/kernel_code", m.kernel_code)
-    end
+    write(file, "$key/kernel", m.kernel)
     write(file, "$key/obs", m.observable)
     write(file, "$key/temp", m.temp)
 end
@@ -266,22 +221,13 @@ end
 function _load(data, ::Type{T}) where {T <: DQMCMeasurement}
     temp = haskey(data, "temp") ? data["temp"] : data["output"]
     
-    if haskey(data, "kernel")
-        kernel = try
-            eval(data["kernel"])
-        catch e
-            @warn "Failed to load kernel in module MonteCarlo." exception=e
-            missing_kernel
-        end
-        DQMCMeasurement(data["GI"], data["LI"], Expr(:NA), kernel, data["obs"], temp)
-    else
-        kernel_code = data["kernel_code"]
-        DQMCMeasurement(
-            data["GI"], data["LI"], 
-            kernel_code, create_function(kernel_code), 
-            data["obs"], temp
-        )
+    kernel = try
+        eval(data["kernel"])
+    catch e
+        @warn "Failed to load kernel in module MonteCarlo." exception=e
+        missing_kernel
     end
+    DQMCMeasurement(data["GI"], data["LI"], kernel, data["obs"], temp)
 end
 
 
@@ -369,12 +315,7 @@ end
 
 @bm function measure!(lattice_iterator, measurement, mc::DQMC, model, sweep, packed_greens)
     # ignore sweep
-    try
-        apply!(lattice_iterator, measurement, mc, model, packed_greens)
-    catch e
-        println(measurement.kernel_code)
-        rethrow(e)
-    end
+    apply!(lattice_iterator, measurement, mc, model, packed_greens)
     nothing
 end
 

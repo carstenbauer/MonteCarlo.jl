@@ -274,26 +274,14 @@ function _load(data, ::Type{T}) where T <: HubbardModelRepulsive
 end
 
 
-function interacting_energy(dqmc, model::HubbardModelRepulsive; kwargs...)
-    # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
-    # with up-down = 0
-    code = quote
-        _iE_kernel(mc, model::HubbardModelRepulsive, G::AbstractArray) = 
-            model.U * sum((diag(G.blocks[1]) .- 0.5) .* (diag(G.blocks[2]) .- 0.5))
-    end
-    Measurement(dqmc, model, Greens, Nothing, code; kwargs...)
-end
-function total_energy(dqmc, model::HubbardModelRepulsive; kwargs...)
-    code = quote
-        function _tE_kernel(mc, model::HubbardModelRepulsive, G::AbstractArray)
-            nonintE(mc.stack.hopping_matrix, G) +
-            model.U * sum((diag(G.blocks[1]) .- 0.5) .* (diag(G.blocks[2]) .- 0.5))
-        end
-    end
-    Measurement(dqmc, model, Greens, Nothing, code; kwargs...)
-end
-# compat
-function intE_kernel(mc, model::HubbardModelRepulsive, G::BlockDiagonal)
+
+################################################################################
+### Measurement kernels
+################################################################################
+
+
+
+function intE_kernel(mc, model::HubbardModelRepulsive, G::GreensMatrix)
     # up-down zero
-    model.U * sum((diag(G.blocks[1]) .- 0.5) .* (diag(G.blocks[2]) .- 0.5))
+    model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
 end
