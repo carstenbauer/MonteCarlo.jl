@@ -17,7 +17,12 @@ Base.getindex(x::Daggered, i, j) = I[x.x.k, x.x.l] * I[i, j] - x.x.val[j, i]
 dagger(x::GreensMatrix) = Daggered(x)
 dagger(x::Daggered) = x.x
 Base.copy(x::GreensMatrix) = GreensMatrix(x.k, x.l, copy(x.val))
-
+function Base.:(==)(a::GreensMatrix, b::GreensMatrix)
+    a.k == b.k && a.l == b.l && a.val == b.val
+end
+function Base.isapprox(a::GreensMatrix, b::GreensMatrix; kwargs...)
+    a.k == b.k && a.l == b.l && isapprox(a.val, b.val; kwargs...)
+end
 
 """
     greens(mc::DQMC)

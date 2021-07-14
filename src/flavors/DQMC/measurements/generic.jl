@@ -213,7 +213,7 @@ function _save(file::JLDFile, m::DQMCMeasurement, key::String)
     write(file, "$key/GI", m.greens_iterator)
     write(file, "$key/LI", m.lattice_iterator)
     # maybe add module for eval?
-    write(file, "$key/kernel", m.kernel)
+    write(file, "$key/kernel", Symbol(m.kernel))
     write(file, "$key/obs", m.observable)
     write(file, "$key/temp", m.temp)
 end

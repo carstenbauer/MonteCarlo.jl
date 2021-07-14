@@ -70,11 +70,11 @@ function magnetization(
     checkflavors(model)
     li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
     if dir == :x; 
-        return Measurement(mc, model, Greens, li, mx_kernerl; kwargs...)
+        return Measurement(mc, model, Greens, li, mx_kernel; kwargs...)
     elseif dir == :y; 
-        return Measurement(mc, model, Greens, li, my_kernerl; kwargs...)
+        return Measurement(mc, model, Greens, li, my_kernel; kwargs...)
     elseif dir == :z; 
-        return Measurement(mc, model, Greens, li, mz_kernerl; kwargs...)
+        return Measurement(mc, model, Greens, li, mz_kernel; kwargs...)
     else throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
     end
     

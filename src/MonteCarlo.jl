@@ -1,5 +1,6 @@
 module MonteCarlo
 
+using LinearAlgebra: AbstractMatrix
 using Reexport
 # Loading the RNG will fail if Random is nto exported
 @reexport using MonteCarloObservable, Random
@@ -48,6 +49,7 @@ export neighbors, directions
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/main.jl")
 export Greens, GreensAt, CombinedGreensIterator
+export GreensMatrix, dagger
 export boson_energy_measurement, greens_measurement, occupation, magnetization
 export charge_density, charge_density_correlation, charge_density_susceptibility
 export spin_density, spin_density_correlation, spin_density_susceptibility

@@ -111,7 +111,7 @@ end
             l1s = [0, 3, 5, 7, 3, 0, MonteCarlo.nslices(dqmc), 0]
             l2s = [1, 7, 5, 2, 1, MonteCarlo.nslices(dqmc), 0, 0]
             for i in eachindex(l1s)
-                dqmc[Symbol(:UTG, i)] = greens_measurement(dqmc, model, GreensAt(l2s[i], ls[i]))
+                dqmc[Symbol(:UTG, i)] = greens_measurement(dqmc, model, GreensAt(l2s[i], l1s[i]))
             end
 
             @time run!(dqmc, verbose=false)
@@ -196,12 +196,12 @@ end
             l2s = [1, 7, 5, 2, 1, MonteCarlo.nslices(dqmc)]
             # l1s = [0, 3, 5, 0]
             # l2s = [1, 7, 5, MonteCarlo.nslices(dqmc)]
-            dqmc[:UTG1] = greens_measurement(dqmc, model, GreensAt{l2s[1], l1s[1]})
-            dqmc[:UTG2] = greens_measurement(dqmc, model, GreensAt{l2s[2], l1s[2]})
-            dqmc[:UTG3] = greens_measurement(dqmc, model, GreensAt{l2s[3], l1s[3]})
-            dqmc[:UTG4] = greens_measurement(dqmc, model, GreensAt{l2s[4], l1s[4]})
-            dqmc[:UTG5] = greens_measurement(dqmc, model, GreensAt{l2s[5], l1s[5]})
-            dqmc[:UTG6] = greens_measurement(dqmc, model, GreensAt{l2s[6], l1s[6]})
+            dqmc[:UTG1] = greens_measurement(dqmc, model, GreensAt(l2s[1], l1s[1]))
+            dqmc[:UTG2] = greens_measurement(dqmc, model, GreensAt(l2s[2], l1s[2]))
+            dqmc[:UTG3] = greens_measurement(dqmc, model, GreensAt(l2s[3], l1s[3]))
+            dqmc[:UTG4] = greens_measurement(dqmc, model, GreensAt(l2s[4], l1s[4]))
+            dqmc[:UTG5] = greens_measurement(dqmc, model, GreensAt(l2s[5], l1s[5]))
+            dqmc[:UTG6] = greens_measurement(dqmc, model, GreensAt(l2s[6], l1s[6]))
 
             dqmc[:CDS]  = charge_density_susceptibility(dqmc, model)
             dqmc[:SDSx] = spin_density_susceptibility(dqmc, model, :x)

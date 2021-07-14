@@ -172,14 +172,14 @@ end
     MonteCarlo.propagate(mc)
 
     # greens(mc) matches expected output
-    @test greens(mc) ≈ calc_measured_greens(mc, mc.stack.greens)
+    @test greens(mc).val ≈ calc_measured_greens(mc, mc.stack.greens)
 
     # wrap greens test
     for k in 0:9
         MonteCarlo.wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice - k, -1)
     end
     # greens(mc) matches expected output
-    @test greens(mc) ≈ calc_measured_greens(mc, mc.stack.greens)
+    @test greens(mc).val ≈ calc_measured_greens(mc, mc.stack.greens)
 end
 
 # @testset "Uniform Fourier" begin
