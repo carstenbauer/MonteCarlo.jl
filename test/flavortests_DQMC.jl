@@ -148,46 +148,93 @@ end
     m = HubbardModelAttractive(6, 1);
     dqmc = DQMC(m; beta=15.0, safe_mult=5)
     MonteCarlo.initialize_stack(dqmc, dqmc.ut_stack)
-
-    MonteCarlo.build_stack(dqmc, dqmc.ut_stack)
     MonteCarlo.build_stack(dqmc, dqmc.stack)
-        
-    # test B(τ, 1) / B_l1 stacks
-    @test dqmc.stack.u_stack ≈ dqmc.ut_stack.forward_u_stack
-    @test dqmc.stack.d_stack ≈ dqmc.ut_stack.forward_d_stack
-    @test dqmc.stack.t_stack ≈ dqmc.ut_stack.forward_t_stack
 
-    # generate B(β, τ) / B_Nl stacks
-    while dqmc.stack.direction == -1
+    @testset "lazy build_stack forward/backward" begin
+        for i in 2:length(dqmc.ut_stack.forward_u_stack)
+            dqmc.ut_stack.forward_u_stack[i]  .= 0.0
+            dqmc.ut_stack.forward_d_stack[i]  .= 0.0
+            dqmc.ut_stack.forward_t_stack[i]  .= 0.0
+        end
+        for i in 1:length(dqmc.ut_stack.backward_d_stack)-1
+            dqmc.ut_stack.backward_u_stack[i] .= 0.0
+            dqmc.ut_stack.backward_d_stack[i] .= 0.0
+            dqmc.ut_stack.backward_t_stack[i] .= 0.0
+        end
+
+        for upto in (4, 6)
+            MonteCarlo.lazy_build_forward!(dqmc, dqmc.ut_stack, upto)
+            for i in 1:upto
+                @test dqmc.stack.u_stack[i] ≈ dqmc.ut_stack.forward_u_stack[i]
+                @test dqmc.stack.d_stack[i] ≈ dqmc.ut_stack.forward_d_stack[i]
+                @test dqmc.stack.t_stack[i] ≈ dqmc.ut_stack.forward_t_stack[i]
+            end
+            for i in upto+1:length(dqmc.ut_stack.forward_u_stack)
+                @test all(dqmc.ut_stack.forward_u_stack[i] .== 0)
+                @test all(dqmc.ut_stack.forward_d_stack[i] .== 0)
+                @test all(dqmc.ut_stack.forward_t_stack[i] .== 0)
+            end
+        end
+
+        while dqmc.stack.direction == -1
+            MonteCarlo.propagate(dqmc)
+        end
+
+        for downto in (8, 6)
+            MonteCarlo.lazy_build_backward!(dqmc, dqmc.ut_stack, downto)
+            for i in length(dqmc.ut_stack.backward_d_stack):-1:downto
+                @test dqmc.stack.u_stack[i] ≈ dqmc.ut_stack.backward_u_stack[i]
+                @test dqmc.stack.d_stack[i] ≈ dqmc.ut_stack.backward_d_stack[i]
+                @test dqmc.stack.t_stack[i] ≈ dqmc.ut_stack.backward_t_stack[i]
+            end
+            for i in downto-1:-1:1
+                @test all(dqmc.ut_stack.backward_u_stack[i] .== 0)
+                @test all(dqmc.ut_stack.backward_d_stack[i] .== 0)
+                @test all(dqmc.ut_stack.backward_t_stack[i] .== 0)
+            end
+        end
+    end
+
+    @testset "build_stack forward/backward" begin
+        MonteCarlo.build_stack(dqmc, dqmc.stack)
+        MonteCarlo.build_stack(dqmc, dqmc.ut_stack)
+
+        # test B(τ, 1) / B_l1 stacks
+        @test dqmc.stack.u_stack ≈ dqmc.ut_stack.forward_u_stack
+        @test dqmc.stack.d_stack ≈ dqmc.ut_stack.forward_d_stack
+        @test dqmc.stack.t_stack ≈ dqmc.ut_stack.forward_t_stack
+
+        # generate B(β, τ) / B_Nl stacks
+        while dqmc.stack.direction == -1
+            MonteCarlo.propagate(dqmc)
+        end
+
+        # test B(β, τ) / B_Nl stacks
+        # Note: dqmc.stack doesn't generate the full stack here
+        @test dqmc.stack.u_stack[2:end] ≈ dqmc.ut_stack.backward_u_stack[2:end]
+        @test dqmc.stack.d_stack[2:end] ≈ dqmc.ut_stack.backward_d_stack[2:end]
+        @test dqmc.stack.t_stack[2:end] ≈ dqmc.ut_stack.backward_t_stack[2:end]
+    end
+
+    while !(MonteCarlo.current_slice(dqmc) == 1 && dqmc.stack.direction == -1)
         MonteCarlo.propagate(dqmc)
     end
 
-    # test B(β, τ) / B_Nl stacks
-    # Note: dqmc.stack doesn't generate the full stack here
-    @test dqmc.stack.u_stack[2:end] ≈ dqmc.ut_stack.backward_u_stack[2:end]
-    @test dqmc.stack.d_stack[2:end] ≈ dqmc.ut_stack.backward_d_stack[2:end]
-    @test dqmc.stack.t_stack[2:end] ≈ dqmc.ut_stack.backward_t_stack[2:end]
+    @testset "equal time Greens function" begin
+        # Check equal time greens functions from equal time and unequal time
+        # calculation against each other
+        for slice in 0:MonteCarlo.nslices(dqmc)
+            G1 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice))
+            G2 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice, slice))
+            @test maximum(abs.(G1 .- G2)) < 1e-14
+        end
 
-    while !(
-            MonteCarlo.current_slice(dqmc) == 1 &&
-            dqmc.stack.direction == -1
-        )
-        MonteCarlo.propagate(dqmc)
-    end
-
-    # Check equal time greens functions from equal time and unequal time
-    # calculation against each other
-    for slice in 0:MonteCarlo.nslices(dqmc)
-        G1 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice))
-        G2 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice, slice))
-        @test maximum(abs.(G1 .- G2)) < 1e-14
-    end
-
-    # Check G(t, 0) + G(0, beta - t) = 0
-    for slice in 0:MonteCarlo.nslices(dqmc)-1
-        G1 = MonteCarlo.greens(dqmc, slice, 0).val
-        G2 = MonteCarlo.greens(dqmc, slice, MonteCarlo.nslices(dqmc)).val
-        @test G1 ≈ -G2 atol = 1e-13
+        # Check G(t, 0) + G(0, beta - t) = 0
+        for slice in 0:MonteCarlo.nslices(dqmc)-1
+            G1 = MonteCarlo.greens(dqmc, slice, 0).val
+            G2 = MonteCarlo.greens(dqmc, slice, MonteCarlo.nslices(dqmc)).val
+            @test G1 ≈ -G2 atol = 1e-13
+        end
     end
 
 
@@ -199,16 +246,18 @@ end
     # Note: G(0, l) = G(M-l, 0)
     Gk0s = [deepcopy(MonteCarlo.greens(dqmc, slice, 0).val) for slice in 0:MonteCarlo.nslices(dqmc)]
     
-    # Calculated from UnequalTimeStack (high precision)
-    it = MonteCarlo.GreensIterator(dqmc, :, 0, dqmc.parameters.safe_mult)
-    for (i, G) in enumerate(it)
-        @test maximum(abs.(G.val .- Gk0s[i])) < 1e-14
-    end
+    @testset "GreensIterator" begin
+        # Calculated from UnequalTimeStack (high precision)
+        it = MonteCarlo.GreensIterator(dqmc, :, 0, dqmc.parameters.safe_mult)
+        for (i, G) in enumerate(it)
+            @test maximum(abs.(G.val .- Gk0s[i])) < 1e-14
+        end
 
-    # Calculated from mc.stack.greens using UDT decompositions (lower precision)
-    it = MonteCarlo.GreensIterator(dqmc, :, 0, 4dqmc.parameters.safe_mult)
-    for (i, G) in enumerate(it)
-        @test maximum(abs.(G.val .- Gk0s[i])) < 1e-11
+        # Calculated from mc.stack.greens using UDT decompositions (lower precision)
+        it = MonteCarlo.GreensIterator(dqmc, :, 0, 4dqmc.parameters.safe_mult)
+        for (i, G) in enumerate(it)
+            @test maximum(abs.(G.val .- Gk0s[i])) < 1e-11
+        end
     end
 
     Gkks = map(0:MonteCarlo.nslices(dqmc)) do slice
@@ -218,20 +267,22 @@ end
     G0ks = [deepcopy(MonteCarlo.greens(dqmc, 0, slice).val) for slice in 0:MonteCarlo.nslices(dqmc)]
     MonteCarlo.calculate_greens(dqmc, 0) # restore mc.stack.greens
 
-    # high precision
-    it = MonteCarlo.CombinedGreensIterator(dqmc, recalculate = dqmc.parameters.safe_mult)
-    for (i, (G0k, Gk0, Gkk)) in enumerate(MonteCarlo.init(dqmc, it))
-        @test maximum(abs.(Gk0.val .- Gk0s[i+1])) < 1e-14
-        @test maximum(abs.(G0k.val .- G0ks[i+1])) < 1e-14
-        @test maximum(abs.(Gkk.val .- Gkks[i+1])) < 1e-14
-    end
+    @testset "CombinedGreensIterator" begin
+        # high precision
+        it = MonteCarlo.CombinedGreensIterator(dqmc, recalculate = dqmc.parameters.safe_mult)
+        for (i, (G0k, Gk0, Gkk)) in enumerate(MonteCarlo.init(dqmc, it))
+            @test maximum(abs.(Gk0.val .- Gk0s[i+1])) < 1e-14
+            @test maximum(abs.(G0k.val .- G0ks[i+1])) < 1e-14
+            @test maximum(abs.(Gkk.val .- Gkks[i+1])) < 1e-14
+        end
 
-    # low precision
-    it = MonteCarlo.CombinedGreensIterator(dqmc, recalculate = 4dqmc.parameters.safe_mult)
-    for (i, (G0k, Gk0, Gkk)) in enumerate(MonteCarlo.init(dqmc, it))
-        @test maximum(abs.(Gk0.val .- Gk0s[i+1])) < 1e-10
-        @test maximum(abs.(G0k.val .- G0ks[i+1])) < 1e-10
-        @test maximum(abs.(Gkk.val .- Gkks[i+1])) < 1e-10
+        # low precision
+        it = MonteCarlo.CombinedGreensIterator(dqmc, recalculate = 4dqmc.parameters.safe_mult)
+        for (i, (G0k, Gk0, Gkk)) in enumerate(MonteCarlo.init(dqmc, it))
+            @test maximum(abs.(Gk0.val .- Gk0s[i+1])) < 1e-10
+            @test maximum(abs.(G0k.val .- G0ks[i+1])) < 1e-10
+            @test maximum(abs.(Gkk.val .- Gkks[i+1])) < 1e-10
+        end
     end
 end
 
