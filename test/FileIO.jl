@@ -1,9 +1,3 @@
-function strip_linenodes(e::Expr)
-    args = [strip_linenodes(arg) for arg in e.args if !(arg isa LineNumberNode)]
-    Expr(e.head, args...)
-end
-strip_linenodes(e) = e
-
 function test_mc(mc, x)
     # Check if loaded/replayed mc matches original
     for f in fieldnames(typeof(mc.p))
@@ -157,8 +151,6 @@ function test_dqmc(mc, x)
                 r = r && (a.x_sum ≈ b.x_sum)
                 r = r && (a.x2_sum ≈ b.x2_sum)
                 r = r && (a.count ≈ b.count)
-            elseif getfield(v, f) isa Expr
-                strip_linenodes(getfield(v, f)) == strip_linenodes(getfield(x.measurements[k], f))
             else
                 getfield(v, f) == getfield(x.measurements[k], f)
             end
