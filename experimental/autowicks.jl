@@ -1,22 +1,59 @@
+using Base: Symbol
 import LinearAlgebra
 
 # We wanna implement some special stuff which might be bad for Base.Expr
 struct MyExpr
     e::Expr
 
-    function MyExpr(e::Expr)
-        if e.head == :call
-            new(Expr(e.args...))
+    function MyExpr(e::Expr, should_cleanup::Bool = true)
+        if should_cleanup
+            new(cleanup(e))
         else
-            new(e)
+            new(flatten_once(e))
         end
     end
 end
-MyExpr(args...) = MyExpr(flatten_once(Expr(args...)))
+MyExpr(args...; cleanup = true) = MyExpr(Expr(args...), cleanup)
 Base.getproperty(e::MyExpr, field::Symbol) = getproperty(getfield(e, :e), field)
 Base.:(==)(a::MyExpr, b::MyExpr) = getfield(a, :e) == getfield(b, :e)
 expr2myexpr(x::Expr) = MyExpr(x)
 expr2myexpr(x) = x
+function Base.show(io::IO, me::MyExpr)
+    print(io, "MyExpr(")
+    e = getfield(me, :e)
+    show(io, e.head)
+    for arg in e.args
+        print(io, ", ")
+        show(io, arg)
+    end
+    print(io, ")")
+end
+
+function cleanup(e::Expr)
+    if e.head == :call
+        head = e.args[1]
+        args = e.args[2:end]
+    else
+        head = e.head
+        args = e.args
+    end
+
+    new_args = Any[]
+
+    for child in args
+        if child isa Expr
+            child = cleanup(child)
+        end
+        if (child isa Expr || child isa MyExpr) && child.head == e.head
+            append!(new_args, child.args)
+        elseif child isa LineNumberNode; nothing;
+        else
+            push!(new_args, child)
+        end
+    end
+    Expr(head, new_args...)
+end
+
 
 
 # I.e. a c or c^†
@@ -36,6 +73,9 @@ create(idx, time=0; name = :c) = Operator(name, true, idx, time)
 annihilate(idx, time=0; name = :c) = Operator(name, false, idx, time)
 c(idx, time=0; name = :c) = annihilate(idx, time, name=name)
 # cd(idx, time=0; name = :c) = create(idx, time, name=name)
+function Base.:(==)(a::Operator, b::Operator)
+    a.name == b.name && a.daggered == b.daggered && a.index == b.index && a.time == b.time
+end
 
 ExpectationValue(x::MyExpr) = MyExpr(:ExpectationValue, x)
 
@@ -45,13 +85,18 @@ struct ArrayElement
     ArrayElement(name::Symbol, idxs::Vector) = new(name, expr2myexpr.(idxs))
 end
 ArrayElement(name::Symbol, idxs...) = ArrayElement(name, collect(idxs))
+function Base.:(==)(a::ArrayElement, b::ArrayElement)
+    a.name == b.name && a.indices == b.indices
+end
+
+struct Sym
+    name::Symbol
+end
+Base.:(==)(a::Sym, b::Sym) = a.name == b.name
 
 # base extensions
-function Base.:(==)(a::Operator, b::Operator)
-    a.name == b.name && a.daggered == b.daggered && a.index == b.index && a.time == b.time
-end
 LinearAlgebra.adjoint(o::Operator) = Operator(o.name, !o.daggered, o.index, o.time)
-const OpOrExpr = Union{ArrayElement, Operator, MyExpr}
+const OpOrExpr = Union{ArrayElement, Operator, MyExpr, Sym}
 Base.:(-)(a::OpOrExpr) = MyExpr(:*, -1, a)
 for T1 in (OpOrExpr, Number), T2 in (OpOrExpr, Number)
     T1 == Number && T2 == Number && continue
@@ -71,10 +116,12 @@ end
 function Base.show(io::IO, o::Operator)
     print(io, o.name)
     o.daggered && print(io, "^†")
-    print(io, "_{", string(o.index), "}(", o.time, ")")
+    print(io, "_{")
+    _print_expr(io, o.index)
+    print(io, "}(", o.time, ")")
 end
 
- print_expr(e::MyExpr) = print_expr(stdout, e)
+print_expr(e::MyExpr) = print_expr(stdout, e)
 function print_expr(io::IO, e::MyExpr)
     _print_expr(io, e)
     println(io)
@@ -98,6 +145,7 @@ function _print_expr(io, e::ArrayElement)
     end
     print(io, "}")
 end
+_print_expr(io, e::Sym) = print(io, e.name)
 _print_expr(io, e) = print(io, e)
 
 
@@ -129,9 +177,9 @@ function _expand(e::MyExpr)
             child = e.args[i]
             if child isa MyExpr && child.head == :+
                 products = map(child.args) do x
-                    MyExpr(:*, e.args[1:i-1]..., x, e.args[i+1:end]...)
+                    MyExpr(:*, e.args[1:i-1]..., x, e.args[i+1:end]..., cleanup=false)
                 end
-                new_expr = MyExpr(:+, products...)
+                new_expr = MyExpr(:+, products..., cleanup=false)
                 # deal with other possible +(c, d) terms
                 for j in eachindex(products)
                     new_expr.args[j] = _expand(new_expr.args[j])
@@ -150,7 +198,6 @@ function _expand(e::MyExpr)
         end
     elseif e.head == :+
         i = 1
-        e = deepcopy(e)
         while i < length(e.args)
             child = e.args[i]
             if child isa MyExpr && child.head == :+
@@ -162,8 +209,8 @@ function _expand(e::MyExpr)
         end
     elseif e.head == :ExpectationValue
         if e.args[1].head == :+
-            terms = [MyExpr(:ExpectationValue, x) for x in e.args[1].args]
-            return MyExpr(:+, terms...)
+            terms = [MyExpr(:ExpectationValue, x, cleanup=false) for x in e.args[1].args]
+            return MyExpr(:+, terms..., cleanup=false)
         end
     end
     return e
@@ -204,7 +251,6 @@ end
 
 function _wicks(e)
     @assert e.head == :*
-    @assert all(x -> x isa Operator, e.args)
     skip = filter(i -> !(e.args[i] isa Operator), eachindex(e.args))
     groups = generate_pairings(e.args, copy(skip))
     products = map(enumerate(groups)) do (i, g)
@@ -220,7 +266,8 @@ function _wicks(e)
 end
 
 function generate_pairings(v::Vector{T}, skip=Int[]) where T
-    @assert length(v) % 2 == 0
+    length(v) - length(skip) == 0 && return Vector{Any}[]
+    @assert (length(v) - length(skip)) % 2 == 0 "$v"
     combos = Vector{Any}[]
     first_idx = findfirst(i -> !(i in skip), eachindex(v))
     push!(skip, first_idx)
@@ -406,6 +453,7 @@ function to_expr(e::MyExpr)
 end
 to_expr(ae::ArrayElement) = Expr(:ref, ae.name, to_expr.(ae.indices)...)
 to_expr(s::Symbol) = s
+to_expr(x::Number) = x
 
 
 
@@ -502,4 +550,3 @@ end
 macro expand2kernel(code)
     code |> expand |> wicks |> to_greens |> to_expr |> generate_kernel_function
 end
-
