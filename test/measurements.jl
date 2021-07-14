@@ -237,12 +237,11 @@ end
     @test !(G == G2)
     @test !(G ≈ G2)
     
-    M .+= eps(10.0)
-    G2 = GreensMatrix(7, 7, M)
+    G2 = GreensMatrix(7, 7, M .+ eps(10.0))
     @test !(G == G2)
     @test G ≈ G2
 
-    G2 = GreensMatrix(6, 7, M)
+    G2 = GreensMatrix(6, 7, M .+ eps(10.0))
     @test !(G == G2)
     @test !(G ≈ G2)
 end

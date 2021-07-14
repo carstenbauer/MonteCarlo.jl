@@ -7,9 +7,13 @@ struct Daggered{T, GT <: GreensMatrix{T}} <: AbstractMatrix{T}
     x::GT
 end
 
-Base.show(io::IO, x::GreensMatrix) = println(io, "G[i, j] = cᵢ(", x.k, ") cⱼ^†(", x.l, ")")
+function Base.show(io::IO, x::GreensMatrix)
+    println(io, "G[i, j] = cᵢ(", x.k, ") cⱼ^†(", x.l, ")")
+    show(io, x.val)
+end
 function Base.show(io::IO, x::Daggered{<: GreensMatrix})
     println(io, "G'[i, j] = cᵢ^†(", x.l, ") cⱼ(", x.k, ")")
+    show(io, x.x.val)
 end
 
 Base.getindex(x::GreensMatrix, i, j) = x.val[i, j]
