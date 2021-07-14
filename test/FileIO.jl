@@ -71,14 +71,16 @@ end
     L = length(cs)
 
     # Test whether safe file gets overwritten correctly
+    @info mc.last_sweep
     @time mc, state = resume!(
         "resumable_testfile.jld",
         verbose = false,
-        safe_before = now() + Second(20),
+        safe_before = now() + Second(10),
         grace_period = Millisecond(0),
         overwrite = true,
         resumable_filename = "resumable_testfile.jld"
     )
+    @info mc.last_sweep
 
     @test state == false
     cs = deepcopy(mc.configs)
