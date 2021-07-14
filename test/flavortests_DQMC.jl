@@ -1,4 +1,5 @@
 include("testfunctions.jl")
+
 @testset "DQMC Parameters" begin
     P1 = MonteCarlo.DQMCParameters(beta=5.0) #defaults to delta_tau = 0.1
     @test all((P1.beta, P1.delta_tau, P1.slices) .== (5.0, 0.1, 50))
@@ -13,6 +14,36 @@ include("testfunctions.jl")
     @test all((P4.beta, P4.delta_tau, P4.slices) .== (5.0, 0.1, 50))
 
     @test parameters(P4) == (beta = 5.0, delta_tau = 0.1, thermalization = 100, sweeps = 100)
+end
+
+@testset "Magnitude Stats" begin
+    m = MonteCarlo.MagnitudeStats()
+    @test m.max == -Inf
+    @test m.min == Inf
+    @test m.sum == 0.0
+    @test m.count == 0
+
+    @test min(m) == 0.0
+    @test max(m) == 0.0
+    @test mean(m) == 0.0
+    @test length(m) == 0
+
+    push!(m, 1e-7)
+    @test m.max == log10(1e-7)
+    @test m.min == log10(1e-7)
+    @test m.sum == log10(1e-7)
+    @test m.count == 1
+
+    push!(m, 1e-5)
+    @test m.max == log10(1e-5)
+    @test m.min == log10(1e-7)
+    @test m.sum == log10(1e-7) + log10(1e-5)
+    @test m.count == 2
+
+    @test min(m) ≈ 1e-7
+    @test max(m) ≈ 1e-5
+    @test mean(m) ≈ 10^(0.5*(log10(1e-7) + log10(1e-5)))
+    @test length(m) == 2
 end
 
 @testset "DQMC utilities " begin
@@ -276,7 +307,7 @@ end
         @test it.stop == MonteCarlo.nslices(dqmc)
         @test length(it) == it.stop - it.start + 1
 
-        iter = init(it)
+        iter = MonteCarlo.init(dqmc, it)
         @test iter isa MonteCarlo._CombinedGreensIterator
         @test iter.mc == dqmc
         @test iter.spec == it
