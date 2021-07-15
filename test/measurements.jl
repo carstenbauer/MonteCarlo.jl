@@ -186,7 +186,7 @@ end
     m = HubbardModelAttractive(2, 2, mu=0.5)
     mc = DQMC(m, beta=1.0, safe_mult=10, thermalization=1, sweeps=1)
     MonteCarlo.initialize_stack(mc, mc.ut_stack)
-    run!(mc)
+    run!(mc, verbose=false)
 
     G = greens(mc)
     @test G isa GreensMatrix

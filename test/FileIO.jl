@@ -28,7 +28,8 @@ function test_mc(mc, x)
     nothing
 end
 
-@testset "MC" begin
+println("MC")
+@time @testset "MC" begin
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=0.66, thermalization=33, sweeps=123, recorder=ConfigRecorder)
     @time run!(mc, verbose=false)
@@ -165,7 +166,8 @@ for file in readdir()
     (endswith(file, "jld") || endswith(file, "jld2")) && rm(file)
 end
 
-@testset "DQMC" begin
+println("DQMC")
+@time @testset "DQMC" begin
     model = HubbardModelAttractive(4, 2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
     mc[:CDC] = charge_density_correlation(mc, model)
