@@ -261,22 +261,27 @@ end
                 @testset "Magnetization x" begin
                     Mx = mean(dqmc.measurements[:Mx])
                     for site in 1:length(Mx)
-                        ED_Mx = expectation_value(m_x(site), H, beta = dqmc.parameters.beta, N_sites = N)
+                        ED_Mx = expectation_value(
+                            m_x(site), H, beta = dqmc.parameters.beta, N_sites = N
+                        )
                         @test check(ED_Mx, Mx[site], atol, rtol)
                     end
                 end
                 @testset "Magnetization y" begin
                     My = mean(dqmc.measurements[:My])
                     for site in 1:length(My)
-                        ED_My = expectation_value(m_y(site), H, beta = dqmc.parameters.beta, N_sites = N)
+                        ED_My = expectation_value(
+                            m_y(site), H, beta = dqmc.parameters.beta, N_sites = N
+                        ) |> imag
                         @test check(ED_My, My[site], atol, rtol)
                     end
                 end
                 @testset "Magnetization z" begin
                     Mz = mean(dqmc.measurements[:Mz])
-                    ΔMz = std_error(dqmc.measurements[:Mz])
                     for site in 1:length(Mz)
-                        ED_Mz = expectation_value(m_z(site), H, beta = dqmc.parameters.beta, N_sites = N)
+                        ED_Mz = expectation_value(
+                            m_z(site), H, beta = dqmc.parameters.beta, N_sites = N
+                        )
                         @test check(ED_Mz, Mz[site], atol, rtol)
                     end
                 end

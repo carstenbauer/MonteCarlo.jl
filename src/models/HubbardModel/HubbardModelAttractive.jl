@@ -256,49 +256,49 @@ end
 checkflavors(model::HubbardModelAttractive) = checkflavors(model, 1)
 
 
-function cdc_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::AbstractArray)
+function cdc_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::GreensMatrix)
     # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
     i, j = ij
-    4 * (1 - G[i, i]) * (1 - G[j, j]) + 2 * (I[j, i] - G[j, i]) * G[i, j]
+    4 * dagger(G)[i, i] * dagger(G)[j, j] + 2 * dagger(G)[i, j] * G[i, j]
 end
 function cdc_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, pg::NTuple{4})
     i, j = ij
     G00, G0l, Gl0, Gll = pg
     # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
-    4 * (1 - Gll[i,i]) * (1 - G00[j,j]) - 2 * G0l[j,i] * Gl0[i,j]
+    4 * dagger(Gll)[i, i] * dagger(G00)[j, j] + 2 * dagger(G0l)[i, j] * Gl0[i, j]
 end
 
-mx_kernel(mc, ::HubbardModelAttractive, i, G::AbstractArray) = 0.0
-my_kernel(mc, ::HubbardModelAttractive, i, G::AbstractArray) = 0.0
-mz_kernel(mc, ::HubbardModelAttractive, i, G::AbstractArray) = 0.0
+mx_kernel(mc, ::HubbardModelAttractive, i, G::GreensMatrix) = 0.0
+my_kernel(mc, ::HubbardModelAttractive, i, G::GreensMatrix) = 0.0
+mz_kernel(mc, ::HubbardModelAttractive, i, G::GreensMatrix) = 0.0
 
-function sdc_x_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::AbstractArray)
+function sdc_x_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
-    2(I[j,i] - G[j,i]) * G[i,j]
+    2 * dagger(G)[i, j] * G[i, j]
 end
-function sdc_y_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::AbstractArray)
+function sdc_y_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
-    2(I[j,i] - G[j,i]) * G[i,j]
+    2 * dagger(G)[i, j] * G[i, j]
 end
-function sdc_z_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::AbstractArray)
+function sdc_z_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
-    2(I[j,i] - G[j,i]) * G[i,j]
+    2 * dagger(G)[i, j] * G[i, j]
 end
 
 function sdc_x_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, pg::NTuple{4})
     i, j = ij
-    -2 * pg[2][j,i] * pg[3][i,j]
+    2 * dagger(pg[2])[i, j] * pg[3][i, j]
 end
 function sdc_y_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, pg::NTuple{4})
     i, j = ij
-    -2 * pg[2][j,i] * pg[3][i,j]
+    2 * dagger(pg[2])[i, j] * pg[3][i, j]
 end
 function sdc_z_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, pg::NTuple{4})
     i, j = ij
-    -2 * pg[2][j,i] * pg[3][i,j]
+    2 * dagger(pg[2])[i, j] * pg[3][i, j]
 end
 
-function pc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, G::AbstractArray)
+function pc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, G::GreensMatrix)
     src1, trg1, src2, trg2 = sites
     G[src1, src2] * G[trg1, trg2]
 end
@@ -309,7 +309,7 @@ end
 function pc_alt_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, packed_greens::NTuple{4})
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
-    (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2, src1])
+    dagger(G0l)[trg1, trg2] * dagger(G0l)[src1, src2]
 end
 function pc_ref_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, packed_greens::NTuple{4})
     src1, trg1, src2, trg2 = sites

@@ -256,126 +256,217 @@ end
                     = Gl0_{j,i}^† = Gl0_{j,i}^*
 =#
 
+"""
+    greens_kernel(mc, model, G::GreensMatrix)
 
+Returns the unprocessed Greens function `greens(mc) = {⟨cᵢcⱼ^†⟩}`.
+
+* Lattice Iterators: `nothing` (zero index)
+* Greens Iterators: `Greens` or `GreensAt`
+"""
 greens_kernel(mc, model, G::GreensMatrix) = G.val
 
 
-occupation_kernel(mc, model, i::Integer, G::AbstractArray) = 1 - G[i, i]
+"""
+    occupation_kernel(mc, model, i::Integer, G::GreensMatrix)
+
+Returns the per index occupation `⟨nᵢ⟩`.
+
+* Lattice Iterators: `EachSiteAndFlavor`, `EachSite`
+* Greens Iterators: `Greens` or `GreensAt`
+"""
+occupation_kernel(mc, model, i::Integer, G::GreensMatrix) = 1 - G[i, i]
 
 
+"""
+    cdc_kernel(mc, model, ij::NTuple{2, Integer}, G::GreensMatrix)
+    cdc_kernel(mc, model, ij::NTuple{2, Integer}, Gs::NTuple{4, GreensMatrix})
 
-function cdc_kernel(mc, model, ij::NTuple{2}, G::AbstractArray)
+Returns the per-site-pair charge density `⟨nᵢ(τ) nⱼ(0)⟩ - ⟨nᵢ(τ)⟩⟨nⱼ(0)⟩` where 
+`τ = 0` for the first signature.
+
+* Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
+* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+"""
+function cdc_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
     N = length(lattice(mc))
     # ⟨n↑n↑⟩
-    (1 - G[i, i])       * (1 - G[j, j]) +
-    (I[j, i] - G[j, i]) * G[i, j] +
+    dagger(G)[i, i] * dagger(G)[j, j] +
+    dagger(G)[i, j] * G[i, j] +
     # ⟨n↑n↓⟩
-    (1 - G[i, i]) * (1 - G[j+N, j+N]) -
-    G[j+N, i]     * G[i, j + N] +
+    dagger(G)[i, i] * dagger(G)[j+N, j+N] +
+    dagger(G)[i, j+N] * G[i, j + N] +
     # ⟨n↓n↑⟩
-    (1 - G[i+N, i+N]) * (1 - G[j, j]) -
-    G[j, i+N]         * G[i+N, j] +
+    dagger(G)[i+N, i+N] * dagger(G)[j, j] +
+    dagger(G)[i+N, j] * G[i+N, j] +
     # ⟨n↓n↓⟩
-    (1 - G[i+N, i+N])           * (1 - G[j+N, j+N]) +
-    (I[j, i] - G[j+N, i+N]) *  G[i+N, j+N]
+    dagger(G)[i+N, i+N]  * dagger(G)[j+N, j+N] +
+    dagger(G)[i+N, j+N] * G[i+N, j+N]
 end
 
 function cdc_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(mc))
-    # ⟨n↑(l)n↑⟩
-    (1 - Gll[i, i]) * (1 - G00[j, j]) -
-    G0l[j, i] * Gl0[i, j] +
-    # ⟨n↑n↓⟩
-    (1 - Gll[i, i]) * (1 - G00[j+N, j+N]) -
-    G0l[j+N, i] * Gl0[i, j+N] +
-    # ⟨n↓n↑⟩
-    (1 - Gll[i+N, i+N]) * (1 - G00[j, j]) -
-    G0l[j, i+N] * Gl0[i+N, j] +
-    # ⟨n↓n↓⟩
-    (1 - Gll[i+N, i+N]) * (1 - G00[j+N, j+N]) -
-    G0l[j+N, i+N] * Gl0[i+N, j+N]
+    # ⟨n↑(l)n↑(0)⟩
+    dagger(Gll)[i, i] * dagger(G00)[j, j] +
+    dagger(G0l)[i, j] * Gl0[i, j] +
+    # ⟨n↑(l)n↓(0)⟩
+    dagger(Gll)[i, i] * dagger(G00)[j+N, j+N] +
+    dagger(G0l)[i, j+N] * Gl0[i, j + N] +
+    # ⟨n↓(l)n↑(0)⟩
+    dagger(Gll)[i+N, i+N] * dagger(G00)[j, j] +
+    dagger(G0l)[i+N, j] * Gl0[i+N, j] +
+    # ⟨n↓(l)n↓(0)⟩
+    dagger(Gll)[i+N, i+N] * dagger(G00)[j+N, j+N] +
+    dagger(G0l)[i+N, j+N] * Gl0[i+N, j+N]
 end
 
 
+"""
+    mx_kernel(mc, model, i::Integer, G::GreensMatrix)
 
-function mx_kernel(mc, model, i, G::AbstractArray)
+Returns the per-site x-magnetization `⟨cᵢ↑^† cᵢ↓ + cᵢ↓^† cᵢ↑⟩`.
+    
+* Lattice Iterators: `EachSite`
+* Greens Iterators: `Greens` or `GreensAt`
+"""
+function mx_kernel(mc, model, i, G::GreensMatrix)
     N = length(lattice(model))
     -G[i+N, i] - G[i, i+N]
 end
 
-function my_kernel(mc, model, i, G::AbstractArray)
+"""
+    my_kernel(mc, model, i::Integer, G::GreensMatrix)
+
+Returns the per-site y-magnetization `-⟨cᵢ↑^† cᵢ↓ - cᵢ↓^† cᵢ↑⟩` without the 
+imaginary prefactor.
+    
+* Lattice Iterators: `EachSite`
+* Greens Iterators: `Greens` or `GreensAt`
+"""
+function my_kernel(mc, model, i, G::GreensMatrix)
     N = length(lattice(model))
     G[i+N, i] - G[i, i+N]
 end
 
-function mz_kernel(mc, model, i, G::AbstractArray)
+"""
+    mz_kernel(mc, model, i::Integer, G::GreensMatrix)
+
+Returns the per-site z-magnetization `⟨nᵢ↑ - nᵢ↓⟩`.
+    
+* Lattice Iterators: `EachSite`
+* Greens Iterators: `Greens` or `GreensAt`
+"""
+function mz_kernel(mc, model, i, G::GreensMatrix)
     N = length(lattice(model))
     G[i+N, i+N] - G[i, i]
 end
 
 
+"""
+    sdc_x_kernel(mc, model, ij::NTuple{2, Integer}, G::GreensMatrix)
+    sdc_x_kernel(mc, model, ij::NTuple{2, Integer}, Gs::NTuple{4, GreensMatrix})
 
-function sdc_x_kernel(mc, model, ij::NTuple{2}, G::AbstractArray)
+Returns the per-site-pair x-spin density `⟨mxᵢ(τ) mxⱼ(0)⟩ - ⟨mxᵢ(τ)⟩⟨mxⱼ(0)⟩` 
+where `τ = 0` for the first signature.
+
+* Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
+* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+"""
+function sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
     N = length(lattice(model))
-    G[i+N, i] * G[j+N, j] - G[j+N, i] * G[i+N, j] +
-    G[i+N, i] * G[j, j+N] + (I[j, i] - G[j, i]) * G[i+N, j+N] +
-    G[i, i+N] * G[j+N, j] + (I[j, i] - G[j+N, i+N]) * G[i, j] +
-    G[i, i+N] * G[j, j+N] - G[j, i+N] * G[i, j+N]
+    G[i+N, i] * G[j+N, j] + G[i+N, i] * G[j, j+N] + 
+    G[i, i+N] * G[j+N, j] + G[i, i+N] * G[j, j+N] + 
+    dagger(G)[i, j+N] * G[i+N, j] + dagger(G)[i, j] * G[i+N, j+N] +
+    dagger(G)[i+N, j+N] * G[i, j] + dagger(G)[i+N, j] * G[i, j+N]
 end
 function sdc_x_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
-    Gll[i+N, i] * G00[j+N, j] - G0l[j+N, i] * Gl0[i+N, j] +
-    Gll[i+N, i] * G00[j, j+N] - G0l[j, i] * Gl0[i+N, j+N] +
-    Gll[i, i+N] * G00[j+N, j] - G0l[j+N, i+N] * Gl0[i, j] +
-    Gll[i, i+N] * G00[j, j+N] - G0l[j, i+N] * Gl0[i, j+N]
+    Gll[i+N, i] * G00[j+N, j] + Gll[i+N, i] * G00[j, j+N] + 
+    Gll[i, i+N] * G00[j+N, j] + Gll[i, i+N] * G00[j, j+N] + 
+    dagger(G0l)[i, j+N] * Gl0[i+N, j] + dagger(G0l)[i, j] * Gl0[i+N, j+N] +
+    dagger(G0l)[i+N, j+N] * Gl0[i, j] + dagger(G0l)[i+N, j] * Gl0[i, j+N]
 end
 
-function sdc_y_kernel(mc, model, ij::NTuple{2}, G::AbstractArray)
+"""
+    sdc_y_kernel(mc, model, ij::NTuple{2, Integer}, G::GreensMatrix)
+    sdc_y_kernel(mc, model, ij::NTuple{2, Integer}, Gs::NTuple{4, GreensMatrix})
+
+Returns the per-site-pair x-spin density `⟨myᵢ(τ) myⱼ(0)⟩ - ⟨myᵢ(τ)⟩⟨myⱼ(0)⟩` 
+where `τ = 0` for the first signature.
+
+* Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
+* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+"""
+function sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
     N = length(lattice(model))
-    - G[i+N, i] * G[j+N, j] + G[j+N, i] * G[i+N, j] +
-      G[i+N, i] * G[j, j+N] + (I[j, i] - G[j, i]) * G[i+N, j+N] +
-      G[i, i+N] * G[j+N, j] + (I[j, i] - G[j+N, i+N]) * G[i, j] -
-      G[i, i+N] * G[j, j+N] + G[j, i+N] * G[i, j+N]
+    - G[i+N, i] * G[j+N, j] + G[i+N, i] * G[j, j+N] + 
+      G[i, i+N] * G[j+N, j] - G[i, i+N] * G[j, j+N] + 
+    - dagger(G)[i, j+N] * G[i+N, j] + dagger(G)[i, j] * G[i+N, j+N] +
+      dagger(G)[i+N, j+N] * G[i, j] - dagger(G)[i+N, j] * G[i, j+N]
 end
 function sdc_y_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
-    - Gll[i+N, i] * G00[j+N, j] + G0l[j+N, i] * Gl0[i+N, j] +
-      Gll[i+N, i] * G00[j, j+N] - G0l[j, i] * Gl0[i+N, j+N] +
-      Gll[i, i+N] * G00[j+N, j] - G0l[j+N, i+N] * Gl0[i, j] -
-      Gll[i, i+N] * G00[j, j+N] + G0l[j, i+N] * Gl0[i, j+N]
+    - Gll[i+N, i] * G00[j+N, j] + Gll[i+N, i] * G00[j, j+N] + 
+      Gll[i, i+N] * G00[j+N, j] - Gll[i, i+N] * G00[j, j+N] + 
+    - dagger(G0l)[i, j+N] * Gl0[i+N, j] + dagger(G0l)[i, j] * Gl0[i+N, j+N] +
+      dagger(G0l)[i+N, j+N] * Gl0[i, j] - dagger(G0l)[i+N, j] * Gl0[i, j+N]
 end
 
-function sdc_z_kernel(mc, model, ij::NTuple{2}, G::AbstractArray)
+"""
+    sdc_z_kernel(mc, model, ij::NTuple{2, Integer}, G::GreensMatrix)
+    sdc_z_kernel(mc, model, ij::NTuple{2, Integer}, Gs::NTuple{4, GreensMatrix})
+
+Returns the per-site-pair x-spin density `⟨mzᵢ(τ) mzⱼ(0)⟩ - ⟨mzᵢ(τ)⟩⟨mzⱼ(0)⟩` 
+where `τ = 0` for the first signature.
+
+* Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
+* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+"""
+function sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
     N = length(lattice(model))
-    (1 - G[i, i]) * (1 - G[j, j])         + (I[j, i] - G[j, i]) * G[i, j] -
-    (1 - G[i, i]) * (1 - G[j+N, j+N])     + G[j+N, i] * G[i, j+N] -
-    (1 - G[i+N, i+N]) * (1 - G[j, j])     + G[j, i+N] * G[i+N, j] +
-    (1 - G[i+N, i+N]) * (1 - G[j+N, j+N]) + (I[j, i] - G[j+N, i+N]) * G[i+N, j+N]
+    dagger(G)[i, i]     * dagger(G)[j, j] - 
+    dagger(G)[i, i]     * dagger(G)[j+N, j+N] -
+    dagger(G)[i+N, i+N] * dagger(G)[j, j] + 
+    dagger(G)[i+N, i+N] * dagger(G)[j+N, j+N] + 
+    dagger(G)[i, j] * G[i, j]     - dagger(G)[i, j+N] * G[i, j+N] -
+    dagger(G)[i+N, j] * G[i+N, j] + dagger(G)[i+N, j+N] * G[i+N, j+N]
 end
 function sdc_z_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
-    (1 - Gll[i, i])     * (1 - G00[j, j])     - G0l[j, i] * Gl0[i, j] -
-    (1 - Gll[i, i])     * (1 - G00[j+N, j+N]) + G0l[j+N, i] * Gl0[i, j+N] -
-    (1 - Gll[i+N, i+N]) * (1 - G00[j, j])     + G0l[j, i+N] * Gl0[i+N, j] +
-    (1 - Gll[i+N, i+N]) * (1 - G00[j+N, j+N]) - G0l[j+N, i+N] * Gl0[i+N, j+N]
+    dagger(Gll)[i, i] * dagger(G00)[j, j] - 
+    dagger(Gll)[i, i] * dagger(G00)[j+N, j+N] -
+    dagger(Gll)[i+N, i+N] * dagger(G00)[j, j] + 
+    dagger(Gll)[i+N, i+N] * dagger(G00)[j+N, j+N] + 
+    dagger(G0l)[i, j] * Gl0[i, j]     - dagger(G0l)[i, j+N] * Gl0[i, j+N] -
+    dagger(G0l)[i+N, j] * Gl0[i+N, j] + dagger(G0l)[i+N, j+N] * Gl0[i+N, j+N]
 end
 
 
+"""
+    pc_kernel(mc, model, ij::NTuple{4, Integer}, G::GreensMatrix)
+    pc_kernel(mc, model, ij::NTuple{4, Integer}, Gs::NTuple{4, GreensMatrix})
 
+Returns the per-site-pair pairing `⟨Δᵢⱼ(τ) Δₖₗ^†(0)⟩` where `τ = 0` for the 
+first signature and `Δᵢⱼ(τ) = 0.5 cᵢ↑(τ) cⱼ↓(τ)`. The Delta operator is a 
+deferred version of the  pair field operator `Δᵢ = 0.5 ∑ₐ f(a) cᵢ↑ cᵢ₊ₐ↓` which 
+leaves the execution of the sum for after the simulation. 
 
-function pc_kernel(mc, model, sites::NTuple{4}, G::AbstractArray)
+* Lattice Iterators: `EachLocalQuadByDistance` or `EachLocalQuadBySyncedDistance`
+* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+"""
+function pc_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix)
     pc_kernel(mc, model, sites, (G, G, G, G))
 end
 function pc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
@@ -388,7 +479,19 @@ function pc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     Gl0[src1, src2] * Gl0[trg1+N, trg2+N] - Gl0[src1, trg2+N] * Gl0[trg1+N, src2]
 end
 
-function pc_alt_kernel(mc, model, sites::NTuple{4}, G::AbstractArray)
+"""
+    pc_kernel(mc, model, ij::NTuple{4, Integer}, G::GreensMatrix)
+    pc_kernel(mc, model, ij::NTuple{4, Integer}, Gs::NTuple{4, GreensMatrix})
+
+Returns the per-site-pair pairing `⟨Δᵢⱼ^†(τ) Δₖₗ(0)⟩` where `τ = 0` for the 
+first signature and `Δᵢⱼ(τ) = 0.5 cᵢ↑(τ) cⱼ↓(τ)`. The Delta operator is a 
+deferred version of the  pair field operator `Δᵢ = 0.5 ∑ₐ f(a) cᵢ↑ cᵢ₊ₐ↓` which 
+leaves the execution of the sum for after the simulation. 
+
+* Lattice Iterators: `EachLocalQuadByDistance` or `EachLocalQuadBySyncedDistance`
+* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+"""
+function pc_alt_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix)
     pc_alt_kernel(mc, model, sites, (G, G, G, G))
 end
 function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
@@ -398,8 +501,8 @@ function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     # Δ_v^†(src1, trg1)(τ) Δ_v(src2, trg2)(0)
     # (I-G)_{j, i}^{↑, ↑}(0, τ) (I-G)_{j+d', i+d}^{↓, ↓}(0, τ) - 
     # (I-G)_{j, i+d}^{↑, ↓}(0, τ) G_{j+d', i}^{↓, ↑}(0, τ)
-    (I[trg2, trg1] - G0l[trg2+N, trg1+N]) * (I[src2, src1] - G0l[src2, src1]) -
-    (I[src2, trg1] - G0l[src2, trg1+N]) * (I[trg2, src1] - G0l[trg2+N, src1])
+    dagger(G0l)[trg1+N, trg2+N] * dagger(G0l)[src1, src2] -
+    G0l[src2, trg1+N] * G0l[trg2+N, src1]
 end
 
 function pc_combined_kernel(mc, model, sites::NTuple{4}, G)
@@ -408,7 +511,7 @@ function pc_combined_kernel(mc, model, sites::NTuple{4}, G)
 end
 
 
-function pc_ref_kernel(mc, model, sites::NTuple{4}, G::AbstractArray)
+function pc_ref_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix)
     # Δ^† Δ + Δ Δ^† but ↑ and ↓ are swapped
     pc_ref_kernel(mc, model, sites, (G, G, G, G))
 end
@@ -521,7 +624,6 @@ function nonintE(T::BlockDiagonal{X, N}, G::BlockDiagonal{X, N}) where {X, N}
 end
 
 
-function totalE_kernel(mc, model, G::AbstractArray)
+function totalE_kernel(mc, model, G::GreensMatrix)
     nonintE_kernel(mc, model, G) + intE_kernel(mc, model, G)
 end
-
