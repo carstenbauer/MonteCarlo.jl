@@ -1,21 +1,37 @@
+"""
+    GreensMatrix{eltype, mattype}
+
+`GreensMatrix` is a thin wrapper for `mattype` eturned by `greens(...)`, 
+`greens!(...)` and related iterators. The elements `G[i, j]` represent 
+`⟨cᵢ(k) cⱼ^†(l)⟩` where `k` and `l` are time slice indices contained in the 
+type.
+
+Related to this is the `D::Daggered` type, returned by `dagger(::GreensMatrix)`. 
+It represents `D[i, j] = ⟨cᵢ^†(l) cⱼ(k)⟩ = δᵢⱼ δₖₗ - ⟨cⱼ(k) cᵢ^†(l)⟩`.
+"""
 struct GreensMatrix{T, M <: AbstractMatrix{T}} <: AbstractMatrix{T}
     k::Int
     l::Int
     val::M
 end
+"""
+see GreensMatrix
+"""
 struct Daggered{T, GT <: GreensMatrix{T}} <: AbstractMatrix{T}
     x::GT
 end
 
-function Base.show(io::IO, x::GreensMatrix)
-    println(io, "G[i, j] = cᵢ(", x.k, ") cⱼ^†(", x.l, ")")
-    show(io, x.val)
-end
-function Base.show(io::IO, x::Daggered{<: GreensMatrix})
-    println(io, "G'[i, j] = cᵢ^†(", x.l, ") cⱼ(", x.k, ")")
-    show(io, x.x.val)
-end
+# function Base.show(io::IO, x::GreensMatrix)
+#     println(io, "G[i, j] = cᵢ(", x.k, ") cⱼ^†(", x.l, ") =")
+#     show(io, x.val)
+# end
+# function Base.show(io::IO, x::Daggered{<: GreensMatrix})
+#     println(io, "G'[i, j] = cᵢ^†(", x.l, ") cⱼ(", x.k, ") =")
+#     show(io, I[x.x.k, x.x.l] * I - transpose(x.x.val))
+# end
 
+Base.size(x::GreensMatrix) = size(x.val)
+Base.size(x::Daggered) = size(x.x.val)
 Base.getindex(x::GreensMatrix, i, j) = x.val[i, j]
 Base.getindex(x::Daggered, i, j) = I[x.x.k, x.x.l] * I[i, j] - x.x.val[j, i]
 dagger(x::GreensMatrix) = Daggered(x)

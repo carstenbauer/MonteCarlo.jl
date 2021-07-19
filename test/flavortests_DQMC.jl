@@ -84,6 +84,80 @@ end
     @test parameters(m) == NamedTuple()
 end
 
+
+@testset "GreensMatrix" begin
+    m = HubbardModelAttractive(2, 2, mu=0.5)
+    mc = DQMC(m, beta=1.0, safe_mult=10, thermalization=1, sweeps=1)
+    MonteCarlo.initialize_stack(mc, mc.ut_stack)
+    run!(mc, verbose=false)
+
+    G = greens(mc)
+    @test G isa GreensMatrix
+    @test G.k == 0
+    @test G.l == 0
+    @test size(G) == size(G.val)
+
+    G = greens(mc, 4)
+    @test G isa GreensMatrix
+    @test G.k == 4
+    @test G.l == 4
+
+    G = greens!(mc, 4)
+    @test G isa GreensMatrix
+    @test G.k == 4
+    @test G.l == 4
+
+    G = greens(mc, 2, 7)
+    @test G isa GreensMatrix
+    @test G.k == 2
+    @test G.l == 7
+
+    G = greens(mc, 5, 3)
+    @test G isa GreensMatrix
+    @test G.k == 5
+    @test G.l == 3
+
+    M = Float64[1 2; 3 4]
+    G = GreensMatrix(0, 7, M)
+    @test G[1, 1] == M[1, 1]
+    @test G[1, 2] == M[1, 2]
+    @test G[2, 1] == M[2, 1]
+    @test G[2, 2] == M[2, 2]
+
+    D = dagger(G)
+    @test D isa MonteCarlo.Daggered
+    @test D[1, 1] == -M[1, 1]
+    @test D[2, 1] == -M[1, 2]
+    @test D[1, 2] == -M[2, 1]
+    @test D[2, 2] == -M[2, 2]
+    @test size(D) == size(D.x.val)
+
+    G = GreensMatrix(7, 7, M)
+    D = dagger(G)
+    @test D[1, 1] == 1 - M[1, 1]
+    @test D[2, 1] == -M[1, 2]
+    @test D[1, 2] == -M[2, 1]
+    @test D[2, 2] == 1 - M[2, 2]
+    @test dagger(D) == G
+
+    G2 = GreensMatrix(7, 7, M)
+    @test G == G2
+    @test G ≈ G2
+
+    G2 = GreensMatrix(6, 7, M)
+    @test !(G == G2)
+    @test !(G ≈ G2)
+    
+    G2 = GreensMatrix(7, 7, M .+ eps(10.0))
+    @test !(G == G2)
+    @test G ≈ G2
+
+    G2 = GreensMatrix(6, 7, M .+ eps(10.0))
+    @test !(G == G2)
+    @test !(G ≈ G2)
+end
+
+
 @testset "DQMC stack" begin
     m = HubbardModelAttractive(8, 1);
 
