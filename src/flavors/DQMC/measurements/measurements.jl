@@ -17,7 +17,7 @@ end
 
 # This has lattice_iteratorator = Nothing, because it straight up copies G
 function greens_measurement(
-        mc::DQMC, model::Model, greens_iterator=Greens; 
+        mc::DQMC, model::Model, greens_iterator = Greens(); 
         capacity = _default_capacity(mc), eltype = geltype(mc),
         obs = let
             N = length(lattice(model)) * nflavors(model)
@@ -25,7 +25,7 @@ function greens_measurement(
         end, kwargs...
     )
     Measurement(
-        mc, model, greens_iterator, Nothing, greens_kernel, 
+        mc, model, greens_iterator, nothing, greens_kernel, 
         obs = obs; kwargs...
     )
 end
@@ -34,7 +34,7 @@ end
 
 function occupation(mc::DQMC, model::Model; wrapper = nothing, kwargs...)
     li = wrapper === nothing ? EachSiteAndFlavor : wrapper{EachSiteAndFlavor}
-    Measurement(mc, model, Greens, li, occupation_kernel; kwargs...)
+    Measurement(mc, model, Greens(), li, occupation_kernel; kwargs...)
 end
 
 
@@ -48,8 +48,8 @@ function charge_density(
     Measurement(mc, model, greens_iterator, li, cdc_kernel; kwargs...)
 end
 
-charge_density_correlation(mc, m; kwargs...) = charge_density(mc, m, Greens; kwargs...)
-charge_density_susceptibility(mc, m; kwargs...) = charge_density(mc, m, CombinedGreensIterator; kwargs...)
+charge_density_correlation(mc, m; kwargs...) = charge_density(mc, m, Greens(); kwargs...)
+charge_density_susceptibility(mc, m; kwargs...) = charge_density(mc, m, CombinedGreensIterator(mc); kwargs...)
 
 
 
@@ -70,11 +70,11 @@ function magnetization(
     checkflavors(model)
     li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
     if dir == :x; 
-        return Measurement(mc, model, Greens, li, mx_kernel; kwargs...)
+        return Measurement(mc, model, Greens(), li, mx_kernel; kwargs...)
     elseif dir == :y; 
-        return Measurement(mc, model, Greens, li, my_kernel; kwargs...)
+        return Measurement(mc, model, Greens(), li, my_kernel; kwargs...)
     elseif dir == :z; 
-        return Measurement(mc, model, Greens, li, mz_kernel; kwargs...)
+        return Measurement(mc, model, Greens(), li, mz_kernel; kwargs...)
     else throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
     end
     
@@ -99,8 +99,8 @@ function spin_density(
         error("$greens_iterator not recongized")
     end
 end
-spin_density_correlation(args...; kwargs...) = spin_density(args..., Greens; kwargs...)
-spin_density_susceptibility(args...; kwargs...) = spin_density(args..., CombinedGreensIterator; kwargs...)
+spin_density_correlation(args...; kwargs...) = spin_density(args..., Greens(); kwargs...)
+spin_density_susceptibility(mc, args...; kwargs...) = spin_density(mc, args..., CombinedGreensIterator(mc); kwargs...)
 
 
 
@@ -112,8 +112,8 @@ function pairing(
     li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
     Measurement(dqmc, model, greens_iterator, li, pc_kernel; kwargs...)
 end
-pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens; kwargs...)
-pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator; kwargs...)
+pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens(); kwargs...)
+pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator(mc); kwargs...)
 
 
 
@@ -154,7 +154,7 @@ EachSyncedNNQuadByDistance{K}?
 function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
         K = 1+length(neighbors(lattice(model), 1)),
-        greens_iterator = CombinedGreensIterator, wrapper = nothing,
+        greens_iterator = CombinedGreensIterator(dqmc), wrapper = nothing,
         lattice_iterator = EachLocalQuadBySyncedDistance{K}, kwargs...
     )
     li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
@@ -224,17 +224,17 @@ end
 
 
 function noninteracting_energy(dqmc, model; kwargs...)
-    Measurement(dqmc, model, Greens, Nothing, nonintE_kernel; kwargs...)
+    Measurement(dqmc, model, Greens(), Nothing, nonintE_kernel; kwargs...)
 end
 
 
 # These require the model to implement intE_kernel
 function interacting_energy(dqmc, model; kwargs...)
-    Measurement(dqmc, model, Greens, Nothing, intE_kernel; kwargs...)
+    Measurement(dqmc, model, Greens(), Nothing, intE_kernel; kwargs...)
 end
 
 function total_energy(dqmc, model; kwargs...)
-    Measurement(dqmc, model, Greens, Nothing, totalE_kernel; kwargs...)
+    Measurement(dqmc, model, Greens(), Nothing, totalE_kernel; kwargs...)
 end
 
 

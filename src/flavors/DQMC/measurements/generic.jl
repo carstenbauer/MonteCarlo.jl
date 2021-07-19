@@ -121,6 +121,7 @@ end
 
 _get_shape(model, mask::RawMask) = (mask.nsites, mask.nsites)
 _get_shape(model, mask::DistanceMask) = length(mask)
+_get_shape(mc, model, ::Nothing) = nothing
 
 _get_shape(mc, model, LI::Type) = _get_shape(LI(mc, model))
 _get_shape(mc, model, ::Type{Nothing}) = nothing
