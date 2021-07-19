@@ -190,7 +190,7 @@ end
         m = greens_measurement(mc, m1)
         @test m isa MonteCarlo.DQMCMeasurement
         @test m.greens_iterator == Greens()
-        @test m.lattice_iterator === nothing
+        @test m.lattice_iterator == Nothing
         @test m.kernel == MonteCarlo.greens_kernel
         @test m.observable isa LogBinner{Matrix{Float64}}
         @test m.temp === nothing

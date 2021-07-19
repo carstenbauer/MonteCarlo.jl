@@ -25,7 +25,7 @@ function greens_measurement(
         end, kwargs...
     )
     Measurement(
-        mc, model, greens_iterator, nothing, greens_kernel, 
+        mc, model, greens_iterator, Nothing, greens_kernel, 
         obs = obs; kwargs...
     )
 end
