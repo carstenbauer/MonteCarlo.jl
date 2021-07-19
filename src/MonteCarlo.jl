@@ -74,7 +74,7 @@ export reset!
 export run!, resume!, replay!
 export Model, IsingModel, HubbardModel, HubbardModelAttractive, HubbardModelRepulsive
 export MonteCarloFlavor, MC, DQMC
-export greens, lattice, model, parameters
+export greens, greens!, lattice, model, parameters
 
 # For extending
 export AbstractMeasurement, Model
