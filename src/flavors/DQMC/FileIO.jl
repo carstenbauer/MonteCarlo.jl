@@ -47,9 +47,12 @@ function _load(data, ::Type{T}) where T <: DQMC
         _load(data["Scheduler"], data["Scheduler"]["type"])
     else
         if haskey(data["Parameters"], "global_moves") && Bool(data["Parameters"]["global_moves"])
-            @warn "Replacing `global_moves = true` with an empty SimpleScheduler"
+            rate = get(data["Parameters"], "global_rate", 10)
+            @warn "Replacing `global_moves = true` with GlobalFlip"
+            SimpleScheduler(LocalSweep(rate), GlobalFlip())
+        else
+            SimpleScheduler(LocalSweep())
         end
-        SimpleScheduler(LocalSweep())
     end
 
     combined_measurements = _load(data["Measurements"], Measurements)

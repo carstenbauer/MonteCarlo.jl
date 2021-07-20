@@ -10,6 +10,7 @@ using TimerOutputs, LoopVectorization, StructArrays
 using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random, Distributed
 
 import JLD, JLD2
+using CodecZlib
 # To allow switching between JLD and JLD2:
 const UnknownType = Union{JLD.UnsupportedType, JLD2.UnknownType}
 const JLDFile = Union{JLD.JldFile, JLD2.JLDFile}
