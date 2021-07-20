@@ -1,3 +1,8 @@
+################################################################################
+### Pre measurement rework
+################################################################################
+
+
 struct GreensMeasurement{OT <: AbstractObservable} <: AbstractMeasurement
     obs::OT
 end

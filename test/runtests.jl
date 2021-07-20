@@ -100,7 +100,7 @@ end
     # 13.129428 seconds (21.85 M allocations: 1.240 GiB, 4.31% gc time, 2.01% compilation time)
 
     println("Integration")
-    @time @testset "Intergration tests" begin
+    @time @testset "Integration tests" begin
         include("integration_tests.jl")
     end
     # 20.755311 seconds (39.02 M allocations: 2.359 GiB, 3.11% gc time, 12.65% compilation time)

@@ -274,8 +274,14 @@ function _load(data, ::Type{T}) where T <: HubbardModelRepulsive
 end
 
 
-# See DQMC/measurements/measurements.jl
-function intE_kernel(mc, model::HubbardModelRepulsive, G::BlockDiagonal)
+
+################################################################################
+### Measurement kernels
+################################################################################
+
+
+
+function intE_kernel(mc, model::HubbardModelRepulsive, G::GreensMatrix)
     # up-down zero
-    model.U * sum((diag(G.blocks[1]) .- 0.5) .* (diag(G.blocks[2]) .- 0.5))
+    model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
 end

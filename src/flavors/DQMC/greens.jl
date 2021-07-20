@@ -1,3 +1,48 @@
+"""
+    GreensMatrix{eltype, mattype}
+
+`GreensMatrix` is a thin wrapper for `mattype` eturned by `greens(...)`, 
+`greens!(...)` and related iterators. The elements `G[i, j]` represent 
+`⟨cᵢ(k) cⱼ^†(l)⟩` where `k` and `l` are time slice indices contained in the 
+type.
+
+Related to this is the `D::Daggered` type, returned by `dagger(::GreensMatrix)`. 
+It represents `D[i, j] = ⟨cᵢ^†(l) cⱼ(k)⟩ = δᵢⱼ δₖₗ - ⟨cⱼ(k) cᵢ^†(l)⟩`.
+"""
+struct GreensMatrix{T, M <: AbstractMatrix{T}} <: AbstractMatrix{T}
+    k::Int
+    l::Int
+    val::M
+end
+"""
+see GreensMatrix
+"""
+struct Daggered{T, GT <: GreensMatrix{T}} <: AbstractMatrix{T}
+    x::GT
+end
+
+# function Base.show(io::IO, x::GreensMatrix)
+#     println(io, "G[i, j] = cᵢ(", x.k, ") cⱼ^†(", x.l, ") =")
+#     show(io, x.val)
+# end
+# function Base.show(io::IO, x::Daggered{<: GreensMatrix})
+#     println(io, "G'[i, j] = cᵢ^†(", x.l, ") cⱼ(", x.k, ") =")
+#     show(io, I[x.x.k, x.x.l] * I - transpose(x.x.val))
+# end
+
+Base.size(x::GreensMatrix) = size(x.val)
+Base.size(x::Daggered) = size(x.x.val)
+Base.getindex(x::GreensMatrix, i, j) = x.val[i, j]
+Base.getindex(x::Daggered, i, j) = I[x.x.k, x.x.l] * I[i, j] - x.x.val[j, i]
+dagger(x::GreensMatrix) = Daggered(x)
+dagger(x::Daggered) = x.x
+Base.copy(x::GreensMatrix) = GreensMatrix(x.k, x.l, copy(x.val))
+function Base.:(==)(a::GreensMatrix, b::GreensMatrix)
+    a.k == b.k && a.l == b.l && a.val == b.val
+end
+function Base.isapprox(a::GreensMatrix, b::GreensMatrix; kwargs...)
+    a.k == b.k && a.l == b.l && isapprox(a.val, b.val; kwargs...)
+end
 
 """
     greens(mc::DQMC)
@@ -11,7 +56,7 @@ Internally, `mc.stack.greens` is an effective Green's function. This method
 transforms it to the actual Green's function by multiplying hopping matrix
 exponentials from left and right.
 """
-@bm greens(mc::DQMC) = copy(_greens!(mc))
+@bm greens(mc::DQMC) = GreensMatrix(0, 0, copy(_greens!(mc)))
 
 """
     greens!(mc::DQMC[; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.Ur])
@@ -19,7 +64,7 @@ exponentials from left and right.
 Inplace version of `greens`.
 """
 @bm function greens!(mc::DQMC; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.Ur)
-    _greens!(mc, output, input, temp)
+    GreensMatrix(0, 0, _greens!(mc, output, input, temp))
 end
 
 
@@ -78,7 +123,7 @@ Note: This internally overwrites the stack variables `Ul`, `Dl`, `Tl`, `Ur`,
 or output variables here, however keep in mind that other results may be 
 invalidated. (I.e. `G = greens!(mc)` would get overwritten.)
 """
-@bm greens(mc::DQMC, slice::Integer) = copy(_greens!(mc, slice))
+@bm greens(mc::DQMC, slice::Integer) = GreensMatrix(slice, slice, copy(_greens!(mc, slice)))
 
 """
     greens!(mc::DQMC, l::Integer[; output=mc.stack.greens_temp, temp1=mc.stack.tmp1, temp2=mc.stack.tmp2])
@@ -89,7 +134,7 @@ Inplace version of `greens!(mc, l)`
         mc::DQMC, slice::Integer; 
         output=mc.stack.greens_temp, temp1 = mc.stack.tmp1, temp2 = mc.stack.tmp2
     ) 
-    _greens!(mc, slice, output, temp1, temp2)
+    GreensMatrix(slice, slice, _greens!(mc, slice, output, temp1, temp2))
 end
 
 

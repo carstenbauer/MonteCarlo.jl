@@ -12,30 +12,8 @@
 #           > resolves Mask (to Greens indices) 
 #               > calculate element from Wicks theorem
 
-
-################################################################################
 # TODO
-# - apply changes DQMCMeasurement{GT, LI} -> GT, m.lattice_iterator
-# - add a ApplySymmetries{LI}
-#   - this type is partially constructed, i.e. it needs to have vectors/tuples
-#     of prefactors describing the symmetry, but not the explicit LatticeIterator
-#   - above this needs a _get_shape
-#   - below this needs a new constructor (do not dublicate LI)
-#   - below this needs a special finish and dispatch to apply! based on LI
-# I kinda hate how complicated this is but lattice iterators are kinda big and
-# I don't really want a ton of them around...
-
-# two instances of A{EachSitePairByDistance}((1,2,3)) are processed nicely by
-# unique
-# function (x::A{T})(mc, model) ... end can exist
-
-# UP_TO_DATE TODO
-# - double check all the GI, LI stuff
-# - split _get_shape into one get shape for observables and one for temp output
-# - figure out how _ApplySymmetry interacts with different lattices
-# - ooo or apply it directly?
-#   - i.e. _ApplySymmetries converts (dr, da, db) -> (di, sym_idx)
-################################################################################
+# try replacing global function rather than creatin new local ones
 
 
 struct DQMCMeasurement{GI, LI, F <: Function, OT, T} <: AbstractMeasurement
@@ -46,10 +24,13 @@ struct DQMCMeasurement{GI, LI, F <: Function, OT, T} <: AbstractMeasurement
     temp::T
 end
 
+missing_kernel(args...) = error("kernel couldn't be loaded.")
+
 function DQMCMeasurement(
         m::DQMCMeasurement;
         greens_iterator = m.greens_iterator, lattice_iterator = m.lattice_iterator,
-        kernel = m.kernel, observable = m.observable, temp = m.temp,
+        kernel = m.kernel,
+        observable = m.observable, temp = m.temp,
         capacity = nothing
     )
     if capacity === nothing
@@ -95,7 +76,7 @@ function Base.show(io::IO, ::MIME"text/plain", m::DQMCMeasurement)
     else
         typeof(m.lattice_iterator)
     end
-    print(io, "[$current/$max] DQMCMeasurement($GI, $LI, $(m.kernel))")
+    print(io, "[$current/$max] DQMCMeasurement($GI, $LI)")
 end
 
 
@@ -140,6 +121,7 @@ end
 
 _get_shape(model, mask::RawMask) = (mask.nsites, mask.nsites)
 _get_shape(model, mask::DistanceMask) = length(mask)
+_get_shape(mc, model, ::Nothing) = nothing
 
 _get_shape(mc, model, LI::Type) = _get_shape(LI(mc, model))
 _get_shape(mc, model, ::Type{Nothing}) = nothing
@@ -156,10 +138,14 @@ Base.Nothing(::DQMC, ::Model) = nothing
 struct Greens <: AbstractGreensIterator end
 Greens(::DQMC, ::Model)= Greens()
 
-struct GreensAt{k, l} <: AbstractUnequalTimeGreensIterator end
-GreensAt(l::Integer) = GreensAt{l, l} 
-GreensAt(k::Integer, l::Integer) = GreensAt{k, l} 
-GreensAt{k, l}(::DQMC, ::Model) where {k, l} = GreensAt{k, l}() 
+struct GreensAt <: AbstractUnequalTimeGreensIterator
+    k::Int
+    l::Int
+end
+GreensAt(l::Integer) = GreensAt(l, l)
+GreensAt(k::Integer, l::Integer) = GreensAt(k, l)
+# GreensAt{k, l}(::DQMC, ::Model) where {k, l} = GreensAt(k, l)
+Base.:(==)(a::GreensAt, b::GreensAt) = (a.k == b.k) && (a.l == b.l)
 
 # maybe we want to some stuff to get custom indexing?
 # How would this integrate with greens iterators? maybe:
@@ -170,6 +156,7 @@ requires(::AbstractMeasurement) = (Nothing, Nothing)
 requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
 # TODO ApplySymmetries{LI}
 
+
 @bm function generate_groups(mc, model, measurements)
     # maybe instead:
     requirements = requires.(measurements)
@@ -177,7 +164,7 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
     LIs = unique(last.(requirements))
     lattice_iterators = map(T -> T(mc, model), LIs)
 
-    if any(T -> T <: AbstractUnequalTimeGreensIterator, GIs)
+    if any(x -> (x isa Type ? x : typeof(x)) <: AbstractUnequalTimeGreensIterator, GIs)
         initialize_stack(mc, mc.ut_stack)
     end
 
@@ -186,7 +173,7 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
     #     (lattice_iterator, measurement), 
     #     ...
     # ]
-    map(enumerate(GIs)) do (i, G)
+    output = map(enumerate(GIs)) do (i, G)
         ms = filter(m -> G == requires(m)[1], measurements)
         group = map(ms) do m
             LI = requires(m)[2]
@@ -194,8 +181,22 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
             @assert j !== nothing
             (lattice_iterators[j], m)
         end
-        G(mc, model) => group
+        (G isa Type ? G(mc, model) : G) => group
     end
+
+    if length(measurements) != mapreduce(x -> length(x[2]), +, output, init = 0)
+        for (G, group) in output
+            println(G)
+            for (li, m) in group
+                println("\t", typeof(li), typeof(m.kernel))
+            end
+        end
+        N = length(measurements)
+        M = mapreduce(x -> length(x[2]), +, output, init = 0)
+        error("Oh no. We lost some measurements. $N-> $M")
+    end
+
+    return output
 end
 
 
@@ -218,21 +219,17 @@ function _save(file::JLDFile, m::DQMCMeasurement, key::String)
     write(file, "$key/temp", m.temp)
 end
 
-# TODO
-# I think eval will fail if kernel is not defined in MonteCarlo
 function _load(data, ::Type{T}) where {T <: DQMCMeasurement}
+    temp = haskey(data, "temp") ? data["temp"] : data["output"]
+    
     kernel = try
         eval(data["kernel"])
     catch e
         @warn "Failed to load kernel in module MonteCarlo." exception=e
         missing_kernel
     end
-    temp = haskey(data, "temp") ? data["temp"] : data["output"]
     DQMCMeasurement(data["GI"], data["LI"], kernel, data["obs"], temp)
 end
-
-missing_kernel(args...) = error("kernel couldn't be loaded.")
-
 
 
 ################################################################################
@@ -264,8 +261,8 @@ end
     nothing
 end
 
-@bm function apply!(::GreensAt{k, l}, combined::Vector{<: Tuple}, mc::DQMC, model, sweep) where {k, l}
-    G = greens!(mc, k, l)
+@bm function apply!(g::GreensAt, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+    G = greens!(mc, g.k, g.l)
     for (lattice_iterator, measurement) in combined
         prepare!(lattice_iterator, model, measurement)
         measure!(lattice_iterator, measurement, mc, model, sweep, G)
@@ -280,7 +277,7 @@ end
     end
 
     G00 = greens!(mc)
-    for (G0l, Gl0, Gll) in iter
+    for (G0l, Gl0, Gll) in init(mc, iter)
         for (lattice_iterator, measurement) in combined
             measure!(lattice_iterator, measurement, mc, model, sweep, (G00, G0l, Gl0, Gll))
         end
@@ -288,6 +285,23 @@ end
 
     for (lattice_iterator, measurement) in combined
         finish!(lattice_iterator, model, measurement, mc.parameters.delta_tau)
+    end
+    nothing
+end
+
+@bm function apply!(iter::AbstractGreensIterator, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+    for (lattice_iterator, measurement) in combined
+        prepare!(lattice_iterator, model, measurement)
+    end
+
+    for packed_greens in init(mc, iter)
+        for (lattice_iterator, measurement) in combined
+            measure!(lattice_iterator, measurement, mc, model, sweep, packed_greens)
+        end
+    end
+
+    for (lattice_iterator, measurement) in combined
+        finish!(lattice_iterator, model, measurement, 1.0)
     end
     nothing
 end

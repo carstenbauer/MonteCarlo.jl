@@ -172,14 +172,114 @@ end
     MonteCarlo.propagate(mc)
 
     # greens(mc) matches expected output
-    @test greens(mc) ≈ calc_measured_greens(mc, mc.stack.greens)
+    @test greens(mc).val ≈ calc_measured_greens(mc, mc.stack.greens)
 
     # wrap greens test
     for k in 0:9
         MonteCarlo.wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice - k, -1)
     end
     # greens(mc) matches expected output
-    @test greens(mc) ≈ calc_measured_greens(mc, mc.stack.greens)
+    @test greens(mc).val ≈ calc_measured_greens(mc, mc.stack.greens)
+end
+
+@testset "DQMC Measurement constructors" begin
+    for m1 in (HubbardModelAttractive(4, 2), HubbardModelRepulsive(4, 2))
+        mc = DQMC(m1, beta=1.0, safe_mult=1)
+
+        # Greens
+        m = greens_measurement(mc, m1)
+        @test m isa MonteCarlo.DQMCMeasurement
+        @test m.greens_iterator == Greens()
+        @test m.lattice_iterator == Nothing
+        @test m.kernel == MonteCarlo.greens_kernel
+        @test m.observable isa LogBinner{Matrix{Float64}}
+        @test m.temp === nothing
+
+        # Occupation
+        m = occupation(mc, m1)
+        @test m isa MonteCarlo.DQMCMeasurement
+        @test m.greens_iterator == Greens()
+        @test m.lattice_iterator == EachSiteAndFlavor
+        @test m.kernel == MonteCarlo.occupation_kernel
+        @test m.observable isa LogBinner{Vector{Float64}}
+        @test m.temp isa Vector{Float64}
+
+        for time in (:equal, :unequal)
+            # Charge densities
+            if time == :equal
+                m = charge_density_correlation(mc, m1)
+                @test m.greens_iterator == Greens()
+            else
+                m = charge_density_susceptibility(mc, m1)
+                @test m.greens_iterator == CombinedGreensIterator(mc)
+            end
+            @test m isa MonteCarlo.DQMCMeasurement
+            @test m.lattice_iterator == EachSitePairByDistance
+            @test m.kernel == MonteCarlo.cdc_kernel
+            @test m.observable isa LogBinner{Vector{Float64}}
+            @test m.temp isa Vector{Float64}
+
+            # Spin densities
+            for dir in (:x, :y, :z)
+                if time == :equal
+                    m = spin_density_correlation(mc, m1, dir)
+                    @test m.greens_iterator == Greens()
+                else
+                    m = spin_density_susceptibility(mc, m1, dir)
+                    @test m.greens_iterator == CombinedGreensIterator(mc)
+                end
+                @test m isa MonteCarlo.DQMCMeasurement
+                @test m.lattice_iterator == EachSitePairByDistance
+                @test m.kernel == Core.eval(MonteCarlo, Symbol(:sdc_, dir, :_kernel))
+                @test m.observable isa LogBinner{Vector{Float64}}
+                @test m.temp isa Vector{Float64}
+            end
+
+            # pairings
+            if time == :equal
+                m = pairing_correlation(mc, m1)
+                @test m.greens_iterator == Greens()
+            else
+                m = pairing_susceptibility(mc, m1)
+                @test m.greens_iterator == CombinedGreensIterator(mc)
+            end
+            @test m isa MonteCarlo.DQMCMeasurement
+            @test m.lattice_iterator == EachLocalQuadByDistance{5}
+            @test m.kernel == MonteCarlo.pc_kernel
+            @test m.observable isa LogBinner{Array{Float64, 3}}
+            @test m.temp isa Array{Float64, 3}
+        end
+
+        # Magnetizations
+        for dir in (:x, :y, :z)
+            m = magnetization(mc, m1, dir)
+            @test m isa MonteCarlo.DQMCMeasurement
+            @test m.greens_iterator == Greens()
+            @test m.lattice_iterator == EachSite
+            @test m.kernel == Core.eval(MonteCarlo, Symbol(:m, dir, :_kernel))
+            @test m.observable isa LogBinner{Vector{Float64}}
+            @test m.temp isa Vector{Float64}
+        end
+
+        # Current Current susceptibility
+        m = current_current_susceptibility(mc, m1)
+        @test m isa MonteCarlo.DQMCMeasurement
+        @test m.greens_iterator == CombinedGreensIterator(mc)
+        @test m.lattice_iterator == EachLocalQuadBySyncedDistance{5}
+        @test m.kernel == MonteCarlo.cc_kernel
+        @test m.observable isa LogBinner{Matrix{Float64}}
+        @test m.temp isa Matrix{Float64}
+    end
+
+
+
+    # m = 
+    # @test m isa MonteCarlo.DQMCMeasurement
+    # @test m.greens_iterator == 
+    # @test m.lattice_iterator == 
+    # @test m.kernel == MonteCarlo.
+    # @test m.observable isa LogBinner{Vector{Float64}}
+    # @test m.temp isa 
 end
 
 # @testset "Uniform Fourier" begin

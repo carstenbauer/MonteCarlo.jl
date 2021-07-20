@@ -124,8 +124,8 @@ end
     for _ in 1:800
         MonteCarlo.update(scheduler, mc, model)
     end
-    @test scheduler.sampling_rates[1] > 0.95
-    @test scheduler.sampling_rates[2] < 0.05
+    @test scheduler.sampling_rates[1] > 0.925
+    @test scheduler.sampling_rates[2] < 0.075
     @test scheduler.sampling_rates[3] == 1e-10
     @test scheduler.sequence[1].accepted == 0.0
     @test scheduler.sequence[1].total == 500

@@ -366,12 +366,12 @@ function spin_density_correlation_z(site1, site2)
         # end
         # prefactors, states
         _p1, _state1 = _hopping_operator(state, site2, UP, site2, UP)
-        p1, state1 = _hopping_operator(_state1, site1, UP, site1, UP)
-        p2, state2 = _hopping_operator(_state1, site1, DOWN, site1, DOWN)
+        p1, state1 = _hopping_operator(_state1, site1, UP, site1, UP) # n_i↑ n_j↑
+        p2, state2 = _hopping_operator(_state1, site1, DOWN, site1, DOWN) # n_i↓ n_j↑
         
         _p2, _state2 = _hopping_operator(state, site2, DOWN, site2, DOWN)
-        p3, state3 = _hopping_operator(_state2, site1, UP, site1, UP)
-        p4, state4 = _hopping_operator(_state2, site1, DOWN, site1, DOWN)
+        p3, state3 = _hopping_operator(_state2, site1, UP, site1, UP) # n_i↑ n_j↓
+        p4, state4 = _hopping_operator(_state2, site1, DOWN, site1, DOWN) # n_i↓ n_j↓
 
         return (_p1*p1, -_p1*p2, -_p2*p3, _p2*p4), (state1, state2, state3, state4)
     end

@@ -1,4 +1,3 @@
-
 function test_mc(mc, x)
     # Check if loaded/replayed mc matches original
     for f in fieldnames(typeof(mc.p))
@@ -29,10 +28,11 @@ function test_mc(mc, x)
     nothing
 end
 
-@testset "MC" begin
+println("MC")
+@time @testset "MC" begin
     model = IsingModel(dims=2, L=2)
     mc = MC(model, beta=0.66, thermalization=33, sweeps=123, recorder=ConfigRecorder)
-    run!(mc, verbose=false)
+    @time run!(mc, verbose=false)
     save("testfile.jld2", mc)
     x = load("testfile.jld2")
     rm("testfile.jld2")
@@ -40,7 +40,7 @@ end
 
     x.measurements = MonteCarlo.default_measurements(mc, model) 
     x.last_sweep = 0
-    replay!(x, verbose=false)
+    @time replay!(x, verbose=false)
     test_mc(mc, x)
 
     # Test resume
@@ -48,8 +48,12 @@ end
     # Run for 1s with known RNG
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, sweeps=10_000_000, measure_rate=10_000, recorder=ConfigRecorder)
-    state = run!(
+    mc = MC(
+        model, beta=1.0, 
+        thermalization = 0, sweeps=10_000_000, 
+        measure_rate=10_000, recorder=ConfigRecorder
+    )
+    @time state = run!(
         mc, verbose = false,
         safe_before = now() + Second(1),
         grace_period = Millisecond(0),
@@ -62,14 +66,16 @@ end
     L = length(cs)
 
     # Test whether safe file gets overwritten correctly
-    mc, state = resume!(
+    @info mc.last_sweep
+    @time mc, state = resume!(
         "resumable_testfile.jld",
         verbose = false,
-        safe_before = now() + Second(20),
+        safe_before = now() + Second(10),
         grace_period = Millisecond(0),
         overwrite = true,
         resumable_filename = "resumable_testfile.jld"
     )
+    @info mc.last_sweep
 
     @test state == false
     cs = deepcopy(mc.configs)
@@ -79,8 +85,12 @@ end
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
-    mc = MC(model, beta=1.0, sweeps=10_000length(cs), measure_rate=10_000, recorder=ConfigRecorder)
-    state = run!(mc, verbose = false)
+    mc = MC(
+        model, beta=1.0, 
+        thermalization=0, sweeps=10_000length(cs), 
+        measure_rate=10_000, recorder=ConfigRecorder
+    )
+    @time state = run!(mc, verbose = false)
     @test mc.configs.configs == cs.configs
     @test mc.configs.rate == cs.rate
     rm("resumable_testfile.jld")
@@ -116,6 +126,7 @@ function test_dqmc(mc, x)
     for (k, v) in mc.measurements
         for f in fieldnames(typeof(v))
             v isa MonteCarlo.DQMCMeasurement && f == :temp && continue
+            v isa MonteCarlo.DQMCMeasurement && f == :kernel && continue
             r = if getfield(v, f) isa LightObservable
                 # TODO
                 # implement == for LightObservable in MonteCarloObservable
@@ -155,13 +166,15 @@ for file in readdir()
     (endswith(file, "jld") || endswith(file, "jld2")) && rm(file)
 end
 
-@testset "DQMC" begin
+println("DQMC")
+@time @testset "DQMC" begin
     model = HubbardModelAttractive(4, 2, t = 1.7, U = 5.5)
     mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
     mc[:CDC] = charge_density_correlation(mc, model)
     t = time()
     run!(mc, verbose=false)
     t = time() - t
+    @info t
 
     save("testfile.jld", mc)
     x = load("testfile.jld")
@@ -174,7 +187,7 @@ end
     # Check everything again with x being a replayed simulation
     x[:CDC] = charge_density_correlation(x, model)
     x.last_sweep = 0
-    replay!(x, verbose=false)
+    @time replay!(x, verbose=false)
     test_dqmc(mc, x)
     
 
@@ -183,10 +196,10 @@ end
     # Run for 1s with known RNG
     Random.seed!(123)
     model = HubbardModelAttractive(2, 2, t = 1.7, U = 5.5)
-    mc = DQMC(model, beta=1.0, sweeps=10_000_000, measure_rate=100)
+    mc = DQMC(model, beta=1.0, thermalization=0, sweeps=10_000_000, measure_rate=100)
     mc[:CDC] = charge_density_correlation(mc, model)
 
-    state = run!(
+    @time state = run!(
         mc, verbose = false,
         safe_before = now() + Second(2),
         grace_period = Millisecond(0),
@@ -199,7 +212,7 @@ end
     L = length(cs)
 
     # Test whether safe file gets overwritten correctly
-    mc, state = resume!(
+    @time mc, state = resume!(
         "resumable_testfile.jld2",
         verbose = false,
         safe_before = now() + Second(10),
@@ -216,8 +229,8 @@ end
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
     model = HubbardModelAttractive(2, 2, t = 1.7, U = 5.5)
-    mc = DQMC(model, beta=1.0, sweeps=100length(cs), measure_rate=100)
-    state = run!(mc, verbose = false)
+    mc = DQMC(model, beta=1.0, thermalization=0, sweeps=100length(cs), measure_rate=100)
+    @time state = run!(mc, verbose = false)
     @test mc.recorder.configs == cs.configs
     @test mc.recorder.rate == cs.rate
     rm("resumable_testfile.jld2")
