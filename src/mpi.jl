@@ -57,7 +57,7 @@ function mpi_queue(
             idx_sent += 1
             sreqs_workers[dst] = sreq
             status_workers[dst] = 0
-            verbose && print("Root: Sent index $idx_sent/$N to worker $dst/$world_size\n")
+            verbose && print("Root: Sent index $(idx_sent-1)/$N to worker $dst/$world_size\n")
         end
 
         # recieve finalization messages from worker and send new work
@@ -79,7 +79,7 @@ function mpi_queue(
                     ismessage, status = MPI.Iprobe(dst,dst+32, comm)
                     if ismessage
                         # Receives message
-                        result = MPI.Recv(result_type, dst, dst+32, comm)
+                        result, _ = MPI.Recv(result_type, dst, dst+32, comm)
                         idx_recv += 1
                         new_data[idx_recv] = result
                         verbose && print("Root: Received result $idx_recv/$N from worker $dst/$world_size\n")
@@ -89,7 +89,7 @@ function mpi_queue(
                             idx_sent += 1
                             sreqs_workers[dst] = sreq
                             status_workers[dst] = 1
-                            verbose && print("Root: Sent index $idx_sent/$N to worker $dst/$world_size\n")
+                            verbose && print("Root: Sent index $(idx_sent-1)/$N to worker $dst/$world_size\n")
                         end
                     end
                 end
@@ -118,7 +118,7 @@ function mpi_queue(
             
             if ismessage
                 # Receives message
-                idx = MPI.Recv(Int64, root, rank+32, comm)
+                idx, _ = MPI.Recv(Int64, root, rank+32, comm)
                 # Termination message from root
                 verbose && print("Worker $rank: Received index $idx from root\n")
                 if idx == -1
@@ -126,9 +126,9 @@ function mpi_queue(
                     break
                 end
                 # Apply function (add number 100) to array
-                send_mesg = f(data[idx])
+                send_msg = f(data[idx])
                 @assert typeof(send_msg) == result_type
-                sreq = MPI.Isend(send_mesg, root, rank+32, comm)
+                sreq = MPI.Isend(send_msg, root, rank+32, comm)
                 sreqs_workers[1] = sreq
                 status_worker = 0
             end
@@ -144,6 +144,5 @@ function mpi_queue(
     end
 
     MPI.Barrier(comm)
-    MPI.Finalize()
     return new_data
 end

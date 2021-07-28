@@ -1,33 +1,38 @@
 # This is meant to be run with something like
 # mpiexec -np 4 julia mpi.jl
 
-using Tests, MonteCarlo
+using Test, MonteCarlo
 import MPI
 
-@testset "mpi_queue" begin
+let
     function workload(x)
         sleep(x)
-        nothing
+        return (MPI.Comm_rank(MPI.COMM_WORLD), x)
     end
 
     MPI.Init()
-    N_workers = MPI.Comm_size() - 1
+    N_workers = MPI.Comm_size(MPI.COMM_WORLD) - 1
 
     # Test if the scheduler generates this grouping:
-    # first group:   [3, 5, ..., 5]
-    # second group:  [8, 3, ..., 3]
-    # third group:   [_, 3, ..., 3]
+    # first group:   [4, 7, ..., 7]
+    # second group:  [11, 4, ..., 4]
+    # third group:   [_, 4, ..., 4]
     # where each number corresponds to the sleep time of the relevant processes
     # More specifically checks if the "8" gets pairs with the initial "3" by checking
     # the total runtime
 
-    inputs = fill(3, 3N_workers - 1)
-    inputs[N_workers + 1] = 8
-    inputs[2:N_wprkers] .= 5
+    inputs = fill(4, 3N_workers - 1)
+    inputs[N_workers + 1] = 11
+    inputs[2:N_workers] .= 7
 
-    t0 = time()
-    mpi_queue(workload, inputs)
-    dt = time() - t0
-    @info dt
-    @test 10.9 < dt < 12
+    output = mpi_queue(workload, inputs, verbose = true)
+    
+    
+    if MPI.Comm_rank(MPI.COMM_WORLD) == 0
+        results = zeros(Int64, N_workers)
+        for (id, val) in output
+            results[id] += val
+        end
+        @test all(results .== 15)
+    end
 end
