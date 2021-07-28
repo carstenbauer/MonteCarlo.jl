@@ -11,12 +11,18 @@ calls `function` with the received data and sends the result back to master
 
 This is somewhat similar to `pmap`.
 
-You can set the `result_type = Nothing` as a keyword argument. You can also set 
-an `end_time = now() + Year(100)` this way.
+## Keyword Arguments:
+- `result_type`: Sets the returntype of `function`. Uses the compiler inferred 
+type by default.
+- `end_time = now() + Year(100)`: Sets a time stamp for when to stop
+distributing tasks. Note that this does not cancel `function`.
+- `verbose = true`: Enables a bunch of printing information
 """
 function mpi_queue(
         f::Function, data::Vector{T};
-        end_time = now() + Year(100), result_type = Nothing
+        end_time = now() + Year(100), 
+        result_type = Core.Compiler.return_type(f, (T,)), 
+        verbose = false
     ) where T
 
     MPI.Initialized() || MPI.Init()
@@ -51,7 +57,7 @@ function mpi_queue(
             idx_sent += 1
             sreqs_workers[dst] = sreq
             status_workers[dst] = 0
-            print("Root: Sent index $idx_sent/$N to worker $dst/$world_size\n")
+            verbose && print("Root: Sent index $idx_sent/$N to worker $dst/$world_size\n")
         end
 
         # recieve finalization messages from worker and send new work
@@ -76,14 +82,14 @@ function mpi_queue(
                         result = MPI.Recv(result_type, dst, dst+32, comm)
                         idx_recv += 1
                         new_data[idx_recv] = result
-                        print("Root: Received result $idx_recv/$N from worker $dst/$world_size\n")
+                        verbose && print("Root: Received result $idx_recv/$N from worker $dst/$world_size\n")
                         if idx_sent <= N
                             # Sends new message
                             sreq = MPI.Isend(idx_sent, dst, dst+32, comm)
                             idx_sent += 1
                             sreqs_workers[dst] = sreq
                             status_workers[dst] = 1
-                            print("Root: Sent index $idx_sent/$N to worker $dst/$world_size\n")
+                            verbose && print("Root: Sent index $idx_sent/$N to worker $dst/$world_size\n")
                         end
                     end
                 end
@@ -95,7 +101,7 @@ function mpi_queue(
             sreq = MPI.Isend(-1, dst, dst+32, comm)
             sreqs_workers[dst] = sreq
             status_workers[dst] = 0
-            print("Root: Finish worker $dst\n")
+            verbose && print("Root: Finish worker $dst\n")
         end
         
         MPI.Waitall!(sreqs_workers)
@@ -114,7 +120,7 @@ function mpi_queue(
                 # Receives message
                 idx = MPI.Recv(Int64, root, rank+32, comm)
                 # Termination message from root
-                print("Worker $rank: Received index $idx from root\n")
+                verbose && print("Worker $rank: Received index $idx from root\n")
                 if idx == -1
                     print("Worker $rank: Finish\n")
                     break
