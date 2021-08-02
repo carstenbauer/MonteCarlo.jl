@@ -131,7 +131,8 @@ Base.show(io::IO, m::MIME"text/plain", mc::DQMC) = print(io, mc)
 function init!(mc::DQMC)
     init_hopping_matrices(mc, mc.model)
     initialize_stack(mc, mc.stack)
-    generate_communication_functions(mc.conf)
+    init_scheduler!(mc, mc.scheduler)
+    # generate_communication_functions(mc.conf)
     nothing
 end
 @deprecate resume_init!(mc::DQMC) init!(mc) false

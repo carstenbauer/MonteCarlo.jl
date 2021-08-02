@@ -87,8 +87,10 @@ function __init__()
     @require LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179" include("lattices/ALPS.jl")
     @require MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195" begin
         include("mpi.jl")
-        # include("flavors/DQMC/updates/mpi_updates.jl")
         export mpi_queue
+        
+        include("flavors/DQMC/updates/mpi_updates.jl")
+        export MPIReplicaExchange, MPIReplicaPull
     end
 end
 
