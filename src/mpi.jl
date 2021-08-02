@@ -57,7 +57,7 @@ function mpi_queue(
             idx_sent += 1
             sreqs_workers[dst] = sreq
             status_workers[dst] = 0
-            verbose && print("Root: Sent index $(idx_sent-1)/$N to worker $dst/$world_size\n")
+            verbose && print("Root: Sent index $(idx_sent-1)/$N to worker $dst/$nworkers\n")
         end
 
         # recieve finalization messages from worker and send new work
@@ -82,14 +82,14 @@ function mpi_queue(
                         result, _ = MPI.Recv(result_type, dst, dst+32, comm)
                         idx_recv += 1
                         new_data[idx_recv] = result
-                        verbose && print("Root: Received result $idx_recv/$N from worker $dst/$world_size\n")
+                        verbose && print("Root: Received result $idx_recv/$N from worker $dst/$nworkers\n")
                         if idx_sent <= N
                             # Sends new message
                             sreq = MPI.Isend(idx_sent, dst, dst+32, comm)
                             idx_sent += 1
                             sreqs_workers[dst] = sreq
                             status_workers[dst] = 1
-                            verbose && print("Root: Sent index $(idx_sent-1)/$N to worker $dst/$world_size\n")
+                            verbose && print("Root: Sent index $(idx_sent-1)/$N to worker $dst/$nworkers\n")
                         end
                     end
                 end

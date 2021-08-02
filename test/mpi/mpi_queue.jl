@@ -27,12 +27,14 @@ let
 
     output = mpi_queue(workload, inputs, verbose = true)
     
+    MPI.Barrier(MPI.COMM_WORLD)
     
     if MPI.Comm_rank(MPI.COMM_WORLD) == 0
         results = zeros(Int64, N_workers)
         for (id, val) in output
             results[id] += val
         end
+        println("Time slept: $results")
         @test all(results .== 15)
     end
 end
