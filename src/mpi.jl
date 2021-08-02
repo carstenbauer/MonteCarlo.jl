@@ -1,4 +1,4 @@
-import MPI
+import .MPI
 
 # Modified from the examples in the MPI.jl docs
 # https://juliaparallel.github.io/MPI.jl/latest/examples/05-job_schedule/

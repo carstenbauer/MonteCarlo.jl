@@ -35,6 +35,8 @@ let
             results[id] += val
         end
         println("Time slept: $results")
-        @test all(results .== 15)
+        @testset "MPI Scheduler" begin
+            @test all(results .== 15)
+        end
     end
 end
