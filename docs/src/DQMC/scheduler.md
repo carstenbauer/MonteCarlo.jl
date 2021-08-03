@@ -91,3 +91,9 @@ p = \frac{w_1(C_2)}{w_1(C_1)} \cdot \frac{w_2(C_1)}{w_2(C_2)}
 `ReplicaPull()` is an experimental parallel update. Instead of synchronizing with another simulations it pulls a configuration asynchronously and uses that for a global update. This means that there is little waiting on other simulations, but configurations will be duplicated.
 
 This update cycles through a pool of connected workers. This pool can be of any size. Each simulation must make itself available for pulling via `connect(target_workers)`. The `target_workers` should generally be the workers the simulation wants to receive configurations from. When a simulation reaches the end it will automatically `disconnect(target_workers)`.
+
+### MPI Updates
+
+#### MPIReplicaExchange
+
+This is a MPI version of the replica exchange update. In this case `target` is an MPI rank. Much like the normal replica exchange update simulations need to be paired such that they request updates from each other.

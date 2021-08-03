@@ -11,13 +11,12 @@ end
 
 
 """
-    ReplicaExchange([mc, model], target)
+    MPIReplicaExchange([mc, model], target)
 
-Represents a replica exchange update with a given `target` worker.
+Represents a replica exchange update with a given `target` MPI rank.
 
 Note that this update is blocking, i.e. a simulation will wait on its partner to
-perform the update. You can define a `timeout` in seconds to avoid the simulation
-getting stuck for too long.
+perform the update.
 """
 struct MPIReplicaExchange <: AbstractMPIUpdate
     target::Int
@@ -57,47 +56,47 @@ end
 
 
 
-"""
-    ReplicaPull([mc, model])
+# """
+#     MPIReplicaPull([mc, model])
 
-This update will pull a configuration from a connected worker and attempt a 
-global update with it. The target worker will be cycled as the simulation 
-progresses.
+# This update will pull a configuration from a connected worker and attempt a 
+# global update with it. The target worker will be cycled as the simulation 
+# progresses.
 
-To connect workers for this update, the remote worker has to call 
-`connect(this_worker)`.
+# To connect workers for this update, the remote worker has to call 
+# `connect(this_worker)`.
 
-This update only blocks locally.
-"""
-mutable struct MPIReplicaPull <: AbstractMPIUpdate
-    cycle_idx::Int
-    window::MPI.Win
+# This update only blocks locally.
+# """
+# mutable struct MPIReplicaPull <: AbstractMPIUpdate
+#     cycle_idx::Int
+#     window::MPI.Win
 
-    MPIReplicaPull(idx) = new(idx)
-end
-MPIReplicaPull() = MPIReplicaPull(1)
-MPIReplicaPull(mc::MonteCarloFlavor, model::Model) = MPIReplicaPull(1)
-name(::MPIReplicaPull) = "MPIReplicaPull"
-Base.:(==)(a::MPIReplicaPull, b::MPIReplicaPull) = a.cycle_idx == b.cycle_idx
-function init!(mc, update::MPIReplicaPull)
-    MPI.Initialized() || MPI.Init()
-    update.window = MPI.Win_create(mc.conf, MPI.COMM_WORLD)
-    nothing
-end
+#     MPIReplicaPull(idx) = new(idx)
+# end
+# MPIReplicaPull() = MPIReplicaPull(1)
+# MPIReplicaPull(mc::MonteCarloFlavor, model::Model) = MPIReplicaPull(1)
+# name(::MPIReplicaPull) = "MPIReplicaPull"
+# Base.:(==)(a::MPIReplicaPull, b::MPIReplicaPull) = a.cycle_idx == b.cycle_idx
+# function init!(mc, update::MPIReplicaPull)
+#     MPI.Initialized() || MPI.Init()
+#     update.window = MPI.Win_create(mc.conf, MPI.COMM_WORLD)
+#     nothing
+# end
 
-@bm function update(u::MPIReplicaPull, mc, model)
-    # TODO
-    # - this needs to call
-    #   MPI.Win_create(mc.conf, MPI.COMM_WORLD)
-    #   and make the result available here?
-    # - needs testing
-    # - needs its own connected_ids management
+# @bm function update(u::MPIReplicaPull, mc, model)
+#     # TODO
+#     # - this needs to call
+#     #   MPI.Win_create(mc.conf, MPI.COMM_WORLD)
+#     #   and make the result available here?
+#     # - needs testing
+#     # - needs its own connected_ids management
 
-    # cycle first to make sure the idx is in bounds
-    @sync if !isempty(connected_ids)
-        idx = mod1(u.cycle_idx, length(connected_ids))
-        MPI.Get(mc.temp_conf, connected_ids[idx], u.window)
-        return global_update(mc, model, mc.temp_conf)
-    end
-    return 0
-end
+#     # cycle first to make sure the idx is in bounds
+#     @sync if !isempty(connected_ids)
+#         idx = mod1(u.cycle_idx, length(connected_ids))
+#         MPI.Get(mc.temp_conf, connected_ids[idx], u.window)
+#         return global_update(mc, model, mc.temp_conf)
+#     end
+#     return 0
+# end
