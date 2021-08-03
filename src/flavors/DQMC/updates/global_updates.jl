@@ -268,7 +268,7 @@ name(::SpatialShuffle) = "SpatialShuffle"
 
 
 @bm function update(u::SpatialShuffle, mc, model)
-    shuffle(u.indices)
+    shuffle!(u.indices)
     for slice in 1:nslices(mc), (i, j) in enumerate(u.indices)
         mc.temp_conf[i, slice] = mc.conf[j, slice]
     end
@@ -299,7 +299,7 @@ name(::TemporalShuffle) = "TemporalShuffle"
 
 
 @bm function update(u::TemporalShuffle, mc, model)
-    shuffle(u.indices)
+    shuffle!(u.indices)
     for (k, l) in enumerate(u.indices), i in 1:length(lattice(mc))
         mc.temp_conf[i, k] = mc.conf[i, l]
     end
