@@ -288,7 +288,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
             adaptive_rate / (adaptive_rate+1), 
             minimum_sampling_rate / 0.5
         ))
-        @info("Minimum number of samples for discard: $grace_period + $i_min")
+        @debug("Minimum number of samples for discard: $grace_period + $i_min")
 
         if !any(x -> x isa NoUpdate, pool)
             pool = tuple(vcat(pool...)..., NoUpdate())
