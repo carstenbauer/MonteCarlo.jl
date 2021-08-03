@@ -123,7 +123,7 @@ end
 
 
 ################################################################################
-### Global update (working)
+### Global Metropolis update
 ################################################################################
 
 
@@ -201,7 +201,7 @@ end
 
 
 ################################################################################
-### Updates
+### Update Interface
 ################################################################################
 
 
@@ -241,5 +241,138 @@ name(::GlobalShuffle) = "GlobalShuffle"
 @bm function update(u::GlobalShuffle, mc, model)
     copyto!(mc.temp_conf, conf(mc))
     shuffle!(mc.temp_conf)
+    return global_update(mc, model, mc.temp_conf)
+end
+
+
+
+"""
+    SpatialShuffle([mc, model])
+
+A global update that randomly swaps spatial indices of a configuration without 
+changing the temporal indices. I.e. it may set 
+`new_conf[i, :] = current_conf[j, :]` where the second index is a time slice 
+index.
+"""
+struct SpatialShuffle <: AbstractGlobalUpdate 
+    indices::Vector{Int}
+    SpatialShuffle() = new(Vector{Int}(undef, 0))
+end
+SpatialShuffle(mc, model) = SpatialShuffle()
+function init!(mc, u::SpatialShuffle)
+    resize!(u.indices, length(lattice(mc)))
+    u.indices .= 1:length(lattice(mc))
+    nothing
+end
+name(::SpatialShuffle) = "SpatialShuffle"
+
+
+@bm function update(u::SpatialShuffle, mc, model)
+    shuffle(u.indices)
+    for slice in 1:nslices(mc), (i, j) in enumerate(u.indices)
+        mc.temp_conf[i, slice] = mc.conf[j, slice]
+    end
+    return global_update(mc, model, mc.temp_conf)
+end
+
+
+
+"""
+    TemporalShuffle([mc, model])
+
+A global update that randomly swaps time slice indices of a configuration 
+without changing the spatial indices. I.e. it may set 
+`new_conf[:, k] = current_conf[:, l]` where the second index is a time slice 
+index.
+"""
+struct TemporalShuffle <: AbstractGlobalUpdate 
+    indices::Vector{Int}
+    TemporalShuffle() = new(Vector{Int}(undef, 0))
+end
+TemporalShuffle(mc, model) = TemporalShuffle()
+function init!(mc, u::TemporalShuffle)
+    resize!(u.indices, nslices(mc))
+    u.indices .= 1:nslices(mc)
+    nothing
+end
+name(::TemporalShuffle) = "TemporalShuffle"
+
+
+@bm function update(u::TemporalShuffle, mc, model)
+    shuffle(u.indices)
+    for (k, l) in enumerate(u.indices), i in 1:length(lattice(mc))
+        mc.temp_conf[i, k] = mc.conf[i, l]
+    end
+    return global_update(mc, model, mc.temp_conf)
+end
+
+
+
+"""
+    Denoise([mc, model])
+
+This global update attempts to remove noise, i.e. it attempts to build spatial
+domains. This is done by setting each site to dominant surrounding value.
+"""
+struct Denoise <: AbstractGlobalUpdate end
+Denoise(mc, model) = Denoise()
+name(::Denoise) = "Denoise"
+
+
+@bm function update(::Denoise, mc, model)
+    for slice in 1:nslices(mc), i in 1:length(lattice(mc))
+        average = mc.conf[i, slice]
+        for j in neighbors(lattice(model), i)
+            average += 2 * mc.conf[j, slice]
+        end
+        mc.temp_conf[i, slice] = sign(average)
+    end
+    return global_update(mc, model, mc.temp_conf)
+end
+
+
+
+"""
+    DenoiseFlip([mc, model])
+
+This update is similar to `Denoise` but sets each site to the opposite value to 
+its surrounding.
+"""
+struct DenoiseFlip <: AbstractGlobalUpdate end
+DenoiseFlip(mc, model) = DenoiseFlip()
+name(::DenoiseFlip) = "DenoiseFlip"
+
+
+@bm function update(::DenoiseFlip, mc, model)
+    for slice in 1:nslices(mc), i in 1:length(lattice(mc))
+        average = mc.conf[i, slice]
+        for j in neighbors(lattice(model), i)
+            average += 2 * mc.conf[j, slice]
+        end
+        mc.temp_conf[i, slice] = -sign(average)
+    end
+    return global_update(mc, model, mc.temp_conf)
+end
+
+
+"""
+    StaggeredDenoise([mc, model])
+
+This update is similar to `Denoise` but adds a multiplier based on lattice site
+index. Even sites get multiplied by `+1`, odd sites by `-1`.
+"""
+struct StaggeredDenoise <: AbstractGlobalUpdate end
+StaggeredDenoise(mc, model) = StaggeredDenoise()
+name(::StaggeredDenoise) = "StaggeredDenoise"
+
+
+@bm function update(::StaggeredDenoise, mc, model)
+    for slice in 1:nslices(mc), i in 1:length(lattice(mc))
+        average = mc.conf[i, slice]
+        for j in neighbors(lattice(model), i)
+            average += 2 * mc.conf[j, slice]
+        end
+        mc.temp_conf[i, slice] = (1 - 2 * (i % 2)) * sign(average)
+    end
     return global_update(mc, model, mc.temp_conf)
 end

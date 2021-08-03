@@ -59,7 +59,9 @@ export current_current_susceptibility, superfluid_density
 export noninteracting_energy, interacting_energy, total_energy
 
 export EmptyScheduler, SimpleScheduler, AdaptiveScheduler
-export Adaptive, NoUpdate, LocalSweep, GlobalFlip, GlobalShuffle
+export Adaptive, NoUpdate, LocalSweep
+export GlobalFlip, GlobalShuffle, SpatialShuffle, TemporalShuffle, 
+        Denoise, DenoiseFlip, StaggeredDenoise
 export ReplicaExchange, ReplicaPull, connect, disconnect
 # export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
