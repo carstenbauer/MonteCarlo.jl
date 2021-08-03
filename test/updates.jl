@@ -145,6 +145,39 @@ end
 using MonteCarlo: conf, current_slice, nslices
 
 @testset "Global update" begin
+    # Verify that split greens calculation matches the normal one
+    pivot = Vector{Int}(undef, 16)
+    tempv = Vector{Float64}(undef, 16)
+
+    Ul = Matrix{Float64}(undef, 16, 16)
+    Dl = Vector{Float64}(undef, 16)
+    Tl = Matrix{Float64}(undef, 16, 16)
+    
+    Ur = Matrix{Float64}(undef, 16, 16)
+    Dr = Vector{Float64}(undef, 16)
+    Tr = Matrix{Float64}(undef, 16, 16)
+
+    for i in 1:10
+        Bl = rand(16, 16)
+        copyto!(Tl, Bl)
+        MonteCarlo.udt_AVX_pivot!(Ul, Dl, Tl, pivot, tempv)
+        Br = rand(16, 16)
+        copyto!(Tr, Br)
+        MonteCarlo.udt_AVX_pivot!(Ur, Dr, Tr, pivot, tempv)
+        G1 = Matrix{Float64}(undef, 16, 16)
+        MonteCarlo.calculate_greens_AVX!(Ul, Dl, Tl, Ur, Dr, Tr, G1, pivot, tempv)
+
+        copyto!(Tl, Bl)
+        MonteCarlo.udt_AVX_pivot!(Ul, Dl, Tl)
+        copyto!(Tr, Br)
+        MonteCarlo.udt_AVX_pivot!(Ur, Dr, Tr)
+        G2 = Matrix{Float64}(undef, 16, 16)
+        MonteCarlo.calculate_inv_greens_udt(Ul, Dl, Tl, Ur, Dr, Tr, G2, pivot, tempv)
+        MonteCarlo.finish_calculate_greens(Ul, Dl, Tl, Ur, Dr, Tr, G2, pivot, tempv)
+
+        @test G1 ≈ G2
+    end
+
     models = (HubbardModelAttractive(2,2,mu=0.5), HubbardModelRepulsive(2,2))
     for model in models
         @testset "$(typeof(model))" begin
