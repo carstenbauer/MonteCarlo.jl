@@ -1,6 +1,14 @@
 # This file should probably be moved to the general directory and used by 
 # classical MC as well
 
+
+
+################################################################################
+### Utility updates
+################################################################################
+
+
+
 """
     AbstractUpdate
 
@@ -36,6 +44,8 @@ is accepted (as does the `global_update` returned above).
 """
 abstract type AbstractUpdate end
 abstract type AbstractLocalUpdate <: AbstractUpdate end
+
+init!(mc, update::AbstractUpdate) = nothing
 
 
 
@@ -88,6 +98,25 @@ function Base.show(io::IO, u::AcceptanceStatistics)
         name(u), u.accepted, u.total, u.accepted/max(1, u.accepted), '%'
     )
 end
+init!(mc, update::AcceptanceStatistics) = init!(mc, update.update)
+
+
+
+################################################################################
+### Generic
+################################################################################
+
+
+
+updates(s::AbstractUpdateScheduler) = s.sequence
+
+function init_scheduler!(mc, scheduler::AbstractUpdateScheduler)
+    for update in updates(scheduler)
+        init!(mc, update)
+    end
+    nothing
+end
+
 
 
 
@@ -259,7 +288,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
             adaptive_rate / (adaptive_rate+1), 
             minimum_sampling_rate / 0.5
         ))
-        @info("Minimum number of samples for discard: $grace_period + $i_min")
+        @debug("Minimum number of samples for discard: $grace_period + $i_min")
 
         if !any(x -> x isa NoUpdate, pool)
             pool = tuple(vcat(pool...)..., NoUpdate())
@@ -380,10 +409,12 @@ function _load(data, ::Type{<: AdaptiveScheduler})
     s
 end
 
+updates(s::AdaptiveScheduler) = (s.sequence..., s.adaptive_pool...)
+
 
 
 ################################################################################
-### Utillities
+### Printing utillities
 ################################################################################
 
 
@@ -443,23 +474,25 @@ function show_sequence(io::IO, sequence, prefix = "", max_total=0)
 end
 
 function combine_sequence_to_string(sequence)
-    _name = name(first(sequence))
+    last_update = first(sequence)
     counter = 1
     output = ""
     for update in sequence[2:end]
-        if name(update) == _name
+        if update == last_update
             counter += 1
         else
+            _name = name(last_update)
             if counter == 1
                 output *= " -> $_name"
             else
                 output *= " -> $(_name)($counter)"
             end
             counter = 1
-            _name = name(update)
+            last_update = update
         end
     end
-    
+
+    _name = name(last(sequence))
     if counter == 1
         output *= " -> $_name"
     else

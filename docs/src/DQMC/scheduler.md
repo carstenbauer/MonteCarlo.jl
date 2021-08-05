@@ -60,15 +60,35 @@ Currently there is only one local update - `LocalSweep([N=1])`. It performs N st
 
 ### Global Updates
 
-Global updates affect not just one site at one time slice, but most if not all sites at all time slices. In other words they attempt to adjust the full configuration. We currently have two global updates.
+Global updates affect not just one site at one time slice, but most if not all sites at all time slices. In other words they attempt to adjust the full configuration. We currently have the following global updates.
 
 #### GlobalFlip
 
-The `GlobalFlip()` proposes a flip of the full configuration, i.e. $\pm 1 \to \mp 1$, and return 0 or 1 depending on whether this update is rejected or not.
+The `GlobalFlip()` proposes a flip of the full configuration, i.e. $\pm 1 \to \mp 1$.
 
 #### GlobalShuffle
 
-`GlobalShuffle()` performs a `shuffle(current_configuration)` to generate a new configuration and return 0 or 1 depending on whether that configuration is rejected or not.
+`GlobalShuffle()` performs a `shuffle(current_configuration)` to generate a new configuration.
+
+#### SpatialShuffle
+
+`SpatialShuffle` shuffles only the spatial part of a configuration. This means that if two sites are swapped, they are swapped the same way for all time slice indices.
+
+#### TemporalShuffle
+
+`TemporalShuffle` shuffles only the imaginary time part of the configuration, meaning that the swap occurs for all lattice indices the same way.
+
+#### Denoise
+
+`Denoise` attempts to align the configuration in lattice space. Specifically, it sets each site to the majority value of its neighbors (including itself with a lower weight). Note that this update assumes configuration values $\pm 1$. Also note that the new configuration is solely based on the old, i.e. it does not take changes of nearby sites into account. Because of this the update may not always push the configuration to a more uniform distribution.
+
+#### DenoiseFlip
+
+`DenoiseFlip` follows the logic of `Denoise`, but flips the resulting configuration.
+
+#### StaggeredDenoise
+
+`StaggeredDenoise` follows the same logic as `Denoise`, but multiplies a factor $\pm 1$ based on the lattice site index. 
 
 
 
@@ -91,3 +111,9 @@ p = \frac{w_1(C_2)}{w_1(C_1)} \cdot \frac{w_2(C_1)}{w_2(C_2)}
 `ReplicaPull()` is an experimental parallel update. Instead of synchronizing with another simulations it pulls a configuration asynchronously and uses that for a global update. This means that there is little waiting on other simulations, but configurations will be duplicated.
 
 This update cycles through a pool of connected workers. This pool can be of any size. Each simulation must make itself available for pulling via `connect(target_workers)`. The `target_workers` should generally be the workers the simulation wants to receive configurations from. When a simulation reaches the end it will automatically `disconnect(target_workers)`.
+
+### MPI Updates
+
+#### MPIReplicaExchange
+
+This is a MPI version of the replica exchange update. In this case `target` is an MPI rank. Much like the normal replica exchange update simulations need to be paired such that they request updates from each other.

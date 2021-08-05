@@ -98,6 +98,7 @@ end
 
 
 abstract type AbstractParallelUpdate <: AbstractGlobalUpdate end
+init!(mc, ::AbstractParallelUpdate) = generate_communication_functions(mc.conf)
 
 
 """
@@ -181,6 +182,7 @@ Base.:(==)(a::ReplicaPull, b::ReplicaPull) = a.cycle_idx == b.cycle_idx
         idx = mod1(u.cycle_idx, length(connected_ids))
         conf = pull_conf_from_remote(connected_ids[idx])
         mc.temp_conf .= conf
+        return global_update(mc, model, mc.temp_conf)
     end
-    return global_update(mc, model, mc.temp_conf)
+    return 0
 end

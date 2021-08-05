@@ -8,6 +8,11 @@
     @test MonteCarlo.AbstractParallelUpdate <: MonteCarlo.AbstractGlobalUpdate
     @test GlobalShuffle <: MonteCarlo.AbstractGlobalUpdate
     @test GlobalFlip <: MonteCarlo.AbstractGlobalUpdate
+    @test SpatialShuffle <: MonteCarlo.AbstractGlobalUpdate
+    @test TemporalShuffle <: MonteCarlo.AbstractGlobalUpdate
+    @test Denoise <: MonteCarlo.AbstractGlobalUpdate
+    @test DenoiseFlip <: MonteCarlo.AbstractGlobalUpdate
+    @test StaggeredDenoise <: MonteCarlo.AbstractGlobalUpdate
 
     @test ReplicaExchange <: MonteCarlo.AbstractParallelUpdate
     @test ReplicaPull <: MonteCarlo.AbstractParallelUpdate
@@ -145,6 +150,39 @@ end
 using MonteCarlo: conf, current_slice, nslices
 
 @testset "Global update" begin
+    # Verify that split greens calculation matches the normal one
+    pivot = Vector{Int}(undef, 16)
+    tempv = Vector{Float64}(undef, 16)
+
+    Ul = Matrix{Float64}(undef, 16, 16)
+    Dl = Vector{Float64}(undef, 16)
+    Tl = Matrix{Float64}(undef, 16, 16)
+    
+    Ur = Matrix{Float64}(undef, 16, 16)
+    Dr = Vector{Float64}(undef, 16)
+    Tr = Matrix{Float64}(undef, 16, 16)
+
+    for i in 1:10
+        Bl = rand(16, 16)
+        copyto!(Tl, Bl)
+        MonteCarlo.udt_AVX_pivot!(Ul, Dl, Tl, pivot, tempv)
+        Br = rand(16, 16)
+        copyto!(Tr, Br)
+        MonteCarlo.udt_AVX_pivot!(Ur, Dr, Tr, pivot, tempv)
+        G1 = Matrix{Float64}(undef, 16, 16)
+        MonteCarlo.calculate_greens_AVX!(Ul, Dl, Tl, Ur, Dr, Tr, G1, pivot, tempv)
+
+        copyto!(Tl, Bl)
+        MonteCarlo.udt_AVX_pivot!(Ul, Dl, Tl)
+        copyto!(Tr, Br)
+        MonteCarlo.udt_AVX_pivot!(Ur, Dr, Tr)
+        G2 = Matrix{Float64}(undef, 16, 16)
+        MonteCarlo.calculate_inv_greens_udt(Ul, Dl, Tl, Ur, Dr, Tr, G2, pivot, tempv)
+        MonteCarlo.finish_calculate_greens(Ul, Dl, Tl, Ur, Dr, Tr, G2, pivot, tempv)
+
+        @test G1 ≈ G2
+    end
+
     models = (HubbardModelAttractive(2,2,mu=0.5), HubbardModelRepulsive(2,2))
     for model in models
         @testset "$(typeof(model))" begin
@@ -200,26 +238,92 @@ using MonteCarlo: conf, current_slice, nslices
         end
     end
 
+    function setup()
+        model = HubbardModelAttractive(8,2)
+        mc = DQMC(model, beta=1.0)
+        MonteCarlo.init!(mc)
+        MonteCarlo.reverse_build_stack(mc, mc.stack)
+        MonteCarlo.propagate(mc)
+        c = deepcopy(conf(mc))
+        return mc, model, c
+    end
+
     # Check config adjustments for global updates
-    model = HubbardModelAttractive(2,2)
-    mc = DQMC(model, beta=1.0)
-    MonteCarlo.init!(mc)
-    MonteCarlo.reverse_build_stack(mc, mc.stack)
-    MonteCarlo.propagate(mc)
-    c = deepcopy(conf(mc))
+    mc, model, c = setup()
     MonteCarlo.update(GlobalFlip(), mc, model)
     @test mc.temp_conf == -c
 
     # make this unlikely to fail randomly via big conf size
-    model = HubbardModelAttractive(8,2) 
-    mc = DQMC(model, beta=10.0)
-    MonteCarlo.init!(mc)
-    MonteCarlo.reverse_build_stack(mc, mc.stack)
-    MonteCarlo.propagate(mc)
-    c = deepcopy(conf(mc))
+    mc, model, c = setup()
     MonteCarlo.update(GlobalShuffle(), mc, model)
     @test sum(mc.temp_conf) == sum(c)
     @test mc.temp_conf != c
+
+    mc, model, c = setup()
+    u = SpatialShuffle()
+    MonteCarlo.init!(mc, u)
+    MonteCarlo.update(u, mc, model)
+    @test mc.temp_conf == c[u.indices, :]
+
+    mc, model, c = setup()
+    u = TemporalShuffle()
+    MonteCarlo.init!(mc, u)
+    MonteCarlo.update(u, mc, model)
+    @test mc.temp_conf == c[:, u.indices]
+
+    #=
+    Lattice with conf:
+
+        7 8 9                    + - -
+        -----                    -----
+    3 | 1 2 3 | 1            + | - + + | -
+    6 | 4 5 6 | 4            - | + + - | +
+    9 | 7 8 9 | 7            - | + - - | +
+        -----                    -----
+        1 2 3                    - + +
+
+
+    Denoise                   DenoiseFlip             StaggeredDenoise
+    1 = - -> +                1 = - -> -              1 = - -> -
+    2 = + -> +                2 = + -> -              2 = + -> +
+    3 = + -> -                3 = + -> +              3 = + -> +
+    4 = + -> +                4 = + -> -              4 = + -> +
+    5 = + -> +                5 = + -> -              5 = + -> -
+    6 = - -> +                6 = - -> -              6 = - -> +
+    7 = + -> -                7 = + -> +              7 = + -> +
+    8 = - -> +                8 = - -> -              8 = - -> +
+    9 = - -> -                9 = - -> +              9 = - -> +
+    to surrounding            to -surrounding         mult by +1 for even, -1 for odd sites
+    =#
+    spatial = [-1, +1, +1, +1, +1, -1, +1, -1, -1]
+    _conf = [spatial[i] for i in 1:9, slice in 1:10]
+
+    model = HubbardModelAttractive(3, 2)
+    mc = DQMC(model, beta=1.0)
+    MonteCarlo.init!(mc)
+    mc.conf .= _conf
+    MonteCarlo.reverse_build_stack(mc, mc.stack)
+    MonteCarlo.propagate(mc)
+    MonteCarlo.update(Denoise(), mc, model)
+    @test mc.temp_conf == [[+1, +1, -1, +1, +1, +1, -1, +1, -1][i] for i in 1:9, slice in 1:10]
+
+    model = HubbardModelAttractive(3, 2)
+    mc = DQMC(model, beta=1.0)
+    MonteCarlo.init!(mc)
+    mc.conf .= _conf
+    MonteCarlo.reverse_build_stack(mc, mc.stack)
+    MonteCarlo.propagate(mc)
+    MonteCarlo.update(DenoiseFlip(), mc, model)
+    @test mc.temp_conf == [[-1, -1, +1, -1, -1, -1, +1, -1, +1][i] for i in 1:9, slice in 1:10]
+
+    model = HubbardModelAttractive(3, 2)
+    mc = DQMC(model, beta=1.0)
+    MonteCarlo.init!(mc)
+    mc.conf .= _conf
+    MonteCarlo.reverse_build_stack(mc, mc.stack)
+    MonteCarlo.propagate(mc)
+    MonteCarlo.update(StaggeredDenoise(), mc, model)
+    @test mc.temp_conf == [[-1, +1, +1, +1, -1, +1, +1, +1, +1][i] for i in 1:9, slice in 1:10]
 end
 
 using Distributed
