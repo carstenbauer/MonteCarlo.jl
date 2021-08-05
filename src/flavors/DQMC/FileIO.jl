@@ -129,6 +129,8 @@ function save_analysis(file::JLDFile, a::DQMCAnalysis, entryname::String="Analys
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(a))
 
+    write(file, a.th_runtime, entryname * "/th_runtime")
+    write(file, a.me_runtime, entryname * "/me_runtime")
     save_stats(file, a.imaginary_probability, entryname * "/imag_prob")
     save_stats(file, a.negative_probability, entryname * "/neg_prob")
     save_stats(file, a.propagation_error, entryname * "/propagation")
@@ -146,6 +148,8 @@ function _load(data, ::Type{T}) where T <: DQMCAnalysis
     end
 
     data["type"](
+        th_runtime = get(data, "th_runtime", 0.0),
+        me_runtime = get(data, "me_runtime", 0.0),
         imaginary_probability = load_stats(data["imag_prob"]),
         negative_probability = load_stats(data["neg_prob"]),
         propagation_error = load_stats(data["propagation"])

@@ -43,10 +43,8 @@ end
 Analysis data of determinant quantum Monte Carlo (DQMC) simulations.
 """
 @with_kw mutable struct DQMCAnalysis
-    acc_rate::Float64 = 0.
-    prop_local::Int = 0
-    acc_local::Int = 0
-
+    th_runtime::Float64 = 0.0
+    me_runtime::Float64 = 0.0
     imaginary_probability::MagnitudeStats = MagnitudeStats()
     negative_probability::MagnitudeStats = MagnitudeStats()
     propagation_error::MagnitudeStats = MagnitudeStats()
