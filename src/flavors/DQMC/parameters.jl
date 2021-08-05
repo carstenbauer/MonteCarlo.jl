@@ -87,7 +87,7 @@ function DQMCParameters(;
         safe_mult::Int      = 10,
         measure_rate::Int   = 10,
         warn_round::Bool    = true,
-        print_rate::Int     = 10,
+        print_rate::Int     = max(10, div(thermalization + sweeps, 100)),
         kwargs...
     )
     nt = (;kwargs...)
