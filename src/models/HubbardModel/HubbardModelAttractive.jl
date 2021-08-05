@@ -139,7 +139,7 @@ end
 
     # Optimized
     # copy! and `.=` allocate, this doesn't. Synced loop is marginally faster
-    @avx for j in eachindex(m.IG)
+    @turbo for j in eachindex(m.IG)
         m.IG[j] = -greens[j, i]
         m.G[j] = greens[i, j]
     end
@@ -147,7 +147,7 @@ end
     # This is way faster for small systems and still ~33% faster at L = 15
     # Also no allocations here
     @inbounds x = γ / (1.0 + γ * m.IG[i])
-    @avx for k in eachindex(m.IG), l in eachindex(m.G)
+    @turbo for k in eachindex(m.IG), l in eachindex(m.G)
         greens[k, l] -= m.IG[k] * x * m.G[l]
     end
     @inbounds conf[i, slice] *= -1

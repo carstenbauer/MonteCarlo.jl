@@ -5,7 +5,7 @@
 
 
 function vmuladd!(C::Matrix{T}, A::Matrix{T}, B::Matrix{T}, factor::T = T(1)) where {T <: Real}
-    @avx for m in 1:size(A, 1), n in 1:size(B, 2)
+    @turbo for m in 1:size(A, 1), n in 1:size(B, 2)
         Cmn = zero(eltype(C))
         for k in 1:size(A, 2)
             Cmn += A[m,k] * B[k,n]
@@ -14,13 +14,13 @@ function vmuladd!(C::Matrix{T}, A::Matrix{T}, B::Matrix{T}, factor::T = T(1)) wh
     end
 end
 function vmuladd!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}, factor::T = T(1)) where {T <: Real}
-    @avx for m in 1:size(A, 1), n in 1:size(A, 2)
+    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
         C[m,n] += factor * A[m,n] * B.diag[n]
     end
 end
 function vmuladd!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}, factor::T = T(1)) where {T <: Real}
     B = X.parent
-    @avx for m in 1:size(A, 1), n in 1:size(B, 2)
+    @turbo for m in 1:size(A, 1), n in 1:size(B, 2)
         Cmn = zero(eltype(C))
         for k in 1:size(A, 2)
             Cmn += A[m,k] * B[n, k]
@@ -30,7 +30,7 @@ function vmuladd!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}, factor::T = T(1)) w
 end
 function vmuladd!(C::Matrix{T}, X::Adjoint{T}, B::Matrix{T}, factor::T = T(1)) where {T <: Real}
     A = X.parent
-    @avx for m in 1:size(A, 1), n in 1:size(B, 2)
+    @turbo for m in 1:size(A, 1), n in 1:size(B, 2)
         Cmn = zero(eltype(C))
         for k in 1:size(A, 2)
             Cmn += A[k,m] * B[k,n]
@@ -40,7 +40,7 @@ function vmuladd!(C::Matrix{T}, X::Adjoint{T}, B::Matrix{T}, factor::T = T(1)) w
 end
 function vmul!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}, factor::T) where {T <: Real}
     B = X.parent
-    @avx for m in 1:size(A, 1), n in 1:size(B, 2)
+    @turbo for m in 1:size(A, 1), n in 1:size(B, 2)
         Cmn = zero(eltype(C))
         for k in 1:size(A, 2)
             Cmn += A[m,k] * B[n, k]
@@ -50,7 +50,7 @@ function vmul!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}, factor::T) where {T <:
 end
 function vmul!(C::Matrix{T}, X::Adjoint{T}, B::Matrix{T}, factor::T) where {T <: Real}
     A = X.parent
-    @avx for m in 1:size(A, 1), n in 1:size(B, 2)
+    @turbo for m in 1:size(A, 1), n in 1:size(B, 2)
         Cmn = zero(eltype(C))
         for k in 1:size(A, 2)
             Cmn += A[k,m] * B[k,n]
@@ -149,28 +149,28 @@ function rdivp!(A::CMat64, T::CMat64, O::CMat64, pivot)
 
         # Apply pivot
         for (j, p) in enumerate(pivot)
-            @avx for i in 1:N
+            @turbo for i in 1:N
                 O.re[i, j] = A.re[i, p]
             end
-            @avx for i in 1:N
+            @turbo for i in 1:N
                 O.im[i, j] = A.im[i, p]
             end
         end
 
         # do the rdiv
-        # @avx will segfault on `k in 1:0`, so pull out first loop 
+        # @turbo will segfault on `k in 1:0`, so pull out first loop 
         invT = conj(T[1, 1]) / abs2(T[1, 1])
         re = real(invT); im = imag(invT)
-        @avx for i in 1:N
+        @turbo for i in 1:N
             A.re[i, 1] = O.re[i, 1] * re
         end
-        @avx for i in 1:N
+        @turbo for i in 1:N
             A.re[i, 1] -= O.im[i, 1] * im
         end
-        @avx for i in 1:N
+        @turbo for i in 1:N
             A.im[i, 1] = O.im[i, 1] * re
         end
-        @avx for i in 1:N
+        @turbo for i in 1:N
             A.im[i, 1] += O.re[i, 1] * im
         end
 
@@ -179,7 +179,7 @@ function rdivp!(A::CMat64, T::CMat64, O::CMat64, pivot)
             invT = conj(T[j, j]) / abs2(T[j, j])
             re = real(invT); im = imag(invT)
             
-            @avx for i in 1:N
+            @turbo for i in 1:N
                 x = O.re[i, j]
                 for k in 1:j-1
                     x -= A.re[i, k] * T.re[k, j]
@@ -191,7 +191,7 @@ function rdivp!(A::CMat64, T::CMat64, O::CMat64, pivot)
                 A.im[i, j] = x * im
             end
 
-            @avx for i in 1:N
+            @turbo for i in 1:N
                 x = O.im[i, j]
                 for k in 1:j-1
                     x -= A.im[i, k] * T.re[k, j]
@@ -226,16 +226,16 @@ end
         ξ1 += ν
         invξ1 = 1.0 / ξ1
         x.re[j, j] = -ν
-        @avx for i = j+1:n
+        @turbo for i = j+1:n
             x.re[i, j] = x.re[i, j] * real(invξ1)
         end
-        @avx for i = j+1:n
+        @turbo for i = j+1:n
             x.re[i, j] = -x.im[i, j] * imag(invξ1)
         end
-        @avx for i = j+1:n
+        @turbo for i = j+1:n
             x.im[i, j] = x.im[i, j] * real(invξ1)
         end
-        @avx for i = j+1:n
+        @turbo for i = j+1:n
             x.im[i, j] = x.re[i, j] * imag(invξ1)
         end
     end
@@ -247,18 +247,18 @@ end
     @inbounds for j = 1:n
         # dot
         vAj_re = A.re[1, j]
-        @avx for i = 2:m
+        @turbo for i = 2:m
             vAj_re += x.re[i] * A.re[i, j]
         end
-        @avx for i = 2:m
+        @turbo for i = 2:m
             vAj_re += x.im[i] * A.im[i, j]
         end
 
         vAj_im = A.im[1, j]
-        @avx for i = 2:m
+        @turbo for i = 2:m
             vAj_im -= x.im[i] * A.re[i, j]
         end
-        @avx for i = 2:m
+        @turbo for i = 2:m
             vAj_im += x.re[i] * A.im[i, j]
         end
 
@@ -268,18 +268,18 @@ end
 
         # ger
         A.re[1, j] -= vAj_re
-        @avx for i = 2:m
+        @turbo for i = 2:m
             A.re[i, j] -= x.re[i] * vAj_re
         end
-        @avx for i = 2:m
+        @turbo for i = 2:m
             A.re[i, j] += x.im[i] * vAj_im
         end
 
         A.im[1, j] -= vAj_im
-        @avx for i = 2:m
+        @turbo for i = 2:m
             A.im[i, j] -= x.re[i] * vAj_im
         end
-        @avx for i = 2:m
+        @turbo for i = 2:m
             A.im[i, j] -= x.im[i] * vAj_re
         end
     end
@@ -316,12 +316,12 @@ function udt_AVX_pivot!(
             pivot[j] = tmpp
 
             # Update matrix with
-            @avx for i = 1:n
+            @turbo for i = 1:n
                 tmp = input.re[i,jm]
                 input.re[i,jm] = input.re[i,j]
                 input.re[i,j] = tmp
             end
-            @avx for i = 1:n
+            @turbo for i = 1:n
                 tmp = input.im[i,jm]
                 input.im[i,jm] = input.im[i,j]
                 input.im[i,j] = tmp
@@ -345,17 +345,17 @@ function udt_AVX_pivot!(
         for k = n-1:-1:1
             for j = k:n
                 vBj_re = U.re[k,j]
-                @avx for i = k+1:n
+                @turbo for i = k+1:n
                     vBj_re += input.re[i,k] * U.re[i,j]
                 end
-                @avx for i = k+1:n
+                @turbo for i = k+1:n
                     vBj_re += input.im[i,k] * U.im[i,j]
                 end
                 vBj_im = U.im[k,j]
-                @avx for i = k+1:n
+                @turbo for i = k+1:n
                     vBj_im += input.re[i,k] * U.im[i,j]
                 end
-                @avx for i = k+1:n
+                @turbo for i = k+1:n
                     vBj_im -= input.im[i,k] * U.re[i,j]
                 end
 
@@ -365,16 +365,16 @@ function udt_AVX_pivot!(
 
                 U.re[k,j] -= vBj_re
                 U.im[k,j] -= vBj_im
-                @avx for i = k+1:n
+                @turbo for i = k+1:n
                     U.re[i,j] -= input.re[i,k] * vBj_re
                 end
-                @avx for i = k+1:n
+                @turbo for i = k+1:n
                     U.re[i,j] += input.im[i,k] * vBj_im
                 end
-                @avx for i = k+1:n
+                @turbo for i = k+1:n
                     U.im[i,j] -= input.im[i,k] * vBj_re
                 end
-                @avx for i = k+1:n
+                @turbo for i = k+1:n
                     U.im[i,j] -= input.re[i,k] * vBj_im
                 end
                 
@@ -382,7 +382,7 @@ function udt_AVX_pivot!(
         end
     end
 
-    @avx for i in 1:n
+    @turbo for i in 1:n
         D[i] = abs(input.re[i, i])
     end
 
@@ -411,13 +411,13 @@ function _apply_pivot!(input::CMat64, D, temp, pivot, ::Val{false})
     n = size(input, 1)
     @inbounds for i in 1:n
         d = 1.0 / D[i]
-        @avx for j in i:n
+        @turbo for j in i:n
             input.re[i, j] = d * input.re[i, j]
         end
     end
     @inbounds for i in 1:n
         d = 1.0 / D[i]
-        @avx for j in i:n
+        @turbo for j in i:n
             input.im[i, j] = d * input.im[i, j]
         end
     end

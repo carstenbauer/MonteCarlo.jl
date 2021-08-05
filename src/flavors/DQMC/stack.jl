@@ -396,7 +396,7 @@ element type as the matrices.
     # end
 
     # @bm "B5" begin
-        @avx for i in eachindex(Dr)
+        @turbo for i in eachindex(Dr)
             Dl[i] = 1.0 / Dr[i]
         end
     # end

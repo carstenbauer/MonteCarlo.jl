@@ -45,7 +45,7 @@ end
     rdivp!(Ur, Tr, G, pivot) # requires unpivoted udt decompostion (false)
     vmul!(Tr, Tl, Ul)
     #   = Ur Dr^-1 Tr^†
-    @avx for i in eachindex(Dr)
+    @turbo for i in eachindex(Dr)
         Dl[i] = 1.0 / Dr[i]
     end
     vmul!(Ul, Ur, Diagonal(Dl))
