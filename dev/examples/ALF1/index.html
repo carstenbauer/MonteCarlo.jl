@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Crosscheck with ALF · MonteCarlo.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="MonteCarlo.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">MonteCarlo.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Introduction</a></li><li><span class="tocitem">DQMC</span><ul><li><a class="tocitem" href="../../DQMC/Introduction/">Introduction</a></li><li><a class="tocitem" href="../../DQMC/model/">Model</a></li><li><a class="tocitem" href="../../DQMC/lattice/">Lattices</a></li><li><a class="tocitem" href="../../DQMC/dqmc/">DQMC</a></li><li><a class="tocitem" href="../../DQMC/recorder/">Configuration Recorder</a></li><li><a class="tocitem" href="../../DQMC/scheduler/">Update Scheduler</a></li><li><a class="tocitem" href="../../DQMC/measurements/">Measurements</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../triangular_Hubbard/">Triangular Attractive Hubbard</a></li></ul></li><li><span class="tocitem">Legacy</span><ul><li><a class="tocitem" href="../../legacy/">Introduction</a></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Manual</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/manual/gettingstarted/">Getting started</a></li><li><a class="tocitem" href="../../legacy/manual/showcase/">Showcase</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Physical models</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/models/ising/">Ising model</a></li><li><a class="tocitem" href="../../legacy/models/hubbardattractive/">Attractive Hubbard model</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-4" type="checkbox"/><label class="tocitem" for="menuitem-4-4"><span class="docs-label">Monte Carlo flavors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/flavors/mc/">MC</a></li><li><a class="tocitem" href="../../legacy/flavors/dqmc/">DQMC</a></li></ul></li><li><a class="tocitem" href="../../legacy/lattices/">Lattices</a></li><li><a class="tocitem" href="../../legacy/customize/">Customize</a></li><li><input class="collapse-toggle" id="menuitem-4-7" type="checkbox"/><label class="tocitem" for="menuitem-4-7"><span class="docs-label">Interfaces</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/interfaces/MC/">MC</a></li><li><a class="tocitem" href="../../legacy/interfaces/DQMC/">DQMC</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-8" type="checkbox"/><label class="tocitem" for="menuitem-4-8"><span class="docs-label">General exports</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/methods/general/">General</a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li class="is-active"><a href>Crosscheck with ALF</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Crosscheck with ALF</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/crstnbr/MonteCarlo.jl/blob/master/docs/src/examples/ALF1.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Crosscheck-with-ALF-1"><a class="docs-heading-anchor" href="#Crosscheck-with-ALF-1">Crosscheck with ALF</a><a class="docs-heading-anchor-permalink" href="#Crosscheck-with-ALF-1" title="Permalink"></a></h1><p>The <a href="https://git.physik.uni-wuerzburg.de/ALF">ALF project</a> (Algorithms for lattice fermions) is a long running project implementing DQMC in Fortran. They have implemented varies different models, lattices, stabilization methods and measurements. A relatively simple comparison for us will be the &quot;plain vanilla Hubbard model&quot; on a square lattice, which is close to but not exactly the same as our attractive Hubbard model.</p><h2 id="The-ALF-Simulation-1"><a class="docs-heading-anchor" href="#The-ALF-Simulation-1">The ALF Simulation</a><a class="docs-heading-anchor-permalink" href="#The-ALF-Simulation-1" title="Permalink"></a></h2><h3 id="Installation-1"><a class="docs-heading-anchor" href="#Installation-1">Installation</a><a class="docs-heading-anchor-permalink" href="#Installation-1" title="Permalink"></a></h3><p>The ALF project provides a <a href="https://git.physik.uni-wuerzburg.de/ALF/pyALF">python interface</a> which we used for simplicity. For installation instructions, see the link. At the time of writing pyALF is linked to ALF 2.0.</p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>You can also add a load path for pyALF temporarily in an active python session. Try <code>import sys</code> and <code>sys.path.append(&#39;path/to/pyALF-ALF-2.0/&#39;)</code>.</p></div></div><h3 id="Usage-1"><a class="docs-heading-anchor" href="#Usage-1">Usage</a><a class="docs-heading-anchor-permalink" href="#Usage-1" title="Permalink"></a></h3><p>With python, pyALF and the necessary packages installed we can now setup and run simulations. In python, we run:</p><pre><code class="language-python">import os
+from py_alf import Simulation        # Interface with ALF
+
+sims = []                            # Vector of Simulation instances
+for beta in [1.0, 6.0, 12.0]:        # Values of inverse temperature beta
+    sim = Simulation(
+        &#39;Hubbard&#39;,                   # Hamiltonian
+        {                            # Model and simulation parameters for each Simulation instance
+        &#39;Model&#39;: &#39;Hubbard&#39;,          #    Base model
+        &#39;Lattice_type&#39;: &#39;Square&#39;,    #    Lattice type
+        &#39;L1&#39;: 4,                     #    Lattice length in the first unit vector direction
+        &#39;L2&#39;: 4,                     #    Lattice length in the second unit vector direction
+        &#39;Checkerboard&#39;: False,       #    Whether checkerboard decomposition is used or not
+        &#39;Symm&#39;: True,                #    Whether symmetrization takes place
+        &#39;ham_T&#39;: 1.0,                #    Hopping parameter
+        &#39;ham_U&#39;: 4.0,                #    Hubbard interaction
+        &#39;ham_Tperp&#39;: 0.0,            #    For bilayer systems
+        &#39;beta&#39;: beta,                #    Inverse temperature
+        &#39;Ltau&#39;: 1,                   #    &#39;1&#39; for time-displaced Green functions; &#39;0&#39; otherwise 
+        &#39;NSweep&#39;: 100,                #    Number of sweeps per bin
+        &#39;N_skip&#39;: 10,                #    skip 50 bins meaning 50x NSweep
+        &#39;NBin&#39;: 60,                 #    Number of bins
+        &#39;Dtau&#39;: 0.1,                 #    Only dtau varies between simulations, Ltrot=beta/Dtau
+        &#39;Mz&#39;: True,                  #    If true, sets the M_z-Hubbard model: Nf=2, N_sum=1,
+        },                           #             HS field couples to z-component of magnetization
+        alf_dir=os.getenv(&#39;ALF_DIR&#39;, &#39;./ALF&#39;), # Directory with ALF source code. Gets it from 
+                                               # environment variable ALF_DIR, if present
+    )
+    sims.append(sim)
+
+sims[0].compile()                        # Compilation needs to be performed only once
+
+import time
+
+print(&quot;\nRunning sims\n&quot;)
+for i, sim in enumerate(sims):
+    t0 = time.time()
+    sim.run()                            # Perform the actual simulation in ALF
+    print(time.time() - t0)
+    
+print(&quot;\nAnalysis:\n&quot;)
+for i, sim in enumerate(sims):
+    print(sim.sim_dir)                   # Directory containing the simulation output
+    sim.analysis()</code></pre><p>Let&#39;s briefly go over some of the options picked here. The noteworthy option is <code>Symm</code>. With it you can switch between a symmetric (True) and antisymmetric (False) Trotter decomposition. In MonteCarlo.jl we use the symmetric version so we should do so here too. Next we have <code>Ltau</code>. As mentioned in the comment this controls whether time displaced greens function are calculated, and by extension whether time displaced observables (susceptibilties) are calculated. We want to compare as much as possible so we set <code>Ltau = 1</code>. </p><p>And finally we have the combination of <code>NSweep</code>, <code>N_skip</code> and <code>NBin</code>. <code>NSweep</code> is the number of sweeps in a block, which is usually followed by a measurement. <code>NBin</code> sets how many of those blocks are executed and <code>N_skip</code> disables measurements for some of blocks at the start. Thus we have the relations <code>thermalization = NSweep * N_skip</code>, <code>sweeps = NSweep * (NBin - N_skip)</code> and <code>measure_rate = NSweep</code>. </p><p>Regarding the choices for <code>NSweep</code>, <code>N_skip</code> and <code>NBin</code> it is also important to discuss the model ALF implements and how it is implemented. As mentioned before it is not quite the same as the attractive Hubbard model from DQMC. ALF implements</p><p>\begin{equation} \mathcal{H}=</p><ul><li>t </li></ul><p>\sum\limits<em>{\langle {i}, {j} \rangle,  \sigma={\uparrow,\downarrow}}  \left(  \hat{c}^{\dagger}</em>{{i}, \sigma} \hat{c}^{\phantom\dagger}_{{j},\sigma}  + \text{H.c.} \right) </p><ul><li>\frac{U}{2}\sum\limits_{{i}}\left[</li></ul><p>\hat{c}^{\dagger}<em>{{i}, \uparrow} \hat{c}^{\phantom\dagger}</em>{{i}, \uparrow}  -   \hat{c}^{\dagger}<em>{{i}, \downarrow} \hat{c}^{\phantom\dagger}</em>{{i}, \downarrow}  \right]^{2}   </p><ul><li>\mu \sum<em>{{i},\sigma } \hat{c}^{\dagger}</em>{{i}, \sigma}  \hat{c}^{\phantom\dagger}_{{i},\sigma}. </li></ul><p>\end{equation} </p><p>which features a quadratic interaction rather than the <span>$\sim (n_\uparrow - 0.5)(n_\downarrow - 0.5)$</span> term used in MonteCarlo.jl. If we apply a Hirsch transformation (like in MonteCarlo.jl) to both of these interactions, we end up with the same expression. Thus they would be the same from the simulations point of view. However ALF uses a different, more precise transformation based on Gauß-Hermite quadrature, resulting in different auxiliary field values (<span>$\pm 1$</span> and <span>$\pm 2$</span> rather than just <span>$\pm 1$</span>) with different weights.</p><p>It is not clear, a priori, whether and which observables will match. We will se in the results that many match close to perfectly but not all. Another consequence of the different transformation is that ALF is slower per sweep, but can reach a target precision at a much larger <span>$\Delta\tau$</span> and potentially less sweeps. </p><p>For more information on the Hamiltonian and transformation used by ALF see the <a href="https://git.physik.uni-wuerzburg.de/ALF/ALF/-/blob/master/Documentation/doc.png">ALF documentation</a></p><h2 id="The-MonteCarlo.jl-Simulation-1"><a class="docs-heading-anchor" href="#The-MonteCarlo.jl-Simulation-1">The MonteCarlo.jl Simulation</a><a class="docs-heading-anchor-permalink" href="#The-MonteCarlo.jl-Simulation-1" title="Permalink"></a></h2><p>The MonteCarlo.jl simulation should more or less mirror the options picked for ALF. We run </p><pre><code class="language-julia">using Revise, MonteCarlo, Printf, LinearAlgebra
+
+mcs = []
+@time for beta in [1.0, 6.0, 12.0]
+    m = HubbardModelAttractive(4, 2, U = 4, mu = 0)
+    mc = DQMC(
+        m, beta=beta, thermalization=10_000, sweeps=50_000, 
+        print_rate=10_000, delta_tau = 0.1#, measure_rate=5
+    )
+    
+    # our default versions
+    mc[:G] = greens_measurement(mc, m)
+    mc[:SDCx] = spin_density_correlation(mc, m, :x)
+    mc[:SDCy] = spin_density_correlation(mc, m, :y)
+    mc[:SDCz] = spin_density_correlation(mc, m, :z)
+    mc[:CDC] = charge_density_correlation(mc, m)
+    mc[:T] = noninteracting_energy(mc, m)
+    
+    # ALF defines our I - G as the measured Greens function
+    mygreens(mc, m, ij, G) = begin i, j = ij; 2 * dagger(G)[i, j] end
+    mc[:Gr] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance, mygreens)
+    
+    # The interaction energy needs to be adjusted to ALF&#39;s Hamiltonian
+    my_intE(mc, m, G) = m.U * (sum(diag(G.val) - diag(G.val).^2))
+    mc[:V] = MonteCarlo.Measurement(mc, m, Greens, Nothing, my_intE)
+    
+    # ALF includes 0 and β in the time displaced greens function
+    myGk(mc, m, ij, Gs) = begin G00, G0l, Gl0, Gll = Gs; i, j = ij; Gl0[i, j] end
+    mc[:IGk] = MonteCarlo.Measurement(
+        mc, m, CombinedGreensIterator, EachSitePairByDistance, myGk
+    )
+        
+    # ALF subtracts the uncorrelated part
+    myDenDen(mc, m, ij, G) = begin i, j = ij; 2 * dagger(G)[i, j] * G[i, j] end
+    mc[:DenDen] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance, myDenDen)
+    
+    myDenDenTau(mc, m, ij, Gs) = begin G00, G0l, Gl0, Gll = Gs; i, j = ij; 2 * dagger(G0l)[i, j] * Gl0[i, j] end
+    mc[:DenDenTau] = MonteCarlo.Measurement(mc, m, CombinedGreensIterator, EachSitePairByDistance, myDenDenTau)
+    
+    run!(mc)
+    push!(mcs, mc)
+end</code></pre><p>Since MonteCarlo.jl uses a Hirsch transformation the sweeps are relatively cheap and we can easily do 10x more. With the given parameters the simulations will take about 3min.</p><p>A lot of the observables we measure have been adjusted to match ALF. First we have the equal time Greens function <code>:Gr</code> which measures <span>$\delta(\Delta r) - G(\Delta r) = \sum_r c_r^\dagger c_{r + \Delta r}$</span>. We also have to add a factor 2 here because MonteCarlo.jl only keeps track of one spin. Next we have the interaction energy <code>:V</code> which needs adjustments to the different pre-transformation term. We calculate <span>$\langle V \rangle = \frac{U}{2} \sum_i \langle V_i \rangle$</span> where </p><p>\begin{equation} \langle V<em>i \rangle = \langle \hat{c}^{\dagger}</em>{{i}, \uparrow} \hat{c}^{\phantom\dagger}<em>{{i}, \uparrow} \hat{c}^{\dagger}</em>{{i}, \uparrow} \hat{c}^{\phantom\dagger}_{{i}, \uparrow}</p><ul><li>\hat{c}^{\dagger}<em>{{i}, \uparrow} \hat{c}^{\phantom\dagger}</em>{{i}, \uparrow} \hat{c}^{\dagger}<em>{{i}, \downarrow} \hat{c}^{\phantom\dagger}</em>{{i}, \downarrow}</li><li>\hat{c}^{\dagger}<em>{{i}, \downarrow} \hat{c}^{\phantom\dagger}</em>{{i}, \downarrow} \hat{c}^{\dagger}<em>{{i}, \uparrow} \hat{c}^{\phantom\dagger}</em>{{i}, \uparrow}</li><li>\hat{c}^{\dagger}<em>{{i}, \downarrow} \hat{c}^{\phantom\dagger}</em>{{i}, \downarrow} \hat{c}^{\dagger}<em>{{i}, \downarrow} \hat{c}^{\phantom\dagger}</em>{{i}, \downarrow}</li></ul><p>\rangle \end{equation}</p><p>Each term needs to be Wicks-expanded</p><p>\begin{eqnarray} \langle V<em>i \rangle = \phantom{-}  \langle \hat{c}^{\dagger}</em>{{i}, \uparrow} \hat{c}^{\phantom\dagger}<em>{{i}, \uparrow} \rangle \langle \hat{c}^{\dagger}</em>{{i}, \uparrow} \hat{c}^{\phantom\dagger}_{{i}, \uparrow} \rangle</p><ul><li>\langle \hat{c}^{\dagger}<em>{{i}, \uparrow} \hat{c}^{\phantom\dagger}</em>{{i}, \uparrow} \rangle \langle \hat{c}^{\phantom\dagger}<em>{{i}, \uparrow} \hat{c}^{\dagger}</em>{{i}, \uparrow} \rangle</li><li>\langle \hat{c}^{\dagger}<em>{{i}, \uparrow} \hat{c}^{\phantom\dagger}</em>{{i}, \uparrow} \rangle \langle \hat{c}^{\dagger}<em>{{i}, \downarrow} \hat{c}^{\phantom\dagger}</em>{{i}, \downarrow} \rangle</li><li>\langle \hat{c}^{\dagger}<em>{{i}, \uparrow} \hat{c}^{\phantom\dagger}</em>{{i}, \downarrow} \rangle \langle \hat{c}^{\phantom\dagger}<em>{{i}, \uparrow} \hat{c}^{\dagger}</em>{{i}, \downarrow} \rangle \
+</li><li>\langle \hat{c}^{\dagger}<em>{{i}, \downarrow} \hat{c}^{\phantom\dagger}</em>{{i}, \downarrow} \rangle \langle \hat{c}^{\dagger}<em>{{i}, \uparrow} \hat{c}^{\phantom\dagger}</em>{{i}, \uparrow} \rangle</li><li>\langle \hat{c}^{\dagger}<em>{{i}, \downarrow} \hat{c}^{\phantom\dagger}</em>{{i}, \uparrow} \rangle \langle \hat{c}^{\phantom\dagger}<em>{{i}, \downarrow} \hat{c}^{\dagger}</em>{{i}, \uparrow} \rangle</li><li>\langle \hat{c}^{\dagger}<em>{{i}, \downarrow} \hat{c}^{\phantom\dagger}</em>{{i}, \downarrow} \rangle \langle \hat{c}^{\dagger}<em>{{i}, \downarrow} \hat{c}^{\phantom\dagger}</em>{{i}, \downarrow} \rangle</li><li>\langle \hat{c}^{\dagger}<em>{{i}, \downarrow} \hat{c}^{\phantom\dagger}</em>{{i}, \downarrow} \rangle \langle \hat{c}^{\phantom\dagger}<em>{{i}, \downarrow} \hat{c}^{\dagger}</em>{{i}, \downarrow}  \rangle</li></ul><p>\end{eqnarray}</p><p>so it can be exchanged by Greens function elements</p><p>\begin{eqnarray} \langle V<em>i \rangle = \phantom{-}   (I - G</em>{ii}^{\uparrow \uparrow}) (I - G_{ii}^{\uparrow \uparrow})</p><ul><li>(I - G<em>{ii}^{\uparrow \uparrow}) G</em>{ii}^{\uparrow \uparrow}</li><li>(I - G<em>{ii}^{\uparrow \uparrow}) (I - G</em>{ii}^{\downarrow \downarrow})</li><li>(I - G<em>{ii}^{\downarrow \uparrow}) G</em>{ii}^{\uparrow \downarrow} \
+</li><li>(I - G<em>{ii}^{\downarrow \downarrow}) (I - G</em>{ii}^{\uparrow \uparrow})</li><li>(I - G<em>{ii}^{\uparrow \downarrow}) G</em>{ii}^{\downarrow \uparrow}</li><li>(I - G<em>{ii}^{\downarrow \downarrow}) (I - G</em>{ii}^{\downarrow \downarrow})</li><li>(I - G<em>{ii}^{\downarrow \downarrow}) G</em>{ii}^{\downarrow \downarrow}</li></ul><p>\end{eqnarray}</p><p>Next we make use of the symmetries of the model. Specifically <span>$G_{ij}^{\uparrow\uparrow} = G_{ij}^{\downarrow\downarrow}$</span> and <span>$G_{ij}^{\sigma \sigma^\prime} = 0$</span> if <span>$\sigma \ne \sigma^\prime$</span>. Thus we get</p><p>\begin{equation} \langle V<em>i \rangle = 2 (1 - G</em>{ii}^{\uparrow \uparrow}) G_{ii}^{\uparrow \uparrow} \end{equation}</p><p>which is implemented above. After that we have the Fourier transformed time displaced Greens function <code>:IGk</code> which calculates the Fourier transform of <span>$G^\prime(\Delta r) = \sum_{\tau = \Delta\tau}^{\beta} \Delta\tau \sum_r c_r(\tau) c_{r + \Delta r}^\dagger(0)$</span>. Finally we have the charge density correlation <code>:DenDen</code> and susceptibility <code>:DenDenTau</code> which implement <span>$\sum_r \langle \langle n_r n_{r - \Delta r} \rangle - \langle n_r \rangle \langle n_{r + \Delta r} \rangle \rangle_{MC}$</span>. We note here that the subtraction happens before taking the Monte Carlo average denoted by <span>$\langle \cdot \rangle_{MC}$</span>.</p><h2 id="Loading-ALF-Data-1"><a class="docs-heading-anchor" href="#Loading-ALF-Data-1">Loading ALF Data</a><a class="docs-heading-anchor-permalink" href="#Loading-ALF-Data-1" title="Permalink"></a></h2><p>ALF will generate a folder with multiple files for each measurement. You should find these in your pyALF directory under <code>ALF_data</code>. To load everything you need to compare results we run</p><pre><code class="language-julia">using Statistics
+p = &quot;path/to/ALF_data&quot;
+folders = [
+    &quot;Hubbard_Square_L1=4_L2=4_Checkerboard=False_Symm=True_T=1.0_U=4.0_Tperp=0.0_beta=1.0_Dtau=0.1_Mz=True&quot;,
+    &quot;Hubbard_Square_L1=4_L2=4_Checkerboard=False_Symm=True_T=1.0_U=4.0_Tperp=0.0_beta=6.0_Dtau=0.1_Mz=True&quot;,
+    &quot;Hubbard_Square_L1=4_L2=4_Checkerboard=False_Symm=True_T=1.0_U=4.0_Tperp=0.0_beta=12.0_Dtau=0.1_Mz=True&quot;,
+]
+
+# equal time Greens
+dirs = []
+Gs = []
+dGs = []
+
+# other equal time observables
+Ts = []      # SpinT ~ 4 * (sx + sy + sz) / 3
+dTs = []
+SDCxys = []  # SpinXY ~ 2 * (sx + sy)
+dSDCxys = []
+SDCzs = []   # SpinZ ~ 4 * sz
+dSDCzs = []
+CDCs = []    # Den
+dCDCs = []
+CDCks = []    # Den
+dCDCks = []
+
+# Energies
+Ks = []
+dKs = []
+Vs = []
+dVs = []
+Es = []
+dEs = []
+
+# unequal time
+ks = []
+Gks = []
+dGks = []
+CDCts = []    # Den
+dCDCts = []
+SDSzs = []   # SpinZ ~ 4 * sz
+dSDSzs = []
+
+function read_scal(filename)
+    open(filename, &quot;r&quot;) do f
+        data = map(eachline(f)) do line
+            parts = filter(x -&gt; !isempty(x), split(line, r&quot; +&quot;))
+            parse(Float64, split(parts[2], &#39;,&#39;)[1][2:end])
+        end
+        mean(data), std(data) / sqrt(length(data))
+    end
+end
+
+function readJR(filename)
+    open(filename, &quot;r&quot;) do f
+        data = map(eachline(f)) do line
+            parse.(Float64, filter(x -&gt; !isempty(x), split(line, r&quot; +&quot;)))
+        end
+        drs = data[1:2:end]
+        ys = getindex.(data[2:2:end], 3)
+        dys = getindex.(data[2:2:end], 4)
+        drs, ys, dys
+    end
+end
+
+function read_tauJK(filename)
+    open(filename, &quot;r&quot;) do f
+        data = map(eachline(f)) do line
+            parse.(Float64, filter(x -&gt; !isempty(x), split(line, r&quot; +&quot;)))
+        end
+        dks = [d[1:2] for d in data]
+        gs = [ComplexF64(d[3], d[5]) for d in data]
+        dgs = [ComplexF64(d[4], d[6]) for d in data]
+        dks, gs, dgs
+    end
+end
+
+
+for folder in folders
+    drs, gs, dgs = readJR(joinpath(p, folder, &quot;Green_eqJR&quot;))
+    if isempty(dirs)
+        push!(dirs, drs)
+    else
+        @assert dirs[end] == drs
+    end
+    push!(Gs, gs)
+    push!(dGs, dgs)
+    
+    drs, cdcs, dcdcs = readJR(joinpath(p, folder, &quot;Den_eqJR&quot;))
+    @assert dirs[end] == drs
+    push!(CDCs, cdcs)
+    push!(dCDCs, dcdcs)
+     
+    drs, ts, dts = readJR(joinpath(p, folder, &quot;SpinT_eqJR&quot;))
+    @assert dirs[end] == drs
+    push!(Ts, ts)
+    push!(dTs, dts)
+    
+    drs, sdcxys, dsdcxys = readJR(joinpath(p, folder, &quot;SpinXY_eqJR&quot;))
+    @assert dirs[end] == drs
+    push!(SDCxys, sdcxys)
+    push!(dSDCxys, dsdcxys)
+    
+    drs, sdczs, dsdczs = readJR(joinpath(p, folder, &quot;SpinZ_eqJR&quot;))
+    @assert dirs[end] == drs
+    push!(SDCzs, sdczs)
+    push!(dSDCzs, dsdczs)
+    
+    dks, gks, dgks = readJR(joinpath(p, folder, &quot;Den_eqJK&quot;))
+    if isempty(ks)
+        push!(ks, dks)
+    else
+        @assert ks[end] == dks
+    end
+    push!(CDCks, gks)
+    push!(dCDCks, dgks)
+    
+    dks, gks, dgks = read_tauJK(joinpath(p, folder, &quot;Green_tauJK&quot;))
+    @assert ks[end] == dks
+    push!(Gks, gks)
+    push!(dGks, dgks)
+    
+    dks, gks, dgks = read_tauJK(joinpath(p, folder, &quot;Den_tauJK&quot;))
+    @assert ks[end] == dks
+    push!(CDCts, gks)
+    push!(dCDCts, dgks)
+        
+    dks, gks, dgks = read_tauJK(joinpath(p, folder, &quot;SpinZ_tauJK&quot;))
+    @assert ks[end] == dks
+    push!(SDSzs, gks)
+    push!(dSDSzs, dgks)
+    
+    
+    e, de = read_scal(joinpath(p, folder, &quot;Kin_scal&quot;))
+    push!(Ks, e)
+    push!(dKs, de)
+    
+    e, de = read_scal(joinpath(p, folder, &quot;Pot_scal&quot;))
+    push!(Vs, e)
+    push!(dVs, de)
+    
+    e, de = read_scal(joinpath(p, folder, &quot;Ener_scal&quot;))
+    push!(Es, e)
+    push!(dEs, de)
+end
+
+mc_drs = MonteCarlo.directions(mcs[1])
+idxs = map(v -&gt; findfirst(isequal(v), dirs[1]), mc_drs)
+idxs[end-1] = 13</code></pre><p>The only thing worth mentioning here is the order of offset vectors <span>$\Delta r$</span>. The order of observable values is linked to these vectors, whose order differs between MonteCarlo.jl and ALF. To adjust the order we compute <code>idxs</code> here. Note that because we work with periodic lattices there are multiple valid options for some of these vectors. Because of this we set one index explicitly. </p><h2 id="Comparing-the-results-1"><a class="docs-heading-anchor" href="#Comparing-the-results-1">Comparing the results</a><a class="docs-heading-anchor-permalink" href="#Comparing-the-results-1" title="Permalink"></a></h2><p>To compare the results we will plot points over each other. Most observables have the same layout, i.e. values vs either spatial or reciprocal distance vectors. We will plot these with the following functions.</p><pre><code class="language-julia">using CairoMakie
+
+function plot_by_distance(
+        ys, dys, key; 
+        idxs = idxs, xs = 1:16, xticks = map(v -&gt; &quot;[$(v[1]), $(v[2])]&quot;, mc_drs), 
+        ylabel, legend_pos = :rt
+    )
+
+    fig = Figure(figure_padding = (10, 20, 10, 10))
+    ax = Axis(fig[1, 1])
+
+    cs = (:blue, :purple, :red)
+    for l in 1:3 # temperature index
+        band!(ax, xs, ys[l][idxs] .- dys[l][idxs], ys[l][idxs] .+ dys[l][idxs], color = (cs[l], 0.1))
+        scatter!(ax, xs, ys[l][idxs], color = cs[l], marker=&#39;+&#39;, markersize=12)
+
+        low = mean(mcs[l][key]) .- std_error(mcs[l][key])
+        high = mean(mcs[l][key]) .+ std_error(mcs[l][key])
+        band!(ax, xs, low, high, color = (cs[l], 0.1))
+        scatter!(ax, xs, mean(mcs[l][key]), color = cs[l], marker=&#39;x&#39;, markersize=12)
+    end
+
+    lbls = [
+        &quot;β = 1&quot;, &quot;β = 1&quot;,
+        &quot;β = 6&quot;, &quot;β = 6&quot;,
+        &quot;β = 12&quot;, &quot;β = 12&quot;
+    ]
+    axislegend(ax, ax.scene.plots[3:2:end], lbls, &quot;  ALF    MonteCarlo.jl&quot;, nbanks=2, position = legend_pos)
+
+    ax.ylabel[] = ylabel
+    ax.xticks[] = (xs, xticks)
+    ax.xlabel[] = &quot;Distance Δr&quot;
+    ax.xticklabelrotation[] = -0.7
+
+    # to fix bad spacing, likely unnecessary in the near future
+    ax.xlabelpadding[] = 10
+    
+    fig, ax
+end
+
+function plot_reciprocal(
+        ys, dys, key; 
+        xs = 1:16, ylabel, legend_pos = :rt,
+        xticks = labels = map(ks[1]) do k
+            pieces = map(k) do x
+                if x ≈ 0.5f0 * pi;       &quot;π/2&quot;
+                elseif x ≈ 1f0 * pi;     &quot;π&quot;
+                elseif x ≈ -0.5f0 * pi;  &quot;-π/2&quot;
+                elseif x ≈ 0.0;          &quot;0&quot;
+                else;                    &quot;$x&quot;
+                end
+            end
+            &quot;[&quot; * join(pieces, &quot;, &quot;) * &quot;]&quot;
+        end
+    )
+
+    fig = Figure(figure_padding = (10, 20, 10, 10))
+    ax = Axis(fig[1, 1])
+
+    cs = (:blue, :purple, :red)
+    for l in 1:3 # temperature index
+        low  = real(real(ys[l]) .- real(dys[l]))
+        high = real(real(ys[l]) .+ real(dys[l]))
+        band!(ax, xs, low, high, color = (cs[l], 0.1))
+        scatter!(ax, xs, real(ys[l]), color = cs[l], marker=&#39;+&#39;, markersize=12)
+
+        _ys = map(1:16) do j
+            MonteCarlo.fourier_transform(
+                ks[1][j:j], 
+                directions(mcs[l]), 
+                mcs[l][key] |&gt; mean
+            )[1]
+        end
+        _dys = map(1:16) do j
+            vals = std_error(mcs[l][key])
+            dirs = directions(mcs[l])
+            q = ks[1][j]
+            sum((cis(dot(q, v)) * o)^2 for (v, o) in zip(dirs, vals)) |&gt; mean |&gt; sqrt
+        end
+
+        low  = real(_ys .- _dys)
+        high = real(_ys .+ _dys)
+        band!(ax, xs, low, high, color = (cs[l], 0.1))
+        scatter!(ax, xs, real(_ys), color = cs[l], marker=&#39;x&#39;, markersize=12)
+    end
+
+    lbls = [
+        &quot;β = 1&quot;, &quot;β = 1&quot;,
+        &quot;β = 6&quot;, &quot;β = 6&quot;,
+        &quot;β = 12&quot;, &quot;β = 12&quot;
+    ]
+    axislegend(ax, ax.scene.plots[3:2:end], lbls, &quot;  ALF    MonteCarlo.jl&quot;, nbanks=2, position = legend_pos)
+
+    ax.ylabel[] = ylabel
+    ax.xticks[] = (xs, xticks)
+    ax.xlabel[] = &quot;Reciprocal Vector Δk&quot;
+    ax.xticklabelrotation[] = -0.7
+
+    # to fix bad spacing, likely unnecessary in the near future
+    ax.xlabelpadding[] = 10
+    
+    fig, ax
+end</code></pre><h3 id="Equal-time-Greens-function-1"><a class="docs-heading-anchor" href="#Equal-time-Greens-function-1">Equal time Greens function</a><a class="docs-heading-anchor-permalink" href="#Equal-time-Greens-function-1" title="Permalink"></a></h3><p>The equal time Greens function shows a clean overlap between the two libraries.</p><pre><code class="language-julia">fig, ax = plot_by_distance(
+    Gs, dGs, :Gr, factor = 2.0, 
+    ylabel = &quot;δ(Δr) - G(Δr) = ∑ᵣ ⟨c^†(r) c(r + Δr)⟩&quot;
+)
+Makie.save(&quot;equal_time_greens.png&quot;, fig)
+display(fig)</code></pre><p><img src="../assets/ALF/equal_time_greens.png" alt/></p><h3 id="Time-displaced-Greens-function-1"><a class="docs-heading-anchor" href="#Time-displaced-Greens-function-1">Time displaced Greens function</a><a class="docs-heading-anchor-permalink" href="#Time-displaced-Greens-function-1" title="Permalink"></a></h3><p>For the time-displaced Greens function the overlap becomes visible less precise. This is likely a result of the different transformations used. Reducing <span>$\Delta \tau$</span> in MonteCarlo.jl increases the overlap.</p><pre><code class="language-none">fig, ax = plot_reciprocal(
+    Gks, dGks, :IGk,
+    ylabel = &quot;Integrated Greens function ∑ₖ ∫ ⟨c(τ, k) c^†(0, k + Δk)⟩ dτ&quot;
+)
+Makie.save(&quot;time_displaced_greens.png&quot;, fig)
+display(fig)</code></pre><p><img src="../assets/ALF/time_displaced_greens.png" alt/></p><h3 id="Energies-1"><a class="docs-heading-anchor" href="#Energies-1">Energies</a><a class="docs-heading-anchor-permalink" href="#Energies-1" title="Permalink"></a></h3><p>For the kinetic energy and interaction we only get one value per simulation, so we just compare them numerically. In this case all values match with errors. The first group shows kinetic energy and the second interaction.</p><table><tr><th style="text-align: right">Inv. Temp.</th><th style="text-align: right">ALF</th><th style="text-align: right">MonteCarlo.jl</th><th style="text-align: right"></th><th style="text-align: right">ALF</th><th style="text-align: right">MonteCarlo.jl</th></tr><tr><td style="text-align: right">1</td><td style="text-align: right">-16.855 ± 0.005</td><td style="text-align: right">-16.90 ± 0.04</td><td style="text-align: right"></td><td style="text-align: right">8.775 ± 0.003</td><td style="text-align: right">8.77 ± 0.02</td></tr><tr><td style="text-align: right">6</td><td style="text-align: right">-21.107 ± 0.002</td><td style="text-align: right">-21.06 ± 0.06</td><td style="text-align: right"></td><td style="text-align: right">7.72 ± 0.02</td><td style="text-align: right">7.72 ± 0.04</td></tr><tr><td style="text-align: right">12</td><td style="text-align: right">-21.109 ± 0.002</td><td style="text-align: right">-21.09 ± 0.05</td><td style="text-align: right"></td><td style="text-align: right">7.538 ± 0.006</td><td style="text-align: right">7.51 ± 0.06</td></tr></table><h3 id="Charge-Density-Correlations-1"><a class="docs-heading-anchor" href="#Charge-Density-Correlations-1">Charge Density Correlations</a><a class="docs-heading-anchor-permalink" href="#Charge-Density-Correlations-1" title="Permalink"></a></h3><pre><code class="language-julia">fig, ax = plot_by_distance(CDCs, dCDCs, :DenDen, ylabel = &quot;Charge Density Correlation ∑ᵣ ⟨n(r) n(r + Δr)⟩&quot;)
+Makie.save(&quot;charge_density_correlation.png&quot;, fig)
+display(fig)</code></pre><p><img src="../assets/ALF/charge_density_correlation.png" alt/></p><h3 id="Charge-Density-Susceptibility-1"><a class="docs-heading-anchor" href="#Charge-Density-Susceptibility-1">Charge Density Susceptibility</a><a class="docs-heading-anchor-permalink" href="#Charge-Density-Susceptibility-1" title="Permalink"></a></h3><p>Even though this is based on the time displaced Greens function the results do actually match pretty closely.</p><pre><code class="language-julia">fig, ax = plot_reciprocal(
+    CDCts, dCDCts, :DenDenTau,
+    ylabel = &quot;Charge Density Susceptibility ∑ᵣ ∫ ⟨n(τ, r) n(0, r + Δr)⟩ dτ&quot;
+)
+Makie.save(&quot;charge_density_susceptibility.png&quot;, fig)
+display(fig)</code></pre><p><img src="../assets/ALF/charge_density_susceptibility.png" alt/></p><h3 id="Spin-Density-Correlation-1"><a class="docs-heading-anchor" href="#Spin-Density-Correlation-1">Spin Density Correlation</a><a class="docs-heading-anchor-permalink" href="#Spin-Density-Correlation-1" title="Permalink"></a></h3><p>Spin Density correlations (and susceptibilities) are the observables that do not match at all between MonteCarlo.jl and ALF. </p><pre><code class="language-julia">fig, ax = plot_by_distance(SDCzs, dSDCzs, :SDCz, ylabel = &quot;Spin Density Correlation ∑ᵣ ⟨s_z(r) s_z(r + Δr)⟩&quot;)
+Makie.save(&quot;spin_density_correlation.png&quot;, fig)
+display(fig)</code></pre><p><img src="../assets/ALF/spin_density_correlation.png" alt/></p></article></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Friday 6 August 2021 10:22">Friday 6 August 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
