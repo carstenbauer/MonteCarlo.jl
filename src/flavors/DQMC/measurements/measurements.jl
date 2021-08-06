@@ -616,7 +616,7 @@ function nonintE(T::BlockDiagonal{X, N}, G::BlockDiagonal{X, N}) where {X, N}
     @inbounds for i in 1:N
         t = T.blocks[i]
         g = G.blocks[i]
-        @avx for k in 1:n, l in 1:n
+        @turbo for k in 1:n, l in 1:n
             output += t[k,l] * (ifelse(k==l, 1.0, 0.0) - g[k,l])
         end
     end

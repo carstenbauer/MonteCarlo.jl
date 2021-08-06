@@ -69,7 +69,7 @@ function fourier_transform(qs::Vector, dirs::Vector, values::Array{T, 3}, weight
     end
     map(qs) do q
         out = zero(ComplexF64)
-        @avx for i in eachindex(dirs)
+        @turbo for i in eachindex(dirs)
             temp = zero(ComplexF64)
             for j in eachindex(weights), k in eachindex(weights)
                 temp += weights[j] * weights[k] * values[i, j, k]
@@ -91,7 +91,7 @@ apply_symmetry(mc::DQMC, key::Symbol, weights=(1)) = apply_symmetry(mc[key], wei
 apply_symmetry(m::DQMCMeasurement, weights=(1)) = apply_symmetry(mean(m), weights)
 function apply_symmetry(data::AbstractArray{T, 3}, weights=(1)) where {T}
     out = zeros(T, size(data, 1))
-    @avx for i in eachindex(out)
+    @turbo for i in eachindex(out)
         for j in eachindex(weights), k in eachindex(weights)
             out[i] += weights[j] * weights[k] * data[i,j,k]
         end
@@ -100,14 +100,14 @@ function apply_symmetry(data::AbstractArray{T, 3}, weights=(1)) where {T}
 end
 function apply_symmetry(data::AbstractArray{T, 1}, weights=(1)) where {T}
     out = zero(T)
-    @avx for i in eachindex(weights)
+    @turbo for i in eachindex(weights)
         out += weights[i] * data[i]
     end
     out
 end
 function apply_symmetry(data::AbstractArray{T, 2}, weights=(1)) where {T}
     out = zeros(T, size(data, 1))
-    @avx for i in eachindex(out)
+    @turbo for i in eachindex(out)
         for j in eachindex(weights)
             out[i] += weights[j] * data[i,j]
         end

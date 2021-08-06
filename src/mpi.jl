@@ -1,5 +1,10 @@
 import .MPI
 
+function timestamp()
+    x = now()
+    lpad("$(Hour(x).value)", 2) * ':' * lpad("$(Minute(x).value)", 2)
+end
+
 # Modified from the examples in the MPI.jl docs
 # https://juliaparallel.github.io/MPI.jl/latest/examples/05-job_schedule/
 """
@@ -57,7 +62,7 @@ function mpi_queue(
             idx_sent += 1
             sreqs_workers[dst] = sreq
             status_workers[dst] = 0
-            verbose && print("Root: Sent index $(idx_sent-1)/$N to worker $dst/$nworkers\n")
+            verbose && print("$(timestamp()) Root: Sent index $(idx_sent-1)/$N to worker $dst/$nworkers\n")
         end
 
         # recieve finalization messages from worker and send new work
@@ -82,14 +87,14 @@ function mpi_queue(
                         result, _ = MPI.Recv(result_type, dst, dst+32, comm)
                         idx_recv += 1
                         new_data[idx_recv] = result
-                        verbose && print("Root: Received result $idx_recv/$N from worker $dst/$nworkers\n")
+                        verbose && print("$(timestamp()) Root: Received result $idx_recv/$N from worker $dst/$nworkers\n")
                         if idx_sent <= N
                             # Sends new message
                             sreq = MPI.Isend(idx_sent, dst, dst+32, comm)
                             idx_sent += 1
                             sreqs_workers[dst] = sreq
                             status_workers[dst] = 1
-                            verbose && print("Root: Sent index $(idx_sent-1)/$N to worker $dst/$nworkers\n")
+                            verbose && print("$(timestamp()) Root: Sent index $(idx_sent-1)/$N to worker $dst/$nworkers\n")
                         end
                     end
                 end
@@ -101,7 +106,7 @@ function mpi_queue(
             sreq = MPI.Isend(-1, dst, dst+32, comm)
             sreqs_workers[dst] = sreq
             status_workers[dst] = 0
-            verbose && print("Root: Finish worker $dst\n")
+            verbose && print("$(timestamp()) Root: Finish worker $dst\n")
         end
         
         MPI.Waitall!(sreqs_workers)
@@ -120,9 +125,9 @@ function mpi_queue(
                 # Receives message
                 idx, _ = MPI.Recv(Int64, root, rank+32, comm)
                 # Termination message from root
-                verbose && print("Worker $rank: Received index $idx from root\n")
+                verbose && print("$(timestamp()) Worker $rank: Received index $idx from root\n")
                 if idx == -1
-                    print("Worker $rank: Finish\n")
+                    print("$(timestamp()) Worker $rank: Finish\n")
                     break
                 end
                 # Apply function (add number 100) to array

@@ -203,7 +203,8 @@ See also: [`resume!`](@ref)
     reverse_build_stack(mc, mc.stack)
     propagate(mc)
 
-    _time = time()
+    _time = time() # for step estimations
+    t0 = time() # for analysis.runtime, may need to reset
     verbose && println("\n\nThermalization stage - ", thermalization)
 
     next_print = (div(mc.last_sweep, mc.parameters.print_rate) + 1) * mc.parameters.print_rate
@@ -219,6 +220,10 @@ See also: [`resume!`](@ref)
                 for (requirement, group) in th_groups
                     apply!(requirement, group, mc, mc.model, mc.last_sweep)
                 end
+            end
+            if mc.last_sweep == thermalization
+                mc.analysis.th_runtime += time() - t0
+                t0 = time()
             end
         else
             push!(mc.recorder, mc, mc.model, mc.last_sweep)
@@ -260,6 +265,12 @@ See also: [`resume!`](@ref)
             last_checkpoint = now()
             save(resumable_filename, mc, overwrite = overwrite, rename = false)
         end
+    end
+    
+    if mc.last_sweep ≤ thermalization
+        mc.analysis.th_runtime += time() - t0
+    else
+        mc.analysis.me_runtime += time() - t0
     end
 
     disconnect(connected_ids)

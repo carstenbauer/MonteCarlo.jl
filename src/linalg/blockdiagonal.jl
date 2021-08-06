@@ -99,7 +99,7 @@ function Base.copyto!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T, N}
     @inbounds for i in 1:N
         b = B.blocks[i]
         offset = (i-1)*n
-        @avx for j in 1:n, k in 1:n
+        @turbo for j in 1:n, k in 1:n
             b[j, k] = ifelse(j == k, D.diag[offset+j], zero(T))
         end
     end
@@ -177,7 +177,7 @@ function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, B::Diagonal{T}) w
     @inbounds for i in 1:N
         c = C.blocks[i]
         a = A.blocks[i]
-        @avx for k in 1:n, l in 1:n
+        @turbo for k in 1:n, l in 1:n
             c[k,l] = a[k,l] * B.diag[(i-1)*n + l]
         end
     end
@@ -188,7 +188,7 @@ function vmul!(C::BlockDiagonal{T, N}, A::Diagonal{T}, B::BlockDiagonal{T, N}) w
     @inbounds for i in 1:N
         c = C.blocks[i]
         b = B.blocks[i]
-        @avx for k in 1:n, l in 1:n
+        @turbo for k in 1:n, l in 1:n
             c[k,l] = A.diag[(i-1)*n + k] * b[k,l]
         end
     end
@@ -200,7 +200,7 @@ function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, X::Adjoint{T}) wh
         a = A.blocks[i]
         b = B.blocks[i]
         c = C.blocks[i]
-        @avx for k in 1:n, l in 1:n
+        @turbo for k in 1:n, l in 1:n
             Ckl = zero(eltype(c))
             for m in 1:n
                 Ckl += a[k,m] * b[l, m]
@@ -216,7 +216,7 @@ function vmul!(C::BlockDiagonal{T, N}, X::Adjoint{T}, B::BlockDiagonal{T, N}) wh
         a = A.blocks[i]
         b = B.blocks[i]
         c = C.blocks[i]
-        @avx for k in 1:n, l in 1:n
+        @turbo for k in 1:n, l in 1:n
             Ckl = zero(eltype(c))
             for m in 1:n
                 Ckl += a[m,k] * b[m,l]
@@ -233,7 +233,7 @@ function vmul!(C::BD, X1::Transpose{T, BD}, X2::Transpose{T, BD}) where {T <: Re
         a = A.blocks[i]
         b = B.blocks[i]
         c = C.blocks[i]
-        @avx for k in 1:n, l in 1:n
+        @turbo for k in 1:n, l in 1:n
             Ckl = zero(eltype(c))
             for m in 1:n
                 Ckl += a[m,k] * b[l, m]
@@ -262,7 +262,7 @@ function rvadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T <: Real
     @inbounds for i in 1:N
         a = A.blocks[i]
         b = B.blocks[i]
-        @avx for j in axes(a, 1), k in axes(a, 2)
+        @turbo for j in axes(a, 1), k in axes(a, 2)
             a[j, k] = a[j, k] + b[j, k]
         end
     end
@@ -274,7 +274,7 @@ function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T<:Real, N}
     @inbounds for i in 1:N
         a = B.blocks[i]
         offset = (i-1) * n
-        @avx for j in 1:n
+        @turbo for j in 1:n
             a[j, j] = a[j, j] + D.diag[j+offset]
         end
     end
@@ -286,10 +286,10 @@ function vsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, ::UniformScaling)
     @inbounds for i in 1:N
         a = A.blocks[i]
         o = O.blocks[i]
-        @avx for j in 1:n, k in 1:n
+        @turbo for j in 1:n, k in 1:n
             o[j, k] = a[j, k]
         end
-        @avx for j in 1:n
+        @turbo for j in 1:n
             o[j, j] -= T1
         end
     end
@@ -311,20 +311,20 @@ function rdivp!(A::BD, T::BD, O::BD, pivot) where {ET<:Real, N, BD <: BlockDiago
 
             for j in 1:n
                 p = pivot[j + offset]
-                @avx for i in 1:n
+                @turbo for i in 1:n
                     o[i, j] = a[i, p]
                 end
             end
 
             # do the rdiv
-            # @avx will segfault on `k in 1:0`, so pull out first loop 
+            # @turbo will segfault on `k in 1:0`, so pull out first loop 
             invt11 = 1.0 / t[1, 1]
-            @avx for i in 1:n
+            @turbo for i in 1:n
                 a[i, 1] = o[i, 1] * invt11
             end
             for j in 2:n
                 invtjj = 1.0 / t[j, j]
-                @avx for i in 1:n
+                @turbo for i in 1:n
                     x = o[i, j]
                     for k in 1:j-1
                         x -= a[i, k] * t[k, j]

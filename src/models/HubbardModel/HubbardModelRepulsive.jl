@@ -182,7 +182,7 @@ end
 
     # Compute (I - G) R^-1 Δ
     @bm "accept_local (IG, R)" begin
-        @avx for m in axes(IG, 1)
+        @turbo for m in axes(IG, 1)
             IG[m, 1] = -G[m, i]
             IG[m, 2] = -G[m, i+N]
         end
@@ -192,15 +192,15 @@ end
         vmul!(IGR, IG, RΔ)
     end
 
-    # TODO SSSLLOOOWWW  -  explicit @avx loop?
+    # TODO SSSLLOOOWWW  -  explicit @turbo loop?
     @bm "accept_local (finalize computation)" begin
         # G = G - IG * (R * Δ) * G[i:N:end, :]
 
-        # @avx for m in axes(G, 1), n in axes(G, 2)
+        # @turbo for m in axes(G, 1), n in axes(G, 2)
         #     mc.s.greens_temp[m, n] = IGR[m, 1] * G[i, n] + IGR[m, 2] * G[i+N, n]
         # end
 
-        # @avx for m in axes(G, 1), n in axes(G, 2)
+        # @turbo for m in axes(G, 1), n in axes(G, 2)
         #     G[m, n] = G[m, n] - mc.s.greens_temp[m, n]
         # end
 
@@ -210,17 +210,17 @@ end
         temp1 = mc.stack.greens_temp.blocks[1]
         temp2 = mc.stack.greens_temp.blocks[2]
 
-        @avx for m in axes(G1, 1), n in axes(G1, 2)
+        @turbo for m in axes(G1, 1), n in axes(G1, 2)
             temp1[m, n] = IGR[m, 1] * G1[i, n]
         end
-        @avx for m in axes(G2, 1), n in axes(G2, 2)
+        @turbo for m in axes(G2, 1), n in axes(G2, 2)
             temp2[m, n] = IGR[m+N, 2] * G2[i, n]
         end
 
-        @avx for m in axes(G1, 1), n in axes(G1, 2)
+        @turbo for m in axes(G1, 1), n in axes(G1, 2)
             G1[m, n] = G1[m, n] - temp1[m, n]
         end
-        @avx for m in axes(G2, 1), n in axes(G2, 2)
+        @turbo for m in axes(G2, 1), n in axes(G2, 2)
             G2[m, n] = G2[m, n] - temp2[m, n]
         end
 

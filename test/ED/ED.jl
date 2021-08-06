@@ -1,6 +1,6 @@
 using LinearAlgebra, SparseArrays
 using MonteCarlo
-using MonteCarlo: @bm, @avx
+using MonteCarlo: @bm
 
 
 struct State
