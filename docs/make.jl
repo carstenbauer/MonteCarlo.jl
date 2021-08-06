@@ -16,7 +16,8 @@ makedocs(
             "Measurements" => "DQMC/measurements.md",
         ],
         "Examples" => [
-            "examples/triangular_Hubbard.md"
+            "examples/triangular_Hubbard.md",
+            "examples/ALF1.md"
         ],
         "Legacy" => [
             "Introduction" => "legacy/index.md",
