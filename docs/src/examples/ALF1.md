@@ -73,15 +73,16 @@ And finally we have the combination of `NSweep`, `N_skip` and `NBin`. `NSweep` i
 
 Regarding the choices for `NSweep`, `N_skip` and `NBin` it is also important to discuss the model ALF implements and how it is implemented. As mentioned before it is not quite the same as the attractive Hubbard model from DQMC. ALF implements
 
+```math
 \begin{equation}
 \mathcal{H}=
-- t 
-\sum\limits_{\langle {i}, {j} \rangle,  \sigma={\uparrow,\downarrow}} 
+- t \sum\limits_{\langle {i}, {j} \rangle,  \sigma={\uparrow,\downarrow}} 
 \left(  \hat{c}^{\dagger}_{{i}, \sigma} \hat{c}^{\phantom\dagger}_{{j},\sigma}  + \text{H.c.} \right) 
 - \frac{U}{2}\sum\limits_{{i}}\left[
 \hat{c}^{\dagger}_{{i}, \uparrow} \hat{c}^{\phantom\dagger}_{{i}, \uparrow}  -   \hat{c}^{\dagger}_{{i}, \downarrow} \hat{c}^{\phantom\dagger}_{{i}, \downarrow}  \right]^{2}   
 -  \mu \sum_{{i},\sigma } \hat{c}^{\dagger}_{{i}, \sigma}  \hat{c}^{\phantom\dagger}_{{i},\sigma}. 
-\end{equation} 
+\end{equation}
+```
 
 which features a quadratic interaction rather than the $\sim (n_\uparrow - 0.5)(n_\downarrow - 0.5)$ term used in MonteCarlo.jl. If we apply a Hirsch transformation (like in MonteCarlo.jl) to both of these interactions, we end up with the same expression. Thus they would be the same from the simulations point of view. However ALF uses a different, more precise transformation based on Gauß-Hermite quadrature, resulting in different auxiliary field values ($\pm 1$ and $\pm 2$ rather than just $\pm 1$) with different weights.
 
@@ -146,6 +147,7 @@ Since MonteCarlo.jl uses a Hirsch transformation the sweeps are relatively cheap
 
 A lot of the observables we measure have been adjusted to match ALF. First we have the equal time Greens function `:Gr` which measures $\delta(\Delta r) - G(\Delta r) = \sum_r c_r^\dagger c_{r + \Delta r}$. We also have to add a factor 2 here because MonteCarlo.jl only keeps track of one spin. Next we have the interaction energy `:V` which needs adjustments to the different pre-transformation term. We calculate $\langle V \rangle = \frac{U}{2} \sum_i \langle V_i \rangle$ where 
 
+```math
 \begin{equation}
 \langle V_i \rangle = \langle
 \hat{c}^{\dagger}_{{i}, \uparrow} \hat{c}^{\phantom\dagger}_{{i}, \uparrow} \hat{c}^{\dagger}_{{i}, \uparrow} \hat{c}^{\phantom\dagger}_{{i}, \uparrow}
@@ -154,9 +156,11 @@ A lot of the observables we measure have been adjusted to match ALF. First we ha
 + \hat{c}^{\dagger}_{{i}, \downarrow} \hat{c}^{\phantom\dagger}_{{i}, \downarrow} \hat{c}^{\dagger}_{{i}, \downarrow} \hat{c}^{\phantom\dagger}_{{i}, \downarrow}
 \rangle
 \end{equation}
+```
 
 Each term needs to be Wicks-expanded
 
+```math
 \begin{eqnarray}
 \langle V_i \rangle = \phantom{-} 
 \langle \hat{c}^{\dagger}_{{i}, \uparrow} \hat{c}^{\phantom\dagger}_{{i}, \uparrow} \rangle \langle \hat{c}^{\dagger}_{{i}, \uparrow} \hat{c}^{\phantom\dagger}_{{i}, \uparrow} \rangle
@@ -168,9 +172,11 @@ Each term needs to be Wicks-expanded
 + \langle \hat{c}^{\dagger}_{{i}, \downarrow} \hat{c}^{\phantom\dagger}_{{i}, \downarrow} \rangle \langle \hat{c}^{\dagger}_{{i}, \downarrow} \hat{c}^{\phantom\dagger}_{{i}, \downarrow} \rangle
 + \langle \hat{c}^{\dagger}_{{i}, \downarrow} \hat{c}^{\phantom\dagger}_{{i}, \downarrow} \rangle \langle \hat{c}^{\phantom\dagger}_{{i}, \downarrow} \hat{c}^{\dagger}_{{i}, \downarrow}  \rangle
 \end{eqnarray}
+```
 
 so it can be exchanged by Greens function elements
 
+```math
 \begin{eqnarray}
 \langle V_i \rangle = \phantom{-}
   (I - G_{ii}^{\uparrow \uparrow}) (I - G_{ii}^{\uparrow \uparrow})
@@ -182,12 +188,15 @@ so it can be exchanged by Greens function elements
 + (I - G_{ii}^{\downarrow \downarrow}) (I - G_{ii}^{\downarrow \downarrow})
 + (I - G_{ii}^{\downarrow \downarrow}) G_{ii}^{\downarrow \downarrow}
 \end{eqnarray}
+```
 
 Next we make use of the symmetries of the model. Specifically $G_{ij}^{\uparrow\uparrow} = G_{ij}^{\downarrow\downarrow}$ and $G_{ij}^{\sigma \sigma^\prime} = 0$ if $\sigma \ne \sigma^\prime$. Thus we get
 
+```math
 \begin{equation}
 \langle V_i \rangle = 2 (1 - G_{ii}^{\uparrow \uparrow}) G_{ii}^{\uparrow \uparrow}
 \end{equation}
+```
 
 which is implemented above. After that we have the Fourier transformed time displaced Greens function `:IGk` which calculates the Fourier transform of $G^\prime(\Delta r) = \sum_{\tau = \Delta\tau}^{\beta} \Delta\tau \sum_r c_r(\tau) c_{r + \Delta r}^\dagger(0)$. Finally we have the charge density correlation `:DenDen` and susceptibility `:DenDenTau` which implement $\sum_r \langle \langle n_r n_{r - \Delta r} \rangle - \langle n_r \rangle \langle n_{r + \Delta r} \rangle \rangle_{MC}$. We note here that the subtraction happens before taking the Monte Carlo average denoted by $\langle \cdot \rangle_{MC}$.
 
