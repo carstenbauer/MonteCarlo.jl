@@ -72,7 +72,7 @@ See also [`save_measurements`](@ref), [`measurements`](@ref), [`_load`](@ref)
 function _save(file::JLDFile, m::AbstractMeasurement, entryname::String)
     # NOTE: `VERSION` and `type` are necessary
     write(file, entryname * "/VERSION", 0)
-    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/tag", "Generic")
     write(file, entryname * "/data", m)
     nothing
 end
@@ -554,7 +554,7 @@ end
 function save_measurements(file::JLDFile, mc::MonteCarloFlavor, entryname::String="")
     !isempty(entryname) && !endswith(entryname, "/") && (entryname *= "/")
     write(file, entryname * "VERSION", 1)
-    write(file, entryname * "type", Measurements)
+    write(file, entryname * "tag", "Measurements")
     measurement_dict = measurements(mc, :all)
     for (k0, v0) in measurement_dict # :TH or :ME
         for (k1, meas) in v0 # Measurement name
@@ -565,7 +565,8 @@ function save_measurements(file::JLDFile, mc::MonteCarloFlavor, entryname::Strin
 end
 
 
-function _load(data, ::Type{Measurements})
+to_tag(::Type{<: Measurements}) = Val(:Measurements)
+function _load(data, ::Val{:Measurements})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load measurements version $(data["VERSION"])"))
     end
@@ -575,7 +576,7 @@ function _load(data, ::Type{Measurements})
     Dict{Symbol, Dict{Symbol, AbstractMeasurement}}(
         :TH => if haskey(data, "TH")
             Dict{Symbol, AbstractMeasurement}(
-                Symbol(k) => _load(data["TH"][k], data["TH"][k]["type"]) 
+                Symbol(k) => _load(data["TH"][k], to_tag(data["TH"][k])) 
                 for k in keys(data["TH"])
             )
         else
@@ -583,7 +584,7 @@ function _load(data, ::Type{Measurements})
         end,
         :ME => if haskey(data, "ME")
             Dict{Symbol, AbstractMeasurement}(
-                Symbol(k) => _load(data["ME"][k], data["ME"][k]["type"]) 
+                Symbol(k) => _load(data["ME"][k], to_tag(data["ME"][k])) 
                 for k in keys(data["ME"])
             )
         else

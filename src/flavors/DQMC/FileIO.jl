@@ -17,6 +17,7 @@ to_tag(::Type{<: MagnitudeStats}) = Val(:MagnitudeStats)
 function save_mc(file::JLDFile, mc::DQMC, entryname::String="DQMC")
     write(file, entryname * "/VERSION", 2)
     write(file, entryname * "/tag", "DQMC")
+    write(file, entryname * "/CB", mc isa DQMC_CBTrue)
     save_parameters(file, mc.parameters, entryname * "/Parameters")
     save_analysis(file, mc.analysis, entryname * "/Analysis")
     write(file, entryname * "/conf", mc.conf)
@@ -39,7 +40,9 @@ function _load(data, ::Val{:DQMC})
         throw(ErrorException("Failed to load DQMC version $(data["VERSION"])"))
     end
 
-    CB = CB_type(data["type"])
+    CB = if haskey(data, "CB")
+        data["CB"] ? CheckerboardTrue : CheckerboardFalse
+    else CB_type(data["type"]) end
     @assert CB <: Checkerboard
     parameters = _load(data["Parameters"], Val(:DQMCParameters))
     analysis = _load(data["Analysis"], Val(:DQMCAnalysis))

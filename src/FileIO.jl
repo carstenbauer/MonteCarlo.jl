@@ -91,7 +91,7 @@ function _generate_unique_filename(filename)
     filename * '.' * parts[end]
 end
 
-function to_tag(data::Union{JLDFile, JLD2.Group})
+function to_tag(data::Union{JLDFile, JLD2.Group, Dict{String, Any}})
     haskey(data, "tag") && return Val(Symbol(data["tag"]))
     haskey(data, "type") && return to_tag(data["type"])
     error("Failed to get tag from $data")

@@ -39,6 +39,9 @@ mutable struct MC{M<:Model, C, RT<:AbstractRecorder} <: MonteCarloFlavor
     a::MCAnalysis
 
     MC{M,C,RT}() where {M,C,RT} = new()
+    function MC(m::M, c::C, cs::RT, ls, tm, mm, p, a) where {M, C, RT}
+        new{M, C, RT}(m, c, cs, ls, tm, mm, p, a)
+    end
 end
 
 
