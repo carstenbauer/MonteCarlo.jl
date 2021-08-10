@@ -47,16 +47,18 @@ decompress(mc, model, conf) = conf
 
 function _save(file::JLDFile, cs::ConfigRecorder, entryname::String="configs")
     write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/tag", "ConfigRecorder")
     write(file, entryname * "/type", typeof(cs))
     write(file, entryname * "/data", cs.configs)
     write(file, entryname * "/rate", cs.rate)
 end
-function _load(data, ::Type{T}) where T <: ConfigRecorder
+function _load(data, ::Val{:ConfigRecorder})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
     data["type"](data["data"], data["rate"])
 end
+to_tag(::Type{<: ConfigRecorder}) = Val(:ConfigRecorder)
 
 
 
@@ -83,6 +85,7 @@ Base.iterate(c::Discarder, i=1) = nothing
 
 function _save(file::JLDFile, ::Discarder, entryname::String="configs")
     write(file, entryname * "/VERSION", 1)
-    write(file, entryname * "/type", Discarder)
+    write(file, entryname * "/tag", "Discarder")
 end
-_load(data, ::Type{Discarder}) = Discarder()
+_load(data, ::Val{:Discarder}) = Discarder()
+to_tag(::Type{<: Discarder}) = Val(:Discarder)

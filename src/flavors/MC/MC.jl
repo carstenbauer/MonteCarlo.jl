@@ -445,6 +445,7 @@ end
 # When saving a simulation the default `entryname` is `MC`
 function save_mc(file::JLDFile, mc::MC, entryname::String="MC")
     write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/tag", "MC")
     write(file, entryname * "/type", typeof(mc))
     save_parameters(file, mc.p, entryname * "/parameters")
     write(file, entryname * "/conf", mc.conf)
@@ -458,21 +459,23 @@ end
 #     load_mc(data, ::Type{<: MC})
 #
 # Loads a MC from a given `data` dictionary produced by `JLD.load(filename)`.
-function _load(data, ::Type{T}) where {T <: MC}
+function _load(data, ::Val{:MC})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
-    mc = data["type"]()
-    mc.p = _load(data["parameters"], data["parameters"]["type"])
-    mc.conf = data["conf"]
-    mc.configs = _load(data["configs"], data["configs"]["type"])
-    mc.last_sweep = data["last_sweep"]
-    mc.model = _load(data["Model"], data["Model"]["type"])
+    p = _load(data["parameters"], Val(:MCParameters))
+    conf = data["conf"]
+    configs = _load(data["configs"], to_tag(data["configs"]))
+    last_sweep = data["last_sweep"]
+    model = _load(data["Model"], to_tag(data["Model"]))
 
-    measurements = _load(data["Measurements"], Measurements)
-    mc.thermalization_measurements = measurements[:TH]
-    mc.measurements = measurements[:ME]
-    mc
+    measurements = _load(data["Measurements"], Val(:Measurements))
+    
+    MC(
+        model, conf, configs, last_sweep,
+        measurements[:TH], measurements[:ME],
+        p, MCAnalysis()
+    )
 end
 
 
@@ -484,7 +487,7 @@ end
 # When saving a simulation the default `entryname` is `MC/Parameters`
 function save_parameters(file::JLDFile, p::MCParameters, entryname::String="Parameters")
     write(file, entryname * "/VERSION", 1)
-    write(file, entryname * "/type", typeof(p))
+    write(file, entryname * "/tag", "MCParameters")
 
     write(file, entryname * "/global_moves", Int(p.global_moves))
     write(file, entryname * "/global_rate", p.global_rate)
@@ -501,12 +504,12 @@ end
 #
 # Loads a MCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function _load(data, ::Type{T}) where T <: MCParameters
+function _load(data, ::Val{:MCParameters})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
 
-    data["type"](
+    MCParameters(
         Bool(data["global_moves"]),
         data["global_rate"],
         data["thermalization"],

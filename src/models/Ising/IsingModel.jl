@@ -192,7 +192,7 @@ function save_model(
         entryname::String="Model"
     )
     write(file, entryname * "/VERSION", 1)
-    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/tag", "IsingModel")
 
     write(file, entryname * "/L", m.L)
     write(file, entryname * "/dims", m.dims)
@@ -205,13 +205,13 @@ end
 #
 # Loads an IsingModel from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function _load(data, ::Type{T}) where T <: IsingModel
+function _load(data, ::Val{:IsingModel})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load IsingModel version $(data["VERSION"])"))
     end
 
-    l = _load(data["l"], data["l"]["type"])
-    model = data["type"](
+    l = _load(data["l"], to_tag(data["l"]))
+    model = IsingModel(
         L = data["L"],
         dims = data["dims"],
         l = l
@@ -219,6 +219,7 @@ function _load(data, ::Type{T}) where T <: IsingModel
     model.energy[] = data["energy"]
     model
 end
+to_tag(::Type{<: IsingModel}) = Val(:IsingModel)
 
 
 

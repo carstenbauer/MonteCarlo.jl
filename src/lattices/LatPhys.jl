@@ -85,7 +85,7 @@ end
 
 function save_lattice(file::JLDFile, lattice::LatPhysLattice, entryname::String)
     write(file, entryname * "/VERSION", 0)
-    write(file, entryname * "/type", typeof(lattice))
+    write(file, entryname * "/tag", "LatPhysLattice")
     _save_lattice(file, lattice.lattice, entryname * "/lattice")
     write(file, entryname * "/neighs", lattice.neighs)
     nothing
@@ -127,9 +127,9 @@ function save_unitcell(file::JLDFile, uc::LatPhysBase.AbstractUnitcell, entrynam
 end
 
 
-function _load(data, ::Type{T}) where T <: LatPhysLattice
+function _load(data, ::Val{:LatPhysLattice})
     @assert data["VERSION"] == 0
-    data["type"](load_lattice(data["lattice"]), data["neighs"])
+    LatPhysLattice(load_lattice(data["lattice"]), data["neighs"])
 end
 function load_lattice(data)
     sites = load_sites(data["sites"])
@@ -148,6 +148,7 @@ end
 load_sites(data) = data["type"].(data["points"], data["labels"])
 load_bonds(data) = data["type"].(data["froms"], data["tos"], data["labels"], data["wraps"])
 
+to_tag(::Type{<: LatPhysLattice}) = Val(:LatPhysLattice)
 
 
 ################################################################################

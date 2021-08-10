@@ -202,14 +202,16 @@ end
 
 function save_scheduler(file::JLDFile, s::SimpleScheduler, entryname::String="/Scheduler")
     write(file, entryname * "/VERSION", 1)
-    write(file, entryname * "/type", typeof(s))
+    write(file, entryname * "/tag", "SimpleScheduler")
     write(file, entryname * "/sequence", s.sequence)
     write(file, entryname * "/idx", s.idx)
     nothing
 end
-function _load(data, ::Type{<: SimpleScheduler})
+function _load(data, ::Val{:SimpleScheduler})
     SimpleScheduler(data["sequence"], data["idx"])
 end
+
+to_tag(::Type{<: SimpleScheduler}) = Val(:SimpleScheduler)
 
 
 
@@ -389,7 +391,7 @@ end
 
 function save_scheduler(file::JLDFile, s::AdaptiveScheduler, entryname::String="/Scheduler")
     write(file, entryname * "/VERSION", 1)
-    write(file, entryname * "/type", typeof(s))
+    write(file, entryname * "/tag", "AdaptiveScheduler")
     write(file, entryname * "/sequence", s.sequence)
     write(file, entryname * "/sampling_rates", s.sampling_rates)
     write(file, entryname * "/pool", s.adaptive_pool)
@@ -399,7 +401,7 @@ function save_scheduler(file::JLDFile, s::AdaptiveScheduler, entryname::String="
     write(file, entryname * "/idx", s.idx)
     nothing
 end
-function _load(data, ::Type{<: AdaptiveScheduler})
+function _load(data, ::Val{:AdaptiveScheduler})
     s = AdaptiveScheduler(data["sequence"], data["pool"])
     s.sampling_rates = data["sampling_rates"]
     s.minimum_sampling_rate = data["minimum_sampling_rate"]
@@ -408,6 +410,9 @@ function _load(data, ::Type{<: AdaptiveScheduler})
     s.idx = data["idx"]
     s
 end
+
+to_tag(::Type{<: AdaptiveScheduler}) = Val(:AdaptiveScheduler)
+
 
 updates(s::AdaptiveScheduler) = (s.sequence..., s.adaptive_pool...)
 
