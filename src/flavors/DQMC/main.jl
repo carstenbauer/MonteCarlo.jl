@@ -25,13 +25,13 @@ mutable struct DQMC{
     temp_conf::ConfType
     last_sweep::Int
 
-    stack::Stack # s -> stack 
+    stack::Stack
     ut_stack::UTStack
     scheduler::US
-    parameters::DQMCParameters # p -> parameters
-    analysis::DQMCAnalysis # a -> analysis
+    parameters::DQMCParameters
+    analysis::DQMCAnalysis
 
-    recorder::RT # configs -> recorder
+    recorder::RT
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 

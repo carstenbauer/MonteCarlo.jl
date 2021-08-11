@@ -93,7 +93,7 @@ end
         dqmc.ut_stack, dqmc.scheduler, dqmc.parameters, dqmc.analysis, 
         dqmc.recorder, dqmc.thermalization_measurements, dqmc.measurements
     )
-    for field in fieldnames(mc)
+    for field in fieldnames(DQMC)
         @test getfield(dqmc, field) == getfield(mc, field)
     end
 
@@ -102,17 +102,17 @@ end
         dqmc.ut_stack, dqmc.scheduler, dqmc.parameters, dqmc.analysis, 
         dqmc.recorder, dqmc.thermalization_measurements, dqmc.measurements
     )
-    for field in fieldnames(mc)
+    for field in fieldnames(DQMC)
         @test getfield(dqmc, field) == getfield(mc, field)
     end
 
     mc = DQMC(dqmc)
-    for field in fieldnames(mc)
+    for field in fieldnames(DQMC)
         @test getfield(dqmc, field) == getfield(mc, field)
     end
 
     mc = DQMC(dqmc, last_sweep = 9147, recorder = Discarder())
-    for field in fieldnames(mc)
+    for field in fieldnames(DQMC)
         if field == :last_sweep 
             @test mc.last_sweep = 9147
         elseif field == :recorder
