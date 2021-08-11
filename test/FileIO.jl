@@ -1,3 +1,84 @@
+@testset "BufferedConfigRecorder" begin
+    isfile("testfile.confs") && rm("testfile.confs")
+    r = MonteCarlo.BufferedConfigRecorder{Matrix{Float64}}("testfile.confs", 2, 20)
+   
+    # Initialization
+    @test r.filename == "testfile.confs"
+    @test length(r.buffer) == 20
+    @test eltype(r.buffer) == Matrix{Float64}
+    @test r.rate == 2
+    @test r.idx == 1
+    @test r.chunk == 1
+    @test r.total_length == 0
+    @test r.save_idx == -1
+    @test !isdefined(r.buffer, 1)
+
+    # Basic utility functions
+    @test length(r) == r.total_length
+    @test lastindex(r) == r.total_length
+    @test isempty(r)
+
+    # push to empty memory buffer
+    c = rand(4, 4)
+    MonteCarlo._push!(r, c)
+
+    @test r.idx == 2
+    @test r.chunk == 1
+    @test r.total_length == 1
+    @test r.save_idx == -1
+    @test r.buffer[1] == c
+    @test !isdefined(r.buffer, 2)
+
+    @test length(r) == r.total_length
+    @test lastindex(r) == r.total_length
+    @test !isempty(r)
+    @test r[1] == c
+
+    # fill memory buffer - no save yet
+    for _ in 2:20
+        MonteCarlo._push!(r, c)
+    end
+
+    @test r.idx == 21
+    @test r.chunk == 1
+    @test r.total_length == 20
+    @test r.save_idx == -1
+    @test r.buffer[20] == c
+    @test r[20] == c
+
+    # overflow push - should save and reset buffer
+    c2 = rand(4, 4)
+    MonteCarlo._push!(r, c2)
+
+    @test r.idx == 2
+    @test r.chunk == 2
+    @test r.total_length == 21
+    @test r.save_idx == 20
+    @test r.buffer[1] == c2
+    @test r[21] == c2
+
+    # query last chunk - should load and mark idx for reload
+    @test r[20] == c
+    @test r[1] == c
+    @test r.idx == -1
+    @test r.chunk == 1
+    @test r.total_length == 21
+    @test r.save_idx == 21
+
+    # push to wrong chunk - should load correct chunk
+    c3 = rand(4, 4)
+    MonteCarlo._push!(r, c3)
+
+    @test r.idx == 3
+    @test r.chunk == 2
+    @test r.total_length == 22
+    @test r.save_idx == 21
+    @test r.buffer[1] == c2 # this would fail if chunk not loaded
+    @test r.buffer[2] == c3
+    @test r.buffer[3] == c
+    rm("testfile.confs")
+end
+
 function test_mc(mc, x)
     # Check if loaded/replayed mc matches original
     for f in fieldnames(typeof(mc.p))

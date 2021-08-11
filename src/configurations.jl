@@ -19,7 +19,7 @@ ConfigRecorder pushed to a `ConfigRecorder` objects are forwarded to
 simulation `decompress(mc, model, conf)` is called to undo this action. You may
 define both to save on memory/disk space.
 
-See also [`Discarder`](@ref)
+See also [`BufferedConfigRecorder`](@ref), [`Discarder`](@ref)
 """
 struct ConfigRecorder{CT} <: AbstractRecorder
     configs::Vector{CT}
@@ -63,6 +63,146 @@ to_tag(::Type{<: ConfigRecorder}) = Val(:ConfigRecorder)
 
 
 ################################################################################
+### BufferedConfigRecorder
+################################################################################
+
+
+
+"""
+    BufferedConfigRecorder(mc, model, filename[; rate = 10, chunk_size = 1000])
+
+Creates a `BufferedConfigRecorder` object which accumulates configurations 
+during the simulation in an in-memory buffer. The buffer has a set `chunk_size`.
+Every time it becomes it is commited to a JLD2 file `filename` and reset.
+
+This uses the same configuration compression used in ConfigRecorder. I.e. every
+`push!`ed configuration is passed to `compress(mc, model, conf)`. 
+
+See also [`ConfigRecorder`](@ref), [`Discarder`](@ref)
+"""
+mutable struct BufferedConfigRecorder{CT} <: AbstractRecorder
+    filename::String
+    buffer::Vector{CT}
+    rate::Int64
+    idx::Int64
+    chunk::Int64
+    total_length::Int64
+    save_idx::Int64
+end
+function BufferedConfigRecorder{CT}(filename, rate = 10, chunk_size = 1000) where CT
+    BufferedConfigRecorder{CT}(filename, Vector{CT}(undef, chunk_size), rate, 1, 1, 0, -1)
+end
+function BufferedConfigRecorder(MC::Type, M::Type, filename; rate = 10, chunk_size = 1000)
+    BufferedConfigRecorder{compressed_conf_type(MC, M)}(filename, rate, chunk_size)
+end
+function Base.push!(cr::BufferedConfigRecorder, mc, model, sweep)
+    if (sweep % c.rate == 0)
+        _push!(cr, compress(mc, model, conf(mc)))
+    end
+end
+function _push!(cr::BufferedConfigRecorder, data)
+    if cr.idx == -1
+        # The recorder is not working on the right chunk
+        if cr.save_idx != cr.total_length
+            @error "Stored data length does not match expected data length. Reseting head to last checkpoint."
+            cr.total_length = cr.save_idx
+        end
+        # get chunk, idx of next writeable location
+        chunk, idx = idx2chunk_idx(cr, cr.total_length+1)
+        # load chunk if not loaded and required
+        chunk != cr.chunk && idx != 1 && load_chunk!(cr, chunk)
+        cr.idx = idx
+    elseif cr.idx > length(cr.buffer)
+        # The buffer is full - commit to file
+        save_final_chunk!(cr)
+        cr.chunk += 1
+        cr.idx = 1
+    end
+    cr.buffer[cr.idx] = data
+    cr.idx += 1
+    cr.total_length += 1
+    nothing
+end
+
+# Base extensions
+Base.length(cr::BufferedConfigRecorder) = cr.total_length
+Base.isempty(cr::BufferedConfigRecorder) = cr.total_length == 0
+Base.lastindex(cr::BufferedConfigRecorder) = cr.total_length
+Base.iterate(cr::BufferedConfigRecorder, i=1) = iterate(cr.configs, i)
+
+function Base.getindex(cr::BufferedConfigRecorder, i)
+    @boundscheck 1 <= i <= cr.total_length
+    chunk, idx = idx2chunk_idx(cr, i)
+    if chunk != cr.chunk
+        # Save unsaved data in buffer
+        cr.save_idx < cr.total_length && save_final_chunk!(cr)
+        load_chunk!(cr, chunk)
+    end
+    return cr.buffer[idx]
+end
+
+# maps index to (chunk_idx, buffer_idx)
+function idx2chunk_idx(cr::BufferedConfigRecorder, i)
+    chunk_size = length(cr.buffer)
+    chunk = div(i-1, chunk_size) + 1
+    idx = mod1(i, chunk_size)
+    return chunk, idx
+end
+
+# chunk loading and saving
+function save_final_chunk!(cr::BufferedConfigRecorder)
+    if cr.total_length != (cr.chunk - 1) * length(cr.buffer) + cr.idx - 1
+        error("Attempting to save non-final chunk $(cr.chunk)!")
+    end
+    save_chunk!(cr)
+    cr.save_idx = cr.total_length
+    nothing
+end
+
+function save_chunk!(cr::BufferedConfigRecorder, chunk = cr.chunk)
+    @boundscheck chunk > 0 && (chunk-1) * length(cr.buffer) < cr.total_length
+    JLD2.jldopen(cr.filename, "a+", compress = true) do file
+        file[string(chunk)] = cr.buffer
+    end
+    nothing
+end
+
+function load_chunk!(cr::BufferedConfigRecorder, chunk)
+    @boundscheck (chunk-1) * length(cr.buffer) < cr.save_idx
+    JLD2.jldopen(cr.filename, "r") do file
+        copyto!(cr.buffer, file[string(chunk)])
+    end
+    cr.chunk = chunk
+    cr.idx = -1
+end
+
+
+
+function _save(file::JLDFile, cr::BufferedConfigRecorder, entryname::String="configs")
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/tag", "BufferedConfigRecorder")
+    write(file, entryname * "/filename", cr.filename)
+    write(file, entryname * "/buffer", cr.buffer)
+    write(file, entryname * "/rate", cr.rate)
+    write(file, entryname * "/total_length", cr.total_length)
+    write(file, entryname * "/save_idx", cr.total_length)
+    if cr.save_idx != cr.total_length
+        save_final_chunk!(cr)
+    end
+end
+function _load(data, ::Val{:BufferedConfigRecorder})
+    if !(data["VERSION"] == 1)
+        throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
+    end
+    BufferedConfigRecorder(
+        data["filename"], data["rate"], -1, -1, 
+        data["total_length"], data["save_idx"]
+    )
+end
+
+
+
+################################################################################
 ### Discarder
 ################################################################################
 
@@ -73,7 +213,7 @@ to_tag(::Type{<: ConfigRecorder}) = Val(:ConfigRecorder)
 
 Creates an object that discards all configurations pushed to it.
 
-See also: [`ConfigRecorder`](@ref)
+See also: [`BufferedConfigRecorder`](@ref), [`ConfigRecorder`](@ref)
 """
 struct Discarder <: AbstractRecorder end
 Discarder(args...; kwargs...) = Discarder()
