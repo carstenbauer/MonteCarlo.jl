@@ -76,6 +76,21 @@
     @test r.buffer[1] == c2 # this would fail if chunk not loaded
     @test r.buffer[2] == c3
     @test r.buffer[3] == c
+
+    # test merge!
+    c4 = rand(4, 4)
+    cs = ConfigRecorder{Matrix{Float64}}([c4 for _ in 1:17], 10)
+    merge!(r, cs)
+
+    @test r.idx == 20
+    @test r.chunk == 2
+    @test r.total_length == 39
+    @test r.save_idx == 21
+    @test r.buffer[1] == c2   # old
+    @test r.buffer[2] == c3   # old
+    @test r.buffer[3] == c4   # new
+    @test r.buffer[19] == c4  # new
+    @test r.buffer[20] == c   # to be overwritten
     rm("testfile.confs")
 end
 

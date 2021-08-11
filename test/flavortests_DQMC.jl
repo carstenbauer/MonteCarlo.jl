@@ -49,7 +49,7 @@ end
 @testset "DQMC utilities " begin
     m = HubbardModelAttractive(8, 1);
 
-    # constructors
+    # Getters
     dqmc = DQMC(m; beta=5.0)
 
     @test MonteCarlo.beta(dqmc) == dqmc.parameters.beta
@@ -82,6 +82,50 @@ end
     @test MonteCarlo.init_interaction_matrix(m) == zeros(ComplexF64, 8, 8)
     @test_throws MethodError MonteCarlo.energy_boson(dqmc, m, MonteCarlo.conf(dqmc))
     @test parameters(m) == NamedTuple()
+
+    # constructors
+    mc = DQMC{
+        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.conf),
+        typeof(dqmc.recorder), typeof(dqmc.stack), typeof(dqmc.ut_stack), 
+        typeof(dqmc.scheduler)
+    }(
+        dqmc.model, dqmc.conf, dqmc.temp_conf, dqmc.last_sweep, dqmc.stack, 
+        dqmc.ut_stack, dqmc.scheduler, dqmc.parameters, dqmc.analysis, 
+        dqmc.recorder, dqmc.thermalization_measurements, dqmc.measurements
+    )
+    for field in fieldnames(mc)
+        @test getfield(dqmc, field) == getfield(mc, field)
+    end
+
+    mc = DQMC(
+        dqmc.model, dqmc.conf, dqmc.temp_conf, dqmc.last_sweep, dqmc.stack, 
+        dqmc.ut_stack, dqmc.scheduler, dqmc.parameters, dqmc.analysis, 
+        dqmc.recorder, dqmc.thermalization_measurements, dqmc.measurements
+    )
+    for field in fieldnames(mc)
+        @test getfield(dqmc, field) == getfield(mc, field)
+    end
+
+    mc = DQMC(dqmc)
+    for field in fieldnames(mc)
+        @test getfield(dqmc, field) == getfield(mc, field)
+    end
+
+    mc = DQMC(dqmc, last_sweep = 9147, recorder = Discarder())
+    for field in fieldnames(mc)
+        if field == :last_sweep 
+            @test mc.last_sweep = 9147
+        elseif field == :recorder
+            @test mc.recorder isa Discarder
+        else
+            @test getfield(dqmc, field) == getfield(mc, field)
+        end
+    end
+    @test mc isa DQMC{
+        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.conf),
+        Discarder, typeof(dqmc.stack), typeof(dqmc.ut_stack), 
+        typeof(dqmc.scheduler)
+    }
 end
 
 
