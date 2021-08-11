@@ -83,22 +83,6 @@ Create a determinant quantum Monte Carlo simulation for model `m` with
 DQMC(m::Model, params::Dict{Symbol}) = DQMC(m; params...)
 DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
 
-# Simplified constructor
-function DQMC(
-        CB, model::M, conf::ConfType, temp_conf::ConfType, last_sweep,
-        stack::Stack, ut_stack::UTStack, scheduler::US,
-        parameters, analysis,
-        recorder::RT,
-        thermalization_measurements, measurements
-    ) where {M, ConfType, RT, Stack, UTStack, US}
-
-    DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(
-        model, conf, temp_conf, last_sweep, stack, ut_stack, 
-        scheduler, parameters, analysis, recorder,
-        thermalization_measurements, measurements
-    )
-end
-
 # convenience
 @inline beta(mc::DQMC) = mc.parameters.beta
 @inline nslices(mc::DQMC) = mc.parameters.slices

@@ -229,3 +229,19 @@ function _save(file::JLDFile, ::Discarder, entryname::String="configs")
 end
 _load(data, ::Val{:Discarder}) = Discarder()
 to_tag(::Type{<: Discarder}) = Val(:Discarder)
+
+
+
+################################################################################
+### Utility
+################################################################################
+
+
+
+function Base.merge!(target::BufferedConfigRecorder, source::ConfigRecorder; rate = 1)
+    for i in eachindex(source.configs)
+        if i % rate == 0
+            _push!(target, source.configs[i])
+        end
+    end
+end

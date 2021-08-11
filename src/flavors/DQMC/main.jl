@@ -53,6 +53,42 @@ mutable struct DQMC{
     end
 end
 
+# Simplified constructor
+function DQMC(
+        CB, model::M, conf::ConfType, temp_conf::ConfType, last_sweep,
+        stack::Stack, ut_stack::UTStack, scheduler::US,
+        parameters, analysis,
+        recorder::RT,
+        thermalization_measurements, measurements
+    ) where {M, ConfType, RT, Stack, UTStack, US}
+
+    DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(
+        model, conf, temp_conf, last_sweep, stack, ut_stack, 
+        scheduler, parameters, analysis, recorder,
+        thermalization_measurements, measurements
+    )
+end
+
+
+# copy constructor
+function DQMC(
+        mc::DQMC{x, CBT};
+        CB = CBT, model::M = mc.model, conf::ConfType = mc.conf, 
+        temp_conf::ConfType = mc.conf, last_sweep = mc.last_sweep,
+        stack::Stack = mc.stack, ut_stack::UTStack = mc.ut_stack, 
+        scheduler::US = mc.scheduler, parameters = mc.parameters, 
+        analysis = mc.analysis, recorder::RT = mc.recorder,
+        thermalization_measurements = mc.thermalization_measurements, 
+        measurements = mc.measurements
+    ) where {x, CBT, M, ConfType, RT, Stack, UTStack, US}
+
+    DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(
+        model, conf, temp_conf, last_sweep, stack, ut_stack, 
+        scheduler, parameters, analysis, recorder,
+        thermalization_measurements, measurements
+    )
+end
+
 
 # Contains `DQMCStack`, `propagate` and related functions. The stack keeps track
 # of all the matrices that go into calculating the path integral. `propagate` 
