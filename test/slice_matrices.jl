@@ -156,6 +156,9 @@ using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
             vmul!(C, A', B)
             @test A' * B ≈ C atol = atol
 
+            vmul!(C, A', B')
+            @test A' * B' ≈ C atol = atol
+
             D = Diagonal(rand(16))
             vmul!(C, A, D)
             @test A * D ≈ C atol = atol
@@ -357,6 +360,19 @@ using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
 
         vsub!(B1, B2, I)
         @test M2 - I ≈ B1 atol = atol
+
+        x = rand()
+        @test B2 * x ≈ M2 * x atol = atol
+
+        @test log(B2) ≈ log(M2) atol = atol
+
+        @test det(B2) ≈ det(M2) atol = atol
+
+        transpose!(B1, B2)
+        @test B1 ≈ M2' atol = atol
+
+        vmul!(B1, B2', B3')
+        @test B1 ≈ M2' * M3' atol = atol
 
         # Test UDT and rdivp!
         M2 = Matrix(B2)

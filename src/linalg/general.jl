@@ -43,7 +43,7 @@ function vmul!(C::Matrix{T}, X::Adjoint{T}, B::Matrix{T}) where {T <: Real}
         C[m,n] = Cmn
     end
 end
-function vmul!(C::Matrix{T}, X1::Transpose{T}, X2::Transpose{T}) where {T <: Real}
+function vmul!(C::Matrix{T}, X1::Adjoint{T}, X2::Adjoint{T}) where {T <: Real}
     A = X1.parent
     B = X2.parent
     @turbo for m in 1:size(A, 1), n in 1:size(B, 2)
