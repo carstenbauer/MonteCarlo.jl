@@ -221,6 +221,11 @@ function _load(data, ::Val{:IsingModel})
 end
 to_tag(::Type{<: IsingModel}) = Val(:IsingModel)
 
+compress(mc::MC, ::IsingModel, c) = BitArray(c .== 1)
+compressed_conf_type(::Type{<: MC}, ::Type{<: IsingModel}) = BitArray
+function decompress(mc::MC{M, CT}, ::IsingModel, c) where {M, CT}
+    CT(2c .- 1)
+end
 
 
 include("measurements.jl")

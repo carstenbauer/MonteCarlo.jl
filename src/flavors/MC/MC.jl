@@ -55,14 +55,14 @@ function MC(m::M;
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
         measurements = :default,
         last_sweep = 0,
-        recorder = Discarder,
         measure_rate = 1,
         recording_rate = measure_rate,
+        recorder = Discarder(MC, M, recording_rate),
         kwargs...
     ) where M<:Model
 
     conf = rand(MC, m)
-    mc = MC{M, typeof(conf), recorder}()
+    mc = MC{M, typeof(conf), typeof(recorder)}()
     mc.conf = conf
     mc.model = m
     kwdict = Dict(kwargs)
@@ -72,7 +72,7 @@ function MC(m::M;
     end
     mc.p = MCParameters(measure_rate = measure_rate; kwdict...)
     mc.last_sweep = last_sweep
-    mc.configs = recorder(mc, m, recording_rate)
+    mc.configs = recorder
 
     init!(
         mc, seed = seed, conf = conf,

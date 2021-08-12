@@ -36,8 +36,8 @@ function DQMC(model::M;
         measurements = Dict{Symbol, AbstractMeasurement}(),
         last_sweep = 0,
         measure_rate = 10,
-        recorder = ConfigRecorder,
         recording_rate = measure_rate,
+        recorder = ConfigRecorder(DQMC, M, recording_rate),
         scheduler = SimpleScheduler(LocalSweep()),
         kwargs...
     ) where M<:Model
@@ -57,8 +57,6 @@ function DQMC(model::M;
     conf = rand(DQMC, model, parameters.slices)
     analysis = DQMCAnalysis()
     CB = checkerboard ? CheckerboardTrue : CheckerboardFalse
-
-    recorder = recorder(DQMC, M, recording_rate)
 
     mc = DQMC(
         CB, 

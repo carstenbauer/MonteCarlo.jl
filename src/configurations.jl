@@ -96,7 +96,7 @@ function BufferedConfigRecorder(MC::Type, M::Type, filename; rate = 10, chunk_si
     BufferedConfigRecorder{compressed_conf_type(MC, M)}(filename, rate, chunk_size)
 end
 function Base.push!(cr::BufferedConfigRecorder, mc, model, sweep)
-    if (sweep % c.rate == 0)
+    if (sweep % cr.rate == 0)
         _push!(cr, compress(mc, model, conf(mc)))
     end
 end
@@ -161,8 +161,13 @@ end
 
 function save_chunk!(cr::BufferedConfigRecorder, chunk = cr.chunk)
     @boundscheck chunk > 0 && (chunk-1) * length(cr.buffer) < cr.total_length
+    k = string(chunk)
     JLD2.jldopen(cr.filename, "a+", compress = true) do file
-        file[string(chunk)] = cr.buffer
+        if haskey(file, k)
+            @debug "Replacing chunk $k"
+            delete!(file, k)
+        end
+        file[k] = cr.buffer
     end
     nothing
 end
@@ -195,7 +200,7 @@ function _load(data, ::Val{:BufferedConfigRecorder})
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
     end
     BufferedConfigRecorder(
-        data["filename"], data["rate"], -1, -1, 
+        data["filename"], data["buffer"], data["rate"], -1, -1, 
         data["total_length"], data["save_idx"]
     )
 end
