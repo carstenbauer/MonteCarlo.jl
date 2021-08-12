@@ -115,7 +115,7 @@ end
     mc = DQMC(dqmc, last_sweep = 9147, recorder = Discarder())
     for field in fieldnames(DQMC)
         if field == :last_sweep 
-            @test mc.last_sweep = 9147
+            @test mc.last_sweep == 9147
         elseif field == :recorder
             @test mc.recorder isa Discarder
         else
