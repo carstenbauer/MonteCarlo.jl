@@ -98,9 +98,10 @@ end
     end
 
     mc = DQMC(
-        dqmc.model, dqmc.conf, dqmc.temp_conf, dqmc.last_sweep, dqmc.stack, 
-        dqmc.ut_stack, dqmc.scheduler, dqmc.parameters, dqmc.analysis, 
-        dqmc.recorder, dqmc.thermalization_measurements, dqmc.measurements
+        MonteCarlo.CheckerboardFalse, dqmc.model, dqmc.conf, dqmc.temp_conf, 
+        dqmc.last_sweep, dqmc.stack, dqmc.ut_stack, dqmc.scheduler, 
+        dqmc.parameters, dqmc.analysis, dqmc.recorder, 
+        dqmc.thermalization_measurements, dqmc.measurements
     )
     for field in fieldnames(DQMC)
         @test getfield(dqmc, field) == getfield(mc, field)
