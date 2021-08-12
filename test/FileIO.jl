@@ -293,7 +293,7 @@ println("DQMC")
     x.last_sweep = 0
     @time replay!(x, verbose=false)
     test_dqmc(mc, x)
-    rm("testfile.confs")
+    isfile("testfile.confs") && rm("testfile.confs")
     
 
     # Test resume
@@ -333,7 +333,7 @@ println("DQMC")
     cs = [mc.recorder[i] for i in 1:length(mc.recorder)]
     @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
     @test isfile("resumable_testfile.jld2")
-    rm("testfile.confs")
+    isfile("testfile.confs") && rm("testfile.confs")
 
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
@@ -349,5 +349,5 @@ println("DQMC")
     end
     @test matches
     rm("resumable_testfile.jld2")
-    rm("testfile.confs")
+    isfile("testfile.confs") && rm("testfile.confs")
 end
