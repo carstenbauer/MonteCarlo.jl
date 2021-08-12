@@ -127,7 +127,10 @@ end
 println("MC")
 @time @testset "MC" begin
     model = IsingModel(dims=2, L=2)
-    mc = MC(model, beta=0.66, thermalization=33, sweeps=123, recorder=ConfigRecorder)
+    mc = MC(
+        model, beta = 0.66, thermalization = 33, sweeps = 123, 
+        recorder = ConfigRecorder(MC, IsingModel, 1)
+    )
     @time run!(mc, verbose=false)
     save("testfile.jld2", mc)
     x = load("testfile.jld2")
@@ -145,9 +148,8 @@ println("MC")
     Random.seed!(123)
     model = IsingModel(dims=2, L=10)
     mc = MC(
-        model, beta=1.0, 
-        thermalization = 0, sweeps=10_000_000, 
-        measure_rate=10_000, recorder=ConfigRecorder
+        model, beta=1.0, thermalization = 0, sweeps=10_000_000, 
+        measure_rate=10_000, recorder=ConfigRecorder(MC, IsingModel, 10_000)
     )
     @time state = run!(
         mc, verbose = false,
@@ -184,7 +186,7 @@ println("MC")
     mc = MC(
         model, beta=1.0, 
         thermalization=0, sweeps=10_000length(cs), 
-        measure_rate=10_000, recorder=ConfigRecorder
+        measure_rate=10_000, recorder=ConfigRecorder(MC, IsingModel, 10_000)
     )
     @time state = run!(mc, verbose = false)
     @test mc.configs.configs == cs.configs
@@ -259,13 +261,19 @@ function test_dqmc(mc, x)
 end
 
 for file in readdir()
-    (endswith(file, "jld") || endswith(file, "jld2")) && rm(file)
+    if endswith(file, "jld") || endswith(file, "jld2") || endswith(file, ".confs")
+        rm(file)
+    end
 end
 
 println("DQMC")
 @time @testset "DQMC" begin
+    isfile("testfile.confs") && rm("testfile.confs")
     model = HubbardModelAttractive(4, 2, t = 1.7, U = 5.5)
-    mc = DQMC(model, beta=1.0, thermalization=21, sweeps=117, measure_rate = 1)
+    mc = DQMC(
+        model, beta = 1.0, thermalization = 21, sweeps = 117, measure_rate = 1, 
+        recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, "testfile.confs", rate = 1)
+    )
     mc[:CDC] = charge_density_correlation(mc, model)
     t = time()
     run!(mc, verbose=false)
@@ -285,6 +293,7 @@ println("DQMC")
     x.last_sweep = 0
     @time replay!(x, verbose=false)
     test_dqmc(mc, x)
+    rm("testfile.confs")
     
 
     # Test resume
@@ -292,7 +301,10 @@ println("DQMC")
     # Run for 1s with known RNG
     Random.seed!(123)
     model = HubbardModelAttractive(2, 2, t = 1.7, U = 5.5)
-    mc = DQMC(model, beta=1.0, thermalization=0, sweeps=10_000_000, measure_rate=100)
+    mc = DQMC(
+        model, beta = 1.0, thermalization = 0, sweeps = 10_000_000, measure_rate = 100,
+        recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, "testfile.confs", rate = 100)
+    )
     mc[:CDC] = charge_density_correlation(mc, model)
 
     @time state = run!(
@@ -303,7 +315,7 @@ println("DQMC")
     )
 
     @test state == false
-    cs = deepcopy(mc.recorder)
+    cs = [mc.recorder[i] for i in 1:length(mc.recorder)]
     @assert length(cs) > 1 "No measurements have been taken. Test with more time!"
     L = length(cs)
 
@@ -318,16 +330,24 @@ println("DQMC")
     )
 
     @test state == false
-    cs = deepcopy(mc.recorder)
+    cs = [mc.recorder[i] for i in 1:length(mc.recorder)]
     @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
     @test isfile("resumable_testfile.jld2")
+    rm("testfile.confs")
 
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
     model = HubbardModelAttractive(2, 2, t = 1.7, U = 5.5)
-    mc = DQMC(model, beta=1.0, thermalization=0, sweeps=100length(cs), measure_rate=100)
+    mc = DQMC(
+        model, beta = 1.0, thermalization = 0, sweeps = 100length(cs), measure_rate = 100,
+        recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, "testfile.confs", rate = 100)
+    )
     @time state = run!(mc, verbose = false)
-    @test mc.recorder.configs == cs.configs
-    @test mc.recorder.rate == cs.rate
+    matches = true
+    for i in 1:length(mc.recorder)
+        matches = matches && (mc.recorder[i] == cs[i])
+    end
+    @test matches
     rm("resumable_testfile.jld2")
+    rm("testfile.confs")
 end

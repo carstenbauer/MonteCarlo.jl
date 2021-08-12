@@ -102,7 +102,7 @@ end
         @testset "$(typeof(model))" begin
             Random.seed!(123)
             dqmc = DQMC(
-                model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
+                model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
                 thermalization = 1, sweeps = 2, measure_rate=1
             )
             @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.parameters.beta)"
@@ -171,7 +171,7 @@ end
         @testset "$(typeof(model))" begin
             Random.seed!(123)
             dqmc = DQMC(
-                model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder, 
+                model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = ()), 
                 thermalization = 10_000, sweeps = 10_000, print_rate=1000,
                 # scheduler = AdaptiveScheduler(
                 #     (LocalSweep(10), Adaptive(),), (GlobalShuffle(), GlobalFlip())
