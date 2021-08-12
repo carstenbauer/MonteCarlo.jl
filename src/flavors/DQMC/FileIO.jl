@@ -2,6 +2,10 @@
 ### FileIO
 ################################################################################
 
+to_tag(::Type{<: DQMC}) = Val(:DQMC)
+to_tag(::Type{<: DQMCParameters}) = Val(:DQMCParameters)
+to_tag(::Type{<: DQMCAnalysis}) = Val(:DQMCAnalysis)
+to_tag(::Type{<: MagnitudeStats}) = Val(:MagnitudeStats)
 
 
 #     save_mc(filename, mc, entryname)
@@ -10,9 +14,10 @@
 # JLD-file `filename` under group `entryname`.
 #
 # When saving a simulation the default `entryname` is `MC`
-function save_mc(file::JLDFile, mc::DQMC, entryname::String="MC")
+function save_mc(file::JLDFile, mc::DQMC, entryname::String="DQMC")
     write(file, entryname * "/VERSION", 2)
-    write(file, entryname * "/type", typeof(mc))
+    write(file, entryname * "/tag", "DQMC")
+    write(file, entryname * "/CB", mc isa DQMC_CBTrue)
     save_parameters(file, mc.parameters, entryname * "/Parameters")
     save_analysis(file, mc.analysis, entryname * "/Analysis")
     write(file, entryname * "/conf", mc.conf)
@@ -30,21 +35,23 @@ CB_type(T::DataType) = T.parameters[2]
 #     load_mc(data, ::Type{<: DQMC})
 #
 # Loads a DQMC from a given `data` dictionary produced by `JLD.load(filename)`.
-function _load(data, ::Type{T}) where T <: DQMC
+function _load(data, ::Val{:DQMC})
     if data["VERSION"] > 2
-        throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
+        throw(ErrorException("Failed to load DQMC version $(data["VERSION"])"))
     end
 
-    CB = CB_type(data["type"])
+    CB = if haskey(data, "CB")
+        data["CB"] ? CheckerboardTrue : CheckerboardFalse
+    else CB_type(data["type"]) end
     @assert CB <: Checkerboard
-    parameters = _load(data["Parameters"], data["Parameters"]["type"])
-    analysis = _load(data["Analysis"], data["Analysis"]["type"])
+    parameters = _load(data["Parameters"], Val(:DQMCParameters))
+    analysis = _load(data["Analysis"], Val(:DQMCAnalysis))
     conf = data["conf"]
-    recorder = _load(data["configs"], data["configs"]["type"])
+    recorder = _load(data["configs"], to_tag(data["configs"]))
     last_sweep = data["last_sweep"]
-    model = _load(data["Model"], data["Model"]["type"])
+    model = _load(data["Model"], to_tag(data["Model"]))
     scheduler = if haskey(data, "Scheduler")
-        _load(data["Scheduler"], data["Scheduler"]["type"])
+        _load(data["Scheduler"], to_tag(data["Scheduler"]))
     else
         if haskey(data["Parameters"], "global_moves") && Bool(data["Parameters"]["global_moves"])
             rate = get(data["Parameters"], "global_rate", 10)
@@ -55,7 +62,7 @@ function _load(data, ::Type{T}) where T <: DQMC
         end
     end
 
-    combined_measurements = _load(data["Measurements"], Measurements)
+    combined_measurements = _load(data["Measurements"], Val(:Measurements))
     thermalization_measurements = combined_measurements[:TH]
     measurements = combined_measurements[:ME]
 
@@ -84,7 +91,7 @@ end
 # When saving a simulation the default `entryname` is `MC/Parameters`
 function save_parameters(file::JLDFile, p::DQMCParameters, entryname::String="Parameters")
     write(file, entryname * "/VERSION", 1)
-    write(file, entryname * "/type", typeof(p))
+    write(file, entryname * "/tag", "DQMCParameters")
 
     write(file, entryname * "/thermalization", p.thermalization)
     write(file, entryname * "/sweeps", p.sweeps)
@@ -105,21 +112,24 @@ end
 #
 # Loads a DQMCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function _load(data, ::Type{T}) where T <: DQMCParameters
+function _load(data, ::Val{:DQMCParameters})
     if !(data["VERSION"] == 1)
-        throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
+        throw(ErrorException("Failed to load DQMCParameters version $(data["VERSION"])"))
     end
 
-    data["type"](
+    DQMCParameters(
         data["thermalization"],
         data["sweeps"],
+
         Bool(data["silent"]),
         Bool(data["check_sign_problem"]),
         Bool(data["check_propagation_error"]),
+
         data["safe_mult"],
         data["delta_tau"],
         data["beta"],
         data["slices"],
+
         data["measure_rate"],
         haskey(data, "print_rate") ? data["print_rate"] : 10,
     )
@@ -142,17 +152,17 @@ function save_stats(file::JLDFile, ms::MagnitudeStats, entryname::String="MStats
     write(file, entryname * "/count", ms.count)
 end
 
-function _load(data, ::Type{T}) where T <: DQMCAnalysis
+function _load(data, ::Val{:DQMCAnalysis})
     if !(data["VERSION"] == 1)
-        throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
+        throw(ErrorException("Failed to load DQMCAnalysis version $(data["VERSION"])"))
     end
 
-    data["type"](
+    DQMCAnalysis(
         th_runtime = get(data, "th_runtime", 0.0),
         me_runtime = get(data, "me_runtime", 0.0),
         imaginary_probability = load_stats(data["imag_prob"]),
-        negative_probability = load_stats(data["neg_prob"]),
-        propagation_error = load_stats(data["propagation"])
+        negative_probability  = load_stats(data["neg_prob"]),
+        propagation_error     = load_stats(data["propagation"])
     )
 end
 function load_stats(data)

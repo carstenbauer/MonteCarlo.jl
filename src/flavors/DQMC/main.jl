@@ -25,13 +25,13 @@ mutable struct DQMC{
     temp_conf::ConfType
     last_sweep::Int
 
-    stack::Stack # s -> stack 
+    stack::Stack
     ut_stack::UTStack
     scheduler::US
-    parameters::DQMCParameters # p -> parameters
-    analysis::DQMCAnalysis # a -> analysis
+    parameters::DQMCParameters
+    analysis::DQMCAnalysis
 
-    recorder::RT # configs -> recorder
+    recorder::RT
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 
@@ -51,6 +51,42 @@ mutable struct DQMC{
         
         new{M, CB, ConfType, RT, Stack, UTStack, US}(args...)
     end
+end
+
+# Simplified constructor
+function DQMC(
+        CB, model::M, conf::ConfType, temp_conf::ConfType, last_sweep,
+        stack::Stack, ut_stack::UTStack, scheduler::US,
+        parameters, analysis,
+        recorder::RT,
+        thermalization_measurements, measurements
+    ) where {M, ConfType, RT, Stack, UTStack, US}
+
+    DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(
+        model, conf, temp_conf, last_sweep, stack, ut_stack, 
+        scheduler, parameters, analysis, recorder,
+        thermalization_measurements, measurements
+    )
+end
+
+
+# copy constructor
+function DQMC(
+        mc::DQMC{x, CBT};
+        CB = CBT, model::M = mc.model, conf::ConfType = mc.conf, 
+        temp_conf::ConfType = mc.conf, last_sweep = mc.last_sweep,
+        stack::Stack = mc.stack, ut_stack::UTStack = mc.ut_stack, 
+        scheduler::US = mc.scheduler, parameters = mc.parameters, 
+        analysis = mc.analysis, recorder::RT = mc.recorder,
+        thermalization_measurements = mc.thermalization_measurements, 
+        measurements = mc.measurements
+    ) where {x, CBT, M, ConfType, RT, Stack, UTStack, US}
+
+    DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(
+        model, conf, temp_conf, last_sweep, stack, ut_stack, 
+        scheduler, parameters, analysis, recorder,
+        thermalization_measurements, measurements
+    )
 end
 
 

@@ -91,6 +91,14 @@ function _generate_unique_filename(filename)
     filename * '.' * parts[end]
 end
 
+function to_tag(data::Union{JLDFile, JLD2.Group, Dict{String, Any}})
+    haskey(data, "tag") && return Val(Symbol(data["tag"]))
+    haskey(data, "type") && return to_tag(data["type"])
+    error("Failed to get tag from $data")
+end
+to_tag(::Type{<: AbstractLattice}) = Val(:Generic)
+to_tag(::Type{<: Model}) = Val(:Generic)
+
 """
     load(filename[, groups...])
 
@@ -120,18 +128,9 @@ function _load(data, g::String)
 
     haskey(data[g], "RNG") && load_rng!(data)
 
-    # type nonsense for dispatch
-    T = if haskey(data[g], "type"); data[g]["type"] 
-    elseif g == "Measurements"; Measurements
-    else throw(ErrorException(
-        "Failed to defer type for group \"$g\". To fix this, add a group " *
-        "\"type\" under \"$g\" with the relevant type. To manually load this " *
-        "group, call `MonteCarlo._load(::JLD2.Group, type)`."
-    ))
-    end
-    _load(data[g], T)
+    _load(data[g], to_tag(data[g]))
 end
-_load(data) = _load(data, data["type"])
+_load(data) = _load(data, to_tag(data))
 
 
 """
@@ -152,7 +151,7 @@ function resume!(filename; kwargs...)
         throw(ErrorException("Failed to load $filename version $(data["VERSION"])"))
     end
 
-    mc = _load(data["MC"], data["MC"]["type"])
+    mc = _load(data["MC"], to_tag(data["MC"]))
     resume_init!(mc)
     load_rng!(data)
     endswith(filename, "jld2") && close(data)
@@ -173,11 +172,8 @@ function save_mc(
     close(file)
     nothing
 end
-_load(_, ::Type{UnknownType}) = throw(ErrorException(
-    "Got UnknownType instead of a MonteCarloFlavor. This may be " * 
-    "caused by missing imports."
-))
-function _load(data, ::JLD2.UnknownType)
+to_tag(::Type{<: Union{UnknownType, JLD2.UnknownType}}) = Val{:UNKNOWN}
+function _load(data, ::Val{:UNKNOWN})
     @info "Failed to load (Unknowntype)"
     @info "Available fields: $(keys(data))"
     @info "You may be missing external packages."
@@ -206,7 +202,7 @@ function save_model(
 end
 function save_model(file::JLDFile, model, entryname::String)
     write(file, entryname * "/VERSION", 0)
-    write(file, entryname * "/type", typeof(model))
+    write(file, entryname * "/tag", "Generic")
     write(file, entryname * "/data", model)
     nothing
 end
@@ -220,7 +216,7 @@ The default `_load` will check that `data["VERSION"] == 0` and simply return
 `data["data"]`. You may implement `_load(data, ::Type{<: MyType})` to add
 specialized loading behavior.
 """
-function _load(data, ::Type{T}) where T
+function _load(data, ::Val{:Generic}) where T
     data["VERSION"] == 0 || throw(ErrorException(
         "Version $(data["VERSION"]) incompatabile with default _load for $T."
     ))
@@ -247,7 +243,7 @@ function save_lattice(
 end
 function save_lattice(file::JLDFile, lattice::AbstractLattice, entryname::String)
     write(file, entryname * "/VERSION", 0)
-    write(file, entryname * "/type", typeof(lattice))
+    write(file, entryname * "/tag", "Generic")
     write(file, entryname * "/data", lattice)
     nothing
 end

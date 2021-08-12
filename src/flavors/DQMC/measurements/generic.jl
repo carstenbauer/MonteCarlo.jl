@@ -210,7 +210,7 @@ lattice_iterator(m::DQMCMeasurement, mc, model) = m.lattice_iterator(mc, model)
 # break stuff this way
 function _save(file::JLDFile, m::DQMCMeasurement, key::String)
     write(file, "$key/VERSION", 1)
-    write(file, "$key/type", DQMCMeasurement)
+    write(file, "$key/tag", "DQMCMeasurement")
     write(file, "$key/GI", m.greens_iterator)
     write(file, "$key/LI", m.lattice_iterator)
     # maybe add module for eval?
@@ -219,7 +219,7 @@ function _save(file::JLDFile, m::DQMCMeasurement, key::String)
     write(file, "$key/temp", m.temp)
 end
 
-function _load(data, ::Type{T}) where {T <: DQMCMeasurement}
+function _load(data, ::Val{:DQMCMeasurement})
     temp = haskey(data, "temp") ? data["temp"] : data["output"]
     
     kernel = try
@@ -230,6 +230,8 @@ function _load(data, ::Type{T}) where {T <: DQMCMeasurement}
     end
     DQMCMeasurement(data["GI"], data["LI"], kernel, data["obs"], temp)
 end
+
+to_tag(::Type{<: DQMCMeasurement}) = Val(:DQMCMeasurement)
 
 
 ################################################################################

@@ -225,7 +225,7 @@ function vmul!(C::BlockDiagonal{T, N}, X::Adjoint{T}, B::BlockDiagonal{T, N}) wh
         end
     end
 end
-function vmul!(C::BD, X1::Transpose{T, BD}, X2::Transpose{T, BD}) where {T <: Real, N, BD <: BlockDiagonal{T, N}}
+function vmul!(C::BD, X1::Adjoint{T, BD}, X2::Adjoint{T, BD}) where {T <: Real, N, BD <: BlockDiagonal{T, N}}
     A = X1.parent
     B = X2.parent
     @inbounds n = size(C.blocks[1], 1)

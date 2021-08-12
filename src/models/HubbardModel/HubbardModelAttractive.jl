@@ -218,7 +218,7 @@ function save_model(
         entryname::String="Model"
     )
     write(file, entryname * "/VERSION", 1)
-    write(file, entryname * "/type", typeof(m))
+    write(file, entryname * "/tag", "HubbardModelAttractive")
 
     write(file, entryname * "/mu", m.mu)
     write(file, entryname * "/U", m.U)
@@ -233,13 +233,13 @@ end
 #
 # Loads a DQMCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function _load(data, ::Type{T}) where T <: HubbardModelAttractive
+function _load(data, ::Val{:HubbardModelAttractive})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load HubbardModelAttractive version $(data["VERSION"])"))
     end
 
-    l = _load(data["l"], data["l"]["type"])
-    data["type"](
+    l = _load(data["l"], to_tag(data["l"]))
+    HubbardModelAttractive(
         mu = data["mu"],
         U = data["U"],
         t = data["t"],
@@ -247,7 +247,7 @@ function _load(data, ::Type{T}) where T <: HubbardModelAttractive
         flv = data["flv"]
     )
 end
-
+to_tag(::Type{<: HubbardModelAttractive}) = Val(:HubbardModelAttractive)
 
 
 ################################################################################
