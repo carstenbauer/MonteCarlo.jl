@@ -58,23 +58,20 @@ MonteCarlo.update(::GoodUpdate, args...) = 1.0
         @test mc.scheduler.idx == 0
         @test mc.last_sweep == 0
 
-        accepted = MonteCarlo.update(mc.scheduler, mc, mc.model)
+        MonteCarlo.update(mc.scheduler, mc, mc.model)
         @test mc.scheduler.sequence[1].total == 1
-        @test mc.scheduler.sequence[1].accepted == accepted
         @test mc.scheduler.idx == 1
         @test mc.last_sweep == 1
         
-        accepted = MonteCarlo.update(mc.scheduler, mc, mc.model)
+        MonteCarlo.update(mc.scheduler, mc, mc.model)
         @test mc.scheduler.sequence[2].total == 1
-        @test mc.scheduler.sequence[2].accepted == accepted
         @test mc.scheduler.idx == 2
-        @test mc.last_sweep == 1
-
-        accepted = MonteCarlo.update(mc.scheduler, mc, mc.model)
-        @test mc.scheduler.sequence[3].total == 1
-        @test mc.scheduler.sequence[3].accepted == accepted
-        @test mc.scheduler.idx == 3
         @test mc.last_sweep == 2
+
+        MonteCarlo.update(mc.scheduler, mc, mc.model)
+        @test mc.scheduler.sequence[3].total == 1
+        @test mc.scheduler.idx == 3
+        @test mc.last_sweep == 3
     end
 
     schedulers = (
