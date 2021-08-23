@@ -46,6 +46,7 @@ abstract type AbstractUpdate end
 abstract type AbstractLocalUpdate <: AbstractUpdate end
 
 init!(mc, update::AbstractUpdate) = nothing
+is_full_sweep(update::AbstractUpdate) = true
 
 
 
@@ -62,6 +63,8 @@ function update(u::NoUpdate, args...)
     return 0
 end
 name(::NoUpdate) = "NoUpdate"
+is_full_sweep(update::NoUpdate) = false
+
 
 
 
@@ -99,6 +102,7 @@ function Base.show(io::IO, u::AcceptanceStatistics)
     )
 end
 init!(mc, update::AcceptanceStatistics) = init!(mc, update.update)
+is_full_sweep(update::AcceptanceStatistics) = is_full_sweep(update.update)
 
 
 
@@ -172,8 +176,13 @@ mutable struct SimpleScheduler{ST} <: AbstractUpdateScheduler
 end
 
 function update(s::SimpleScheduler, mc::DQMC, model)
-    s.idx = mod1(s.idx + 1, length(s.sequence))
-    update(s.sequence[s.idx], mc, model)
+    while true
+        s.idx = mod1(s.idx + 1, length(s.sequence))
+        update(s.sequence[s.idx], mc, model)
+        is_full_sweep(s.sequence[s.idx]) && break
+    end
+    mc.last_sweep += 1
+    return nothing
 end
 
 function show_statistics(io::IO, s::SimpleScheduler, prefix="")
@@ -316,44 +325,53 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
 end
 
 function update(s::AdaptiveScheduler, mc::DQMC, model)
-    s.idx = mod1(s.idx + 1, length(s.sequence))
-    
-    if s.sequence[s.idx] === Adaptive()
-        # Find appropriate (i.e. with probability matching sampling rates) 
-        # update from adaptive pool
-        total_weight = sum(s.sampling_rates)
-        target = rand() * total_weight
-        current_weight = 0.0
-        idx = 1
-        while idx < length(s.sampling_rates)
-            current_weight += s.sampling_rates[idx]
-            if target <= current_weight
-                break
-            else
-                idx += 1
+    while true
+        s.idx = mod1(s.idx + 1, length(s.sequence))
+        
+        if s.sequence[s.idx] === Adaptive()
+            # Find appropriate (i.e. with probability matching sampling rates) 
+            # update from adaptive pool
+            total_weight = sum(s.sampling_rates)
+            target = rand() * total_weight
+            current_weight = 0.0
+            idx = 1
+            while idx < length(s.sampling_rates)
+                current_weight += s.sampling_rates[idx]
+                if target <= current_weight
+                    break
+                else
+                    idx += 1
+                end
             end
-        end
 
-        # Apply the update and adjust sampling rate
-        updater = s.adaptive_pool[idx]
-        accepted = update(updater, mc, model)
-        if !(updater isa AcceptanceStatistics{NoUpdate}) && updater.total > s.grace_period
-            s.sampling_rates[idx] = (
-                s.adaptive_rate * s.sampling_rates[idx] + 
-                updater.accepted / updater.total
-            ) / (s.adaptive_rate + 1)
+            # Apply the update and adjust sampling rate
+            updater = s.adaptive_pool[idx]
+            update(updater, mc, model)
+            if !(updater isa AcceptanceStatistics{NoUpdate}) && updater.total > s.grace_period
+                s.sampling_rates[idx] = (
+                    s.adaptive_rate * s.sampling_rates[idx] + 
+                    updater.accepted / updater.total
+                ) / (s.adaptive_rate + 1)
+                
+                # Hit miniomum threshold - this can no longer be accepted.
+                if s.sampling_rates[idx] < s.minimum_sampling_rate
+                    s.sampling_rates[idx] = 0.0
+                end
+            end
+
             
-            # Hit miniomum threshold - this can no longer be accepted.
-            if s.sampling_rates[idx] < s.minimum_sampling_rate
-                s.sampling_rates[idx] = 0.0
-            end
+        else
+            # Some sort of non-adaptive update, just perform it.
+            updater = s.sequence[s.idx]
+            update(updater, mc, model)
         end
 
-        return accepted
-    else
-        # Some sort of non-adaptive update, just perform it.
-        return update(s.sequence[s.idx], mc, model)
+        is_full_sweep(updater) && break
     end
+
+    mc.last_sweep += 1
+
+    return nothing
 end
 
 function show_statistics(io::IO, s::AdaptiveScheduler, prefix="")

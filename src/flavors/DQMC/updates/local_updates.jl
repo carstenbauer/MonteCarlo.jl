@@ -10,7 +10,6 @@ function local_sweep(mc::DQMC, model)
         accepted += sweep_spatial(mc, model)
         propagate(mc)
     end
-    mc.last_sweep += 1
     return accepted
 end
 
