@@ -102,7 +102,7 @@ function BufferedConfigRecorder(fn::String, buffer, rate, idx, chunk, N, sidx)
     BufferedConfigRecorder(AbsolutePath(fn), buffer, rate, idx, chunk, N, sidx)
 end
 function BufferedConfigRecorder{CT}(filename, rate = 10, chunk_size = 1000) where CT
-    BufferedConfigRecorder{CT}(filename, Vector{CT}(undef, chunk_size), rate, 1, 1, 0, -1)
+    BufferedConfigRecorder(filename, Vector{CT}(undef, chunk_size), rate, 1, 1, 0, -1)
 end
 function BufferedConfigRecorder(MC::Type, M::Type, filename; rate = 10, chunk_size = 1000)
     BufferedConfigRecorder{compressed_conf_type(MC, M)}(filename, rate, chunk_size)
