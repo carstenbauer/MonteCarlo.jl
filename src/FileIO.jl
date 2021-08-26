@@ -116,10 +116,8 @@ function load(filename, groups::String...)
     end
     output = try 
         if haskey(data, "MC") && !("MC" in groups)
-            _load(data, "MC", groups...)else _load(data, groups...)
+            _load(data, "MC", groups...) else _load(data, groups...)
         end
-    catch e
-        @error exception=e
     finally
         endswith(filename, "jld2") && close(data.file)
     end
