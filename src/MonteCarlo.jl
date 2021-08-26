@@ -11,9 +11,23 @@ using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random, Distribute
 
 import JLD, JLD2
 using CodecZlib
+
+# Because we fully load all data directly for JLD we lose access to the path
+# This is supposed to keep track of path information
+struct FileWrapper{T}
+    file::T
+    path::String
+end
+
+Base.getindex(fw::FileWrapper, k) = getindex(fw.file, k)
+Base.setindex!(fw::FileWrapper, k, v) = setindex!(fw.file, k, v)
+Base.haskey(fw::FileWrapper, k) = haskey(fw.file, k)
+Base.write(fw::FileWrapper, x) = write(fw.file, x)
+Base.write(fw::FileWrapper, k, x) = write(fw.file, k, x)
+
 # To allow switching between JLD and JLD2:
 const UnknownType = Union{JLD.UnsupportedType, JLD2.UnknownType}
-const JLDFile = Union{JLD.JldFile, JLD2.JLDFile}
+const JLDFile = Union{FileWrapper{<: JLD.JldFile}, FileWrapper{<: JLD2.JLDFile}, JLD.JldFile, JLD2.JLDFile}
 
 
 

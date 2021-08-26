@@ -25,15 +25,6 @@
 # - rename save_x to _save(filename, ::X, entryname) (mirror _load)
 # - make _load less volatile to changes, i.e. change Type -> Val{Symbol}
 
-# Because we fully load all data directly for JLD we lose access to the path
-# This is supposed to keep track of path information
-struct FileWrapper{T}
-    file::T
-    path::String
-end
-
-Base.getindex(fw::FileWrapper, x) = getindex(fw.file, x)
-Base.haskey(fw::FileWrapper, x) = haskey(fw.file, x)
 
 """
     save(filename, mc; overwrite=false, rename=true)
@@ -70,12 +61,14 @@ function save(
     end
 
     mode = isfile(filename) ? "r+" : "w"
-    file = backend.jldopen(filename, mode, compress=compress; kwargs...)
+    file = FileWrapper(
+        backend.jldopen(filename, mode, compress=compress; kwargs...), filename
+    )
 
     write(file, "VERSION", 1)
     save_mc(file, mc, "MC")
     save_rng(file)
-    close(file)
+    close(file.file)
 
     if overwrite && !isempty(temp_filename) && isfile(temp_filename)
         rm(temp_filename)
