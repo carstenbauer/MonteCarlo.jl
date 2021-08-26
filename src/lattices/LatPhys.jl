@@ -1,6 +1,6 @@
-using LatPhysBase: from, to, numSites, bonds, sites, latticeVectors, unitcell,
+using .LatticePhysics.LatPhysBase: from, to, numSites, bonds, sites, latticeVectors, unitcell,
                    point, AbstractSite
-import LatPhysBase, LatticePhysics
+import .LatticePhysics.LatPhysBase, .LatticePhysics
 
 struct LatPhysLattice{LT <: LatPhysBase.AbstractLattice} <: AbstractLattice
     lattice::LT
