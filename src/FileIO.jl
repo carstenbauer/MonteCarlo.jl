@@ -25,6 +25,15 @@
 # - rename save_x to _save(filename, ::X, entryname) (mirror _load)
 # - make _load less volatile to changes, i.e. change Type -> Val{Symbol}
 
+# Because we fully load all data directly for JLD we lose access to the path
+# This is supposed to keep track of path information
+struct FileWrapper{T}
+    file::T
+    path::String
+end
+
+Base.getindex(fw::FileWrapper, x) = getindex(fw.file, x)
+Base.haskey(fw::FileWrapper, x) = haskey(fw.file, x)
 
 """
     save(filename, mc; overwrite=false, rename=true)
@@ -91,6 +100,7 @@ function _generate_unique_filename(filename)
     filename * '.' * parts[end]
 end
 
+to_tag(f::FileWrapper) = to_tag(f.file)
 function to_tag(data::Union{JLDFile, JLD2.Group, Dict{String, Any}})
     haskey(data, "tag") && return Val(Symbol(data["tag"]))
     haskey(data, "type") && return to_tag(data["type"])
@@ -107,16 +117,18 @@ Loads a MonteCarlo simulation (or part thereof) from the given JLD-file
 """
 function load(filename, groups::String...)
     data = if endswith(filename, "jld2")
-        JLD2.jldopen(filename, "r") else JLD.load(filename)
+        FileWrapper(JLD2.jldopen(filename, "r"), filename)
+    else 
+        FileWrapper(JLD.load(filename), filename)
     end
     output = try 
         if haskey(data, "MC") && !("MC" in groups)
-            _load(data, "MC", groups...) else _load(data, groups...)
+            _load(data, "MC", groups...)else _load(data, groups...)
         end
     catch e
         @error exception=e
     finally
-        endswith(filename, "jld2") && close(data)
+        endswith(filename, "jld2") && close(data.file)
     end
     output
 end
