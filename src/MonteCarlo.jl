@@ -42,7 +42,7 @@ include("models/abstract.jl")
 include("lattices/abstract.jl")
 
 include("configurations.jl")
-export Discarder, ConfigRecorder, BufferedConfigRecorder
+export Discarder, ConfigRecorder, BufferedConfigRecorder, RelativePath, AbsolutePath
 include("Measurements.jl")
 export measurements, observables
 
