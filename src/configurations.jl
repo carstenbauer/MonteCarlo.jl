@@ -228,8 +228,15 @@ function _load(data, ::Val{:BufferedConfigRecorder})
     if !(data["VERSION"] <= 2)
         throw(ErrorException("Failed to load BufferedConfigRecorder version $(data["VERSION"])"))
     end
+    filename = data["filename"]
+    if filename isa FilePath && filename.is_relative && !isfile(filename.absolute_path)
+        filename = FilePath(
+            true, filename.relative_path, 
+            joinpath(splitdir(data.path)[1], filename.relative_path)
+        )
+    end
     BufferedConfigRecorder(
-        data["filename"], data["buffer"], data["rate"], -1, -1, 
+        filename, data["buffer"], data["rate"], -1, -1, 
         data["total_length"], data["save_idx"]
     )
 end
