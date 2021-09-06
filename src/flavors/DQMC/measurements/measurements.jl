@@ -160,57 +160,78 @@ function current_current_susceptibility(
     li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
     Measurement(dqmc, model, greens_iterator, li, cc_kernel; kwargs...)
 end
+
 function superfluid_density(
         dqmc::DQMC, model::Model, Ls = size(lattice(model)); 
-        K = 1+length(neighbors(lattice(model), 1)), 
+        K = let
+            dirs = directions(lattice(model))
+            L2 = dot(dirs[2], dirs[2])
+            i = findfirst(v -> dot(v, v) > L2 + 100eps(L2), dirs)
+            i === nothing ? length(lattice) : i - 1
+        end, 
         capacity = _default_capacity(dqmc),
         obs = LogBinner(ComplexF64(0), capacity=capacity),
         kwargs...
     )
     @assert K > 1
-    dirs = directions(lattice(model))
 
-    # Note: this only works with 2d vecs
-    # Note: longs and trans are epsilon-vectors, i.e. they're the smallest 
-    # step we can take in discrete reciprocal space
-    lvecs = lattice_vectors(lattice(model))
-    uc_vecs = lvecs ./ Ls
-    prefactor = 2pi / dot(lvecs...)
-    rvecs = map(lv -> prefactor * cross([lv; 0], [0, 0, 1])[[1, 2]], uc_vecs)
+    # Collect nearest neighbors directions
+    NNs = directions(lattice(model))[2:K]
 
-    # Note: this only works for 2d lattices... maybe
-    longs = []
-    trans = []
-    dir_idxs = []
-    for i in 2:K
-        if -uc_vecs[1] ≈ dirs[i] || uc_vecs[1] ≈ dirs[i]
-            push!(longs, rvecs[1])
-            push!(trans, rvecs[2])
-            push!(dir_idxs, i)
-        elseif -uc_vecs[2] ≈ dirs[i] || uc_vecs[2] ≈ dirs[i]
-            push!(longs, rvecs[2])
-            push!(trans, rvecs[1])
-            push!(dir_idxs, i)
-        else
-            # We kinda need the i, j from R = i*a_1 + j*a_2 here so we can
-            # construct the matching reciprocal vectors here
-            @error("Skipping $(dirs[i]) - not a nearest neighbor")
+    # cross(v, e_z) = R90 * v
+    R90 = [0.0 1.0; -1.0 0.0]
+
+    # reciprocal lattice vectors
+    # We use two collections to generate r_1, r_2, -r_1, -r_2, r_i + r_j, ..., 
+    # r_i + 2r_j, ... with i != j
+    # r_i + 2r_j is required for Honeycomb
+    rvecs = let 
+        lvecs = lattice_vectors(lattice(model))
+        uc_vecs = lvecs ./ Ls
+        prefactor = 2pi / (uc_vecs[1][1] * uc_vecs[2][2] - uc_vecs[1][2] * uc_vecs[2][1])
+        rvecs = map(lv -> prefactor * (R90 * lv), uc_vecs)
+        rvecs = vcat(-rvecs, rvecs)
+    end
+    rvecs_ext = vcat([[0, 0]], rvecs, 2rvecs)
+
+    # collect longitudinal (parallel to NN dir) and transversal (perpendicular
+    # to NN dir) reciprocal vectors
+    longs = similar(NNs)
+    trans = similar(NNs)
+    ϵ = 100.0 * eps(dot(NNs[1], NNs[1]) * dot(rvecs_ext[end], rvecs_ext[end]))
+    for k in eachindex(NNs)
+        u = normalize(NNs[k])
+        u_perp = R90 * u
+
+        for i in eachindex(rvecs_ext), j in eachindex(rvecs)
+            i == j && continue # skip elongations
+
+            q = rvecs_ext[i] .+ rvecs[j]
+            abs(q[1]) < ϵ && abs(q[2]) < ϵ && continue # skip zero vectors
+
+            perpendicular = dot(q, u_perp)
+            parallel = dot(q, u)
+
+            # These are directed for now. (There should be symmetry here?) 
+            # If q || u, then parallel = ⟨q, u⟩ has to be positive (same 
+            # direction) and perpendicular = ⟨q, u_perp⟩ has to be close to 0.
+            # We also minimize the length of q
+            if parallel > ϵ && abs(perpendicular) < ϵ 
+                if !(isassigned(longs, k) && dot(longs[k], longs[k]) < dot(q, q))
+                    longs[k] = q
+                end
+            elseif perpendicular > ϵ && abs(parallel) < ϵ
+                if !(isassigned(trans, k) && dot(trans[k], trans[k]) < dot(q, q))
+                    trans[k] = q
+                end
+            end
         end
     end
 
-    #=
-    longs = normalize.(dirs[2:K]) * 1/L
-    trans = map(dirs[2:K]) do v
-        n = [normalize(v)..., 0]
-        u = cross([0,0,1], n)
-        u[1:2] / L
-    end
-    longs .*= 2pi
-    trans .*= 2pi
-    =#
-    li = SuperfluidDensity{EachLocalQuadBySyncedDistance{K}}(
-        dir_idxs, longs, trans
-    )
+    @assert all(i -> isassigned(longs, i), eachindex(NNs)) "Reciprocal vectors not fully defined: longs = $longs; NNs = $NNs"
+    @assert all(i -> isassigned(trans, i), eachindex(NNs)) "Reciprocal vectors not fully defined: trans = $trans; NNs = $NNs"
+
+    li = SuperfluidDensity{EachLocalQuadBySyncedDistance{K}}(2:K, longs, trans)
     # Measurement(dqmc, model, CombinedGreensIterator, li, cc_kernel, obs=obs; kwargs...)
     current_current_susceptibility(dqmc, model, lattice_iterator = li)
 end
