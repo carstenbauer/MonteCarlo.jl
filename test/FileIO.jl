@@ -3,7 +3,7 @@
     r = MonteCarlo.BufferedConfigRecorder{Matrix{Float64}}("testfile.confs", 2, 20)
    
     # Initialization
-    @test r.filename == "testfile.confs"
+    @test r.filename == MonteCarlo.FilePath(false, "testfile.confs", "testfile.confs")
     @test length(r.buffer) == 20
     @test eltype(r.buffer) == Matrix{Float64}
     @test r.rate == 2

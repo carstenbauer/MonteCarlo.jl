@@ -68,6 +68,15 @@ to_tag(::Type{<: ConfigRecorder}) = Val(:ConfigRecorder)
 
 
 
+struct FilePath
+    is_relative::Bool
+    relative_path::String
+    absolute_path::String
+end
+RelativePath(filename) = FilePath(true, filename, joinpath(pwd(), filename))
+AbsolutePath(filename) = FilePath(false, filename, filename)
+
+
 """
     BufferedConfigRecorder(mc, model, filename[; rate = 10, chunk_size = 1000])
 
@@ -81,7 +90,7 @@ This uses the same configuration compression used in ConfigRecorder. I.e. every
 See also [`ConfigRecorder`](@ref), [`Discarder`](@ref)
 """
 mutable struct BufferedConfigRecorder{CT} <: AbstractRecorder
-    filename::String
+    filename::FilePath
     buffer::Vector{CT}
     rate::Int64
     idx::Int64
@@ -89,8 +98,11 @@ mutable struct BufferedConfigRecorder{CT} <: AbstractRecorder
     total_length::Int64
     save_idx::Int64
 end
+function BufferedConfigRecorder(fn::String, buffer, rate, idx, chunk, N, sidx)
+    BufferedConfigRecorder(AbsolutePath(fn), buffer, rate, idx, chunk, N, sidx)
+end
 function BufferedConfigRecorder{CT}(filename, rate = 10, chunk_size = 1000) where CT
-    BufferedConfigRecorder{CT}(filename, Vector{CT}(undef, chunk_size), rate, 1, 1, 0, -1)
+    BufferedConfigRecorder(filename, Vector{CT}(undef, chunk_size), rate, 1, 1, 0, -1)
 end
 function BufferedConfigRecorder(MC::Type, M::Type, filename; rate = 10, chunk_size = 1000)
     BufferedConfigRecorder{compressed_conf_type(MC, M)}(filename, rate, chunk_size)
@@ -162,7 +174,7 @@ end
 function save_chunk!(cr::BufferedConfigRecorder, chunk = cr.chunk)
     @boundscheck chunk > 0 && (chunk-1) * length(cr.buffer) < cr.total_length
     k = string(chunk)
-    JLD2.jldopen(cr.filename, "a+", compress = true) do file
+    JLD2.jldopen(cr.filename.absolute_path, "a+", compress = true) do file
         if haskey(file, k)
             @debug "Replacing chunk $k"
             delete!(file, k)
@@ -174,7 +186,7 @@ end
 
 function load_chunk!(cr::BufferedConfigRecorder, chunk)
     @boundscheck (chunk-1) * length(cr.buffer) < cr.save_idx
-    JLD2.jldopen(cr.filename, "r") do file
+    JLD2.jldopen(cr.filename.absolute_path, "r") do file
         copyto!(cr.buffer, file[string(chunk)])
     end
     cr.chunk = chunk
@@ -183,21 +195,38 @@ end
 
 
 
-function _save(file::JLDFile, cr::BufferedConfigRecorder, entryname::String="configs")
-    write(file, entryname * "/VERSION", 1)
+function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
+    if cr.save_idx != cr.total_length || !isfile(cr.filename.absolute_path)
+        save_final_chunk!(cr)
+    end
+
+    # adjust relative FilePath
+    if cr.filename.is_relative
+        path, _ = splitdir(file.path)
+        filepath = joinpath(path, cr.filename.relative_path)
+        if filepath != cr.filename.absolute_path
+            if isfile(filepath)
+                new_filepath = _generate_unique_filename(filepath)
+                @warn "Config file '$filepath' already exists, renaming to '$new_filepath' to avoid collision."
+                filepath = new_filepath
+            end
+            mv(cr.filename.absolute_path, filepath)
+        end
+        cr.filename = FilePath(true, string(filepath[length(path)+1:end]), filepath)
+    end
+
+    write(file, entryname * "/VERSION", 2)
     write(file, entryname * "/tag", "BufferedConfigRecorder")
     write(file, entryname * "/filename", cr.filename)
     write(file, entryname * "/buffer", cr.buffer)
     write(file, entryname * "/rate", cr.rate)
     write(file, entryname * "/total_length", cr.total_length)
     write(file, entryname * "/save_idx", cr.total_length)
-    if cr.save_idx != cr.total_length
-        save_final_chunk!(cr)
-    end
+    nothing
 end
 function _load(data, ::Val{:BufferedConfigRecorder})
-    if !(data["VERSION"] == 1)
-        throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
+    if !(data["VERSION"] <= 2)
+        throw(ErrorException("Failed to load BufferedConfigRecorder version $(data["VERSION"])"))
     end
     BufferedConfigRecorder(
         data["filename"], data["buffer"], data["rate"], -1, -1, 

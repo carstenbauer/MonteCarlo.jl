@@ -61,12 +61,14 @@ function save(
     end
 
     mode = isfile(filename) ? "r+" : "w"
-    file = backend.jldopen(filename, mode, compress=compress; kwargs...)
+    file = FileWrapper(
+        backend.jldopen(filename, mode, compress=compress; kwargs...), filename
+    )
 
     write(file, "VERSION", 1)
     save_mc(file, mc, "MC")
     save_rng(file)
-    close(file)
+    close(file.file)
 
     if overwrite && !isempty(temp_filename) && isfile(temp_filename)
         rm(temp_filename)
@@ -91,6 +93,7 @@ function _generate_unique_filename(filename)
     filename * '.' * parts[end]
 end
 
+to_tag(f::FileWrapper) = to_tag(f.file)
 function to_tag(data::Union{JLDFile, JLD2.Group, Dict{String, Any}})
     haskey(data, "tag") && return Val(Symbol(data["tag"]))
     haskey(data, "type") && return to_tag(data["type"])
@@ -107,16 +110,16 @@ Loads a MonteCarlo simulation (or part thereof) from the given JLD-file
 """
 function load(filename, groups::String...)
     data = if endswith(filename, "jld2")
-        JLD2.jldopen(filename, "r") else JLD.load(filename)
+        FileWrapper(JLD2.jldopen(filename, "r"), filename)
+    else 
+        FileWrapper(JLD.load(filename), filename)
     end
     output = try 
         if haskey(data, "MC") && !("MC" in groups)
             _load(data, "MC", groups...) else _load(data, groups...)
         end
-    catch e
-        @error exception=e
     finally
-        endswith(filename, "jld2") && close(data)
+        endswith(filename, "jld2") && close(data.file)
     end
     output
 end
