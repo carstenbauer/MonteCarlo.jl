@@ -35,7 +35,7 @@ addprocs(2)
     println("Creating dqmc")
     dqmc = DQMC(
         model, 
-        beta=5.0, recorder=Discarder, scheduler = scheduler,
+        beta=5.0, recorder=Discarder(), scheduler = scheduler,
         thermalization=10000, sweeps=10000
     )
 

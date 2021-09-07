@@ -1,6 +1,6 @@
 # Update Scheduler
 
-The update scheduler keeps track of and iterates through various Monte Carlo updates. Currently there are two schedulers, `SimpleScheduler` and `AdaptiveScheduler`, and five (full) updates.
+The update scheduler keeps track of and iterates through various Monte Carlo updates. Currently there are two schedulers, `SimpleScheduler` and `AdaptiveScheduler`, and multiple (full) updates.
 
 !!! note
 
