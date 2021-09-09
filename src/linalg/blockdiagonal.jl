@@ -63,9 +63,13 @@ function Base.Matrix(B::BlockDiagonal{T, N}) where {T, N}
     output
 end
 
-function Base.checkbounds(B::BlockDiagonal{T, N}, i, j) where {T, N}
-    @inbounds n = size(B.blocks[1], 1)
-    (1 ≤ i ≤ N*n) && (1 ≤ j ≤ N*n)
+function Base.checkbounds(B::BlockDiagonal, i::Integer, j::Integer)
+    N = M = 0
+    @inbounds for b in B.blocks
+        N += size(b, 1)
+        M += size(b, 2)
+    end
+    (1 ≤ i ≤ N) && (1 ≤ j ≤ M)
 end
 
 function Base.getindex(B::BlockDiagonal{T, N}, i, j) where {T, N}
@@ -80,6 +84,20 @@ function Base.getindex(B::BlockDiagonal{T, N}, i, j) where {T, N}
     else
         @inbounds return B.blocks[b+1][k+1, l+1]
     end
+end
+
+function Base.setindex!(B::BlockDiagonal{T, N}, val, i, j) where {T, N}
+    i0 = j0 = 0
+    for block in B.blocks
+        i1 = size(block, 1) + i0
+        j1 = size(block, 2) + j0
+        if (i0 < i <= i1) && (j0 < j <= j1)
+            @inbounds block[i - i0, j - j0] = val
+            return B
+        end
+        i0 = i1; j0 = j1
+    end
+    throw(BoundsError(B, (i, j)))
 end
 
 function Base.copyto!(B1::BlockDiagonal{T, N}, B2::BlockDiagonal{T, N}) where {T, N}
@@ -117,13 +135,11 @@ end
 Base.copy(B::BlockDiagonal) = deepcopy(B)
 
 # Needed for stack building (shouldn't be performance critical)
-function Base.:(*)(x::T, B::BlockDiagonal{T, N, AT}) where {T<:Number, N, AT<:AbstractMatrix{T}}
+function Base.:(*)(x::Number, B::BlockDiagonal)
     BlockDiagonal(map(block -> x * block, B.blocks)...)
 end
-Base.:(*)(B::BlockDiagonal{T, N, AT}, x::T) where {T<:Number, N, AT<:AbstractMatrix{T}} = x * B
-function Base.:(*)(B1::BlockDiagonal{T, N, AT}, B2::BlockDiagonal{T, N, AT}) where {
-        T<:Number, N, AT<:AbstractMatrix{T}
-    }
+Base.:(*)(B::BlockDiagonal, x::Number) = x * B
+function Base.:(*)(B1::BlockDiagonal{T1, N}, B2::BlockDiagonal{T2, N}) where {T1, T2, N}
     BlockDiagonal(map(*, B1.blocks, B2.blocks)...)
 end
 
@@ -346,7 +362,7 @@ end
 
 
 
-function vmul!(C::BlockDiagonal{T, N}, A::Diagonal{T}, B::BlockDiagonal{T, N}) where {T, N}
+function vmul!(C::BlockDiagonal{T, N}, A::Diagonal, B::BlockDiagonal{T, N}) where {T, N}
     # Assuming correct size
     @inbounds n = size(C.blocks[1], 1)
     @inbounds for i in 1:N
@@ -360,19 +376,19 @@ function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, B::Diagonal) wher
         @views vmul!(C.blocks[i], A.blocks[i], Diagonal(B.diag[(i-1)*n+1 : i*n]))
     end
 end
-function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, X::Adjoint{T}) where {T, N}
+function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, X::Adjoint) where {T, N}
     B = X.parent
     @inbounds for i in 1:N
         vmul!(C.blocks[i], A.blocks[i], adjoint(B.blocks[i]))
     end
 end
-function vmul!(C::BlockDiagonal{T, N}, X::Adjoint{T}, B::BlockDiagonal{T, N}) where {T, N}
+function vmul!(C::BlockDiagonal{T, N}, X::Adjoint, B::BlockDiagonal{T, N}) where {T, N}
     A = X.parent
     @inbounds for i in 1:N
         vmul!(C.blocks[i], adjoint(A.blocks[i]), B.blocks[i])
     end
 end
-function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T, N}
+function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal) where {T, N}
     # Assuming correct size
     @inbounds n = size(B.blocks[1], 1)
     @inbounds for i in 1:N
