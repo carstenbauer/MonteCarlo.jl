@@ -107,10 +107,11 @@ spin_density_susceptibility(mc, args...; kwargs...) = spin_density(mc, args..., 
 function pairing(
         dqmc::DQMC, model::Model, greens_iterator; 
         K = 1+length(neighbors(lattice(model), 1)), wrapper = nothing, 
-        lattice_iterator = EachLocalQuadByDistance{K}, kwargs...
+        lattice_iterator = EachLocalQuadByDistance{K}, 
+        kernel = pc_combined_kernel, kwargs...
     )
     li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
-    Measurement(dqmc, model, greens_iterator, li, pc_kernel; kwargs...)
+    Measurement(dqmc, model, greens_iterator, li, kernel; kwargs...)
 end
 pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens(); kwargs...)
 pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator(mc); kwargs...)
@@ -507,6 +508,7 @@ end
 
 function pc_combined_kernel(mc, model, sites::NTuple{4}, G)
     # Δ^† Δ + Δ Δ^†
+    # same as in https://arxiv.org/pdf/1912.08848.pdf
     pc_kernel(mc, model, sites, G) + pc_alt_kernel(mc, model, sites, G)
 end
 
