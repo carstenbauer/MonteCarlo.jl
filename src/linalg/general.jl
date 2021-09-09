@@ -122,6 +122,13 @@ function vinv!(v::Vector{T}) where {T<:Real}
     end
     v
 end
+function vinv!(v::Vector{T}, w::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @turbo for i in eachindex(v)
+        v[i] = T1 / w[i]
+    end
+    v
+end
 
 
 

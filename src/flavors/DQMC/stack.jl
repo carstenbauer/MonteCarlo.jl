@@ -396,9 +396,7 @@ element type as the matrices.
     # end
 
     # @bm "B5" begin
-        @turbo for i in eachindex(Dr)
-            Dl[i] = 1.0 / Dr[i]
-        end
+        vinv!(Dl, Dr)
     # end
 
     # @bm "B6" begin
