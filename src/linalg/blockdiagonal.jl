@@ -388,6 +388,23 @@ function vmul!(C::BlockDiagonal{T, N}, X::Adjoint, B::BlockDiagonal{T, N}) where
         vmul!(C.blocks[i], adjoint(A.blocks[i]), B.blocks[i])
     end
 end
+function vmul!(C::BD, X1::Adjoint{T, BD}, X2::Adjoint{T, BD}) where {T, N, BD <: BlockDiagonal{T, N}}
+    A = X1.parent
+    B = X2.parent
+    @inbounds n = size(C.blocks[1], 1)
+    @inbounds for i in 1:N
+        a = A.blocks[i]
+        b = B.blocks[i]
+        c = C.blocks[i]
+        @inbounds for k in 1:n, l in 1:n
+            Ckl = zero(eltype(c))
+            for m in 1:n
+                Ckl += conj(a[m,k]) * conj(b[l, m])
+            end
+            c[k,l] = Ckl
+        end
+    end
+end
 function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal) where {T, N}
     # Assuming correct size
     @inbounds n = size(B.blocks[1], 1)
@@ -409,6 +426,20 @@ function rdivp!(A::BD, T::BD, O::BD, pivot) where {ET, N, BD <: BlockDiagonal{ET
         @views rdivp!(A.blocks[i], T.blocks[i], O.blocks[i], pivot[(i-1)*n+1 : i*n])
     end
     A
+end
+function vsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, ::UniformScaling) where {T, N}
+    @inbounds n = size(O.blocks[1], 1)
+    T1 = one(T)
+    @inbounds for i in 1:N
+        a = A.blocks[i]
+        o = O.blocks[i]
+        for j in 1:n, k in 1:n
+            o[j, k] = a[j, k]
+        end
+        for j in 1:n
+            o[j, j] -= T1
+        end
+    end
 end
 
 

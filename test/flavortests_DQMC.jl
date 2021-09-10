@@ -291,6 +291,7 @@ end
 end
 
 @testset "LinAlg and Slice Matrices" begin
+    include("linalg.jl")
     include("slice_matrices.jl")
 end
 

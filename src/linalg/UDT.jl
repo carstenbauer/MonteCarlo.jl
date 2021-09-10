@@ -29,7 +29,7 @@
 end
 
 # Needed for pivoted as well
-@inline function reflectorApply!(x::AbstractVector, τ::Number, A::StridedMatrix)
+@inline function reflectorApply!(x::AbstractVector{<: Real}, τ::Real, A::StridedMatrix{<: Real})
     m, n = size(A)
     @inbounds for j = 1:n
         # dot
@@ -328,6 +328,27 @@ end
         end
     end
     ξ1/ν
+end
+
+
+@inline function reflectorApply!(x::AbstractVector, τ::Number, A::StridedMatrix)
+    m, n = size(A)
+    @inbounds for j = 1:n
+        # dot
+        vAj = A[1, j]
+        @inbounds for i = 2:m
+            vAj += conj(x[i]) * A[i, j]
+        end
+
+        vAj = conj(τ)*vAj
+
+        # ger
+        A[1, j] -= vAj
+        @inbounds for i = 2:m
+            A[i, j] -= x[i]*vAj
+        end
+    end
+    return A
 end
 
 
