@@ -9,7 +9,23 @@
 ### Type and general utility
 ################################################################################
 
+"""
+    BlockDiagonal(blocks...)
+    BlockDiagonal{eltype, N_blocks, MatrixType}(init, n, m)
 
+Creates a block diagonal matrix from a collection of blocks or an initializer, 
+i.e. `undef` or `I`. In the latter case `n, m` specifies the size of the full 
+block diagonal matrix.
+
+Notes:
+- `vmul!` and friends are implemented for real and complex `BlockDiagonal`
+- some base methods are implemented - `Matrix`, `getidnex`, `setindex`, `copyto!`,
+`size`, `copy`, `log`, `exp`, `det`, `*`
+- BlockDiagonal of 2 equally sized square matrices is heavily tested and used
+- BlockDiagonal of more equally sized square matrices should work
+- irregularly sized and non-square matrices sometimes work (TODO)
+- methods generally assume correct size and use @inbounds for performance.
+"""
 struct BlockDiagonal{T, N, AT <: AbstractMatrix{T}} <: AbstractMatrix{T}
     blocks::NTuple{N, AT}
 
@@ -86,7 +102,7 @@ function Base.getindex(B::BlockDiagonal{T, N}, i, j) where {T, N}
     end
 end
 
-function Base.setindex!(B::BlockDiagonal{T, N}, val, i, j) where {T, N}
+function Base.setindex!(B::BlockDiagonal, val, i, j)
     i0 = j0 = 0
     for block in B.blocks
         i1 = size(block, 1) + i0
@@ -106,30 +122,25 @@ function Base.copyto!(B1::BlockDiagonal{T, N}, B2::BlockDiagonal{T, N}) where {T
     end
     return B1
 end
-function Base.copyto!(B::BlockDiagonal{T, N}, ::UniformScaling) where {T, N}
-    @inbounds for i in 1:N
-        copyto!(B.blocks[i], I)
+function Base.copyto!(B::BlockDiagonal, ::UniformScaling)
+    @inbounds for block in B.blocks
+        copyto!(block, I)
     end
     return B
 end
-function Base.copyto!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T, N}
-    @inbounds n = size(B.blocks[1], 1)
-    @inbounds for i in 1:N
-        b = B.blocks[i]
-        offset = (i-1)*n
-        @turbo for j in 1:n, k in 1:n
-            b[j, k] = ifelse(j == k, D.diag[offset+j], zero(T))
-        end
+function Base.copyto!(B::BlockDiagonal, D::Diagonal)
+    n = 0
+    @inbounds for block in B.blocks
+        s = 1 + n
+        n += size(block, 1)
+        @views copyto!(block, Diagonal(D.diag[s:n]))
     end
     return B
 end
 
 
 # for Base.show
-function Base.size(B::BlockDiagonal{T, N}) where {T, N}
-    @inbounds n = size(B.blocks[1], 1)
-    (n*N, n*N)
-end
+Base.size(B::BlockDiagonal) = mapreduce(b -> size(b), (a, b) -> a .+ b, B.blocks)
 
 # Needed for tests
 Base.copy(B::BlockDiagonal) = deepcopy(B)
@@ -168,9 +179,9 @@ function LinearAlgebra.transpose!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}
     A
 end
 # This however is used for greens(k, l)
-function LinearAlgebra.rmul!(B::BlockDiagonal{T, N}, f::Number) where {T, N}
-    @inbounds for i in 1:N
-        rmul!(B.blocks[i], f)
+function LinearAlgebra.rmul!(B::BlockDiagonal, f::Number)
+    @inbounds for block in B.blocks
+        rmul!(block, f)
     end
     B
 end
@@ -187,127 +198,97 @@ function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, B::BlockDiagonal{
         vmul!(C.blocks[i], A.blocks[i], B.blocks[i])
     end
 end
-function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, B::Diagonal{T}) where {T<:Real, N}
+function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, B::Diagonal) where {T, N}
     # Assuming correct size
-    @inbounds n = size(A.blocks[1], 1)
+    n = 0
     @inbounds for i in 1:N
         c = C.blocks[i]
         a = A.blocks[i]
-        @turbo for k in 1:n, l in 1:n
-            c[k,l] = a[k,l] * B.diag[(i-1)*n + l]
-        end
+        s = 1+n
+        n += size(a, 1)
+        @views vmul!(c, a, Diagonal(B.diag[s:n]))
     end
 end
-function vmul!(C::BlockDiagonal{T, N}, A::Diagonal{T}, B::BlockDiagonal{T, N}) where {T<:Real, N}
+function vmul!(C::BlockDiagonal{T, N}, A::Diagonal, B::BlockDiagonal{T, N}) where {T, N}
     # Assuming correct size
-    @inbounds n = size(C.blocks[1], 1)
+    n = 0
     @inbounds for i in 1:N
         c = C.blocks[i]
         b = B.blocks[i]
-        @turbo for k in 1:n, l in 1:n
-            c[k,l] = A.diag[(i-1)*n + k] * b[k,l]
-        end
+        s = 1+n
+        n += size(b, 1)
+        @views vmul!(c, Diagonal(A.diag[s:n]), b)
     end
 end
-function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, X::Adjoint{T}) where {T<:Real, N}
+function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, X::Adjoint{T}) where {T, N}
     B = X.parent
-    @inbounds n = size(C.blocks[1], 1)
     @inbounds for i in 1:N
         a = A.blocks[i]
         b = B.blocks[i]
         c = C.blocks[i]
-        @turbo for k in 1:n, l in 1:n
-            Ckl = zero(eltype(c))
-            for m in 1:n
-                Ckl += a[k,m] * b[l, m]
-            end
-            c[k,l] = Ckl
-        end
+        vmul!(c, a, Adjoint(b))
     end
 end
-function vmul!(C::BlockDiagonal{T, N}, X::Adjoint{T}, B::BlockDiagonal{T, N}) where {T<:Real, N}
+function vmul!(C::BlockDiagonal{T, N}, X::Adjoint{T}, B::BlockDiagonal{T, N}) where {T, N}
     A = X.parent
-    @inbounds n = size(C.blocks[1], 1)
     @inbounds for i in 1:N
         a = A.blocks[i]
         b = B.blocks[i]
         c = C.blocks[i]
-        @turbo for k in 1:n, l in 1:n
-            Ckl = zero(eltype(c))
-            for m in 1:n
-                Ckl += a[m,k] * b[m,l]
-            end
-            c[k,l] = Ckl
-        end
+        vmul!(c, Adjoint(a), b)
     end
 end
-function vmul!(C::BD, X1::Adjoint{T, BD}, X2::Adjoint{T, BD}) where {T <: Real, N, BD <: BlockDiagonal{T, N}}
+function vmul!(C::BD, X1::Adjoint{T, BD}, X2::Adjoint{T, BD}) where {T, N, BD <: BlockDiagonal{T, N}}
     A = X1.parent
     B = X2.parent
-    @inbounds n = size(C.blocks[1], 1)
     @inbounds for i in 1:N
         a = A.blocks[i]
         b = B.blocks[i]
         c = C.blocks[i]
-        @turbo for k in 1:n, l in 1:n
-            Ckl = zero(eltype(c))
-            for m in 1:n
-                Ckl += a[m,k] * b[l, m]
-            end
-            c[k,l] = Ckl
-        end
+        vmul!(c, Adjoint(a), Adjoint(b))
     end
 end
-function rvmul!(A::BlockDiagonal{T, N}, B::Diagonal) where {T, N}
+function rvmul!(A::BlockDiagonal, B::Diagonal)
     # Assuming correct size
-    @inbounds n = size(A.blocks[1], 1)
-    @inbounds for i in 1:N
-        @views rvmul!(A.blocks[i], Diagonal(B.diag[(i-1)*n+1 : i*n]))
+    n = 0
+    @inbounds for block in A.blocks
+        s = 1+n
+        n += size(block, 1)
+        @views rvmul!(block, Diagonal(B.diag[s:n]))
     end
 end
-function lvmul!(A::Diagonal, B::BlockDiagonal{T, N}) where {T, N}
+function lvmul!(A::Diagonal, B::BlockDiagonal)
     # Assuming correct size
-    @inbounds n = size(B.blocks[1], 1)
-    @inbounds for i in 1:N
-        @views lvmul!(Diagonal(A.diag[(i-1)*n+1 : i*n]), B.blocks[i])
+    n = 0
+    @inbounds for block in B.blocks
+        s = 1+n
+        n += size(block, 1)
+        @views lvmul!(Diagonal(A.diag[s:n]), block)
     end
 end
 
 # used in greens(k, l)
-function rvadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T <: Real, N}
+function rvadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T, N}
     @inbounds for i in 1:N
         a = A.blocks[i]
         b = B.blocks[i]
-        @turbo for j in axes(a, 1), k in axes(a, 2)
-            a[j, k] = a[j, k] + b[j, k]
-        end
+        rvadd!(a, b)
     end
 end
 # used in equal time greens
-function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal{T}) where {T<:Real, N}
+function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal) where {T, N}
     # Assuming correct size
-    @inbounds n = size(B.blocks[1], 1)
-    @inbounds for i in 1:N
-        a = B.blocks[i]
-        offset = (i-1) * n
-        @turbo for j in 1:n
-            a[j, j] = a[j, j] + D.diag[j+offset]
-        end
+    n = 0
+    @inbounds for block in B.blocks
+        s = 1+n
+        n += size(block, 1)
+        @views rvadd!(block, Diagonal(D.diag[s:n]))
     end
 end
 # used in CombinedGreensIterator
-function vsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, ::UniformScaling) where {T<:Real, N}
-    @inbounds n = size(O.blocks[1], 1)
-    T1 = one(T)
+function vsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, ::UniformScaling) where {T, N}
     @inbounds for i in 1:N
-        a = A.blocks[i]
-        o = O.blocks[i]
-        @turbo for j in 1:n, k in 1:n
-            o[j, k] = a[j, k]
-        end
-        @turbo for j in 1:n
-            o[j, j] -= T1
-        end
+        vsub!(O.blocks[i], A.blocks[i], I)
     end
 end
 
@@ -362,84 +343,15 @@ end
 
 
 
-function vmul!(C::BlockDiagonal{T, N}, A::Diagonal, B::BlockDiagonal{T, N}) where {T, N}
-    # Assuming correct size
-    @inbounds n = size(C.blocks[1], 1)
-    @inbounds for i in 1:N
-        @views vmul!(C.blocks[i], Diagonal(A.diag[(i-1)*n+1 : i*n]), B.blocks[i])
-    end
-end
-function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, B::Diagonal) where {T, N}
-    # Assuming correct size
-    @inbounds n = size(C.blocks[1], 1)
-    @inbounds for i in 1:N
-        @views vmul!(C.blocks[i], A.blocks[i], Diagonal(B.diag[(i-1)*n+1 : i*n]))
-    end
-end
-function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, X::Adjoint) where {T, N}
-    B = X.parent
-    @inbounds for i in 1:N
-        vmul!(C.blocks[i], A.blocks[i], adjoint(B.blocks[i]))
-    end
-end
-function vmul!(C::BlockDiagonal{T, N}, X::Adjoint, B::BlockDiagonal{T, N}) where {T, N}
-    A = X.parent
-    @inbounds for i in 1:N
-        vmul!(C.blocks[i], adjoint(A.blocks[i]), B.blocks[i])
-    end
-end
-function vmul!(C::BD, X1::Adjoint{T, BD}, X2::Adjoint{T, BD}) where {T, N, BD <: BlockDiagonal{T, N}}
-    A = X1.parent
-    B = X2.parent
-    @inbounds n = size(C.blocks[1], 1)
-    @inbounds for i in 1:N
-        a = A.blocks[i]
-        b = B.blocks[i]
-        c = C.blocks[i]
-        @inbounds for k in 1:n, l in 1:n
-            Ckl = zero(eltype(c))
-            for m in 1:n
-                Ckl += conj(a[m,k]) * conj(b[l, m])
-            end
-            c[k,l] = Ckl
-        end
-    end
-end
-function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal) where {T, N}
-    # Assuming correct size
-    @inbounds n = size(B.blocks[1], 1)
-    @inbounds for i in 1:N
-        @views rvadd!(B.blocks[i], Diagonal(D.diag[(i-1)*n+1 : i*n]))
-    end
-end
-function rvadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T, N}
-    @inbounds for i in 1:N
-        a = A.blocks[i]
-        b = B.blocks[i]
-        rvadd!(a, b)
-    end
-end
 function rdivp!(A::BD, T::BD, O::BD, pivot) where {ET, N, BD <: BlockDiagonal{ET, N}}
     # Assuming correct size
-    @inbounds n = size(T.blocks[1], 1)
+    n = 0
     @inbounds for i in 1:N
-        @views rdivp!(A.blocks[i], T.blocks[i], O.blocks[i], pivot[(i-1)*n+1 : i*n])
+        s = 1+n
+        n += size(A.blocks[i], 1)
+        @views rdivp!(A.blocks[i], T.blocks[i], O.blocks[i], pivot[s:n])
     end
     A
-end
-function vsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, ::UniformScaling) where {T, N}
-    @inbounds n = size(O.blocks[1], 1)
-    T1 = one(T)
-    @inbounds for i in 1:N
-        a = A.blocks[i]
-        o = O.blocks[i]
-        for j in 1:n, k in 1:n
-            o[j, k] = a[j, k]
-        end
-        for j in 1:n
-            o[j, j] -= T1
-        end
-    end
 end
 
 
@@ -459,13 +371,14 @@ function udt_AVX_pivot!(
         apply_pivot::Val = Val(true)
     ) where {N, AT <: AbstractMatrix{Float64}}
     # Assuming correct size
-    @inbounds n = size(input.blocks[1], 1)
+    n = 0
     @inbounds for i in 1:N
+        s = 1+n
+        n += size(U.blocks[i], 1)
         @views udt_AVX_pivot!(
-            U.blocks[i], D[(i-1)*n+1 : i*n], input.blocks[i],
-            pivot[(i-1)*n+1 : i*n], temp[(i-1)*n+1 : i*n], apply_pivot
+            U.blocks[i], D[s:n], input.blocks[i],
+            pivot[s:n], temp[s:n], apply_pivot
         )
-        # pivot[(i-1)*n+1 : i*n] .+= (i-1)*n
     end
 end
 function udt_AVX_pivot!(
@@ -477,12 +390,13 @@ function udt_AVX_pivot!(
         apply_pivot::Val = Val(true)
     ) where {N, AT <: AbstractMatrix{ComplexF64}}
     # Assuming correct size
-    @inbounds n = size(input.blocks[1], 1)
+    n = 0
     @inbounds for i in 1:N
+        s = 1+n
+        n += size(U.blocks[i], 1)
         @views udt_AVX_pivot!(
-            U.blocks[i], D[(i-1)*n+1 : i*n], input.blocks[i],
-            pivot[(i-1)*n+1 : i*n], temp[(i-1)*n+1 : i*n], apply_pivot
+            U.blocks[i], D[s:n], input.blocks[i],
+            pivot[s:n], temp[s:n], apply_pivot
         )
-        # pivot[(i-1)*n+1 : i*n] .+= (i-1)*n
     end
 end
