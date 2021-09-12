@@ -380,20 +380,40 @@ end
 
 # local s-wave
 # NOTE - this may no longer match the order of other observables
-# Δ_i Δ_j^† |ψ⟩
+# Δ_i Δ_j |ψ⟩
 MonteCarlo.pairing_correlation(i::Integer, j::Integer) = pairing_correlation(i, i, j, j)
 # general case
-# Δ_i = c_{i, ↑} c_{j, ↓}
-# Δ_j^† -> Δ_k^† = (c_{k, ↑} c_{l, ↓})^† = c_{l, ↓}^† c_{k, ↑}^†
-#  Δ_i Δ_k^† |ψ⟩ = c_{i, ↑} c_{j, ↓} c_{l, ↓}^† c_{k, ↑}^† |ψ⟩
+# Δ_i = c_{i, ↑} c_{j, ↓} + c_{j, ↓}^† c_{i, ↑}^† (h.c.)
 function MonteCarlo.pairing_correlation(i::Integer, j::Integer, k::Integer, l::Integer)
     state -> begin
-        sign1, _state = create(state, k, UP)
-        sign2, _state = create(_state, l, DOWN)
-        sign3, _state = annihilate(_state, j, DOWN)
-        sign4, _state = annihilate(_state, i, UP)
-        p = sign1 * sign2 * sign3 * sign4
-        return (p, _state)
+        # Δ_i Δ_j = (c_{i, ↑} c_{j, ↓} + c_{j, ↓}^† c_{i, ↑}^†) *
+        #           (c_{k, ↑} c_{l, ↓} + c_{l, ↓}^† c_{k, ↑}^†)
+
+        # Δ_j = c_{k, ↑} c_{l, ↓} + c_{l, ↓}^† c_{k, ↑}^†
+        sign1, _state  = annihilate(state, l, DOWN)
+        sign2, _state1 = annihilate(_state, k, UP)
+        p1 = sign1 * sign2
+        sign1, _state  = create(state, k, UP)
+        sign2, _state2 = create(_state, l, DOWN)
+        p2 = sign1 * sign2
+
+        # Δ_i = c_{i, ↑} c_{j, ↓} + c_{j, ↓}^† c_{i, ↑}^†
+        sign1, _state  = annihilate(_state1, j, DOWN)
+        sign2, _state11 = annihilate(_state, i, UP)
+        p11 = p1 * sign1 * sign2
+        sign1, _state  = create(_state1, i, UP)
+        sign2, _state12 = create(_state, j, DOWN)
+        p12 = p1 * sign1 * sign2
+       
+        # Δ_i = c_{i, ↑} c_{j, ↓} + c_{j, ↓}^† c_{i, ↑}^†
+        sign1, _state  = annihilate(_state2, j, DOWN)
+        sign2, _state21 = annihilate(_state, i, UP)
+        p21 = p2 * sign1 * sign2
+        sign1, _state  = create(_state2, i, UP)
+        sign2, _state22 = create(_state, j, DOWN)
+        p22 = p2 * sign1 * sign2
+
+        return (p11, p12, p21, p22), (_state11, _state12, _state21, _state22)
     end
 end
 

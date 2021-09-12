@@ -413,16 +413,18 @@ end
                             MonteCarlo.EachLocalQuadByDistance{4}(dqmc, model)
                         ED_PS[dirs] += expectation_value_integrated(
                             state -> begin
-                                sign1, _state = annihilate(state, trg1, DOWN)
-                                sign2, _state = annihilate(_state, src1, UP)
-                                p = sign1*sign2
-                                p, _state
+                                sign1, _state  = annihilate(state, trg1, DOWN)
+                                sign2, _state1 = annihilate(_state, src1, UP)
+                                sign3, _state  = create(state, src1, UP)
+                                sign4, _state2 = create(_state, trg1, DOWN)
+                                (sign1*sign2, sign3*sign4), (_state1, _state2)
                             end,
                             state -> begin
-                                sign1, _state = create(state, src2, UP)
-                                sign2, _state = create(_state, trg2, DOWN)
-                                p = sign1*sign2
-                                p, _state
+                                sign1, _state  = create(state, src2, UP)
+                                sign2, _state1 = create(_state, trg2, DOWN)
+                                sign3, _state  = annihilate(state, trg2, DOWN)
+                                sign4, _state2 = annihilate(_state, src2, UP)
+                                (sign1*sign2, sign3*sign4), (_state1, _state2)
                             end,
                             H, step = dqmc.parameters.delta_tau, beta = dqmc.parameters.beta, N_sites = N
                         )

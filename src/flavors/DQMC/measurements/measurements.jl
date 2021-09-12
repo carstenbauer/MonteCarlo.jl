@@ -481,8 +481,8 @@ function pc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
 end
 
 """
-    pc_kernel(mc, model, ij::NTuple{4, Integer}, G::GreensMatrix)
-    pc_kernel(mc, model, ij::NTuple{4, Integer}, Gs::NTuple{4, GreensMatrix})
+    pc_alt_kernel(mc, model, ij::NTuple{4, Integer}, G::GreensMatrix)
+    pc_alt_kernel(mc, model, ij::NTuple{4, Integer}, Gs::NTuple{4, GreensMatrix})
 
 Returns the per-site-pair pairing `⟨Δᵢⱼ^†(τ) Δₖₗ(0)⟩` where `τ = 0` for the 
 first signature and `Δᵢⱼ(τ) = 0.5 cᵢ↑(τ) cⱼ↓(τ)`. The Delta operator is a 
