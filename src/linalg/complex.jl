@@ -302,9 +302,13 @@ end
         x.re[j, j] = -ν
         x.im[j, j] = 0.0
 
-        # maybe this is suboptimal? (cache)
-        copyto!(view(temp.re, j+1:n), view(x.re, j+1:n, j))
-        copyto!(view(temp.im, j+1:n), view(x.im, j+1:n, j))
+        # maybe this is partial copying suboptimal? (cache)
+        @turbo for i in j+1:n
+            temp.re[i] = x.re[i, j]
+        end
+        @turbo for i in j+1:n
+            temp.im[i] = x.im[i, j]
+        end
 
         @turbo for i = j+1:n
             x.re[i, j] = temp.re[i, 1] * real(invξ1)
@@ -407,14 +411,14 @@ function udt_AVX_pivot!(
     # - all matrices same size
     # - input can be changed (input becomes T)
     
-    n = size(input, 1)
+    n = size(input.re, 1)
     @inbounds for i in 1:n
         pivot[i] = i
     end
 
-    # TODO optimize
-    @inbounds for j = 1:n
-        # Find column with maximum norm in trailing submatrix
+    # # TODO optimize
+    @inbounds for j in 1:n
+        # # Find column with maximum norm in trailing submatrix
         jm, squared_max_norm = indmaxcolumn(input, j, n)
 
         if jm != j
@@ -440,9 +444,7 @@ function udt_AVX_pivot!(
         τj = reflector!(input, squared_max_norm, j, n, U) # complex result
         temp[j] = τj
 
-        # Update trailing submatrix with reflector
-        # x = LinearAlgebra.view(input, j:n, j)
-        # MonteCarlo.reflectorApply!(x, τj, LinearAlgebra.view(input, j:n, j+1:n))
+        # # Update trailing submatrix with reflector
         reflectorApply!(τj, input, j, n)
     end
 
@@ -505,7 +507,7 @@ function udt_AVX_pivot!(
         D[i] = abs(input.re[i, i])
     end
 
-    _apply_pivot!(input, D, temp, pivot, apply_pivot)
+    _apply_pivot!(input, D, pivot, apply_pivot)
 
     nothing
 end
@@ -522,7 +524,7 @@ end
 #     pivot
 # end
 
-function _apply_pivot!(input::CMat64, D, temp, pivot, ::Val{true})
+@bm function _apply_pivot!(input::CMat64, D, pivot, ::Val{true})
     n = size(input, 1)
     
     # without applying pivot we have a upper triangular matrix and we know
@@ -574,7 +576,7 @@ function _apply_pivot!(input::CMat64, D, temp, pivot, ::Val{true})
 
     input
 end
-function _apply_pivot!(input::CMat64, D, temp, pivot, ::Val{false})
+@bm function _apply_pivot!(input::CMat64, D, pivot, ::Val{false})
     n = size(input, 1)
     @inbounds for i in 1:n
         d = 1.0 / D[i]
