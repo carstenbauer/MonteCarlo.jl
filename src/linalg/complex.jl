@@ -70,16 +70,6 @@ function vmul!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}, factor::T) where {T <:
         C[m,n] = factor * Cmn
     end
 end
-function vmul!(C::Matrix{T}, X::Adjoint{T}, B::Matrix{T}, factor::T) where {T <: Real}
-    A = X.parent
-    @turbo for m in 1:size(A, 1), n in 1:size(B, 2)
-        Cmn = zero(eltype(C))
-        for k in 1:size(A, 2)
-            Cmn += A[k,m] * B[k,n]
-        end
-        C[m,n] = factor * Cmn
-    end
-end
 function vmul!(C::Matrix{T}, X1::Adjoint{T}, X2::Adjoint{T}, factor::T) where {T <: Real}
     A = X1.parent
     B = X2.parent
