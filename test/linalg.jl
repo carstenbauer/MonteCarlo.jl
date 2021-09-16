@@ -3,8 +3,7 @@
 using LinearAlgebra
 using MonteCarlo: vmul!, lvmul!, rvmul!, rdivp!, udt_AVX_pivot!, rvadd!, vsub!
 using MonteCarlo: vmin!, vmininv!, vmax!, vmaxinv!, vinv!
-using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
-
+using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
 
 
 @testset "Custom Linear Algebra " begin
@@ -228,7 +227,7 @@ using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
     end
 
 
-    #=
+    
     @testset "Complex StructArray" begin
         M1 = rand(ComplexF64, 8, 8)    
         C1 = StructArray(M1)
@@ -240,49 +239,107 @@ using MonteCarlo: BlockDiagonal#, CMat64, CVec64, StructArray
         @test C1 isa CMat64
         @test M1 == C1
 
-        # Test avx multiplications
+        # Test avx multiplications (adjoint)
         vmul!(C1, C2, C3)
         vmul!(M1, M2, M3)
-        @test M1 == C1
+        @test M1 ≈ C1
 
         vmul!(C1, C2, adjoint(C3))
         vmul!(M1, M2, adjoint(M3))
-        @test M1 ≈ C1 atol=1e-14 # check
+        @test M1 ≈ C1
 
         vmul!(C1, adjoint(C2), C3)
         vmul!(M1, adjoint(M2), M3)
-        @test M1 ≈ C1 atol=1e-14 #check
+        @test M1 ≈ C1
 
+        vmul!(C1, adjoint(C2), adjoint(C3))
+        vmul!(M1, adjoint(M2), adjoint(M3))
+        @test M1 ≈ C1
+
+        # Diagonal
         D = Diagonal(rand(8))
         vmul!(C1, C2, D)
         vmul!(M1, M2, D)
         @test M1 == C1
 
+        DC = Diagonal(rand(ComplexF64, 8))
+        DCSA = Diagonal(StructArray(DC.diag))
+        vmul!(C1, C2, DCSA)
+        vmul!(M1, M2, DC)
+        @test M1 ≈ C1
+
         rvmul!(C1, D)
         rvmul!(M1, D)
-        @test M1 == C1
+        @test M1 ≈ C1
+
+        @test_throws ErrorException rvmul!(C1, DCSA)
 
         lvmul!(D, C1)
         lvmul!(D, M1)
-        @test M1 == C1
+        @test M1 ≈ C1
 
-        # Test UDT and rdivp!
-        M2 = Matrix(C2)
-        D = rand(8)
+        @test_throws ErrorException lvmul!(DCSA, C1)
+
+        copyto!(M1, M2)
+        copyto!(C1, C2)
+        rvadd!(C1, D)
+        rvadd!(M1, D)
+        @test C1 ≈ M1
+
+        copyto!(M1, M2)
+        copyto!(C1, C2)
+        rvadd!(C1, C3)
+        rvadd!(M1, M3)
+        @test C1 ≈ M1
+
+        vsub!(C1, C2, I)
+        vsub!(M1, M2, I)
+        @test C1 ≈ M1
+
+        # Test UDT backend
+
+        # indmax
+        i1, sqn1 = MonteCarlo.indmaxcolumn(C2)
+        i2 = LinearAlgebra.indmaxcolumn(M2)
+        sqn2 = norm(M2[:, i2])^2
+        @test i1 == i2
+        @test sqn1 ≈ sqn2
+
+        # reflector
+        x1 = MonteCarlo.reflector!(C2, norm(C2[:, 1])^2, 1, size(C2, 1), C1)
+        x2 = LinearAlgebra.reflector!(view(M2, :, 1))
+        @test x1 ≈ x2
+        @test C2 ≈ M2
+
+        # reflectorApply
+        C2 = StructArray(M2)
+        @views LinearAlgebra.reflectorApply!(M2[:, 1], norm(M2[:, 1]), M2[:, 2:end])
+        MonteCarlo.reflectorApply!(norm(C2[:, 1]), C2, 1, size(C2, 1))
+        @test M2 ≈ C2
+
+        # Test UDT's, rdivp!
+
+        M2 = rand(ComplexF64, 8, 8)
+        C2 = StructArray(M2)
+        D = rand(Float64, 8)
         pivot = Vector{Int64}(undef, 8)
-        tempv = StructArray(Vector{ComplexF64}(undef, 8))
-        @test tempv isa CVec64
+        tempv = Vector{ComplexF64}(undef, 8)
         udt_AVX_pivot!(C1, D, C2, pivot, tempv, Val(false))
         P = zeros(length(pivot), length(pivot))
         for (i, j) in enumerate(pivot)
             P[i, j] = 1.0
         end
-        @test Matrix(C1) * Diagonal(D) * UpperTriangular(Matrix(C2)) * P ≈ M2 #check
+        @test Matrix(C1) * Diagonal(D) * UpperTriangular(Matrix(C2)) * P ≈ M2
 
+        # rdivp!
         M1 = Matrix(C1)
         M2 = Matrix(C2)
         rdivp!(C1, C2, C3, pivot)
-        @test C1 ≈ M1 * P' / UpperTriangular(M2) # check
+        @test C1 ≈ M1 * P' / UpperTriangular(M2)
+
+        C2 = StructArray(M2)
+        udt_AVX_pivot!(C1, D, C2, pivot, tempv, Val(true))
+        @test Matrix(C1) * Diagonal(D) * Matrix(C2) ≈ M2
+
     end
-    =#
 end 
