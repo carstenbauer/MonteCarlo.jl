@@ -90,11 +90,11 @@ end
 
 
 
-const CMat64 = StructArray{Complex{Float64},2,NamedTuple{(:re, :im), Tuple{AT, AT}}, I} where {AT <: AbstractArray{Float64, 2}, I}
-const CVec64 = StructArray{Complex{Float64},1,NamedTuple{(:re, :im), Tuple{AT, AT}}, I} where {AT <: AbstractArray{Float64, 1}, I}
+const CMat64 = StructArray{ComplexF64, 2, NamedTuple{(:re, :im), Tuple{Matrix{Float64}, Matrix{Float64}}}, Int64}
+const CVec64 = StructVector{ComplexF64, NamedTuple{(:re, :im), Tuple{Vector{Float64}, Vector{Float64}}}, Int64}
 
 # tested
-function vmul!(C::CMat64, A::CMat64, B::CMat64)
+@inline function vmul!(C::CMat64, A::CMat64, B::CMat64)
     vmul!(   C.re, A.re, B.re)       # C.re = A.re * B.re
     vmuladd!(C.re, A.im, B.im, -1.0) # C.re = C.re - A.im * B.im
     vmul!(   C.im, A.re, B.im)       # C.im = A.re * B.im
@@ -102,12 +102,12 @@ function vmul!(C::CMat64, A::CMat64, B::CMat64)
 end
 
 #tested
-function vmul!(C::CMat64, A::CMat64, B::Diagonal{<: Real})
+@inline function vmul!(C::CMat64, A::CMat64, B::Diagonal{<: Real})
     vmul!(C.re, A.re, B)
     vmul!(C.im, A.im, B)
 end
 #tested
-function vmul!(C::CMat64, A::CMat64, D::Diagonal{ComplexF64, <: CVec64})
+@inline function vmul!(C::CMat64, A::CMat64, D::Diagonal{ComplexF64, <: CVec64})
     B = D.diag
     vmul!(   C.re, A.re, Diagonal(B.re))
     vmuladd!(C.re, A.im, Diagonal(B.im), -1.0)
@@ -116,7 +116,7 @@ function vmul!(C::CMat64, A::CMat64, D::Diagonal{ComplexF64, <: CVec64})
 end
 
 # tested
-function vmul!(C::CMat64, A::CMat64, X::Adjoint{ComplexF64, <: CMat64})
+@inline function vmul!(C::CMat64, A::CMat64, X::Adjoint{ComplexF64, <: CMat64})
     B = X.parent
     vmul!(   C.re, A.re, adjoint(B.re))
     vmuladd!(C.re, A.im, adjoint(B.im), 1.0)
@@ -124,7 +124,7 @@ function vmul!(C::CMat64, A::CMat64, X::Adjoint{ComplexF64, <: CMat64})
     vmuladd!(C.im, A.im, adjoint(B.re))
 end
 # tested
-function vmul!(C::CMat64, X::Adjoint{ComplexF64, <:CMat64}, B::CMat64)
+@inline function vmul!(C::CMat64, X::Adjoint{ComplexF64, <:CMat64}, B::CMat64)
     A = X.parent
     vmul!(   C.re, adjoint(A.re), B.re)
     vmuladd!(C.re, adjoint(A.im), B.im, 1.0)
@@ -132,7 +132,7 @@ function vmul!(C::CMat64, X::Adjoint{ComplexF64, <:CMat64}, B::CMat64)
     vmuladd!(C.im, adjoint(A.im), B.re, -1.0)
 end
 # tested
-function vmul!(C::CMat64, X::Adjoint{ComplexF64, <: CMat64}, Y::Adjoint{ComplexF64, <: CMat64})
+@inline function vmul!(C::CMat64, X::Adjoint{ComplexF64, <: CMat64}, Y::Adjoint{ComplexF64, <: CMat64})
     A = X.parent; B = Y.parent
     vmul!(   C.re, adjoint(A.re), adjoint(B.re))
     vmuladd!(C.re, adjoint(A.im), adjoint(B.im), -1.0)
@@ -141,7 +141,7 @@ function vmul!(C::CMat64, X::Adjoint{ComplexF64, <: CMat64}, Y::Adjoint{ComplexF
 end
 
 # tested
-function rvmul!(A::CMat64, B::Diagonal{T}) where {T <: Real}
+@inline function rvmul!(A::CMat64, B::Diagonal{T}) where {T <: Real}
     rvmul!(A.re, B)
     rvmul!(A.im, B)
 end
@@ -151,7 +151,7 @@ function rvmul!(A::CMat64, B::Diagonal{ComplexF64, <: CVec64})
 end
 
 # tested
-function lvmul!(A::Diagonal{T}, B::CMat64) where {T <: Real}
+@inline function lvmul!(A::Diagonal{T}, B::CMat64) where {T <: Real}
     lvmul!(A, B.re)
     lvmul!(A, B.im)
 end
@@ -161,15 +161,15 @@ function lvmul!(A::Diagonal{ComplexF64, <: CVec64}, B::CMat64)
 end
 
 # tested
-rvadd!(A::CMat64, D::Diagonal{T}) where {T <: Real} = rvadd!(A.re, D)
+@inline rvadd!(A::CMat64, D::Diagonal{T}) where {T <: Real} = rvadd!(A.re, D)
 # tested
-function rvadd!(A::CMat64, B::CMat64)
+@inline function rvadd!(A::CMat64, B::CMat64)
     rvadd!(A.re, B.re)
     rvadd!(A.im, B.im)
 end
 
 # test
-function vsub!(O::CMat64, A::CMat64, ::UniformScaling)
+@inline function vsub!(O::CMat64, A::CMat64, ::UniformScaling)
     copyto!(O.im, A.im)
     vsub!(O.re, A.re, I)
 end
@@ -183,7 +183,7 @@ end
 
 
 
-function rdivp!(A::CMat64, T::CMat64, O::CMat64, pivot)
+@bm function rdivp!(A::CMat64, T::CMat64, O::CMat64, pivot)
     # assume Diagonal is ±1!
     @inbounds begin
         N = size(A, 1)
@@ -276,6 +276,7 @@ end
 
 # tested
 # annoyingly we need a temp buffer for a real and imaginary numbers along the column...
+# 0 allocs in @benchmark
 @inline function reflector!(x::CMat64, normu, j, n, temp::CMat64)
     # Note:
     # `temp` is a CMat64 because that will be available in udt_AVX_pivot. Could
@@ -316,6 +317,7 @@ end
     ξ1/ν
 end
 
+# tested, 0 allocs in @benchmark
 @inline function reflectorApply!(τ::Number, A::CMat64, j, n)
     @inbounds for k = j+1:n
         # dot
@@ -361,8 +363,8 @@ end
     return A
 end
 
-# tested
-function indmaxcolumn(A::CMat64, j=1, n=size(A, 1))
+# tested, 0 allocs in @benchmark
+@inline function indmaxcolumn(A::CMat64, j=1, n=size(A, 1))
     squared_norm = 0.0
     @turbo for k in j:n
         squared_norm += abs2(A.re[k, j])
@@ -387,9 +389,7 @@ function indmaxcolumn(A::CMat64, j=1, n=size(A, 1))
     return ii, squared_norm
 end
 
-# TODO: this is actually slower than the method working on matrices...
-# also there are allocations somewhere...
-function udt_AVX_pivot!(
+@bm function udt_AVX_pivot!(
         U::CMat64, 
         D::AbstractArray{Float64, 1}, 
         input::CMat64,
