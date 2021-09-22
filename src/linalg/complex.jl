@@ -93,6 +93,25 @@ end
 const CMat64 = StructArray{ComplexF64, 2, NamedTuple{(:re, :im), Tuple{Matrix{Float64}, Matrix{Float64}}}, Int64}
 const CVec64 = StructVector{ComplexF64, NamedTuple{(:re, :im), Tuple{Vector{Float64}, Vector{Float64}}}, Int64}
 
+# constructors
+CMat64(::UndefInitializer, n, m) = StructArray(Matrix{ComplexF64}(undef, n, m))::CMat64
+CMat64(::UniformScaling, n, m) = StructArray(Matrix{ComplexF64}(I, n, m))::CMat64
+
+# util
+function Base.copyto!(C::CMat64, ::UniformScaling)
+    @turbo for i in axes(C.re, 1), j in axes(C.re, 2)
+        C.re[i, j] = Float64(i == j)
+    end
+    @turbo for i in axes(C.re, 1), j in axes(C.re, 2)
+        C.im[i, j] = 0.0
+    end
+    nothing
+end
+
+# unoptimized - these (should) only run during initialization anyway
+Base.exp(C::CMat64) = StructArray(exp(Matrix(C)))
+Base.:(*)(C1::CMat64, C2::CMat64) = StructArray(Matrix(C1) * Matrix(C2))
+
 # tested
 @inline function vmul!(C::CMat64, A::CMat64, B::CMat64)
     vmul!(   C.re, A.re, B.re)       # C.re = A.re * B.re
@@ -173,13 +192,6 @@ end
     copyto!(O.im, A.im)
     vsub!(O.re, A.re, I)
 end
-
-
-
-
-##################################################
-### TODO
-##################################################
 
 
 
