@@ -138,6 +138,13 @@ function Base.copyto!(B::BlockDiagonal, D::Diagonal)
     return B
 end
 
+function Base.copyto!(output::Matrix, B::BlockDiagonal{T, N}) where {T, N}
+    n = size(B.blocks[1], 1)
+    for i in 1:N
+        @views copyto!(output[(i-1)*n+1 : i*n, (i-1)*n+1 : i*n], B.blocks[i])
+    end
+    output
+end
 
 # for Base.show
 Base.size(B::BlockDiagonal) = mapreduce(b -> size(b), (a, b) -> a .+ b, B.blocks)

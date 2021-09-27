@@ -22,6 +22,7 @@ mutable struct DQMCStack{
 
     greens::GreensMatType
     greens_temp::GreensMatType
+    complex_greens_temp::Matrix{ComplexF64}
 
     tmp1::GreensMatType
     tmp2::GreensMatType
@@ -121,6 +122,10 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
 
     mc.stack.greens = GreensMatType(undef, flv*N, flv*N)
     mc.stack.greens_temp = GreensMatType(undef, flv*N, flv*N)
+    # TODO rework measurements to work well with StructArrays and remove this
+    if (GreensMatType <: BlockDiagonal{ComplexF64, N, CMat64} where N) || (GreensMatType <: CMat64)
+        mc.stack.complex_greens_temp = Matrix(mc.stack.greens)
+    end
 
     # used in calculate_greens
     # do not change in slice_matrices.jl or interaction_matrix_exp!

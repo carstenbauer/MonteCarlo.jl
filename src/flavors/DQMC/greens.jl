@@ -64,7 +64,11 @@ exponentials from left and right.
 Inplace version of `greens`.
 """
 @bm function greens!(mc::DQMC; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.Ur)
-    GreensMatrix(0, 0, _greens!(mc, output, input, temp))
+    if isdefined(mc.stack, :complex_greens_temp)
+        GreensMatrix(0, 0, _greens!(mc, mc.stack.complex_greens_temp, output, input, temp))
+    else
+        GreensMatrix(0, 0, _greens!(mc, output, input, temp))
+    end
 end
 
 
@@ -85,6 +89,20 @@ function _greens!(
     eThalfplus = mc.stack.hopping_matrix_exp_inv
     vmul!(temp, source, eThalfminus)
     vmul!(target, eThalfplus, temp)
+    return target
+end
+
+# TODO rework measurements to work well with StructArrays and remove this
+function _greens!(
+        mc::DQMC_CBFalse, 
+        target = mc.stack.complex_greens_temp, temp_target = mc.stack.greens_temp, 
+        source = mc.stack.greens, temp = mc.stack.Ur
+    )
+    eThalfminus = mc.stack.hopping_matrix_exp
+    eThalfplus = mc.stack.hopping_matrix_exp_inv
+    vmul!(temp, source, eThalfminus)
+    vmul!(temp_target, eThalfplus, temp)
+    copyto!(target, temp_target)
     return target
 end
 

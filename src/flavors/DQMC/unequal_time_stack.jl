@@ -24,6 +24,12 @@ mutable struct UnequalTimeStack{GT<:Number, GMT<:AbstractArray{GT}} <: AbstractD
     D::Vector{Float64}
     T::GMT
 
+    # temps for complex Greens
+    # TODO rework measurements to work well with StructArrays and remove this
+    complex_greens_temp1::Matrix{ComplexF64}
+    complex_greens_temp2::Matrix{ComplexF64}
+    complex_greens_temp3::Matrix{ComplexF64}
+
     # To avoid recalculating
     last_update::Int64
     last_slices::Tuple{Int64, Int64}
@@ -82,6 +88,13 @@ function initialize_stack(mc::DQMC, s::UnequalTimeStack)
     s.U = GreensMatType(undef, flv*N, flv*N)
     s.D = zeros(Float64, flv*N)
     s.T = GreensMatType(undef, flv*N, flv*N)
+
+    # TODO rework measurements to work well with StructArrays and remove this
+    if (GreensMatType <: BlockDiagonal{ComplexF64, N, CMat64} where N) || (GreensMatType <: CMat64)
+        s.complex_greens_temp1 = Matrix(s.greens)
+        s.complex_greens_temp2 = Matrix(s.greens)
+        s.complex_greens_temp3 = Matrix(s.greens)
+    end
 
     # To avoid recalculating
     s.last_update = -1
@@ -815,9 +828,13 @@ end
 struct _CombinedGreensIterator{T <: DQMC}
     mc::T
     spec::CombinedGreensIterator
+    # TODO rework measurements to work well with StructArrays and remove this
+    copy_to_array::Bool
 end
 
-init(mc::DQMC, it::CombinedGreensIterator) = _CombinedGreensIterator(mc, it)
+function init(mc::DQMC, it::CombinedGreensIterator)
+    _CombinedGreensIterator(mc, it, isdefined(mc.stack, :complex_greens_temp))
+end
 # Base.iterate(it::CombinedGreensIterator, mc::DQMC) = iterate(_CombinedGreensIterator(it, mc))
 # function Base.iterate(it::CombinedGreensIterator, mc::DQMC, idx)
 #     iterate(_CombinedGreensIterator(it, mc), idx)
@@ -865,11 +882,19 @@ function Base.iterate(it::_CombinedGreensIterator)
             Gll = _greens!(it.mc, uts.greens, s.tmp1, s.tmp2)
             Gl0 = copyto!(s.tmp1, uts.greens)
             G0l = copyto!(s.tmp2, uts.greens)
-            return ((
-                GreensMatrix(0, 0, G0l), 
-                GreensMatrix(0, 0, Gl0), 
-                GreensMatrix(0, 0, Gll)
-            ), 1)
+            if it.copy_to_array
+                return ((
+                    GreensMatrix(0, 0, copyto!(uts.complex_greens_temp1, G0l)), 
+                    GreensMatrix(0, 0, copyto!(uts.complex_greens_temp2, Gl0)), 
+                    GreensMatrix(0, 0, copyto!(uts.complex_greens_temp3, Gll))
+                ), 1)
+            else
+                return ((
+                    GreensMatrix(0, 0, G0l), 
+                    GreensMatrix(0, 0, Gl0), 
+                    GreensMatrix(0, 0, Gll)
+                ), 1)
+            end
         elseif it.spec.start == 1
             # start with l = 1 iteration
             return iterate(it, 1)
@@ -894,11 +919,20 @@ function Base.iterate(it::_CombinedGreensIterator)
         copyto!(s.Tr, uts.tmp)
         udt_AVX_pivot!(s.Ur, s.Dr, s.Tr, s.pivot, s.tempv)
 
-        return ((
-            GreensMatrix(0, it.spec.start, G0l), 
-            GreensMatrix(it.spec.start, 0, Gl0), 
-            GreensMatrix(it.spec.start, it.spec.start, Gll)
-        ), it.spec.start+1)
+        if it.copy_to_array
+            l = it.spec.start
+            return ((
+                GreensMatrix(0, l, copyto!(uts.complex_greens_temp1, G0l)), 
+                GreensMatrix(l, 0, copyto!(uts.complex_greens_temp2, Gl0)), 
+                GreensMatrix(l, l, copyto!(uts.complex_greens_temp3, Gll))
+            ), l+1)
+        else
+            return ((
+                GreensMatrix(0, it.spec.start, G0l), 
+                GreensMatrix(it.spec.start, 0, Gl0), 
+                GreensMatrix(it.spec.start, it.spec.start, Gll)
+            ), it.spec.start+1)
+        end
     end
 end
 # probably need extra temp variables
@@ -938,11 +972,19 @@ function Base.iterate(it::_CombinedGreensIterator, l)
         copyto!(s.Tr, uts.tmp)
         udt_AVX_pivot!(s.Ur, s.Dr, s.Tr, s.pivot, s.tempv)
 
-        return ((
-            GreensMatrix(0, l, G0l), 
-            GreensMatrix(l, 0, Gl0), 
-            GreensMatrix(l, l, Gll)
-        ), l+1)
+        if it.copy_to_array
+            return ((
+                GreensMatrix(0, l, copyto!(uts.complex_greens_temp1, G0l)), 
+                GreensMatrix(l, 0, copyto!(uts.complex_greens_temp2, Gl0)), 
+                GreensMatrix(l, l, copyto!(uts.complex_greens_temp3, Gll))
+            ), l+1)
+        else
+            return ((
+                GreensMatrix(0, l, G0l), 
+                GreensMatrix(l, 0, Gl0), 
+                GreensMatrix(l, l, Gll)
+            ), l+1)
+        end
 
     elseif ((l - shift) % it.spec.recalculate) % it.mc.parameters.safe_mult == 0
         # Stabilization        
@@ -981,11 +1023,19 @@ function Base.iterate(it::_CombinedGreensIterator, l)
         vmul!(uts.U, s.curr_U, uts.tmp)
         Gll = _greens!(it.mc, uts.greens, uts.greens, s.curr_U)
 
-        return ((
-            GreensMatrix(0, l, G0l), 
-            GreensMatrix(l, 0, Gl0), 
-            GreensMatrix(l, l, Gll)
-        ), l+1)
+        if it.copy_to_array
+            return ((
+                GreensMatrix(0, l, copyto!(uts.complex_greens_temp1, G0l)), 
+                GreensMatrix(l, 0, copyto!(uts.complex_greens_temp2, Gl0)), 
+                GreensMatrix(l, l, copyto!(uts.complex_greens_temp3, Gll))
+            ), l+1)
+        else
+            return ((
+                GreensMatrix(0, l, G0l), 
+                GreensMatrix(l, 0, Gl0), 
+                GreensMatrix(l, l, Gll)
+            ), l+1)
+        end
 
     else
         # Quick advance
@@ -1010,11 +1060,19 @@ function Base.iterate(it::_CombinedGreensIterator, l)
         vmul!(uts.greens, s.curr_U, uts.T)
         Gll = _greens!(it.mc, uts.greens, uts.greens, s.curr_U)
 
-        return ((
-            GreensMatrix(0, l, G0l), 
-            GreensMatrix(l, 0, Gl0), 
-            GreensMatrix(l, l, Gll)
-        ), l+1)
+        if it.copy_to_array
+            return ((
+                GreensMatrix(0, l, copyto!(uts.complex_greens_temp1, G0l)), 
+                GreensMatrix(l, 0, copyto!(uts.complex_greens_temp2, Gl0)), 
+                GreensMatrix(l, l, copyto!(uts.complex_greens_temp3, Gll))
+            ), l+1)
+        else
+            return ((
+                GreensMatrix(0, l, G0l), 
+                GreensMatrix(l, 0, Gl0), 
+                GreensMatrix(l, l, Gll)
+            ), l+1)
+        end
     end
 end
 
