@@ -107,6 +107,15 @@ function Base.copyto!(C::CMat64, ::UniformScaling)
     end
     nothing
 end
+function Base.copyto!(C::CMat64, D::Diagonal{<: Real})
+    @turbo for i in axes(C.re, 1), j in axes(C.re, 2)
+        C.re[i, j] = Float64(i == j) * D.diag[i]
+    end
+    @turbo for i in axes(C.im, 1), j in axes(C.im, 2)
+        C.im[i, j] = 0.0
+    end
+    nothing
+end
 
 # unoptimized - these (should) only run during initialization anyway
 Base.exp(C::CMat64) = StructArray(exp(Matrix(C)))
