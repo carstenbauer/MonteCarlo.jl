@@ -107,6 +107,18 @@ imattype(mc::DQMC) = imattype(mc.stack)
 
 
 
+# T, V and their exponential version should be hermitian, because the 
+# Hamiltonian should be hermitian. We should allow float errors though.
+function is_approximately_hermitian(M; atol = 0.0, rtol = sqrt(eps(maximum(abs.(M)))))
+    for i in 1:size(M, 1), j in size(M, 2)
+        if !isapprox(M[i, j], conj(M[j, i]), atol=atol, rtol=rtol)
+            return false
+        end
+    end
+    return true
+end
+
+
 function initialize_stack(mc::DQMC, ::DQMCStack)
     GreensElType = geltype(mc)
     GreensMatType = gmattype(mc)
@@ -177,8 +189,28 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
     dtau = mc.parameters.delta_tau
 
     T = hopping_matrix(mc, m)
-    size(T) == (flv*N, flv*N) || error("Hopping matrix should have size "*
-                                "$((flv*N, flv*N)) but has size $(size(T)) .")
+    size(T) == (flv*N, flv*N) || error(
+        "Hopping matrix should have size $((flv*N, flv*N)) but has size $(size(T))."
+    )
+
+    if !is_approximately_hermitian(T)
+        @error(
+            "The hopping matrix from `hopping_matrix(::DQMC, ::$(typeof(m)))`" *
+            " is not approximately Hermitian. Since the Hamiltonian is a" * 
+            " Hermitian operator, the hopping matrix should also be Hermitian." *
+            " It is recommended that you verify your hopping matrix - are you" *
+            " including all bonds (reverse bonds?) and conjugating complex" * 
+            " hoppings? If so it might be worth it to explicitly make your" *
+            " hopping matrix Hermitian via `0.5 * (M + M')`."
+        )
+    elseif !ishermitian(T)
+        @warn(
+            "The hopping matrix from `hopping_matrix(::DQMC, ::$(typeof(m)))`" *
+            " is not exactly Hermitian. It might be worth it to explicitly" *
+            " make your hopping matrix Hermitian via `0.5 * (M + M')`."
+        )
+    end
+
     mc.stack.hopping_matrix = T
     mc.stack.hopping_matrix_exp = exp(-0.5 * dtau * T)
     mc.stack.hopping_matrix_exp_inv = exp(0.5 * dtau * T)
