@@ -25,7 +25,7 @@ function EachSiteAndFlavor(mc::MonteCarloFlavor, model::Model)
     EachSiteAndFlavor(length(lattice(model)) * nflavors(model))
 end
 
-@bm Base.iterate(iter::EachSiteAndFlavor, i=1) = i ≤ iter.N ? (i, i+1) : nothing 
+Base.iterate(iter::EachSiteAndFlavor, i=1) = i ≤ iter.N ? (i, i+1) : nothing 
 Base.length(iter::EachSiteAndFlavor) = iter.N
 Base.eltype(::EachSiteAndFlavor) = Int64
 
@@ -51,7 +51,7 @@ EachSite(l::AbstractLattice) = EachSite(length(l))
 EachSite(mc::MonteCarloFlavor, model::Model) = EachSite(lattice(model))
 eachsite(args...) = EachSite(args...)
 
-@bm Base.iterate(iter::EachSite, i=1) = i ≤ iter.N ? (i, i+1) : nothing 
+Base.iterate(iter::EachSite, i=1) = i ≤ iter.N ? (i, i+1) : nothing 
 Base.length(iter::EachSite) = iter.N
 Base.eltype(::EachSite) = Int64
 
@@ -78,7 +78,7 @@ OnSite(l::AbstractLattice) = OnSite(length(l))
 OnSite(mc::MonteCarloFlavor, model::Model) = OnSite(lattice(model))
 onsite(args...) = OnSite(args...)
 
-@bm Base.iterate(iter::OnSite, i=1) = i ≤ iter.N ? ((i, i), i+1) : nothing 
+Base.iterate(iter::OnSite, i=1) = i ≤ iter.N ? ((i, i), i+1) : nothing 
 Base.length(iter::OnSite) = iter.N
 Base.eltype(::OnSite) = Tuple{Int64, Int64}
 
@@ -105,7 +105,7 @@ EachSitePair(l::AbstractLattice) = EachSitePair(length(l))
 EachSitePair(mc::MonteCarloFlavor, model::Model) = EachSitePair(lattice(model))
 eachsitepair(args...) = EachSitePair(args...)
 
-@bm function Base.iterate(iter::EachSitePair, i=1)
+function Base.iterate(iter::EachSitePair, i=1)
     if i ≤ iter.N^2
         return ((div(i-1, iter.N)+1, mod1(i, iter.N)), i+1)
     else
@@ -198,7 +198,7 @@ function EachSitePairByDistance(mc::MonteCarloFlavor, model::Model)
 end
 
 
-@bm function Base.iterate(iter::EachSitePairByDistance, state = (1, 1))
+function Base.iterate(iter::EachSitePairByDistance, state = (1, 1))
     dir, i = state
     # next_dir = dir + div(i, length(iter.pairs[dir]))
     # next_i = mod1(i+1, length(iter.pairs[dir]))
@@ -325,14 +325,14 @@ function EachLocalQuadByDistance{K}(mc::MonteCarloFlavor, model::Model) where {K
     EachLocalQuadByDistance{K}(lattice(model))
 end
 
-# @bm function Base.iterate(iter::EachLocalQuadByDistance, state=1)
+# function Base.iterate(iter::EachLocalQuadByDistance, state=1)
 #     if state <= length(iter.direct)
 #         return (iter.direct[state], state+1)
 #     else
 #         return nothing
 #     end
 # end
-@bm function Base.iterate(iter::EachLocalQuadByDistance{K}, state=(1,1)) where {K}
+function Base.iterate(iter::EachLocalQuadByDistance{K}, state=(1,1)) where {K}
     i, j = state
     if i <= length(iter.implied)
         N = length(iter.implied[i])
@@ -446,7 +446,7 @@ function EachLocalQuadBySyncedDistance{K}(mc::MonteCarloFlavor, model::Model) wh
 end
 
 
-@bm function Base.iterate(iter::EachLocalQuadBySyncedDistance{K}, state = (1, 1)) where {K}
+function Base.iterate(iter::EachLocalQuadBySyncedDistance{K}, state = (1, 1)) where {K}
     i, j = state
     if i <= length(iter.implied)
         N = length(iter.implied[i])
