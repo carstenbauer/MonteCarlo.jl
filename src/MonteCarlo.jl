@@ -17,6 +17,8 @@ using CodecZlib
 struct FileWrapper{T}
     file::T
     path::String
+
+    FileWrapper(file::T, path) where T = new{T}(file, abspath(path))
 end
 
 Base.getindex(fw::FileWrapper, k) = getindex(fw.file, k)

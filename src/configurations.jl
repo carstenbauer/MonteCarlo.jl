@@ -164,7 +164,7 @@ end
 # chunk loading and saving
 function save_final_chunk!(cr::BufferedConfigRecorder)
     if cr.total_length != (cr.chunk - 1) * length(cr.buffer) + cr.idx - 1
-        error("Attempting to save non-final chunk $(cr.chunk)!")
+        error("Attempting to save non-final chunk $(cr.chunk)!") # TODO this error triggered?
     end
     save_chunk!(cr)
     cr.save_idx = cr.total_length
@@ -196,14 +196,23 @@ end
 
 
 function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
-    if cr.save_idx != cr.total_length || !isfile(cr.filename.absolute_path)
-        save_final_chunk!(cr)
+    # save current buffer
+    if !(cr.chunk == -1 && cr.idx == -1) # not in unitialized state
+        if cr.save_idx != cr.total_length || !isfile(cr.filename.absolute_path)
+            save_final_chunk!(cr)
+        end
     end
 
     # adjust relative FilePath
     if cr.filename.is_relative
+        # get dir of savefile
         path, _ = splitdir(file.path)
-        filepath = joinpath(path, cr.filename.relative_path)
+
+        # get adjusted absolute path, removing potential preceding /
+        rp = cr.filename.relative_path
+        filepath = joinpath(path, startswith(rp, '/') ? rp[2:end] : rp)
+
+        # move file if the path changed
         if filepath != cr.filename.absolute_path
             if isfile(filepath)
                 new_filepath = _generate_unique_filename(filepath)
@@ -212,9 +221,12 @@ function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
             end
             mv(cr.filename.absolute_path, filepath)
         end
-        cr.filename = FilePath(true, string(filepath[length(path)+1:end]), filepath)
+
+        # update filepath
+        cr.filename = FilePath(true, string(filepath[length(path)+2:end]), filepath)
     end
 
+    # main save information
     write(file, entryname * "/VERSION", 2)
     write(file, entryname * "/tag", "BufferedConfigRecorder")
     write(file, entryname * "/filename", cr.filename)
