@@ -1,3 +1,23 @@
+"""
+    nearest_neighbor_count(mc, ϵ = 1e-6)
+
+Determines the number of nearest neighbors by bond distance.
+"""
+function nearest_neighbor_count(mc, ϵ = 1e-6)
+    l = lattice(mc)
+    dirs = directions(l)
+    @assert dirs[1] == [0.0, 0.0]
+
+    sq_norm = dot(dirs[2], dirs[2])
+    for i in 3:length(l)
+        if !(sq_norm * (1.0 - ϵ)  <= dot(dirs[i], dirs[i]) <= sq_norm * (1.0 + ϵ))
+            return i-2
+        end
+    end
+    return length(l)-1
+end
+
+
 ################################################################################
 ### Measurement constructors
 ################################################################################
@@ -106,7 +126,7 @@ spin_density_susceptibility(mc, args...; kwargs...) = spin_density(mc, args..., 
 
 function pairing(
         dqmc::DQMC, model::Model, greens_iterator; 
-        K = 1+length(neighbors(lattice(model), 1)), wrapper = nothing, 
+        K = 1 + nearest_neighbor_count(dqmc), wrapper = nothing, 
         lattice_iterator = EachLocalQuadByDistance{K}, 
         kernel = pc_combined_kernel, kwargs...
     )
@@ -154,7 +174,7 @@ EachSyncedNNQuadByDistance{K}?
 =#
 function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
-        K = 1+length(neighbors(lattice(model), 1)),
+        K = 1 + nearest_neighbor_count(dqmc),
         greens_iterator = CombinedGreensIterator(dqmc), wrapper = nothing,
         lattice_iterator = EachLocalQuadBySyncedDistance{K}, kwargs...
     )
@@ -163,7 +183,7 @@ function current_current_susceptibility(
 end
 function superfluid_density(
         dqmc::DQMC, model::Model, Ls = size(lattice(model)); 
-        K = 1+length(neighbors(lattice(model), 1)), 
+        K = 1 + nearest_neighbor_count(dqmc), 
         capacity = _default_capacity(dqmc),
         obs = LogBinner(ComplexF64(0), capacity=capacity),
         kwargs...
