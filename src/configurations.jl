@@ -123,6 +123,7 @@ function _push!(cr::BufferedConfigRecorder, data)
         chunk, idx = idx2chunk_idx(cr, cr.total_length+1)
         # load chunk if not loaded and required
         chunk != cr.chunk && idx != 1 && load_chunk!(cr, chunk)
+        cr.chunk = chunk
         cr.idx = idx
     elseif cr.idx > length(cr.buffer)
         # The buffer is full - commit to file
@@ -214,12 +215,17 @@ function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
 
         # move file if the path changed
         if filepath != cr.filename.absolute_path
-            if isfile(filepath)
-                new_filepath = _generate_unique_filename(filepath)
-                @warn "Config file '$filepath' already exists, renaming to '$new_filepath' to avoid collision."
-                filepath = new_filepath
+            # source exists, move while avoiding overwriting (?)
+            if isfile(cr.filename.absolute_path)
+                if isfile(filepath) 
+                    new_filepath = _generate_unique_filename(filepath)
+                    @warn "Config file '$filepath' already exists, renaming to '$new_filepath' to avoid collision."
+                    filepath = new_filepath
+                end
+                mv(cr.filename.absolute_path, filepath)
             end
-            mv(cr.filename.absolute_path, filepath)
+            # if source does not exist we keep the filename. If that file already
+            # exists we assume it's this simulations file.
         end
 
         # update filepath
