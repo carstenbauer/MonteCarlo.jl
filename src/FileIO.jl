@@ -126,7 +126,7 @@ end
 _load(data, g1::String, g2::String, gs::String...) = _load(data[g1], g2, gs...)
 function _load(data, g::String)
     if !(data["VERSION"] == 1)
-        throw(ErrorException("Failed to load $filename version $(data["VERSION"])"))
+        throw(ErrorException("Failed to load $(data.path) version $(data["VERSION"])"))
     end
 
     haskey(data[g], "RNG") && load_rng!(data)

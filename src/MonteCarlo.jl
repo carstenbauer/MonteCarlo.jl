@@ -21,11 +21,21 @@ struct FileWrapper{T}
     FileWrapper(file::T, path) where T = new{T}(file, abspath(path))
 end
 
-Base.getindex(fw::FileWrapper, k) = getindex(fw.file, k)
+function Base.getindex(fw::FileWrapper{T}, k) where T
+    out = getindex(fw.file, k)
+    if out isa Union{JLD2.JLDFile, JLD2.Group}
+        return FileWrapper(out, fw.path)
+    else
+        out
+    end
+end
 Base.setindex!(fw::FileWrapper, k, v) = setindex!(fw.file, k, v)
 Base.haskey(fw::FileWrapper, k) = haskey(fw.file, k)
 Base.write(fw::FileWrapper, x) = write(fw.file, x)
 Base.write(fw::FileWrapper, k, x) = write(fw.file, k, x)
+Base.close(fw::FileWrapper) = close(fw.file)
+Base.get(fw::FileWrapper, k, default) = haskey(fw, k) ? fw[k] : default
+Base.keys(fw::FileWrapper) = keys(fw.file)
 
 # To allow switching between JLD and JLD2:
 const UnknownType = Union{JLD.UnsupportedType, JLD2.UnknownType}
