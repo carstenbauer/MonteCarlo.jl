@@ -97,7 +97,7 @@
 
     @testset "Parent related file IO (moving, renaming, replacing)" begin
         isdir("temp_dir1") || mkdir("temp_dir1")
-        isdir("temp_dir1") || mkdir("temp_dir2")
+        isdir("temp_dir2") || mkdir("temp_dir2")
         rm.(joinpath.("temp_dir1", readdir("temp_dir1")))
         rm.(joinpath.("temp_dir2", readdir("temp_dir2")))
 
