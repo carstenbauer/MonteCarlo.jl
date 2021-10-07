@@ -194,20 +194,10 @@ function load_chunk!(cr::BufferedConfigRecorder, chunk)
     cr.idx = -1
 end
 
-
-
-function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
-    # save current buffer
-    if !(cr.chunk == -1 && cr.idx == -1) # not in unitialized state
-        if cr.save_idx != cr.total_length || !isfile(cr.filename.absolute_path)
-            save_final_chunk!(cr)
-        end
-    end
-
-    # adjust relative FilePath
+function update_filepath!(cr::BufferedConfigRecorder, parent_path)
     if cr.filename.is_relative
         # get dir of savefile
-        path, _ = splitdir(file.path)
+        path, _ = splitdir(parent_path)
 
         # get adjusted absolute path, removing potential preceding /
         rp = cr.filename.relative_path
@@ -215,6 +205,10 @@ function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
 
         # move file if the path changed
         if filepath != cr.filename.absolute_path
+            # TODO
+            # add a random tag to the cr file and the dqmc savefile on save
+            # if tag matches we can replace, else rename
+            
             # source exists, move while avoiding overwriting (?)
             if isfile(cr.filename.absolute_path)
                 if isfile(filepath) 
@@ -232,6 +226,21 @@ function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
         cr.filename = FilePath(true, string(filepath[length(path)+2:end]), filepath)
     end
 
+    nothing
+end
+
+
+function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
+    # save current buffer
+    if !(cr.chunk == -1 && cr.idx == -1) # not in unitialized state
+        if cr.save_idx != cr.total_length || !isfile(cr.filename.absolute_path)
+            save_final_chunk!(cr)
+        end
+    end
+
+    # adjust relative FilePath
+    update_filepath!(cr, file.path)
+
     # main save information
     write(file, entryname * "/VERSION", 2)
     write(file, entryname * "/tag", "BufferedConfigRecorder")
@@ -242,14 +251,20 @@ function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
     write(file, entryname * "/save_idx", cr.total_length)
     nothing
 end
+
 function _load(data, ::Val{:BufferedConfigRecorder})
     if !(data["VERSION"] <= 2)
         throw(ErrorException("Failed to load BufferedConfigRecorder version $(data["VERSION"])"))
     end
-    BufferedConfigRecorder(
+    cr = BufferedConfigRecorder(
         data["filename"], data["buffer"], data["rate"], -1, -1, 
         data["total_length"], data["save_idx"]
     )
+
+    # adjust relative FilePath
+    update_filepath!(cr, data.path)
+
+    return cr
 end
 
 
