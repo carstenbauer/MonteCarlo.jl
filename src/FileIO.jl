@@ -147,7 +147,9 @@ See also: [`run!`](@ref)
 """
 function resume!(filename; kwargs...)
     data = if endswith(filename, "jld2")
-        JLD2.jldopen(filename, "r") else JLD.load(filename)
+        FileWrapper(JLD2.jldopen(filename, "r"), filename)
+    else 
+        FileWrapper(JLD.load(filename), filename)
     end
 
     if !(data["VERSION"] == 1)

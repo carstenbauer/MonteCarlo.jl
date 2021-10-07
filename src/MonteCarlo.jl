@@ -23,7 +23,7 @@ end
 
 function Base.getindex(fw::FileWrapper{T}, k) where T
     out = getindex(fw.file, k)
-    if out isa Union{JLD2.JLDFile, JLD2.Group}
+    if out isa Union{JLD2.JLDFile, JLD2.Group, Dict} # JLD generates a nested dict :(
         return FileWrapper(out, fw.path)
     else
         out

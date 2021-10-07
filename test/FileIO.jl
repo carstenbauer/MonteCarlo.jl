@@ -1,97 +1,174 @@
 @testset "BufferedConfigRecorder" begin
-    isfile("testfile.confs") && rm("testfile.confs")
-    r = MonteCarlo.BufferedConfigRecorder{Matrix{Float64}}("testfile.confs", 2, 20)
-   
-    # Initialization
-    @test r.filename == MonteCarlo.FilePath(false, "testfile.confs", "testfile.confs")
-    @test length(r.buffer) == 20
-    @test eltype(r.buffer) == Matrix{Float64}
-    @test r.rate == 2
-    @test r.idx == 1
-    @test r.chunk == 1
-    @test r.total_length == 0
-    @test r.save_idx == -1
-    @test !isdefined(r.buffer, 1)
+    @testset "Runtime File IO" begin
+        isfile("testfile.confs") && rm("testfile.confs")
+        r = MonteCarlo.BufferedConfigRecorder{Matrix{Float64}}("testfile.confs", 2, 20)
+    
+        # Initialization
+        @test r.filename == MonteCarlo.FilePath(false, "testfile.confs", "testfile.confs")
+        @test length(r.buffer) == 20
+        @test eltype(r.buffer) == Matrix{Float64}
+        @test r.rate == 2
+        @test r.idx == 1
+        @test r.chunk == 1
+        @test r.total_length == 0
+        @test r.save_idx == -1
+        @test !isdefined(r.buffer, 1)
 
-    # Basic utility functions
-    @test length(r) == r.total_length
-    @test lastindex(r) == r.total_length
-    @test isempty(r)
+        # Basic utility functions
+        @test length(r) == r.total_length
+        @test lastindex(r) == r.total_length
+        @test isempty(r)
 
-    # push to empty memory buffer
-    c = rand(4, 4)
-    MonteCarlo._push!(r, c)
-
-    @test r.idx == 2
-    @test r.chunk == 1
-    @test r.total_length == 1
-    @test r.save_idx == -1
-    @test r.buffer[1] == c
-    @test !isdefined(r.buffer, 2)
-
-    @test length(r) == r.total_length
-    @test lastindex(r) == r.total_length
-    @test !isempty(r)
-    @test r[1] == c
-
-    # fill memory buffer - no save yet
-    for _ in 2:20
+        # push to empty memory buffer
+        c = rand(4, 4)
         MonteCarlo._push!(r, c)
+
+        @test r.idx == 2
+        @test r.chunk == 1
+        @test r.total_length == 1
+        @test r.save_idx == -1
+        @test r.buffer[1] == c
+        @test !isdefined(r.buffer, 2)
+
+        @test length(r) == r.total_length
+        @test lastindex(r) == r.total_length
+        @test !isempty(r)
+        @test r[1] == c
+
+        # fill memory buffer - no save yet
+        for _ in 2:20
+            MonteCarlo._push!(r, c)
+        end
+
+        @test r.idx == 21
+        @test r.chunk == 1
+        @test r.total_length == 20
+        @test r.save_idx == -1
+        @test r.buffer[20] == c
+        @test r[20] == c
+
+        # overflow push - should save and reset buffer
+        c2 = rand(4, 4)
+        MonteCarlo._push!(r, c2)
+
+        @test r.idx == 2
+        @test r.chunk == 2
+        @test r.total_length == 21
+        @test r.save_idx == 20
+        @test r.buffer[1] == c2
+        @test r[21] == c2
+
+        # query last chunk - should load and mark idx for reload
+        @test r[20] == c
+        @test r[1] == c
+        @test r.idx == -1
+        @test r.chunk == 1
+        @test r.total_length == 21
+        @test r.save_idx == 21
+
+        # push to wrong chunk - should load correct chunk
+        c3 = rand(4, 4)
+        MonteCarlo._push!(r, c3)
+
+        @test r.idx == 3
+        @test r.chunk == 2
+        @test r.total_length == 22
+        @test r.save_idx == 21
+        @test r.buffer[1] == c2 # this would fail if chunk not loaded
+        @test r.buffer[2] == c3
+        @test r.buffer[3] == c
+
+        # test merge!
+        c4 = rand(4, 4)
+        cs = ConfigRecorder{Matrix{Float64}}([c4 for _ in 1:17], 10)
+        merge!(r, cs)
+
+        @test r.idx == 20
+        @test r.chunk == 2
+        @test r.total_length == 39
+        @test r.save_idx == 21
+        @test r.buffer[1] == c2   # old
+        @test r.buffer[2] == c3   # old
+        @test r.buffer[3] == c4   # new
+        @test r.buffer[19] == c4  # new
+        @test r.buffer[20] == c   # to be overwritten
+        rm("testfile.confs")
     end
 
-    @test r.idx == 21
-    @test r.chunk == 1
-    @test r.total_length == 20
-    @test r.save_idx == -1
-    @test r.buffer[20] == c
-    @test r[20] == c
+    @testset "Parent related file IO (moving, renaming, replacing)" begin
+        isdir("temp_dir1") || mkdir("temp_dir1")
+        isdir("temp_dir1") || mkdir("temp_dir2")
+        rm.(joinpath.("temp_dir1", readdir("temp_dir1")))
+        rm.(joinpath.("temp_dir2", readdir("temp_dir2")))
 
-    # overflow push - should save and reset buffer
-    c2 = rand(4, 4)
-    MonteCarlo._push!(r, c2)
+        m = HubbardModelAttractive(2, 2)
+        recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, RelativePath("testfile.confs"))
+        link_id = recorder.link_id
+        mc = DQMC(m, beta=1.0, recorder = recorder)
+        mc.conf .= rand(DQMC, m, mc.parameters.slices)
+        push!(recorder, mc, mc.model, 0)
 
-    @test r.idx == 2
-    @test r.chunk == 2
-    @test r.total_length == 21
-    @test r.save_idx == 20
-    @test r.buffer[1] == c2
-    @test r[21] == c2
+        # BCR should not save on construction
+        @test recorder.filename.absolute_path == joinpath(pwd(), "testfile.confs")
+        @test !isfile("testfile.confs")
 
-    # query last chunk - should load and mark idx for reload
-    @test r[20] == c
-    @test r[1] == c
-    @test r.idx == -1
-    @test r.chunk == 1
-    @test r.total_length == 21
-    @test r.save_idx == 21
+        # parent save should trigger save
+        MonteCarlo.save("temp_dir1/testfile.jld2", mc)
+        @test isfile("temp_dir1/testfile.confs")
+        @test isfile("temp_dir1/testfile.jld2")
+        @test !isfile("testfile.confs")
 
-    # push to wrong chunk - should load correct chunk
-    c3 = rand(4, 4)
-    MonteCarlo._push!(r, c3)
+        # both files should have same link_id
+        MonteCarlo.JLD2.jldopen("temp_dir1/testfile.confs", "r") do file
+            @test file["link_id"] == link_id
+        end
+        MonteCarlo.JLD2.jldopen("temp_dir1/testfile.jld2", "r") do file
+            @test file["MC"]["configs"]["link_id"] == link_id
+        end
 
-    @test r.idx == 3
-    @test r.chunk == 2
-    @test r.total_length == 22
-    @test r.save_idx == 21
-    @test r.buffer[1] == c2 # this would fail if chunk not loaded
-    @test r.buffer[2] == c3
-    @test r.buffer[3] == c
+        # check if data loaded is correct
+        x = MonteCarlo.load("temp_dir1/testfile.jld2")
+        @test x.recorder.filename == recorder.filename
+        @test x.recorder.link_id == link_id
+        @test recorder[1] == x.recorder[1]
 
-    # test merge!
-    c4 = rand(4, 4)
-    cs = ConfigRecorder{Matrix{Float64}}([c4 for _ in 1:17], 10)
-    merge!(r, cs)
+        function move_load_check(recorder, filename_should_match)
+            mv("temp_dir1/testfile.jld2", "temp_dir2/testfile.jld2")
+            x = MonteCarlo.load("temp_dir2/testfile.jld2")
+            @test filename_should_match == (x.recorder.filename.relative_path == recorder.filename.relative_path)
+            @test x.recorder.filename.absolute_path == joinpath(pwd(), "temp_dir2", x.recorder.filename.relative_path)
+            @test x.recorder.link_id == link_id
+            @test recorder[1] == x.recorder[1]
+            @test isfile("temp_dir2/testfile.confs")
+            @test !isfile("temp_dir1/testfile.confs")
+            @test length(readdir("temp_dir2")) == 3 - filename_should_match
+            mv("temp_dir2/testfile.jld2", "temp_dir1/testfile.jld2")
+            mv("temp_dir2/testfile.confs", "temp_dir1/testfile.confs")
+            nothing
+        end
 
-    @test r.idx == 20
-    @test r.chunk == 2
-    @test r.total_length == 39
-    @test r.save_idx == 21
-    @test r.buffer[1] == c2   # old
-    @test r.buffer[2] == c3   # old
-    @test r.buffer[3] == c4   # new
-    @test r.buffer[19] == c4  # new
-    @test r.buffer[20] == c   # to be overwritten
-    rm("testfile.confs")
+        # Move parent only - recorder should move on load
+        move_load_check(recorder, true)
+
+        # Move both - recorder should adjust filename
+        mv("temp_dir1/testfile.confs", "temp_dir2/testfile.confs")
+        move_load_check(recorder, true)
+
+        # Move parent, dublicate BCS file
+        # file should be replaced
+        cp("temp_dir1/testfile.confs", "temp_dir2/testfile.confs")
+        move_load_check(recorder, true)
+
+        # Move parent, create collision
+        # file should be renamed
+        close(open("temp_dir2/testfile.confs", "w"))
+        move_load_check(recorder, false)
+
+        # save uses the same function to move/replace/rename so it's not really
+        # necessary to test this specifically
+        rm("temp_dir1", recursive=true)
+        rm("temp_dir2", recursive=true)
+    end
 end
 
 function test_mc(mc, x)
