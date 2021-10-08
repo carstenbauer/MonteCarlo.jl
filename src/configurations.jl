@@ -297,7 +297,7 @@ function _load(data, ::Val{:BufferedConfigRecorder})
 
     # generate new link_id if none exists yet
     if link_id == "N/A"
-        link_id = rand(UInt128)
+        link_id = string(rand(UInt128))
         cr.link_id = link_id
         JLD2.jldopen(cr.filename.absolute_path, "a+") do file
             file["link_id"] = cr.link_id
