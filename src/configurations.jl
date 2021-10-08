@@ -295,12 +295,10 @@ function _load(data, ::Val{:BufferedConfigRecorder})
     # adjust relative FilePath
     update_filepath!(cr, data.path)
 
-    # generate new link_id if none exists yet
+    # if link_id unknown get it from file or generate new
     if link_id == "N/A"
-        link_id = string(rand(UInt128))
-        cr.link_id = link_id
-        JLD2.jldopen(cr.filename.absolute_path, "a+") do file
-            file["link_id"] = cr.link_id
+        cr.link_id = JLD2.jldopen(cr.filename.absolute_path, "r") do file
+            haskey(file, "link_id") ? file["link_id"] : string(rand(UInt128))
         end
     end
 
