@@ -95,12 +95,12 @@
         rm("testfile.confs")
     end
 
-    @testset "Parent related file IO (moving, renaming, replacing)" begin
-        isdir("temp_dir1") || mkdir("temp_dir1")
-        isdir("temp_dir2") || mkdir("temp_dir2")
-        rm.(joinpath.("temp_dir1", readdir("temp_dir1")))
-        rm.(joinpath.("temp_dir2", readdir("temp_dir2")))
+    dir1 = randstring(16)
+    dir2 = randstring(16)
+    mkdir(dir1)
+    mkdir(dir2)
 
+    @testset "Parent related file IO (moving, renaming, replacing)" begin
         m = HubbardModelAttractive(2, 2)
         recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, RelativePath("testfile.confs"))
         link_id = recorder.link_id
@@ -113,37 +113,37 @@
         @test !isfile("testfile.confs")
 
         # parent save should trigger save
-        MonteCarlo.save("temp_dir1/testfile.jld2", mc)
-        @test isfile("temp_dir1/testfile.confs")
-        @test isfile("temp_dir1/testfile.jld2")
+        MonteCarlo.save("$dir1/testfile.jld2", mc)
+        @test isfile("$dir1/testfile.confs")
+        @test isfile("$dir1/testfile.jld2")
         @test !isfile("testfile.confs")
 
         # both files should have same link_id
-        MonteCarlo.JLD2.jldopen("temp_dir1/testfile.confs", "r") do file
+        MonteCarlo.JLD2.jldopen("$dir1/testfile.confs", "r") do file
             @test file["link_id"] == link_id
         end
-        MonteCarlo.JLD2.jldopen("temp_dir1/testfile.jld2", "r") do file
+        MonteCarlo.JLD2.jldopen("$dir1/testfile.jld2", "r") do file
             @test file["MC"]["configs"]["link_id"] == link_id
         end
 
         # check if data loaded is correct
-        x = MonteCarlo.load("temp_dir1/testfile.jld2")
+        x = MonteCarlo.load("$dir1/testfile.jld2")
         @test x.recorder.filename == recorder.filename
         @test x.recorder.link_id == link_id
         @test recorder[1] == x.recorder[1]
 
         function move_load_check(recorder, filename_should_match)
-            mv("temp_dir1/testfile.jld2", "temp_dir2/testfile.jld2")
-            x = MonteCarlo.load("temp_dir2/testfile.jld2")
+            mv("$dir1/testfile.jld2", "$dir2/testfile.jld2")
+            x = MonteCarlo.load("$dir2/testfile.jld2")
             @test filename_should_match == (x.recorder.filename.relative_path == recorder.filename.relative_path)
-            @test x.recorder.filename.absolute_path == joinpath(pwd(), "temp_dir2", x.recorder.filename.relative_path)
+            @test x.recorder.filename.absolute_path == joinpath(pwd(), dir2, x.recorder.filename.relative_path)
             @test x.recorder.link_id == link_id
             @test recorder[1] == x.recorder[1]
-            @test isfile("temp_dir2/testfile.confs")
-            @test !isfile("temp_dir1/testfile.confs")
-            @test length(readdir("temp_dir2")) == 3 - filename_should_match
-            mv("temp_dir2/testfile.jld2", "temp_dir1/testfile.jld2")
-            mv("temp_dir2/testfile.confs", "temp_dir1/testfile.confs")
+            @test isfile("$dir2/testfile.confs")
+            @test !isfile("$dir1/testfile.confs")
+            @test length(readdir(dir2)) == 3 - filename_should_match
+            mv("$dir2/testfile.jld2", "$dir1/testfile.jld2")
+            mv("$dir2/testfile.confs", "$dir1/testfile.confs")
             nothing
         end
 
@@ -151,24 +151,25 @@
         move_load_check(recorder, true)
 
         # Move both - recorder should adjust filename
-        mv("temp_dir1/testfile.confs", "temp_dir2/testfile.confs")
+        mv("$dir1/testfile.confs", "$dir2/testfile.confs")
         move_load_check(recorder, true)
 
         # Move parent, dublicate BCS file
         # file should be replaced
-        cp("temp_dir1/testfile.confs", "temp_dir2/testfile.confs")
+        cp("$dir1/testfile.confs", "$dir2/testfile.confs")
         move_load_check(recorder, true)
 
         # Move parent, create collision
         # file should be renamed
-        close(open("temp_dir2/testfile.confs", "w"))
+        close(open("$dir2/testfile.confs", "w"))
         move_load_check(recorder, false)
 
         # save uses the same function to move/replace/rename so it's not really
         # necessary to test this specifically
-        rm("temp_dir1", recursive=true)
-        rm("temp_dir2", recursive=true)
     end
+
+    rm(dir1, recursive=true)
+    rm(dir2, recursive=true)
 end
 
 function test_mc(mc, x)
