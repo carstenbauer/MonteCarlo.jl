@@ -210,9 +210,17 @@ function update_filepath!(cr::BufferedConfigRecorder, parent_path)
         rp = cr.filename.relative_path
         filepath = joinpath(path, startswith(rp, '/') ? rp[2:end] : rp)
 
-        # move file if the absolute path is incorrect
-        if filepath != cr.filename.absolute_path
-            if isfile(cr.filename.absolute_path)
+        # if absolute_path does not point to a file the parent has been moved to
+        # a different system. In this case we assume that the file will be moved
+        # as well.
+        # if there is a file at absolute_path and the path differs from filepath
+        # we should move the file.
+        if isfile(cr.filename.absolute_path) && filepath != cr.filename.absolute_path
+
+            # if there is already a file at filepath we may need to replace it.
+            # If the id's don't match it belongs to a different simulation and
+            # we rename this file, otherwise we replace.
+            if isfile(filepath) 
                 target_link_id = try 
                     JLD2.jldopen(filepath, "r") do f
                         get(f, "link_id", "N/A") # maybe default to current?
@@ -221,9 +229,7 @@ function update_filepath!(cr::BufferedConfigRecorder, parent_path)
                     "ERROR"
                 end
 
-                # file exists and does not match this id - rename our file
                 if target_link_id != cr.link_id
-                    # rename
                     new_filepath = _generate_unique_filename(filepath)
                     @warn(
                         "There already exists an independent file at " * 
@@ -231,15 +237,10 @@ function update_filepath!(cr::BufferedConfigRecorder, parent_path)
                         "overwriting other data."
                     )
                     filepath = new_filepath
-
-                # file exists and has this id - replace it
-                else
-                    # replace
-                    @warn "Replacing dublicate file at $filepath"
                 end
-
-                mv(cr.filename.absolute_path, filepath, force = true)
             end
+
+            mv(cr.filename.absolute_path, filepath, force = true)
         end
 
         # update filepath
@@ -296,7 +297,7 @@ function _load(data, ::Val{:BufferedConfigRecorder})
     update_filepath!(cr, data.path)
 
     # if link_id unknown get it from file or generate new
-    if link_id == "N/A"
+    if link_id == "N/A" && isfile(cr.filename.absolute_path)
         cr.link_id = JLD2.jldopen(cr.filename.absolute_path, "r") do file
             haskey(file, "link_id") ? file["link_id"] : string(rand(UInt128))
         end
