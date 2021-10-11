@@ -161,7 +161,7 @@
 
         # Move parent, create collision
         # file should be renamed
-        close(open("$dir2/testfile.confs", "w"))
+        open(f -> write(f, "Test"), "$dir2/testfile.confs", "w")
         move_load_check(recorder, false)
 
         # save uses the same function to move/replace/rename so it's not really
