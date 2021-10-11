@@ -116,7 +116,7 @@ mcs = []
     mc[:T] = noninteracting_energy(mc, m)
     
     # ALF defines our I - G as the measured Greens function
-    mygreens(mc, m, ij, G) = begin i, j = ij; 2 * dagger(G)[i, j] end
+    mygreens(mc, m, ij, G) = begin i, j = ij; 2 * swapop(G)[i, j] end
     mc[:Gr] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance, mygreens)
     
     # The interaction energy needs to be adjusted to ALF's Hamiltonian
@@ -130,10 +130,10 @@ mcs = []
     )
         
     # ALF subtracts the uncorrelated part
-    myDenDen(mc, m, ij, G) = begin i, j = ij; 2 * dagger(G)[i, j] * G[i, j] end
+    myDenDen(mc, m, ij, G) = begin i, j = ij; 2 * swapop(G)[i, j] * G[i, j] end
     mc[:DenDen] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance, myDenDen)
     
-    myDenDenTau(mc, m, ij, Gs) = begin G00, G0l, Gl0, Gll = Gs; i, j = ij; 2 * dagger(G0l)[i, j] * Gl0[i, j] end
+    myDenDenTau(mc, m, ij, Gs) = begin G00, G0l, Gl0, Gll = Gs; i, j = ij; 2 * swapop(G0l)[i, j] * Gl0[i, j] end
     mc[:DenDenTau] = MonteCarlo.Measurement(mc, m, CombinedGreensIterator, EachSitePairByDistance, myDenDenTau)
     
     run!(mc)

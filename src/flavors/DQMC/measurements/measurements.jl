@@ -269,7 +269,7 @@ end
 - Use Wicks theorem to go from one expectation value with 2N operators to 
   N expectation values with 2 operators each
 - use G_{ij} = ⟨c_i c_j^†⟩
-- use ⟨c_i^† c_j⟩ = δ_{ij} - ⟨c_j c_i^†⟩ = (I - G)_{ji} = dagger(::GreensMatrix)[i, j]
+- use ⟨c_i^† c_j⟩ = δ_{ij} - ⟨c_j c_i^†⟩ = (I - G)_{ji} = swapop(::GreensMatrix)[i, j]
 - we define G[i,j] as spin up, G[i+N,j+N] as spin down (N = number of sites)
 - we used (I - G)[i, j+N] = G[i, j+N] etc when possible
 - Gl0_{i,j} = ⟨c_i(l) c_j(0)^†⟩
@@ -313,17 +313,17 @@ function cdc_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
     N = length(lattice(mc))
     # ⟨n↑n↑⟩
-    dagger(G)[i, i] * dagger(G)[j, j] +
-    dagger(G)[i, j] * G[i, j] +
+    swapop(G)[i, i] * swapop(G)[j, j] +
+    swapop(G)[i, j] * G[i, j] +
     # ⟨n↑n↓⟩
-    dagger(G)[i, i] * dagger(G)[j+N, j+N] +
-    dagger(G)[i, j+N] * G[i, j + N] +
+    swapop(G)[i, i] * swapop(G)[j+N, j+N] +
+    swapop(G)[i, j+N] * G[i, j + N] +
     # ⟨n↓n↑⟩
-    dagger(G)[i+N, i+N] * dagger(G)[j, j] +
-    dagger(G)[i+N, j] * G[i+N, j] +
+    swapop(G)[i+N, i+N] * swapop(G)[j, j] +
+    swapop(G)[i+N, j] * G[i+N, j] +
     # ⟨n↓n↓⟩
-    dagger(G)[i+N, i+N]  * dagger(G)[j+N, j+N] +
-    dagger(G)[i+N, j+N] * G[i+N, j+N]
+    swapop(G)[i+N, i+N]  * swapop(G)[j+N, j+N] +
+    swapop(G)[i+N, j+N] * G[i+N, j+N]
 end
 
 function cdc_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
@@ -331,17 +331,17 @@ function cdc_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(mc))
     # ⟨n↑(l)n↑(0)⟩
-    dagger(Gll)[i, i] * dagger(G00)[j, j] +
-    dagger(G0l)[i, j] * Gl0[i, j] +
+    swapop(Gll)[i, i] * swapop(G00)[j, j] +
+    swapop(G0l)[i, j] * Gl0[i, j] +
     # ⟨n↑(l)n↓(0)⟩
-    dagger(Gll)[i, i] * dagger(G00)[j+N, j+N] +
-    dagger(G0l)[i, j+N] * Gl0[i, j + N] +
+    swapop(Gll)[i, i] * swapop(G00)[j+N, j+N] +
+    swapop(G0l)[i, j+N] * Gl0[i, j + N] +
     # ⟨n↓(l)n↑(0)⟩
-    dagger(Gll)[i+N, i+N] * dagger(G00)[j, j] +
-    dagger(G0l)[i+N, j] * Gl0[i+N, j] +
+    swapop(Gll)[i+N, i+N] * swapop(G00)[j, j] +
+    swapop(G0l)[i+N, j] * Gl0[i+N, j] +
     # ⟨n↓(l)n↓(0)⟩
-    dagger(Gll)[i+N, i+N] * dagger(G00)[j+N, j+N] +
-    dagger(G0l)[i+N, j+N] * Gl0[i+N, j+N]
+    swapop(Gll)[i+N, i+N] * swapop(G00)[j+N, j+N] +
+    swapop(G0l)[i+N, j+N] * Gl0[i+N, j+N]
 end
 
 
@@ -401,8 +401,8 @@ function sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     N = length(lattice(model))
     G[i+N, i] * G[j+N, j] + G[i+N, i] * G[j, j+N] + 
     G[i, i+N] * G[j+N, j] + G[i, i+N] * G[j, j+N] + 
-    dagger(G)[i, j+N] * G[i+N, j] + dagger(G)[i, j] * G[i+N, j+N] +
-    dagger(G)[i+N, j+N] * G[i, j] + dagger(G)[i+N, j] * G[i, j+N]
+    swapop(G)[i, j+N] * G[i+N, j] + swapop(G)[i, j] * G[i+N, j+N] +
+    swapop(G)[i+N, j+N] * G[i, j] + swapop(G)[i+N, j] * G[i, j+N]
 end
 function sdc_x_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
     i, j = ij
@@ -410,8 +410,8 @@ function sdc_x_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
     N = length(lattice(model))
     Gll[i+N, i] * G00[j+N, j] + Gll[i+N, i] * G00[j, j+N] + 
     Gll[i, i+N] * G00[j+N, j] + Gll[i, i+N] * G00[j, j+N] + 
-    dagger(G0l)[i, j+N] * Gl0[i+N, j] + dagger(G0l)[i, j] * Gl0[i+N, j+N] +
-    dagger(G0l)[i+N, j+N] * Gl0[i, j] + dagger(G0l)[i+N, j] * Gl0[i, j+N]
+    swapop(G0l)[i, j+N] * Gl0[i+N, j] + swapop(G0l)[i, j] * Gl0[i+N, j+N] +
+    swapop(G0l)[i+N, j+N] * Gl0[i, j] + swapop(G0l)[i+N, j] * Gl0[i, j+N]
 end
 
 """
@@ -429,8 +429,8 @@ function sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     N = length(lattice(model))
     - G[i+N, i] * G[j+N, j] + G[i+N, i] * G[j, j+N] + 
       G[i, i+N] * G[j+N, j] - G[i, i+N] * G[j, j+N] + 
-    - dagger(G)[i, j+N] * G[i+N, j] + dagger(G)[i, j] * G[i+N, j+N] +
-      dagger(G)[i+N, j+N] * G[i, j] - dagger(G)[i+N, j] * G[i, j+N]
+    - swapop(G)[i, j+N] * G[i+N, j] + swapop(G)[i, j] * G[i+N, j+N] +
+      swapop(G)[i+N, j+N] * G[i, j] - swapop(G)[i+N, j] * G[i, j+N]
 end
 function sdc_y_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
     i, j = ij
@@ -438,8 +438,8 @@ function sdc_y_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
     N = length(lattice(model))
     - Gll[i+N, i] * G00[j+N, j] + Gll[i+N, i] * G00[j, j+N] + 
       Gll[i, i+N] * G00[j+N, j] - Gll[i, i+N] * G00[j, j+N] + 
-    - dagger(G0l)[i, j+N] * Gl0[i+N, j] + dagger(G0l)[i, j] * Gl0[i+N, j+N] +
-      dagger(G0l)[i+N, j+N] * Gl0[i, j] - dagger(G0l)[i+N, j] * Gl0[i, j+N]
+    - swapop(G0l)[i, j+N] * Gl0[i+N, j] + swapop(G0l)[i, j] * Gl0[i+N, j+N] +
+      swapop(G0l)[i+N, j+N] * Gl0[i, j] - swapop(G0l)[i+N, j] * Gl0[i, j+N]
 end
 
 """
@@ -455,23 +455,23 @@ where `τ = 0` for the first signature.
 function sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
     N = length(lattice(model))
-    dagger(G)[i, i]     * dagger(G)[j, j] - 
-    dagger(G)[i, i]     * dagger(G)[j+N, j+N] -
-    dagger(G)[i+N, i+N] * dagger(G)[j, j] + 
-    dagger(G)[i+N, i+N] * dagger(G)[j+N, j+N] + 
-    dagger(G)[i, j] * G[i, j]     - dagger(G)[i, j+N] * G[i, j+N] -
-    dagger(G)[i+N, j] * G[i+N, j] + dagger(G)[i+N, j+N] * G[i+N, j+N]
+    swapop(G)[i, i]     * swapop(G)[j, j] - 
+    swapop(G)[i, i]     * swapop(G)[j+N, j+N] -
+    swapop(G)[i+N, i+N] * swapop(G)[j, j] + 
+    swapop(G)[i+N, i+N] * swapop(G)[j+N, j+N] + 
+    swapop(G)[i, j] * G[i, j]     - swapop(G)[i, j+N] * G[i, j+N] -
+    swapop(G)[i+N, j] * G[i+N, j] + swapop(G)[i+N, j+N] * G[i+N, j+N]
 end
 function sdc_z_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
-    dagger(Gll)[i, i] * dagger(G00)[j, j] - 
-    dagger(Gll)[i, i] * dagger(G00)[j+N, j+N] -
-    dagger(Gll)[i+N, i+N] * dagger(G00)[j, j] + 
-    dagger(Gll)[i+N, i+N] * dagger(G00)[j+N, j+N] + 
-    dagger(G0l)[i, j] * Gl0[i, j]     - dagger(G0l)[i, j+N] * Gl0[i, j+N] -
-    dagger(G0l)[i+N, j] * Gl0[i+N, j] + dagger(G0l)[i+N, j+N] * Gl0[i+N, j+N]
+    swapop(Gll)[i, i] * swapop(G00)[j, j] - 
+    swapop(Gll)[i, i] * swapop(G00)[j+N, j+N] -
+    swapop(Gll)[i+N, i+N] * swapop(G00)[j, j] + 
+    swapop(Gll)[i+N, i+N] * swapop(G00)[j+N, j+N] + 
+    swapop(G0l)[i, j] * Gl0[i, j]     - swapop(G0l)[i, j+N] * Gl0[i, j+N] -
+    swapop(G0l)[i+N, j] * Gl0[i+N, j] + swapop(G0l)[i+N, j+N] * Gl0[i+N, j+N]
 end
 
 
@@ -522,7 +522,7 @@ function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     # Δ_v^†(src1, trg1)(τ) Δ_v(src2, trg2)(0)
     # (I-G)_{j, i}^{↑, ↑}(0, τ) (I-G)_{j+d', i+d}^{↓, ↓}(0, τ) - 
     # (I-G)_{j, i+d}^{↑, ↓}(0, τ) G_{j+d', i}^{↓, ↑}(0, τ)
-    dagger(G0l)[trg1+N, trg2+N] * dagger(G0l)[src1, src2] -
+    swapop(G0l)[trg1+N, trg2+N] * swapop(G0l)[src1, src2] -
     G0l[src2, trg1+N] * G0l[trg2+N, src1]
 end
 
@@ -587,10 +587,10 @@ function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     # where (trg-src) picks a direction (e.g. NN directions)
     # and (src1-src2) is the distance vector that the Fourier transform applies to
     # From dos Santos: Introduction to Quantum Monte Carlo Simulations
-    # j_{trg-src}(src, τ) = it \sum\sigma (c^\dagger(trg,\sigma, \tau) c(src, \sigma, \tau) - c^\dagger(src, \sigma, \tau) c(trg, \sigma \tau))
+    # j_{trg-src}(src, τ) = it \sum\sigma (c^\swapop(trg,\sigma, \tau) c(src, \sigma, \tau) - c^\swapop(src, \sigma, \tau) c(trg, \sigma \tau))
     # where i -> src, i+x -> trg as a generalization
     # and t is assumed to be hopping matrix element, generalizing to
-    # = i \sum\sigma (T[trg, src] c^\dagger(trg,\sigma, \tau) c(src, \sigma, \tau) - T[src, trg] c^\dagger(src, \sigma, \tau) c(trg, \sigma \tau))
+    # = i \sum\sigma (T[trg, src] c^\swapop(trg,\sigma, \tau) c(src, \sigma, \tau) - T[src, trg] c^\swapop(src, \sigma, \tau) c(trg, \sigma \tau))
     
             # Why no I? - delta_0l = 0
             # T[t1, s1] * T[t2, s2] * (I[s2, t1] - G0l[s2, t1]) * Gl0[s1, t2] -

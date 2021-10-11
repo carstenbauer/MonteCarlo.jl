@@ -169,8 +169,8 @@ end
     @test G[2, 1] == M[2, 1]
     @test G[2, 2] == M[2, 2]
 
-    D = dagger(G)
-    @test D isa MonteCarlo.Daggered
+    D = swapop(G)
+    @test D isa MonteCarlo.Permuted
     @test D[1, 1] == -M[1, 1]
     @test D[2, 1] == -M[1, 2]
     @test D[1, 2] == -M[2, 1]
@@ -178,12 +178,12 @@ end
     @test size(D) == size(D.x.val)
 
     G = GreensMatrix(7, 7, M)
-    D = dagger(G)
+    D = swapop(G)
     @test D[1, 1] == 1 - M[1, 1]
     @test D[2, 1] == -M[1, 2]
     @test D[1, 2] == -M[2, 1]
     @test D[2, 2] == 1 - M[2, 2]
-    @test dagger(D) == G
+    @test swapop(D) == G
 
     G2 = GreensMatrix(7, 7, M)
     @test G == G2
