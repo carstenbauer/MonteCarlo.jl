@@ -173,8 +173,12 @@
         # necessary to test this specifically
     end
 
-    rm(dir1, recursive=true)
-    rm(dir2, recursive=true)
+    try
+        rm(dir1, recursive = true, force = true)
+        rm(dir2, recursive = true, force = true)
+    catch e
+        @warn "Windows please" exception = e
+    end
 end
 
 function test_mc(mc, x)
