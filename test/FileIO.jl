@@ -139,11 +139,12 @@
             @test x.recorder.filename.absolute_path == joinpath(pwd(), dir2, x.recorder.filename.relative_path)
             @test x.recorder.link_id == link_id
             @test recorder[1] == x.recorder[1]
-            @test isfile("$dir2/testfile.confs")
+            filename = x.recorder.filename.relative_path
+            @test isfile("$dir2/$filename")
             @test !isfile("$dir1/testfile.confs")
             @test length(readdir(dir2)) == 3 - filename_should_match
             mv("$dir2/testfile.jld2", "$dir1/testfile.jld2")
-            mv("$dir2/testfile.confs", "$dir1/testfile.confs")
+            mv("$dir2/$filename", "$dir1/testfile.confs")
             nothing
         end
 
