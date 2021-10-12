@@ -1,5 +1,3 @@
-
-
 using LinearAlgebra
 using MonteCarlo: vmul!, lvmul!, rvmul!, rdivp!, udt_AVX_pivot!, rvadd!, vsub!
 using MonteCarlo: vmin!, vmininv!, vmax!, vmaxinv!, vinv!
@@ -12,9 +10,9 @@ using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
 
     for type in (Float64, ComplexF64)
         @testset "avx multiplications ($type)" begin
-            A = rand(type, 16, 16)
-            B = rand(type, 16, 16)
-            C = rand(type, 16, 16)
+            A = rand(type, 8, 8)
+            B = rand(type, 8, 8)
+            C = rand(type, 8, 8)
             atol = 100eps(Float64)
             type == ComplexF64 && (atol *= sqrt(2))
 
@@ -30,7 +28,7 @@ using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
             vmul!(C, A', B')
             @test A' * B' ≈ C atol = atol
 
-            D = Diagonal(rand(16))
+            D = Diagonal(rand(8))
             vmul!(C, A, D)
             @test A * D ≈ C atol = atol
 
@@ -54,7 +52,7 @@ using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
             @test A - I ≈ C atol = atol
 
             if type == Float64
-                v = rand(16) .+ 0.5
+                v = rand(8) .+ 0.5
                 w = copy(v)
                 
                 vmin!(v, w)
@@ -78,24 +76,24 @@ using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
 
 
         @testset "UDT transformations + rdivp! ($type)" begin
-            U = Matrix{Float64}(undef, 16, 16)
-            D = Vector{Float64}(undef, 16)
-            T = rand(16, 16)
+            U = Matrix{Float64}(undef, 8, 8)
+            D = Vector{Float64}(undef, 8)
+            T = rand(8, 8)
             X = copy(T)
             MonteCarlo.udt_AVX!(U, D, T)
             @test U * Diagonal(D) * T ≈ X
 
-            U = Matrix{type}(undef, 16, 16)
-            T = rand(type, 16, 16)
+            U = Matrix{type}(undef, 8, 8)
+            T = rand(type, 8, 8)
             X = copy(T)
-            pivot = Vector{Int64}(undef, 16)
-            tempv = Vector{type}(undef, 16)
+            pivot = Vector{Int64}(undef, 8)
+            tempv = Vector{type}(undef, 8)
             udt_AVX_pivot!(U, D, T)
             @test U * Diagonal(D) * T ≈ X
 
             copyto!(T, X)
-            pivot = Vector{Int64}(undef, 16)
-            tempv = Vector{type}(undef, 16)
+            pivot = Vector{Int64}(undef, 8)
+            tempv = Vector{type}(undef, 8)
             udt_AVX_pivot!(U, D, T, pivot, tempv, Val(false))
             # pivoting matrix
             P = zeros(length(pivot), length(pivot))

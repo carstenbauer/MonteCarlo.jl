@@ -1,4 +1,4 @@
-@testset "BufferedConfigRecorder" begin
+@time @testset "BufferedConfigRecorder" begin
     @testset "Runtime File IO" begin
         isfile("testfile.confs") && rm("testfile.confs")
         r = MonteCarlo.BufferedConfigRecorder{Matrix{Float64}}("testfile.confs", 2, 20)
@@ -203,14 +203,14 @@ function test_mc(mc, x)
     nothing
 end
 
-println("MC")
+
 @time @testset "MC" begin
     model = IsingModel(dims=2, L=2)
     mc = MC(
         model, beta = 0.66, thermalization = 33, sweeps = 123, 
         recorder = ConfigRecorder(MC, IsingModel, 1)
     )
-    @time run!(mc, verbose=false)
+    run!(mc, verbose=false)
     save("testfile.jld2", mc)
     x = load("testfile.jld2")
     rm("testfile.jld2")
@@ -218,7 +218,7 @@ println("MC")
 
     x.measurements = MonteCarlo.default_measurements(mc, model) 
     x.last_sweep = 0
-    @time replay!(x, verbose=false)
+    replay!(x, verbose=false)
     test_mc(mc, x)
 
     # Test resume
@@ -230,7 +230,7 @@ println("MC")
         model, beta=1.0, thermalization = 0, sweeps=10_000_000, 
         measure_rate=10_000, recorder=ConfigRecorder(MC, IsingModel, 10_000)
     )
-    @time state = run!(
+    state = run!(
         mc, verbose = false,
         safe_before = now() + Second(1),
         grace_period = Millisecond(0),
@@ -243,8 +243,7 @@ println("MC")
     L = length(cs)
 
     # Test whether safe file gets overwritten correctly
-    @info mc.last_sweep
-    @time mc, state = resume!(
+    mc, state = resume!(
         "resumable_testfile.jld",
         verbose = false,
         safe_before = now() + Second(10),
@@ -252,7 +251,6 @@ println("MC")
         overwrite = true,
         resumable_filename = "resumable_testfile.jld"
     )
-    @info mc.last_sweep
 
     @test state == false
     cs = deepcopy(mc.configs)
@@ -267,7 +265,7 @@ println("MC")
         thermalization=0, sweeps=10_000length(cs), 
         measure_rate=10_000, recorder=ConfigRecorder(MC, IsingModel, 10_000)
     )
-    @time state = run!(mc, verbose = false)
+    state = run!(mc, verbose = false)
     @test mc.configs.configs == cs.configs
     @test mc.configs.rate == cs.rate
     rm("resumable_testfile.jld")
@@ -345,7 +343,7 @@ for file in readdir()
     end
 end
 
-println("DQMC")
+
 @time @testset "DQMC" begin
     isfile("testfile.confs") && rm("testfile.confs")
     model = HubbardModelAttractive(4, 2, t = 1.7, U = 5.5)
@@ -354,10 +352,7 @@ println("DQMC")
         recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, "testfile.confs", rate = 1)
     )
     mc[:CDC] = charge_density_correlation(mc, model)
-    t = time()
     run!(mc, verbose=false)
-    t = time() - t
-    @info t
 
     save("testfile.jld", mc)
     x = load("testfile.jld")
@@ -370,7 +365,7 @@ println("DQMC")
     # Check everything again with x being a replayed simulation
     x[:CDC] = charge_density_correlation(x, model)
     x.last_sweep = 0
-    @time replay!(x, verbose=false)
+    replay!(x, verbose=false)
     test_dqmc(mc, x)
     isfile("testfile.confs") && rm("testfile.confs")
     
@@ -386,7 +381,7 @@ println("DQMC")
     )
     mc[:CDC] = charge_density_correlation(mc, model)
 
-    @time state = run!(
+    state = run!(
         mc, verbose = false,
         safe_before = now() + Second(2),
         grace_period = Millisecond(0),
@@ -399,7 +394,7 @@ println("DQMC")
     L = length(cs)
 
     # Test whether safe file gets overwritten correctly
-    @time mc, state = resume!(
+    mc, state = resume!(
         "resumable_testfile.jld2",
         verbose = false,
         safe_before = now() + Second(10),
@@ -421,7 +416,7 @@ println("DQMC")
         model, beta = 1.0, thermalization = 0, sweeps = 100length(cs), measure_rate = 100,
         recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, "testfile.confs", rate = 100)
     )
-    @time state = run!(mc, verbose = false)
+    state = run!(mc, verbose = false)
     matches = true
     for i in 1:length(mc.recorder)
         matches = matches && (mc.recorder[i] == cs[i])
