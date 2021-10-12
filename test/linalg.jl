@@ -1,9 +1,8 @@
 let
 
     # Complex and Real Matrix mults, BlockDiagonal, UDT
-    @time for type in (Float64, ComplexF64)
-        println("avx multiplications ($type)")
-        @time @testset "avx multiplications ($type)" begin
+    for type in (Float64, ComplexF64)
+        @testset "avx multiplications ($type)" begin
             A = rand(type, 8, 8)
             B = rand(type, 8, 8)
             C = rand(type, 8, 8)
@@ -69,8 +68,7 @@ let
 
 
 
-        println("UDT transformations + rdivp! ($type)")
-        @time @testset "UDT transformations + rdivp! ($type)" begin
+        @testset "UDT transformations + rdivp! ($type)" begin
             U = Matrix{Float64}(undef, 8, 8)
             D = Vector{Float64}(undef, 8)
             T = rand(8, 8)
@@ -106,8 +104,7 @@ let
 
 
 
-        println("BlockDiagonal ($type)")
-        @time @testset "BlockDiagonal ($type)" begin
+        @testset "BlockDiagonal ($type)" begin
             # setindex!
             B = BlockDiagonal(zeros(4, 4), zeros(4, 4))
             for i in 1:8, j in 1:8
@@ -222,8 +219,7 @@ let
 
 
         
-    println("Complex StructArray")
-    @time @testset "Complex StructArray" begin
+    @testset "Complex StructArray" begin
         M1 = rand(ComplexF64, 8, 8)    
         C1 = StructArray(M1)
         M2 = rand(ComplexF64, 8, 8)    
