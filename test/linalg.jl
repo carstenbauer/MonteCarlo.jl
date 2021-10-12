@@ -1,15 +1,9 @@
-using LinearAlgebra
-using MonteCarlo: vmul!, lvmul!, rvmul!, rdivp!, udt_AVX_pivot!, rvadd!, vsub!
-using MonteCarlo: vmin!, vmininv!, vmax!, vmaxinv!, vinv!
-using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
+let
 
-
-@testset "Custom Linear Algebra " begin
-    
     # Complex and Real Matrix mults, BlockDiagonal, UDT
-
-    for type in (Float64, ComplexF64)
-        @testset "avx multiplications ($type)" begin
+    @time for type in (Float64, ComplexF64)
+        println("avx multiplications ($type)")
+        @time @testset "avx multiplications ($type)" begin
             A = rand(type, 8, 8)
             B = rand(type, 8, 8)
             C = rand(type, 8, 8)
@@ -75,7 +69,8 @@ using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
 
 
 
-        @testset "UDT transformations + rdivp! ($type)" begin
+        println("UDT transformations + rdivp! ($type)")
+        @time @testset "UDT transformations + rdivp! ($type)" begin
             U = Matrix{Float64}(undef, 8, 8)
             D = Vector{Float64}(undef, 8)
             T = rand(8, 8)
@@ -111,7 +106,8 @@ using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
 
 
 
-        @testset "BlockDiagonal ($type)" begin
+        println("BlockDiagonal ($type)")
+        @time @testset "BlockDiagonal ($type)" begin
             # setindex!
             B = BlockDiagonal(zeros(4, 4), zeros(4, 4))
             for i in 1:8, j in 1:8
@@ -127,7 +123,7 @@ using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
             b1 = rand(type, 4, 4)
             b2 = rand(type, 4, 4)
             atol = 100eps(Float64)
-    
+        
             B = BlockDiagonal(b1, b2)
             @test B isa BlockDiagonal{type, 2, Matrix{type}}
 
@@ -138,67 +134,67 @@ using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
                 @test B[4+i, j] == 0.0
                 @test B[i, 4+j] == 0.0
             end
-    
+        
             # Matrix()
             B1 = copy(B)
             M1 = Matrix(B1)
             @test M1 == B1
-    
+        
             B2 = BlockDiagonal(rand(type, 4, 4), rand(type, 4, 4))
             M2 = Matrix(B2)
             B3 = BlockDiagonal(rand(type, 4, 4), rand(type, 4, 4))
             M3 = Matrix(B3)
-    
+        
             # Test (avx) multiplications
             vmul!(B1, B2, B3)
             vmul!(M1, M2, M3)
             @test M1 ≈ B1 atol = atol
-    
+        
             vmul!(B1, B2, adjoint(B3))
             vmul!(M1, M2, adjoint(M3))
             @test M1 ≈ B1
-    
+        
             vmul!(B1, adjoint(B2), B3)
             vmul!(M1, adjoint(M2), M3)
             @test M1 ≈ B1 atol = atol
-    
+        
             D = Diagonal(rand(8))
             vmul!(B1, B2, D)
             vmul!(M1, M2, D)
             @test M1 ≈ B1 atol = atol
-    
+        
             rvmul!(B1, D)
             rvmul!(M1, D)
             @test M1 ≈ B1 atol = atol
-    
+        
             lvmul!(D, B1)
             lvmul!(D, M1)
             @test M1 ≈ B1 atol = atol
-    
+        
             rvadd!(B1, D)
             rvadd!(M1, D)
             @test M1 ≈ B1 atol = atol
-    
+        
             rvadd!(B1, B2)
             rvadd!(M1, M2)
             @test M1 ≈ B1 atol = atol
-    
+        
             vsub!(B1, B2, I)
             @test M2 - I ≈ B1 atol = atol
-    
+        
             x = rand()
             @test B2 * x ≈ M2 * x atol = atol
-    
-            @test log(B2) ≈ log(M2) atol = atol
-    
-            @test det(B2) ≈ det(M2) atol = atol
-    
+        
+            # @test log(B2) ≈ log(M2) atol = atol
+        
+            # @test det(B2) ≈ det(M2) atol = atol
+        
             transpose!(B1, B2)
             @test B1 ≈ transpose(M2) atol = atol
-    
+        
             vmul!(B1, B2', B3')
             @test B1 ≈ M2' * M3' atol = atol
-    
+        
             # Test UDT and rdivp!
             M2 = Matrix(B2)
             D = rand(8)
@@ -216,7 +212,7 @@ using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
             for i in 1:N; pivot[(i-1)*n+1 : i*n] .-= (i-1)*n; end
             
             @test Matrix(B1) * Diagonal(D) * UpperTriangular(Matrix(B2)) * P ≈ M2
-    
+        
             M1 = Matrix(B1)
             M2 = Matrix(B2)
             rdivp!(B1, B2, B3, pivot)
@@ -225,8 +221,9 @@ using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
     end
 
 
-    
-    @testset "Complex StructArray" begin
+        
+    println("Complex StructArray")
+    @time @testset "Complex StructArray" begin
         M1 = rand(ComplexF64, 8, 8)    
         C1 = StructArray(M1)
         M2 = rand(ComplexF64, 8, 8)    
@@ -340,4 +337,4 @@ using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
         @test Matrix(C1) * Diagonal(D) * Matrix(C2) ≈ M2
 
     end
-end 
+end

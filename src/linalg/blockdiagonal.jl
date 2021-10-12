@@ -165,17 +165,19 @@ function Base.exp(B::BlockDiagonal)
     BlockDiagonal(map(block -> exp(block), B.blocks)...)
 end
 
-function Base.log(B::BlockDiagonal)
-    BlockDiagonal(map(block -> log(block), B.blocks)...)
-end
+# This takes super long to compile...? 
+# Dot syntax is another 6x slower
+# function Base.log(B::BlockDiagonal)
+#     BlockDiagonal(map(block -> log(block), B.blocks))
+# end
 
-function LinearAlgebra.det(B::BlockDiagonal{T}) where {T}
-    output = T(1)
-    for b in B.blocks
-        output *= det(b)
-    end
-    output
-end
+# function LinearAlgebra.det(B::BlockDiagonal{T}) where {T}
+#     output = T(1)
+#     for b in B.blocks
+#         output *= det(b)
+#     end
+#     output
+# end
 
 
 # I thought this would be needed for greens(k, l), but it's not?
