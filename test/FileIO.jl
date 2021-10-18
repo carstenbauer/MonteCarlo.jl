@@ -132,7 +132,7 @@
         @test x.recorder.link_id == link_id
         @test recorder[1] == x.recorder[1]
 
-        function move_load_check(recorder, filename_should_match)
+        function move_load_check(recorder, filename_should_match, source_exists = false)
             mv("$dir1/testfile.jld2", "$dir2/testfile.jld2")
             x = MonteCarlo.load("$dir2/testfile.jld2")
             @test filename_should_match == (x.recorder.filename.relative_path == recorder.filename.relative_path)
@@ -141,10 +141,10 @@
             @test recorder[1] == x.recorder[1]
             filename = x.recorder.filename.relative_path
             @test isfile("$dir2/$filename")
-            @test !isfile("$dir1/testfile.confs")
+            @test source_exists == isfile("$dir1/testfile.confs")
             @test length(readdir(dir2)) == 3 - filename_should_match
-            mv("$dir2/testfile.jld2", "$dir1/testfile.jld2")
-            mv("$dir2/$filename", "$dir1/testfile.confs")
+            mv("$dir2/testfile.jld2", "$dir1/testfile.jld2", force = true)
+            mv("$dir2/$filename", "$dir1/testfile.confs", force = true)
             nothing
         end
 
@@ -156,9 +156,9 @@
         move_load_check(recorder, true)
 
         # Move parent, dublicate BCS file
-        # file should be replaced
+        # file should be recognized as the same and both should stay
         cp("$dir1/testfile.confs", "$dir2/testfile.confs")
-        move_load_check(recorder, true)
+        move_load_check(recorder, true, true)
 
         # Move parent, create collision
         # file should be renamed
