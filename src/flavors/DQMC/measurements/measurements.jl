@@ -142,11 +142,11 @@ pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator
     current_current_susceptibility(dqmc, model[; K = #NN + 1, kwargs...])
 
 Creates a measurement recordering the current-current susceptibility 
-`OBS[dr, dr1, dr2] = Λ_{dr1, dr2}(dr) = ∫ 1/N \sum_ ⟨j_{dr2}(i+dr, τ) j_{dr1}(i, 0)⟩ dτ`.
+`OBS[dr, dr1, dr2] = Λ_{dr1, dr2}(dr) = ∫ 1/N \\sum_ ⟨j_{dr2}(i+dr, τ) j_{dr1}(i, 0)⟩ dτ`.
 
 By default this measurement synchronizes `dr1` and `dr2`, simplifying the 
 formula to 
-`OBS[dr, dr'] = Λ_{dr'}(dr) = ∫ 1/N \sum_ ⟨j_{dr'}(i+dr, τ) j_{dr'}(i, 0)⟩ dτ`.
+`OBS[dr, dr'] = Λ_{dr'}(dr) = ∫ 1/N \\sum_ ⟨j_{dr'}(i+dr, τ) j_{dr'}(i, 0)⟩ dτ`.
 The direction/index `dr'` runs from `1:K` through the `directions(mc)` which are 
 sorted. By default we include on-site (1) and nearest neighbors (2:K).
 
