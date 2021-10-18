@@ -138,46 +138,32 @@ pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator
 
 
 
-#=
-Λ^L = Λxx(qx->0, qy=0, iω=0)
-    = ∑_r ∫[0, ß] dτ ⟨j_x(r, τ) j_x(0, 0)⟩ exp(iqr) exp(iωτ)
-j_x(r, τ) = it ∑_σ [c_{r+e_x, σ}^†(τ) c_{r, σ}(τ) - c_{r, σ}^†(τ) c_{r+e_x, σ}(τ)]
+"""
+    current_current_susceptibility(dqmc, model[; K = #NN + 1, kwargs...])
 
-# reframe as:
-0 -> r, r -> r + Δr, e_x -> r+e_x, r+e_x -> r+e_x+Δr
-then use EachLocalQuadByDistance
-Well actually no, because we want e_x to only pick one neighbor.
+Creates a measurement recordering the current-current susceptibility 
+`OBS[dr, dr1, dr2] = Λ_{dr1, dr2}(dr) = ∫ 1/N \sum_ ⟨j_{dr2}(i+dr, τ) j_{dr1}(i, 0)⟩ dτ`.
 
-Λ_{trg-src}(Δr) = \sum_src1 cc_kernel(...)
-∑_Δr exp(iq⋅Δr) real(Λ_{trg-src}(Δr)) # Why real? this is silly...
-where q = Δq_i = k_1, k_2 (or k_1+k_2?)
+By default this measurement synchronizes `dr1` and `dr2`, simplifying the 
+formula to 
+`OBS[dr, dr'] = Λ_{dr'}(dr) = ∫ 1/N \sum_ ⟨j_{dr'}(i+dr, τ) j_{dr'}(i, 0)⟩ dτ`.
+The direction/index `dr'` runs from `1:K` through the `directions(mc)` which are 
+sorted. By default we include on-site (1) and nearest neighbors (2:K).
 
-                       v- (0, qy)
-ρs = 1/8 * (real(Λxxq[1,2]) - real(Λxxq[2,1]) + real(Λyyq[1,2]) - real(Λyyq[2,1]))
-                                (qx, 0) -^
-This should correspond to
-ρ = -K_s - Λ^T = Λxx^L - Λxx^T = Λxx((0, qy)) - Λxx((qx, 0))
-  ~ real(Λxxq[1,2]) + real(Λyyq[1,2]) - real(Λxxq[2,1]) - real(Λyyq[2,1])
-    ^-        sum over NNs?        -^
+The current density `j_{dr}(i, τ)` with `j = i + dr` is given by
+`j_{j-i}(i, τ) = i T_{ij} c_i^†(τ) c_j(0) + h.c.`. Note that the Hermitian
+conjugate generates a term in `-dr` direction with prefactor `-i`. If `+dr` and
+`-dr` are included in the calculation of the superfluid density (etc) you may
+see larger values than expected. 
 
-So I need to compute reciprocal lattice vectors I guess
-So what is qx, qy then? I assume those reciprocal lattice vectors? Or literally
-just a dx/dy?
-
-Any real-space runtime computation could be EachLocalQuadByDistance, we can do
-summing, direction picking and Fourier afterwards...
-
-To be more efficient:
-Should implement new lattice iterator that picks trg1, trg2 to be in the same
-direction and skips trg == src
-EachSyncedNNQuadByDistance{K}?
-=#
+"""
 function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
         K = 1 + nearest_neighbor_count(dqmc),
         greens_iterator = CombinedGreensIterator(dqmc), wrapper = nothing,
         lattice_iterator = EachLocalQuadBySyncedDistance{K}, kwargs...
     )
+    @assert is_approximately_hermitian(hopping_matrix(dqmc, model)) "CCS assumes Hermitian matrix"
     li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
     Measurement(dqmc, model, greens_iterator, li, cc_kernel; kwargs...)
 end
@@ -566,18 +552,28 @@ function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
         s2 = src2 + σ2; t2 = trg2 + σ2
         # Note: if H is real and Hermitian, T can be pulled out and the I's cancel
         # Note: This matches crstnbr/dqmc if H real, Hermitian
-        # Note: I for G0l and Gl0 auto-cancels
-        output -= (
-                T[t2, s2] * (I[s2, t2] - Gll[s2, t2]) - 
-                T[s2, t2] * (I[t2, s2] - Gll[t2, s2])
-            ) * (
-                T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - 
-                T[s1, t1] * (I[t1, s1] - G00[t1, s1])
-            ) +
-            - T[t2, s2] * T[t1, s1] * G0l[s1, t2] * Gl0[s2, t1] +
-            + T[t2, s2] * T[s1, t1] * G0l[t1, t2] * Gl0[s2, s1] +
-            + T[s2, t2] * T[t1, s1] * G0l[s1, s2] * Gl0[t2, t1] +
-            - T[s2, t2] * T[s1, t1] * G0l[t1, s2] * Gl0[t2, s1]
+        # Note: I for G0l and Gl0 auto-cancels (1)
+        # output -= (
+        #         T[t2, s2] * (I[s2, t2] - Gll[s2, t2]) - 
+        #         T[s2, t2] * (I[t2, s2] - Gll[t2, s2])
+        #     ) * (
+        #         T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - 
+        #         T[s1, t1] * (I[t1, s1] - G00[t1, s1])
+        #     ) +
+        #     - T[t2, s2] * T[t1, s1] * G0l[s1, t2] * Gl0[s2, t1] +
+        #     + T[t2, s2] * T[s1, t1] * G0l[t1, t2] * Gl0[s2, s1] +
+        #     + T[s2, t2] * T[t1, s1] * G0l[s1, s2] * Gl0[t2, t1] +
+        #     - T[s2, t2] * T[s1, t1] * G0l[t1, s2] * Gl0[t2, s1]
+        # (1) no it does not. Gl0 comes from a cc^†, it doesn't have an i
+        # I have a tex document for this now
+        # assuming Hermitian T
+        output += T[t2, s2] * T[t1, s1] * (
+            (Gll[t2, s2] - Gll[s2, t2]) * (G00[s1, t1] - G00[t1, s1]) +
+            - swapop(G0l)[s2, t1] * Gl0[t2, s1] + 
+            + swapop(G0l)[s2, s1] * Gl0[t2, t1] +
+            + swapop(G0l)[t2, t1] * Gl0[s2, s1] +
+            - swapop(G0l)[t2, s1] * Gl0[s2, t1]
+        )
     end
 
     # OLD PARTIALLY OUTDATED
@@ -587,10 +583,10 @@ function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     # where (trg-src) picks a direction (e.g. NN directions)
     # and (src1-src2) is the distance vector that the Fourier transform applies to
     # From dos Santos: Introduction to Quantum Monte Carlo Simulations
-    # j_{trg-src}(src, τ) = it \sum\sigma (c^\swapop(trg,\sigma, \tau) c(src, \sigma, \tau) - c^\swapop(src, \sigma, \tau) c(trg, \sigma \tau))
+    # j_{trg-src}(src, τ) = it \sum\sigma (c^\dagger(trg,\sigma, \tau) c(src, \sigma, \tau) - c^\dagger(src, \sigma, \tau) c(trg, \sigma \tau))
     # where i -> src, i+x -> trg as a generalization
     # and t is assumed to be hopping matrix element, generalizing to
-    # = i \sum\sigma (T[trg, src] c^\swapop(trg,\sigma, \tau) c(src, \sigma, \tau) - T[src, trg] c^\swapop(src, \sigma, \tau) c(trg, \sigma \tau))
+    # = i \sum\sigma (T[trg, src] c^\dagger(trg,\sigma, \tau) c(src, \sigma, \tau) - T[src, trg] c^\dagger(src, \sigma, \tau) c(trg, \sigma \tau))
     
             # Why no I? - delta_0l = 0
             # T[t1, s1] * T[t2, s2] * (I[s2, t1] - G0l[s2, t1]) * Gl0[s1, t2] -

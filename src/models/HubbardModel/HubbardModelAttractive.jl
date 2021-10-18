@@ -326,19 +326,26 @@ function cc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, pg::NTuple{4}
     # up-up counts, down-down counts, mixed only on 11s or 22s
     s1 = src1; t1 = trg1
     s2 = src2; t2 = trg2
-    output = -(
-        4.0 * (
-            T[t2, s2] * (I[s2, t2] - Gll[s2, t2]) - 
-            T[s2, t2] * (I[t2, s2] - Gll[t2, s2])
-        ) * (
-            T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - 
-            T[s1, t1] * (I[t1, s1] - G00[t1, s1])
-        ) +
-        - 2.0 * T[t2, s2] * T[t1, s1] * G0l[s1, t2] * Gl0[s2, t1] +
-        + 2.0 * T[t2, s2] * T[s1, t1] * G0l[t1, t2] * Gl0[s2, s1] +
-        + 2.0 * T[s2, t2] * T[t1, s1] * G0l[s1, s2] * Gl0[t2, t1] +
-        - 2.0 * T[s2, t2] * T[s1, t1] * G0l[t1, s2] * Gl0[t2, s1]
+    output += T[t2, s2] * T[t1, s1] * (
+        4.0 * (Gll[t2, s2] - Gll[s2, t2]) * (G00[s1, t1] - G00[t1, s1]) +
+        - 2.0 * swapop(G0l)[s2, t1] * Gl0[t2, s1] + 
+        + 2.0 * swapop(G0l)[s2, s1] * Gl0[t2, t1] +
+        + 2.0 * swapop(G0l)[t2, t1] * Gl0[s2, s1] +
+        - 2.0 * swapop(G0l)[t2, s1] * Gl0[s2, t1]
     )
+    # -(
+    #     4.0 * (
+    #         T[t2, s2] * (I[s2, t2] - Gll[s2, t2]) - 
+    #         T[s2, t2] * (I[t2, s2] - Gll[t2, s2])
+    #     ) * (
+    #         T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - 
+    #         T[s1, t1] * (I[t1, s1] - G00[t1, s1])
+    #     ) +
+    #     - 2.0 * T[t2, s2] * T[t1, s1] * G0l[s1, t2] * Gl0[s2, t1] +
+    #     + 2.0 * T[t2, s2] * T[s1, t1] * G0l[t1, t2] * Gl0[s2, s1] +
+    #     + 2.0 * T[s2, t2] * T[t1, s1] * G0l[s1, s2] * Gl0[t2, t1] +
+    #     - 2.0 * T[s2, t2] * T[s1, t1] * G0l[t1, s2] * Gl0[t2, s1]
+    # )
     # output = 4.0 * 
     #     (T[s1, t1] * Gll[t1, s1] - T[t1, s1] * Gll[s1, t1]) * 
     #     (T[s2, t2] * G00[t2, s2] - T[t2, s2] * G00[s2, t2]) +
