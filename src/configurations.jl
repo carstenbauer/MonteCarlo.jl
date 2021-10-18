@@ -237,6 +237,11 @@ function update_filepath!(cr::BufferedConfigRecorder, parent_path)
                         "overwriting other data."
                     )
                     filepath = new_filepath
+                else
+                    # we already have a matching file at the new location, so 
+                    # we don't need to replace anything
+                    cr.filename = FilePath(true, rp, filepath)
+                    return nothing
                 end
             end
 
