@@ -566,13 +566,13 @@ function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
         #     - T[s2, t2] * T[s1, t1] * G0l[t1, s2] * Gl0[t2, s1]
         # (1) no it does not. Gl0 comes from a cc^†, it doesn't have an i
         # I have a tex document for this now
-        # assuming Hermitian T
-        output += T[t2, s2] * T[t1, s1] * (
-            (Gll[t2, s2] - Gll[s2, t2]) * (G00[s1, t1] - G00[t1, s1]) +
-            - swapop(G0l)[s2, t1] * Gl0[t2, s1] + 
-            + swapop(G0l)[s2, s1] * Gl0[t2, t1] +
-            + swapop(G0l)[t2, t1] * Gl0[s2, s1] +
-            - swapop(G0l)[t2, s1] * Gl0[s2, t1]
+        output += (
+            (T[s2, t2] * (I[t2, s2] - Gll[t2, s2]) - T[t2, s2] * (I[t2, s2] - Gll[s2, t2])) * 
+            (T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - T[s1, t1] * (I[s1, t1] - G00[t1, s1])) +
+            - T[t2, s2] * T[t1, s1] * swapop(G0l)[t2, s1] * Gl0[s2, t1] +
+            + T[t2, s2] * T[s1, t1] * swapop(G0l)[t2, t1] * Gl0[s2, s1] +
+            + T[s2, t2] * T[t1, s1] * swapop(G0l)[s2, s1] * Gl0[t2, t1] +
+            - T[s2, t2] * T[s1, t1] * swapop(G0l)[s2, t1] * Gl0[t2, s1] 
         )
     end
 
