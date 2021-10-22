@@ -53,7 +53,7 @@ end
     mc[:SDCx] = spin_density_correlation(mc, m, :x)
     mc[:SDCy] = spin_density_correlation(mc, m, :y)
     mc[:SDCz] = spin_density_correlation(mc, m, :z)
-    mc[:PC]   = pairing_correlation(mc, m, K=5)
+    mc[:PC]   = pairing_correlation(mc, m, lattice_iterator = EachLocalQuadByDistance(1:5))
     @time run!(mc, verbose=false);
 
     # Check measurements
@@ -121,7 +121,7 @@ end
     mc[:SDCx] = spin_density_correlation(mc, m, :x)
     mc[:SDCy] = spin_density_correlation(mc, m, :y)
     mc[:SDCz] = spin_density_correlation(mc, m, :z)
-    mc[:PC]   = pairing_correlation(mc, m, K=3)
+    mc[:PC]   = pairing_correlation(mc, m, lattice_iterator = EachLocalQuadByDistance(1:3))
     run!(mc, verbose=false);
 
     # Check measurements

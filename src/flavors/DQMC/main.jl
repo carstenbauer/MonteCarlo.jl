@@ -34,6 +34,7 @@ mutable struct DQMC{
     recorder::RT
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
+    lattice_iterator_cache::LatticeIteratorCache
 
     function DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(args...) where {
             M <: Model, CB <: Checkerboard, ConfType <: Any, 
@@ -49,7 +50,7 @@ mutable struct DQMC{
         @assert isconcretetype(RT)
         @assert isconcretetype(US)
         
-        new{M, CB, ConfType, RT, Stack, UTStack, US}(args...)
+        new{M, CB, ConfType, RT, Stack, UTStack, US}(args..., LatticeIteratorCache())
     end
 end
 

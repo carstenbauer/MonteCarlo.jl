@@ -48,7 +48,6 @@ using MonteCarlo: directed_norm
     dqmcs = (dqmc1, dqmc2, dqmc3)
 
 
-
     @testset "Meta" begin
         for dqmc in dqmcs
             dirs = directions(dqmc)
@@ -67,7 +66,7 @@ using MonteCarlo: directed_norm
 
     @testset "EachSiteAndFlavor" begin
         for dqmc in dqmcs
-            iter = EachSiteAndFlavor(dqmc, dqmc.model)
+            iter = EachSiteAndFlavor()(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
             Nflavors = MonteCarlo.nflavors(dqmc.model)
             @test collect(iter) == 1:Nsites*Nflavors
@@ -80,7 +79,7 @@ using MonteCarlo: directed_norm
 
     @testset "EachSite" begin
         for dqmc in dqmcs
-            iter = EachSite(dqmc, dqmc.model)
+            iter = EachSite()(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
             @test collect(iter) == 1:Nsites
             @test length(iter) == Nsites
@@ -92,7 +91,7 @@ using MonteCarlo: directed_norm
 
     @testset "OnSite" begin
         for dqmc in dqmcs
-            iter = OnSite(dqmc, dqmc.model)
+            iter = OnSite()(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
             @test collect(iter) == collect(zip(1:Nsites, 1:Nsites))
             @test length(iter) == Nsites
@@ -104,7 +103,7 @@ using MonteCarlo: directed_norm
 
     @testset "EachSitePair" begin
         for dqmc in dqmcs
-            iter = EachSitePair(dqmc, dqmc.model)
+            iter = EachSitePair()(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
             @test collect(iter) == [(i, j) for i in 1:Nsites for j in 1:Nsites]
             @test length(iter) == Nsites^2
@@ -116,7 +115,7 @@ using MonteCarlo: directed_norm
 
     @testset "EachSitePairByDistance" begin
         for dqmc in dqmcs
-            iter = EachSitePairByDistance(dqmc, dqmc.model)
+            iter = EachSitePairByDistance()(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
             @test length(iter) == Nsites^2
             @test eltype(iter) == NTuple{3, Int64}
@@ -156,10 +155,10 @@ using MonteCarlo: directed_norm
 
     @testset "EachLocalQuadByDistance" begin
         for dqmc in dqmcs
-            iter = EachLocalQuadByDistance{6}(dqmc, dqmc.model)
+            iter = EachLocalQuadByDistance(6)(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
             @test length(iter) == 6^2 * Nsites^2
-            @test eltype(iter) == Tuple{Int64, UInt16, UInt16, UInt16, UInt16}
+            @test eltype(iter) == NTuple{5, Int64}
             @test Base.IteratorSize(EachLocalQuadByDistance) == Base.HasLength()
             @test Base.IteratorEltype(EachLocalQuadByDistance) == Base.HasEltype()
 
@@ -217,16 +216,16 @@ using MonteCarlo: directed_norm
         end
     end
 
-    for dqmc in dqmcs
-        @testset "EachLocalQuadBySyncedDistance" begin
-            iter = EachLocalQuadBySyncedDistance{6}(dqmc, dqmc.model)
+    @testset "EachLocalQuadBySyncedDistance" begin
+        for dqmc in dqmcs
+            iter = EachLocalQuadBySyncedDistance(6)(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
             # These are wrong on a lattice with a basis, because {6}
             # does not mean 6 surrounding sites, but rather 6 smallest directions (globally).
             # (A site directions may not apply to B sites)
             #@test length(iter) == 6^2 * Nsites^2
             #@test length(collect(iter)) == 6^2 * Nsites^2
-            @test eltype(iter) == Tuple{Int64, UInt16, UInt16, UInt16, UInt16}
+            @test eltype(iter) == NTuple{5, Int64}
             @test Base.IteratorSize(EachLocalQuadBySyncedDistance) == Base.HasLength()
             @test Base.IteratorEltype(EachLocalQuadBySyncedDistance) == Base.HasEltype()
 
@@ -285,8 +284,8 @@ using MonteCarlo: directed_norm
     end
 
     @testset "Sum Wrapper" begin
-        iter = EachSitePairByDistance(dqmc1, dqmc1.model)
-        wrapped = Sum(iter)
+        iter = EachSitePair()(dqmc1, dqmc1.model)
+        wrapped = Sum(EachSitePairByDistance())(dqmc1, dqmc1.model)
 
         @test eltype(wrapped) == eltype(iter)
         @test length(wrapped) == length(iter)
@@ -301,25 +300,10 @@ using MonteCarlo: directed_norm
     end
 
     @testset "Symmetry Wrapper" begin
-        iter = EachSitePairByDistance(dqmc1, dqmc1.model)
-        wrapped = ApplySymmetries{EachSitePairByDistance}([1], [0, 1, 1])(dqmc1, dqmc1.model)
-
-        @test eltype(wrapped) == eltype(iter)
-        @test length(wrapped) == length(iter)
-        
-        check = true
-        vals = collect(iter)
-        wals = collect(wrapped)
-        for (v, w) in zip(vals, wals)
-            check = check && (v == w)
-        end
-        @test check
-    end
-
-    @testset "SuperfluidDensity Wrapper" begin
-        iter = EachSitePairByDistance(dqmc1, dqmc1.model)
-        wrapped = MonteCarlo.SuperfluidDensity{EachSitePairByDistance}(
-            1:3, [[1, 0], [0, 1], [1, 1]], [[0, 1], [1, 0], [1, -1]]
+        iter = EachSitePairByDistance()(dqmc1, dqmc1.model)
+        wrapped = ApplySymmetries(
+            EachSitePairByDistance(), 
+            ([1], [0, 1, 1])
         )(dqmc1, dqmc1.model)
 
         @test eltype(wrapped) == eltype(iter)
@@ -333,6 +317,24 @@ using MonteCarlo: directed_norm
         end
         @test check
     end
+
+    # @testset "SuperfluidDensity Wrapper" begin
+    #     iter = EachSitePairByDistance(dqmc1, dqmc1.model)
+    #     wrapped = MonteCarlo.SuperfluidDensity{EachSitePairByDistance}(
+    #         1:3, [[1, 0], [0, 1], [1, 1]], [[0, 1], [1, 0], [1, -1]]
+    #     )(dqmc1, dqmc1.model)
+
+    #     @test eltype(wrapped) == eltype(iter)
+    #     @test length(wrapped) == length(iter)
+        
+    #     check = true
+    #     vals = collect(iter)
+    #     wals = collect(wrapped)
+    #     for (v, w) in zip(vals, wals)
+    #         check = check && (v == w)
+    #     end
+    #     @test check
+    # end
 
 
     # TODO

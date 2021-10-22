@@ -46,15 +46,16 @@ rebuild(B::T, capacity) where T = T(B, capacity=capacity)
 function Measurement(
         dqmc, _model, greens_iterator, lattice_iterator, kernel;
         capacity = _default_capacity(dqmc), eltype = geltype(dqmc),
-        temp = let
-            shape = _get_temp_shape(dqmc, _model, lattice_iterator)
-            shape === nothing ? nothing : Array{eltype}(undef, shape)
-        end,
-        obs = let
-            shape = _get_final_shape(dqmc, _model, lattice_iterator)
-            _zero = shape === nothing ? zero(eltype) : zeros(eltype, shape)
-            LogBinner(_zero, capacity=capacity)
-        end
+        temp = _measurement_buffer(dqmc, _model, lattice_iterator, eltype),
+        obs = LogBinner(
+            _binner_zero_element(dqmc, _model, lattice_iterator, eltype), 
+            capacity=capacity
+        ),
+        # let
+        #     shape = _get_final_shape(dqmc, _model, lattice_iterator)
+        #     _zero = shape === nothing ? zero(eltype) : zeros(eltype, shape)
+        #     LogBinner(_zero, capacity=capacity)
+        # end
     )
     DQMCMeasurement(greens_iterator, lattice_iterator, kernel, obs, temp)
 end
@@ -97,41 +98,119 @@ Returns a default capacity based in the number of sweeps and the measure rate.
 _default_capacity(mc::DQMC) = 2 * ceil(Int, mc.parameters.sweeps / mc.parameters.measure_rate)
 
 
-# _get_temp_shape is the shape of the temporary array
-# nothing is interpreted as "It's not needed"
-_get_temp_shape(mc, model, li) = _get_shape(mc, model, li)
-_get_temp_shape(mc, model, ::Type{<: Sum}) = 1
-function _get_temp_shape(mc, model, ::LatticeIterationWrapper{LI}) where {LI}
-    _get_shape(mc, model, LI)
+
+################################################################################
+### Buffers
+################################################################################
+
+
+
+# function _measurement_buffer(mc::DQMC, m::Model, li, eltype)
+#     shape = _get_temp_shape(dqmc, _model, lattice_iterator)
+#     shape === nothing ? nothing : Array{eltype}(undef, shape)
+# end
+
+# General (Float64)
+_measurement_buffer(mc, model, li, eltype) = _simple_buffer(mc, li, eltype)
+_measurement_buffer(mc, model, ::Sum, eltype) = zeros(eltype, 1)
+function _measurement_buffer(mc, model, ::LatticeIterationWrapper{LI}, eltype) where {LI}
+    _measurement_buffer(mc, model, LI, eltype)
 end
 
-# final_shape refers to the shape of what the observable saves
-# here `nothing` means saving the eltype instead of an array 
-_get_final_shape(mc, model, li) = _get_shape(mc, model, li)
-_get_final_shape(mc, model, ::Type{<: Sum}) = nothing
-_get_final_shape(mc, model, ::SuperfluidDensity) = nothing
-function _get_final_shape(mc, model, s::ApplySymmetries{LI, N}) where {LI, N}
-    if LI <: EachLocalQuadByDistance || LI <: EachLocalQuadBySyncedDistance
-        shape = _get_shape(mc, model, LI)
-        (first(shape), N)
+# StructArrays / ComplexF64
+# This unwraps wrapper to see if any of the wrapped types matches what we're 
+# looking for. Currently looks for T1 in T2
+function is_wrapped_type_of(T1, T2)
+    if T1 == T2
+        return true
     else
-        throw(MethodError(_get_final_shape, (mc, model, s)))
+        for t2 in T2.types
+            is_subtype_of(T1, t2) && return true
+        end
+    end
+    false
+end
+
+function maybe_structarray(mc, A)
+    is_wrapped_type_of(CMat64, gmattype(mc)) ? StructArray(A) : A
+end
+
+_measurement_buffer(mc, model, li, ::ComplexF64) = maybe_structarray(mc, _simple_buffer(mc, li, eltype))
+_measurement_buffer(mc, model, ::Sum, ::ComplexF64) = maybe_structarray(mc, zeros(ComplexF64, 1))
+function _measurement_buffer(mc, model, ::LatticeIterationWrapper{LI}, ::ComplexF64) where {LI}
+    maybe_structarray(mc, _measurement_buffer(mc, model, LI, eltype))
+end
+
+
+# can be determined from type
+_simple_buffer(mc, t::Type, T) = _simple_buffer(mc, t(), T)
+_simple_buffer(mc, ::Type{Nothing}, T) = nothing
+_simple_buffer(mc, ::Nothing, T) = nothing
+_simple_buffer(mc, ::EachSite, T) = zeros(T, length(lattice(mc)))
+_simple_buffer(mc, ::EachSiteAndFlavor, T) = zeros(T, nflavors(model(mc)) * length(lattice(mc)))
+_simple_buffer(mc, ::EachSitePair, T) = zeros(T, length(lattice(mc)), length(lattice(mc)))
+
+
+# determined from type data
+_simple_buffer(mc, LI::Type, T) = _simple_buffer(mc, LI(mc, mc.model), T)
+_simple_buffer(mc, li::DeferredLatticeIteratorTemplate, T) = zeros(T, ndirections(mc, li)) # TODO
+
+# zero element for binner
+_binner_zero_element(mc, model, li, eltype) = _simple_buffer(mc, li, eltype)
+_binner_zero_element(mc, model, ::Type{Nothing}, eltype) = zero(eltype)
+_binner_zero_element(mc, model, ::Nothing, eltype) = zero(eltype)
+_binner_zero_element(mc, model, ::Sum, eltype) = zero(eltype)
+# _binner_zero_element(mc, model, ::SuperfluidDensity, eltype) = zero(eltype)
+function _binner_zero_element(mc, model, li::ApplySymmetries{LI, N}, eltype) where {LI, N}
+    if LI <: EachLocalQuadByDistance || LI <: EachLocalQuadBySyncedDistance
+        return zeros(eltype, first(ndirection(LI(mc, model))), N) # TODO
+    else
+        throw(MethodError(_binner_zero_element, (mc, model, li, eltype)))
     end
 end
 
-_get_shape(model, mask::RawMask) = (mask.nsites, mask.nsites)
-_get_shape(model, mask::DistanceMask) = length(mask)
-_get_shape(mc, model, ::Nothing) = nothing
 
-_get_shape(mc, model, LI::Type) = _get_shape(LI(mc, model))
-_get_shape(mc, model, ::Type{Nothing}) = nothing
-_get_shape(mc, model, ::Type{EachSite}) = length(lattice(model))
-_get_shape(mc, model, ::Type{EachSiteAndFlavor}) = nflavors(model) * length(lattice(model))
-_get_shape(mc, model, ::Type{EachSitePair}) = (length(lattice(model)), length(lattice(model)))
-_get_shape(iter::DeferredLatticeIterator) = ndirections(iter)
+#########################################
 
 
+# # _get_temp_shape is the shape of the temporary array
+# # nothing is interpreted as "It's not needed"
+# _get_temp_shape(mc, model, li) = _get_shape(mc, model, li)
+# _get_temp_shape(mc, model, ::Type{<: Sum}) = 1
+# function _get_temp_shape(mc, model, ::LatticeIterationWrapper{LI}) where {LI}
+#     _get_shape(mc, model, LI)
+# end
+
+# final_shape refers to the shape of what the observable saves
+# here `nothing` means saving the eltype instead of an array 
+# _get_final_shape(mc, model, li) = _get_shape(mc, model, li)
+# _get_final_shape(mc, model, ::Type{<: Sum}) = nothing
+# _get_final_shape(mc, model, ::SuperfluidDensity) = nothing
+# function _get_final_shape(mc, model, s::ApplySymmetries{LI, N}) where {LI, N}
+#     if LI <: EachLocalQuadByDistance || LI <: EachLocalQuadBySyncedDistance
+#         shape = _get_shape(mc, model, LI)
+#         (first(shape), N)
+#     else
+#         throw(MethodError(_get_final_shape, (mc, model, s)))
+#     end
+# end
+
+# _get_shape(model, mask::RawMask) = (mask.nsites, mask.nsites)
+# _get_shape(model, mask::DistanceMask) = length(mask)
+# _get_shape(mc, model, ::Nothing) = nothing
+
+# _get_shape(mc, model, LI::Type) = _get_shape(LI(mc, model))
+# _get_shape(mc, model, ::Type{Nothing}) = nothing
+# _get_shape(mc, model, ::Type{EachSite}) = length(lattice(model))
+# _get_shape(mc, model, ::Type{EachSiteAndFlavor}) = nflavors(model) * length(lattice(model))
+# _get_shape(mc, model, ::Type{EachSitePair}) = (length(lattice(model)), length(lattice(model)))
+# _get_shape(iter::DeferredLatticeIterator) = ndirections(iter)
+
+
+# Once we change greens iterators to follow the "template -> iter" structure
+# this will be compat only
 # Some type piracy to make things easier
+Base.Nothing() = nothing
 Base.Nothing(::DQMC, ::Model) = nothing
 
 # To identify the requirement of equal-time Greens functions
@@ -158,16 +237,21 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
 
 
 @bm function generate_groups(mc, model, measurements)
-    # maybe instead:
+    empty!(mc.lattice_iterator_cache)
+
+    # get unique requirements
     requirements = requires.(measurements)
     GIs = unique(first.(requirements))
-    LIs = unique(last.(requirements))
-    lattice_iterators = map(T -> T(mc, model), LIs)
+    # LIs = unique(last.(requirements))
 
+    # init requirements
+    # lattice_iterators = map(T -> T(mc, model), LIs)
     if any(x -> (x isa Type ? x : typeof(x)) <: AbstractUnequalTimeGreensIterator, GIs)
         initialize_stack(mc, mc.ut_stack)
     end
 
+    # Group measurements with the same greens iterator together
+    # lattice_iterators
     # greens_iterator => [
     #     (lattice_iterator, measurement), 
     #     (lattice_iterator, measurement), 
@@ -177,9 +261,10 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
         ms = filter(m -> G == requires(m)[1], measurements)
         group = map(ms) do m
             LI = requires(m)[2]
-            j = findfirst(==(LI), LIs)
-            @assert j !== nothing
-            (lattice_iterators[j], m)
+            # j = findfirst(==(LI), LIs)
+            # @assert j !== nothing
+            # (lattice_iterators[j], m)
+            (LI === nothing ? nothing : LI(mc, model), m)
         end
         (G isa Type ? G(mc, model) : G) => group
     end
@@ -193,7 +278,7 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
         end
         N = length(measurements)
         M = mapreduce(x -> length(x[2]), +, output, init = 0)
-        error("Oh no. We lost some measurements. $N-> $M")
+        error("Oh no. We lost some measurements. $N -> $M")
     end
 
     return output
@@ -318,7 +403,7 @@ end
 
 @bm function measure!(lattice_iterator, measurement, mc::DQMC, model, sweep, packed_greens)
     # ignore sweep
-    apply!(lattice_iterator, measurement, mc, model, packed_greens)
+    apply!(measurement.temp, lattice_iterator, measurement, mc, model, packed_greens)
     nothing
 end
 
@@ -335,54 +420,75 @@ end
 ################################################################################
 
 
+# @bm function apply!(
+#         temp::StructArray{ComplexF64}, iter::AbstractLatticeIterator, measurement, mc::DQMC, model, 
+#         G::GreensMatrix{ComplexF64, CMat64}
+#     )
+#     # TODO temp needs to be CVec64
+#     # TODO apply!() needs to be passed a temp array
+#     # TODO BlockDiagonal too ree
+#     # TODO factor for im^2?
+
+#     # wait wtf this doesn't even work :<
+#     # cause we have some form of G[i, j] * G[k, l] in the kernel which needs to be
+#     # split but how are we gonna do this
+#     apply!(temp.re, iter, measurement, mc, model, GreensMatrix(G.k, G.l, G.val.re))
+#     apply!(temp.re, iter, measurement, mc, model, GreensMatrix(G.k, G.l, G.val.im))
+#     apply!(temp.re, iter, measurement, mc, model, GreensMatrix(G.k, G.l, G.val.re))
+#     apply!(temp.re, iter, measurement, mc, model, GreensMatrix(G.k, G.l, G.val.re))
+#     nothing
+# end
+
 
 # Call kernel for each site (linear index)
-@bm function apply!(iter::DirectLatticeIterator, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::DirectLatticeIterator, measurement, mc::DQMC, model, packed_greens)
     for i in iter
-        measurement.temp[i] += measurement.kernel(mc, model, i, packed_greens)
+        temp[i] += measurement.kernel(mc, model, i, packed_greens)
     end
     nothing
 end
 
 # Call kernel for each pair (src, trg) (Nsties² total)
-@bm function apply!(iter::EachSitePair, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::EachSitePair, measurement, mc::DQMC, model, packed_greens)
     for (i, j) in iter
-        measurement.temp[i, j] += measurement.kernel(mc, model, (i, j), packed_greens)
+        temp[i, j] += measurement.kernel(mc, model, (i, j), packed_greens)
     end
     nothing
 end
 
 # Call kernel for each pair (site, site) (i.e. on-site) 
-@bm function apply!(iter::OnSite, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::_OnSite, measurement, mc::DQMC, model, packed_greens)
     for (i, j) in iter
-        measurement.temp[i] += measurement.kernel(mc, model, (i, j), packed_greens)
+        temp[i] += measurement.kernel(mc, model, (i, j), packed_greens)
     end
     nothing
 end
 
-@bm function apply!(iter::DeferredLatticeIterator, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::DeferredLatticeIterator, measurement, mc::DQMC, model, packed_greens)
     @inbounds for idxs in iter
-        measurement.temp[first(idxs)] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
+        temp[first(idxs)] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
     end
     nothing
 end
 
 
 # Sums
-@bm function apply!(iter::Sum{<: DirectLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::_Sum{<: DirectLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
     @inbounds for idxs in iter
-        measurement.temp[1] += measurement.kernel(mc, model, idxs, packed_greens)
+        temp[1] += measurement.kernel(mc, model, idxs, packed_greens)
     end
     nothing
 end
-@bm function apply!(iter::Sum{<: DeferredLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::_Sum{<: DeferredLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
     @inbounds for idxs in iter
-        measurement.temp[1] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
+        temp[1] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
     end
     nothing
 end
 
-@inline apply!(s::LatticeIterationWrapper, m, mc, model, pg) = apply!(s.iter, m, mc, model, pg)
+@inline function apply!(temp::Array, s::LatticeIterationWrapper, m, mc, model, pg)
+    apply!(temp, s.iter, m, mc, model, pg)
+end
 
 
 
@@ -395,7 +501,7 @@ end
 # If LatticeIterator is Nothing, then things should be handled in measure!
 @inline prepare!(::Nothing, model, m) = nothing
 @inline prepare!(::AbstractLatticeIterator, model, m) = m.temp .= zero(eltype(m.temp))
-@inline prepare!(s::Sum, args...) = prepare!(s.iter, args...)
+@inline prepare!(s::_Sum, args...) = prepare!(s.iter, args...)
 
 @inline finish!(::Nothing, args...) = nothing # handled in measure!
 @inline function finish!(li, model, m, factor=1.0)
@@ -414,7 +520,7 @@ end
 end
 
 @inline commit!(::AbstractLatticeIterator, m) = push!(m.observable, m.temp)
-@inline commit!(::Sum, m) = push!(m.observable, m.temp[1])
+@inline commit!(::_Sum, m) = push!(m.observable, m.temp[1])
 
 
 function commit!(s::_ApplySymmetries{<: EachLocalQuadByDistance}, m)
@@ -442,12 +548,12 @@ function commit!(s::_ApplySymmetries{<: EachLocalQuadBySyncedDistance}, m)
 end
 
 
-function commit!(s::_SuperfluidDensity{<: EachLocalQuadBySyncedDistance}, m)
-    final = zero(eltype(m.observable))
-    for (shift, long, trans) in zip(s.dir_idxs, s.long_qs, s.trans_qs)
-        for (i, dir) in enumerate(s.dirs)
-            final += m.temp[i, shift] * (cis(-dot(dir, long)) - cis(-dot(dir, trans)))
-        end
-    end
-    push!(m.observable, final)
-end
+# function commit!(s::_SuperfluidDensity{<: EachLocalQuadBySyncedDistance}, m)
+#     final = zero(eltype(m.observable))
+#     for (shift, long, trans) in zip(s.dir_idxs, s.long_qs, s.trans_qs)
+#         for (i, dir) in enumerate(s.dirs)
+#             final += m.temp[i, shift] * (cis(-dot(dir, long)) - cis(-dot(dir, trans)))
+#         end
+#     end
+#     push!(m.observable, final)
+# end

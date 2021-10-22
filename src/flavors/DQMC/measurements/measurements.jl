@@ -45,15 +45,18 @@ function greens_measurement(
         end, kwargs...
     )
     Measurement(
-        mc, model, greens_iterator, Nothing, greens_kernel, 
+        mc, model, greens_iterator, nothing, greens_kernel, 
         obs = obs; kwargs...
     )
 end
 
 
 
-function occupation(mc::DQMC, model::Model; wrapper = nothing, kwargs...)
-    li = wrapper === nothing ? EachSiteAndFlavor : wrapper{EachSiteAndFlavor}
+function occupation(
+        mc::DQMC, model::Model; wrapper = nothing, 
+        lattice_iterator = EachSiteAndFlavor(), kwargs...
+    )
+    li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     Measurement(mc, model, Greens(), li, occupation_kernel; kwargs...)
 end
 
@@ -61,10 +64,10 @@ end
 
 function charge_density(
         mc::DQMC, model::Model, greens_iterator; 
-        wrapper = nothing, lattice_iterator = EachSitePairByDistance, kwargs...
+        wrapper = nothing, lattice_iterator = EachSitePairByDistance(), kwargs...
     )
     checkflavors(model)
-    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     Measurement(mc, model, greens_iterator, li, cdc_kernel; kwargs...)
 end
 
@@ -85,10 +88,10 @@ magnetization. To get the correct result, multiply the final result by `-1im`.
 """
 function magnetization(
         mc::DQMC, model::Model, dir::Symbol; 
-        wrapper = nothing, lattice_iterator = EachSite, kwargs...
+        wrapper = nothing, lattice_iterator = EachSite(), kwargs...
     )
     checkflavors(model)
-    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     if dir == :x; 
         return Measurement(mc, model, Greens(), li, mx_kernel; kwargs...)
     elseif dir == :y; 
@@ -104,10 +107,10 @@ end
 
 function spin_density(
         dqmc, model, dir::Symbol, greens_iterator; 
-        wrapper = nothing, lattice_iterator = EachSitePairByDistance, kwargs...
+        wrapper = nothing, lattice_iterator = EachSitePairByDistance(), kwargs...
     )
     checkflavors(model)
-    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     dir in (:x, :y, :z) || throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
     if     dir == :x
         return Measurement(dqmc, model, greens_iterator, li, sdc_x_kernel; kwargs...)
@@ -127,10 +130,10 @@ spin_density_susceptibility(mc, args...; kwargs...) = spin_density(mc, args..., 
 function pairing(
         dqmc::DQMC, model::Model, greens_iterator; 
         K = 1 + nearest_neighbor_count(dqmc), wrapper = nothing, 
-        lattice_iterator = EachLocalQuadByDistance{K}, 
+        lattice_iterator = EachLocalQuadByDistance(2:K), 
         kernel = pc_combined_kernel, kwargs...
     )
-    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     Measurement(dqmc, model, greens_iterator, li, kernel; kwargs...)
 end
 pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens(); kwargs...)
@@ -161,87 +164,87 @@ function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
         K = 1 + nearest_neighbor_count(dqmc),
         greens_iterator = CombinedGreensIterator(dqmc), wrapper = nothing,
-        lattice_iterator = EachLocalQuadBySyncedDistance{K}, kwargs...
+        lattice_iterator = EachLocalQuadByDistance(2:K), kwargs...
     )
     @assert is_approximately_hermitian(hopping_matrix(dqmc, model)) "CCS assumes Hermitian matrix"
-    li = wrapper === nothing ? lattice_iterator : wrapper{lattice_iterator}
+    li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     Measurement(dqmc, model, greens_iterator, li, cc_kernel; kwargs...)
 end
-function superfluid_density(
-        dqmc::DQMC, model::Model, Ls = size(lattice(model)); 
-        K = 1 + nearest_neighbor_count(dqmc), 
-        capacity = _default_capacity(dqmc),
-        obs = LogBinner(ComplexF64(0), capacity=capacity),
-        kwargs...
-    )
-    @assert K > 1
-    dirs = directions(lattice(model))
+# function superfluid_density(
+#         dqmc::DQMC, model::Model, Ls = size(lattice(model)); 
+#         K = 1 + nearest_neighbor_count(dqmc), 
+#         capacity = _default_capacity(dqmc),
+#         obs = LogBinner(ComplexF64(0), capacity=capacity),
+#         kwargs...
+#     )
+#     @assert K > 1
+#     dirs = directions(lattice(model))
 
-    # Note: this only works with 2d vecs
-    # Note: longs and trans are epsilon-vectors, i.e. they're the smallest 
-    # step we can take in discrete reciprocal space
-    lvecs = lattice_vectors(lattice(model))
-    uc_vecs = lvecs ./ Ls
-    prefactor = 2pi / dot(lvecs...)
-    rvecs = map(lv -> prefactor * cross([lv; 0], [0, 0, 1])[[1, 2]], uc_vecs)
+#     # Note: this only works with 2d vecs
+#     # Note: longs and trans are epsilon-vectors, i.e. they're the smallest 
+#     # step we can take in discrete reciprocal space
+#     lvecs = lattice_vectors(lattice(model))
+#     uc_vecs = lvecs ./ Ls
+#     prefactor = 2pi / dot(lvecs...)
+#     rvecs = map(lv -> prefactor * cross([lv; 0], [0, 0, 1])[[1, 2]], uc_vecs)
 
-    # Note: this only works for 2d lattices... maybe
-    longs = []
-    trans = []
-    dir_idxs = []
-    for i in 2:K
-        if -uc_vecs[1] ≈ dirs[i] || uc_vecs[1] ≈ dirs[i]
-            push!(longs, rvecs[1])
-            push!(trans, rvecs[2])
-            push!(dir_idxs, i)
-        elseif -uc_vecs[2] ≈ dirs[i] || uc_vecs[2] ≈ dirs[i]
-            push!(longs, rvecs[2])
-            push!(trans, rvecs[1])
-            push!(dir_idxs, i)
-        else
-            # We kinda need the i, j from R = i*a_1 + j*a_2 here so we can
-            # construct the matching reciprocal vectors here
-            @error("Skipping $(dirs[i]) - not a nearest neighbor")
-        end
-    end
+#     # Note: this only works for 2d lattices... maybe
+#     longs = []
+#     trans = []
+#     dir_idxs = []
+#     for i in 2:K
+#         if -uc_vecs[1] ≈ dirs[i] || uc_vecs[1] ≈ dirs[i]
+#             push!(longs, rvecs[1])
+#             push!(trans, rvecs[2])
+#             push!(dir_idxs, i)
+#         elseif -uc_vecs[2] ≈ dirs[i] || uc_vecs[2] ≈ dirs[i]
+#             push!(longs, rvecs[2])
+#             push!(trans, rvecs[1])
+#             push!(dir_idxs, i)
+#         else
+#             # We kinda need the i, j from R = i*a_1 + j*a_2 here so we can
+#             # construct the matching reciprocal vectors here
+#             @error("Skipping $(dirs[i]) - not a nearest neighbor")
+#         end
+#     end
 
-    #=
-    longs = normalize.(dirs[2:K]) * 1/L
-    trans = map(dirs[2:K]) do v
-        n = [normalize(v)..., 0]
-        u = cross([0,0,1], n)
-        u[1:2] / L
-    end
-    longs .*= 2pi
-    trans .*= 2pi
-    =#
-    li = SuperfluidDensity{EachLocalQuadBySyncedDistance{K}}(
-        dir_idxs, longs, trans
-    )
-    # Measurement(dqmc, model, CombinedGreensIterator, li, cc_kernel, obs=obs; kwargs...)
-    current_current_susceptibility(dqmc, model, lattice_iterator = li)
-end
+#     #=
+#     longs = normalize.(dirs[2:K]) * 1/L
+#     trans = map(dirs[2:K]) do v
+#         n = [normalize(v)..., 0]
+#         u = cross([0,0,1], n)
+#         u[1:2] / L
+#     end
+#     longs .*= 2pi
+#     trans .*= 2pi
+#     =#
+#     li = SuperfluidDensity{EachLocalQuadBySyncedDistance{K}}(
+#         dir_idxs, longs, trans
+#     )
+#     # Measurement(dqmc, model, CombinedGreensIterator, li, cc_kernel, obs=obs; kwargs...)
+#     current_current_susceptibility(dqmc, model, lattice_iterator = li)
+# end
 
 
 
 function boson_energy_measurement(dqmc, model; kwargs...)
-    Measurement(dqmc, model, Nothing, Nothing, energy_boson; kwargs...)
+    Measurement(dqmc, model, Nothing, nothing, energy_boson; kwargs...)
 end
 
 
 
 function noninteracting_energy(dqmc, model; kwargs...)
-    Measurement(dqmc, model, Greens(), Nothing, nonintE_kernel; kwargs...)
+    Measurement(dqmc, model, Greens(), nothing, nonintE_kernel; kwargs...)
 end
 
 
 # These require the model to implement intE_kernel
 function interacting_energy(dqmc, model; kwargs...)
-    Measurement(dqmc, model, Greens(), Nothing, intE_kernel; kwargs...)
+    Measurement(dqmc, model, Greens(), nothing, intE_kernel; kwargs...)
 end
 
 function total_energy(dqmc, model; kwargs...)
-    Measurement(dqmc, model, Greens(), Nothing, totalE_kernel; kwargs...)
+    Measurement(dqmc, model, Greens(), nothing, totalE_kernel; kwargs...)
 end
 
 

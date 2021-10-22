@@ -46,7 +46,7 @@ end
     @test length(m) == 2
 end
 
-@testset "DQMC utilities " begin
+@testset "DQMC utilities" begin
     m = HubbardModelAttractive(8, 1);
 
     # Getters
@@ -94,6 +94,7 @@ end
         dqmc.recorder, dqmc.thermalization_measurements, dqmc.measurements
     )
     for field in fieldnames(DQMC)
+        field == :lattice_iterator_cache && continue
         @test getfield(dqmc, field) == getfield(mc, field)
     end
 
@@ -104,11 +105,13 @@ end
         dqmc.thermalization_measurements, dqmc.measurements
     )
     for field in fieldnames(DQMC)
+        field == :lattice_iterator_cache && continue
         @test getfield(dqmc, field) == getfield(mc, field)
     end
 
     mc = DQMC(dqmc)
     for field in fieldnames(DQMC)
+        field == :lattice_iterator_cache && continue
         @test getfield(dqmc, field) == getfield(mc, field)
     end
 
@@ -118,6 +121,7 @@ end
             @test mc.last_sweep == 9147
         elseif field == :recorder
             @test mc.recorder isa Discarder
+        elseif field == :lattice_iterator_cache
         else
             @test getfield(dqmc, field) == getfield(mc, field)
         end
