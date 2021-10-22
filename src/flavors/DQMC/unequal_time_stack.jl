@@ -843,7 +843,7 @@ end
 Base.length(it::_CombinedGreensIterator) = length(it.spec)
 
 # Fast specialized version
-function Base.iterate(it::_CombinedGreensIterator)
+@bm function Base.iterate(it::_CombinedGreensIterator)
     s = it.mc.stack
     uts = it.mc.ut_stack
 
@@ -936,7 +936,7 @@ function Base.iterate(it::_CombinedGreensIterator)
     end
 end
 # probably need extra temp variables
-function Base.iterate(it::_CombinedGreensIterator, l)
+@bm function Base.iterate(it::_CombinedGreensIterator, l)
     # l is 1-based
     s = it.mc.stack
     uts = it.mc.ut_stack

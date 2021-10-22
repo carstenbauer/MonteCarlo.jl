@@ -186,7 +186,7 @@ end
 
     # Compute (I - G) R^-1 Δ
     @bm "accept_local (IG, R)" begin
-        @turbo for m in axes(IG, 1)
+        @inbounds for m in axes(IG, 1)
             IG[m, 1] = -G[m, i]
             IG[m, 2] = -G[m, i+N]
         end

@@ -86,7 +86,7 @@ end
 
     println("Linear Algebra")
     @time @testset "Linear Algebra" begin
-        @time include("linalg.jl")
+        include("linalg.jl")
     end
     # 72.325652 seconds (119.03 M allocations: 5.922 GiB, 3.30% gc time, 33.24% compilation time)
 
