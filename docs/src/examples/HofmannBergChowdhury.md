@@ -51,7 +51,7 @@ function LatPhysUnitcellLibrary.getUnitcellSquare(
         # Bravais lattice vectors
         [[1.0, +1.0], [1.0, -1.0]],
         
-        # Sites
+        # Basis sites
         S[
             newSite(S, [0.0, 0.0], getDefaultLabelN(LS, 1)),
             newSite(S, [0.0, 1.0], getDefaultLabelN(LS, 2))
@@ -73,7 +73,7 @@ function LatPhysUnitcellLibrary.getUnitcellSquare(
             newBond(B, 1, 2, getDefaultLabelN(LB, 2), (0, 0)),
             
             # NNN
-            # positive weight (we need forward and backward facing bonds here too)
+            # positive weight (forward and backward facing)
             newBond(B, 1, 1, getDefaultLabelN(LB, 3), (+1, 0)),
             newBond(B, 1, 1, getDefaultLabelN(LB, 3), (-1, 0)),
             newBond(B, 2, 2, getDefaultLabelN(LB, 3), (0, +1)),
@@ -84,12 +84,12 @@ function LatPhysUnitcellLibrary.getUnitcellSquare(
             newBond(B, 2, 2, getDefaultLabelN(LB, 4), (+1, 0)),
             newBond(B, 2, 2, getDefaultLabelN(LB, 4), (-1, 0)),
             
-            # Fifth nearest neighbors
+            # Fifth nearest neighbors (forward)
             newBond(B, 1, 1, getDefaultLabelN(LB, 5), (2, 0)),
             newBond(B, 2, 2, getDefaultLabelN(LB, 5), (2, 0)),
             newBond(B, 1, 1, getDefaultLabelN(LB, 5), (0, 2)),
             newBond(B, 2, 2, getDefaultLabelN(LB, 5), (0, 2)),  
-            # backwards facing bonds
+            # backwards facing bonds (backwards)
             newBond(B, 1, 1, getDefaultLabelN(LB, 5), (-2, 0)),
             newBond(B, 2, 2, getDefaultLabelN(LB, 5), (-2, 0)),
             newBond(B, 1, 1, getDefaultLabelN(LB, 5), (0, -2)),
@@ -478,4 +478,89 @@ end
 
 Now that we have the lattice, the hopping and interaction matrix as well as `propose_local` and `accept_local!` we're done with all the difficult stuff. There are a couple of things one might want to add. For example, adding `energy_boson()` would enable global updates and boson energy measurements. Adding `save_model` and `_load` should help with reducing file size and help future proof things, but isn't strictly necessary. And adding `intE_kernel` would allow the interactive and total energy to be measured. Beyond that one might add some constructors and convenience function like `parameters`. 
 
-The full code including these convenience functions can be found [here]()
+The full code including these convenience functions can be found [here](HBC_model.jl)
+
+
+
+# Simulation Setup
+
+
+
+To keep the runtime of this crosscheck reasonable we used the smallest linear system size the paper considers, `L = 8`. We also set `U = 1` and the fifth nearest neighbor hopping `t5 = 0`. This corresponds to a flatness ratio $$F = 0.2$$. To be comparable to the paper we will need to tune the chemical potential $$\mu$$ to hit half filling. This can be done through trial and error on a smaller lattice. The optimal $$\mu$$, after running the main simulation with a small set of different values, seems to be $$\mu \approx -2.206$$. Thus the basic setup for our simulation becomes
+
+```julia
+uc = LatticePhysics.getUnitcellSquare(17)
+lpl = getLatticePeriodic(uc, 8)
+l = LatPhysLattice(lpl)
+m = HBModel(l, t5 = 0.0, mu = -2.206) # other defaults match F = 0.2 setup
+mc = DQMC(
+    m, beta = beta, thermalization = 1000, sweeps = 5000, 
+    measure_rate = 5, print_rate = 100, recorder = Discarder()
+)
+```
+
+where beta needs to run over a reasonable set of inverse temperatures. We will use `[2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 12.0, 14.0, 17.0, 20.0, 25.0, 30.0, 35.0, 40.0]`. 
+
+!!! note
+
+    In our actual simulation we used a `BufferedConfigRecorder` to record configurations. That way the simulation can be replayed with different measurements. This is very useful when still unsure about what you want to measure how exactly those measurements are supposed to work.
+
+## Measurements
+
+We will consider the following measurements for comparison:
+
+1. Z-spin susceptibility, solid red line in figure 1d)
+2. Superfluid stiffness, figure 2b)
+3. Reciprocal s-wave pairing susceptibility, solid red line in figure 4a)
+4. Reciprocal charge susceptibility, solid blue line in figure 4a)
+
+The s-spin susceptibility $$\int_0^\beta d\tau \langle m_z(r^\prime, \tau) m_z(r, 0) \rangle$$ can be measure with
+
+```julia
+mc[:SDSz] = spin_density_susceptibility(mc, m, :z)
+```
+
+The integral will be evaluated by MonteCarlo.jl and the result, accessible with `mean(mc[:SDCz])`, will return the average result by direction. I.e. `mean(mc[:SDCz])[i]` will contain the average z-spin susceptibility in `directions(mc)[i]`.
+
+The reciprocal charge susceptibility is simply $$1 / O$$ where $$O$$ is the charge susceptibility. The "reciprocal" part can be applied after simulating so we can simply use
+
+```julia
+mc[:CDS] = charge_density_susceptibility(mc, m)
+```
+
+The reciprocal s-wave pairing susceptibility may need some explanation. All susceptibilities in DQMC are given by an integral of the form $$O = \int_0^\beta d\tau \langle O(\tau) O(0) \rangle$$. MonteCarlo.jl calculates this integral whenever a `CombinedGreensIterator` is used, which is the case for every `{...}_susceptibility` measurement. 
+The paper defines the (s-wave) pairing susceptibilities as $$O(\tau) = \sum_j c_{j, \uparrow} c_{j, \downarrow} + h.c.$$. More generally you would consider a site offset between the pairs of operators and use weighted sums to get pairing susceptibilities of various symmetries like d-wave, p-wave, etc. For s-wave this offset is 0. In MonteCarlo.jl these offsets are set via the lattice iterator.For example you may use `EachLocalQuadByDistance([2, 4, 5])` to consider the `directions(mc)[[2, 4, 5]]` as offsets. 
+The `pairing_suceptibility` constructors uses the right iterators - we just need to pass the relevant directions. For s-wave that is 1 (corresponding to the smallest possible distance vector - 0).
+
+```julia
+mc[:PS] = pairing_susceptibility(mc, m, 1)
+```
+
+The superfluid stiffness is given by $$0.25 [- K_x - \Lambda_{xx}(q = 0)]$$ in the paper. Both the diamagnetic contribution $$K_x$$ and the Fourier transformed current-current correlation $$\Lambda_{xx}(q)$$ are things we need to measure individually.
+
+The diamagnetic contribution $$K_x$$ is the simpler one. For that we refer to equations 15a - 15j in the paper. The sum of all of these is the $$K_x$$ we seek. Since all terms are quadratic in creation and annihilation operators we do not need to worry about expanding them with Wicks theorem. Instead we can simply measure the Greens matrix during the simulation. If we compare the equations with the Hamiltonian we will also notice that they are (almost) the same as the hopping terms. Thus we can get weights from the hopping matrix and apply them afterwards. We measure
+
+```julia
+mc[:G] = greens_measurement(mc, model)
+```
+
+For the current-current correlations we need to measure $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$J_x(r, \tau)$$ is given in equation 14a - 14j. (We will leave the Fourier transform for later.) They are already implemented by MonteCarlo.jl, but we should briefly discuss them regardless. 
+
+Much like $$K_x$$ these terms are closely related to the hopping terms of the Hamiltonian. The index $$\alpha$$ ($$\beta$$) refers to the direction of the hopping. Each term contains a hopping in +x direction weighted by $$i$$ and a hopping in the opposite direction weighted by $$-i$$ via the Hermitian conjugate. The fifth nearest neighbor terms also catch a factor 2. For the measurement we need to apply Wicks theorem to every combination of any two current $$J^\alpha_x$$ and also take care of an implied spin index on $$J^\alpha_x$$. The result can be found in the `cc_kernel` in MonteCarlo.jl.
+
+Let's get back to what we need to measure in our simulation. The `current_current_susceptibility` measurement measures $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$\alpha$$ and $$\beta$$ are the directions that passed. Since we set `t5 = 0` we can ignore equations 14g - 14j leaving 6 equations with 3 directions on 2 sublattices. MonteCarlo.jl does not care about sublattices, so we're left with three directions `[2, 6, 9]`. You can check these with `directions(mc)[[2, 6, 9]]` against the paper. Finally oru measurement is given by
+
+```julia
+mc[:CCS] = current_current_susceptibility(mc, model, [2, 6, 9])
+```
+
+## Running the simulations
+
+To run the simulation we simply use `run!(mc)`.
+
+We should point out that these simulations are lot more complex than the other two examples. We are working with 128 sites as opposed to 16 and inverse temperatures as large as 40 instead of $$\le 12$$. We are also using complex matrices which bring $$2 - 4$$ times the complexity and we need to consider both a spin up and down sector in the greens matrix. 
+
+It is advised that you run this on a cluster, in parallel. To figure out how much time is needed you can check the sweep time for the smallest $$\beta$$ with measurements. The scaling should be roughly linear. Note that you can pass a `safe_before::TimeType` to make sure the simulation saves and exits in time. If your cluster restricts you to full nodes it might be useful to create files for each simulation and distribute filenames to different cores on the same node.
+
+# Results
+
