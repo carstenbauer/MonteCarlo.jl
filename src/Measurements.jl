@@ -570,7 +570,7 @@ function _load(data, ::Val{:Measurements})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load measurements version $(data["VERSION"])"))
     end
-    !haskey(data, "ME") && @warn "No measurement stage found (key \"ME\" missing)"
+    !haskey(data, "ME") && @debug "No measurement stage found (key \"ME\" missing)"
     !haskey(data, "TH") && @debug "No thermalization stage found (key \"TH\" missing)"
 
     Dict{Symbol, Dict{Symbol, AbstractMeasurement}}(

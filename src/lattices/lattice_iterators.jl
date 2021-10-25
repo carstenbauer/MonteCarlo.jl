@@ -1,14 +1,3 @@
-# TODO
-# - figure out constructors (does ()::AbstractType)(args...) work?)
-# - try the synced scheme with unsynced directions - could skip filtered thingy
-# performance is now a bit better and memory usage is way down
-
-# TODONE
-# - move lattice_iterator_cache into DQMC
-# - figure out init and branching in measurements
-# - write constructors with (cache, lattice) and (mc, model)
-
-
 ################################################################################
 ### Lattice Iteration Cache
 ################################################################################
