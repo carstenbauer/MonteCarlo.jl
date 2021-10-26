@@ -500,6 +500,7 @@ mc = DQMC(
 ```
 
 where beta needs to run over a reasonable set of inverse temperatures. We will use `[2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 12.0, 14.0, 17.0, 20.0, 25.0, 30.0, 35.0, 40.0]`. 
+<!-- TODO: Note that ... not full sweeps? time?  -->
 
 !!! note
 
@@ -522,9 +523,24 @@ mc[:SDSz] = spin_density_susceptibility(mc, m, :z)
 
 The integral will be evaluated by MonteCarlo.jl and the result, accessible with `mean(mc[:SDCz])`, will return the average result by direction. I.e. `mean(mc[:SDCz])[i]` will contain the average z-spin susceptibility in `directions(mc)[i]`.
 
-The reciprocal charge susceptibility is simply $$1 / O$$ where $$O$$ is the charge susceptibility. The "reciprocal" part can be applied after simulating so we can simply use
+<!-- TODO -->
+<!-- This was actually a mess -->
+<!-- TODO -->
+The paper defines the charge susceptibility as $$\int_0^\beta d\tau \langle N(\tau) N(0) \rangle$$ where $$N(\tau) = \sum_j (n_j(\tau) - \nu)$$ and $$\nu$$ is the filling. The charge density susceptibility that MonteCarlo.jl defines, on the other hand, is defined as $$\langle n_j(\tau) n_i(0)\rangle$$. If we expand the papers' definition, we get
+
+```math
+\begin{aligned}
+	\langle N(\tau) N(0) \rangle 
+        &= \langle \sum_j (n_j(\tau) - \nu) \sum_i (n_i(0) - \nu) \rangle \\
+        &= \sum_{ij} \langle n_j(\tau) n_i(0) - n_j(\tau) \nu - \nu n_i(0) + \nu \nu \rangle \\
+        &= \sum_{ij} \langle n_j(\tau) n_i(0) \rangle - \langle \sum_i n_i \rangle^2
+\end{aligned}
+```
+
+In the last step we associated $$\nu = \sum_i \langle n_i \rangle / N$$, i.e. the average occupation. We can use this representation to calculate the reciprocal charge susceptibility as $$1 / (O - \nu^2)$$ where $$O$$ is MonteCarlo.jl's charge density susceptibility and $\nu$ is the average occupation.
 
 ```julia
+mc[:occ] = occupation(mc, m)
 mc[:CDS] = charge_density_susceptibility(mc, m)
 ```
 
@@ -562,5 +578,48 @@ We should point out that these simulations are lot more complex than the other t
 
 It is advised that you run this on a cluster, in parallel. To figure out how much time is needed you can check the sweep time for the smallest $$\beta$$ with measurements. The scaling should be roughly linear. Note that you can pass a `safe_before::TimeType` to make sure the simulation saves and exits in time. If your cluster restricts you to full nodes it might be useful to create files for each simulation and distribute filenames to different cores on the same node.
 
+
+
 # Results
+
+
+
+In this section we plot the results from our simulations on top of the results from the paper. There are 5 points per temperature coming from different chemical potentials $$\mu$$. The filling varies from 0.22 to 0.265 between them. Note also that not every simulation did the full amount of sweeps. The shortest simulation ran for about 3000 sweeps, including thermalization.
+
+
+## Z-Spin Susceptibility
+
+To get the results from the paper we need to perform a $$q = 0$$ Fourier transform which is simply a sum. We use `real(sum(mean(mc[:SDCz])))` and plot against `1 / mc.parameters.beta`:
+
+
+
+## Reciprocal Charge Susceptibility
+
+
+For the reciprocal charge susceptibility we plot
+
+```julia
+CDS = real(sum(mean(mc[:CDS])))
+occ = real(sum(mean(mc[:occ])))
+xs = 1 / mc.parameters.beta
+ys = 1 / (CDS - mc.parameters.beta * occ^2 / length(lattice(mc)))
+```
+
+where the factor `mc.parameters.beta / length(lattice(mc))` comes from the imaginary time integral.
+
+
+
+## Reciprocal Pairing Susceptibility
+
+The reciprocal pairing susceptibility is given by `1 / real(sum(mean(mc[:PS])[:, 1, 1]` and plotted against `1 / mc.parameters.beta`.
+
+
+
+
+
+### Superfluid Stiffness
+
+<!-- Have fun :) -->
+
+
 
