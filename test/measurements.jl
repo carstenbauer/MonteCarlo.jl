@@ -244,7 +244,7 @@ end
                 @test m.greens_iterator == CombinedGreensIterator(mc)
             end
             @test m isa MonteCarlo.DQMCMeasurement
-            @test m.lattice_iterator == EachLocalQuadByDistance(2:5)
+            @test m.lattice_iterator == EachLocalQuadByDistance(1:5)
             @test m.kernel == MonteCarlo.pc_combined_kernel
             @test m.observable isa LogBinner{Array{Float64, 3}}
             @test m.temp isa Array{Float64, 3}
