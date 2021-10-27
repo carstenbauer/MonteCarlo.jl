@@ -546,14 +546,3 @@ function commit!(s::_ApplySymmetries{<: EachLocalQuadBySyncedDistance}, m)
     end
     push!(m.observable, final)
 end
-
-
-# function commit!(s::_SuperfluidDensity{<: EachLocalQuadBySyncedDistance}, m)
-#     final = zero(eltype(m.observable))
-#     for (shift, long, trans) in zip(s.dir_idxs, s.long_qs, s.trans_qs)
-#         for (i, dir) in enumerate(s.dirs)
-#             final += m.temp[i, shift] * (cis(-dot(dir, long)) - cis(-dot(dir, trans)))
-#         end
-#     end
-#     push!(m.observable, final)
-# end
