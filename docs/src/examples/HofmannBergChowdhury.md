@@ -500,7 +500,6 @@ mc = DQMC(
 ```
 
 where beta needs to run over a reasonable set of inverse temperatures. We will use `[2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 12.0, 14.0, 17.0, 20.0, 25.0, 30.0, 35.0, 40.0]`. 
-<!-- TODO: Note that ... not full sweeps? time?  -->
 
 !!! note
 
@@ -523,9 +522,6 @@ mc[:SDSz] = spin_density_susceptibility(mc, m, :z)
 
 The integral will be evaluated by MonteCarlo.jl and the result, accessible with `mean(mc[:SDCz])`, will return the average result by direction. I.e. `mean(mc[:SDCz])[i]` will contain the average z-spin susceptibility in `directions(mc)[i]`.
 
-<!-- TODO -->
-<!-- This was actually a mess -->
-<!-- TODO -->
 The paper defines the charge susceptibility as $$\int_0^\beta d\tau \langle N(\tau) N(0) \rangle$$ where $$N(\tau) = \sum_j (n_j(\tau) - \nu)$$ and $$\nu$$ is the filling. The charge density susceptibility that MonteCarlo.jl defines, on the other hand, is defined as $$\langle n_j(\tau) n_i(0)\rangle$$. If we expand the papers' definition, we get
 
 ```math
@@ -545,7 +541,7 @@ mc[:CDS] = charge_density_susceptibility(mc, m)
 ```
 
 The reciprocal s-wave pairing susceptibility may need some explanation. All susceptibilities in DQMC are given by an integral of the form $$O = \int_0^\beta d\tau \langle O(\tau) O(0) \rangle$$. MonteCarlo.jl calculates this integral whenever a `CombinedGreensIterator` is used, which is the case for every `{...}_susceptibility` measurement. 
-The paper defines the (s-wave) pairing susceptibilities as $$O(\tau) = \sum_j c_{j, \uparrow} c_{j, \downarrow} + h.c.$$. More generally you would consider a site offset between the pairs of operators and use weighted sums to get pairing susceptibilities of various symmetries like d-wave, p-wave, etc. For s-wave this offset is 0. In MonteCarlo.jl these offsets are set via the lattice iterator.For example you may use `EachLocalQuadByDistance([2, 4, 5])` to consider the `directions(mc)[[2, 4, 5]]` as offsets. 
+The paper defines the (s-wave) pairing susceptibilities as $$O(\tau) = \sum_j c_{j, \uparrow} c_{j, \downarrow} + h.c.$$. More generally you would consider a site offset between the pairs of operators and use weighted sums to get pairing susceptibilities of various symmetries like d-wave, p-wave, etc. For s-wave this offset is 0. In MonteCarlo.jl these offsets are set via the lattice iterator. For example you may use `EachLocalQuadByDistance([2, 4, 5])` to consider the `directions(mc)[[2, 4, 5]]` as offsets. 
 The `pairing_suceptibility` constructors uses the right iterators - we just need to pass the relevant directions. For s-wave that is 1 (corresponding to the smallest possible distance vector - 0).
 
 ```julia
@@ -576,7 +572,7 @@ To run the simulation we simply use `run!(mc)`.
 
 We should point out that these simulations are lot more complex than the other two examples. We are working with 128 sites as opposed to 16 and inverse temperatures as large as 40 instead of $$\le 12$$. We are also using complex matrices which bring $$2 - 4$$ times the complexity and we need to consider both a spin up and down sector in the greens matrix. 
 
-It is advised that you run this on a cluster, in parallel. To figure out how much time is needed you can check the sweep time for the smallest $$\beta$$ with measurements. The scaling should be roughly linear. Note that you can pass a `safe_before::TimeType` to make sure the simulation saves and exits in time. If your cluster restricts you to full nodes it might be useful to create files for each simulation and distribute filenames to different cores on the same node.
+It is therefore adviced that you run this on a cluster, in parallel. To figure out how much time is needed you can check the sweep time for the smallest $$\beta$$ with measurements. The scaling should be roughly linear. Note that you can pass a `safe_before::TimeType` to make sure the simulation saves and exits in time. If your cluster restricts you to full nodes it might be useful to create files for each simulation and distribute filenames to different cores on the same node.
 
 
 
@@ -584,17 +580,18 @@ It is advised that you run this on a cluster, in parallel. To figure out how muc
 
 
 
-In this section we plot the results from our simulations on top of the results from the paper. There are 5 points per temperature coming from different chemical potentials $$\mu$$. The filling varies from 0.22 to 0.265 between them. Note also that not every simulation did the full amount of sweeps. The shortest simulation ran for about 3000 sweeps, including thermalization.
+In this section we plot the results from our simulations on top of the results from the paper. There are 5 points per temperature coming from different chemical potentials $$\mu$$. The filling varies from 0.22 to 0.265 between them. Note also that not every simulation did the full number of sweeps. The shortest simulation ran for about 3000 sweeps, including 1000 thermalization sweeps.
 
 
 ## Z-Spin Susceptibility
 
-To get the results from the paper we need to perform a $$q = 0$$ Fourier transform which is simply a sum. We use `real(sum(mean(mc[:SDCz])))` and plot against `1 / mc.parameters.beta`:
+To get the results from the paper we need to perform a $$q = 0$$ Fourier transform which is simply a sum. We use `real(sum(mean(mc[:SDCz])))` and plot against `1 / mc.parameters.beta`.
+
+![](assets/HBC/SDCz.png)
 
 
 
 ## Reciprocal Charge Susceptibility
-
 
 For the reciprocal charge susceptibility we plot
 
@@ -607,19 +604,85 @@ ys = 1 / (CDS - mc.parameters.beta * occ^2 / length(lattice(mc)))
 
 where the factor `mc.parameters.beta / length(lattice(mc))` comes from the imaginary time integral.
 
+![](assets/HBC/CDS.png)
+
 
 
 ## Reciprocal Pairing Susceptibility
 
-The reciprocal pairing susceptibility is given by `1 / real(sum(mean(mc[:PS])[:, 1, 1]` and plotted against `1 / mc.parameters.beta`.
+The pairing susceptibility comes with three directional indices after taking `mean(mc[:PS])`. The first is associated with the distance $$r - r^\prime$$ between the two pairing operators $$\Delta$$ in $$\langle \Delta^\alpha(r) \Delta^\beta(r^\prime) \rangle$$. The second and third are displacements inside them. Since we care about s-wave pairing the internal displacements are zero or index 1. Thus we plot `1 / real(sum(mean(mc[:PS])[:, 1, 1]))` against `1 / mc.parameters.beta` for the reciprocal pairing susceptibility. 
+
+![](assets/HBC/PS.png)
 
 
 
+## Superfluid Stiffness
 
+The superfluid stiffness still requires a good amount of work. Let's start with the diamagnetic contribution $$K_x$$. As mentioned before the prefactors of $$K_x$$ match those of the hoppings in the Hamiltonian (except for 5th nearest neighbors which catch a factor of 4). The expectation values for $$\langle c_j^\dagger c_i \rangle$$ follow from the measured Greens function $$G_{ij} = c_i c_j^\dagger$$ as $$\delta_{ij} - G{ji}$$ (permutation of operators).
 
-### Superfluid Stiffness
+To pick the correct sites we can poke at the backend of the lattice iterator interface. There are a few maps that are cached, one of which returns a list of (source, target) site index pairs given a directional index. It can be generated with `push!(mc.lattice_iterator_cache, Dir2SrcTrg())` and accessed via `dir2srctrg = mc.lattice_iterator_cache[Dir2SrcTrg()]`. The relevant directional indices can be determined from `directions(mc)`. Using that we calculate the total diamagnetic contribution $$K_x$$ as
 
-<!-- Have fun :) -->
+```julia
+function dia_K_x(mc)
+    # directional indices for K_x (see directions(mc)[idxs]
+    # These correspond to 
+    # K1 & K4, K1 & K4 h.c., K2 & K5, K3 & K6 h.c., K2 & K5 h.c., K3 & K5
+    idxs = [2, 4, 6, 7, 8, 9]
+    
+    # T contains the prefactors used in K_x, G contains ⟨c_i c_j^†⟩
+    T = Matrix(MonteCarlo.hopping_matrix(mc, mc.model))
+    G = mean(mc[:G])
 
+    # We use the dir2srctrg map to get all (src, trg) pairs relevant to the 
+    # directions we specified with `idxs` above
+    push!(mc.lattice_iterator_cache, MonteCarlo.Dir2SrcTrg(), lattice(mc))
+    dir2srctrg = mc.lattice_iterator_cache[MonteCarlo.Dir2SrcTrg()]
+    N = length(lattice(mc))
+    
+    Kx = ComplexF64(0)
+    for dir_idx in idxs
+        for (src, trg) in dir2srctrg[dir_idx]
+            # c_j^† c_i = δ_ij - G[i, j], but δ always 0 (no onsite)
+            Kx -= T[trg, src] * G[src, trg]         # up-up
+            Kx -= T[trg+N, src+N] * G[src+N, trg+N] # down-down
+        end
+    end
 
+    # normalize
+    Kx /= N
+end
+```
 
+For the Fourier transformed current-current correlation $$\Lambda_{xx}(q)$$ the paper uses two summations. The first (eq. 16) runs over positions without offsets from the basis. The second (eq. 17) then resolves those offsets with a shift by $$\hat{e}_y$$ and also translate positions to the center of the two sites involved with the hopping term. Combining both equations in a MonteCarlo.jl compatible style yields
+
+```math
+\begin{equation}
+    \Lambda_{xx}(q) = \sum_{\Delta r_{12}} \sum_{\Delta r_1, \Delta r_2} e^{- i q (\Delta r_{12} + 0.5 (\Delta r_1 - \Delta r_2))}
+                      \int_0^\beta \sum_{r_0} \langle J_x^{\Delta r_1}(r_0 + \Delta r_{12}, \tau) J_x^{\Delta r_2}(r_0, 0) \rangle d\tau
+\end{equation}
+```
+
+Here $$\Delta r_{12}$$ is the distance between any two sites including basis offsets and $$\Delta r_1$$ and $$\Delta r_2$$ are the hopping distances. The integral and the sum over $$r_0$$ are already performed during measuring. Putting this into code, we calculate
+
+```julia
+function para_ccc(mc, q)
+    # direction indices for J1 & J4, J2 & J5, J3 & J6 (h.c. included in measurement)
+    idxs = [2, 6, 9]
+
+    CCS = mean(mc[:CCS])
+    dirs = directions(lattice(mc))
+    Λxx = ComplexF64(0)
+
+    for (i, dir) in enumerate(dirs)
+        for j in idxs, k in idxs
+            Λxx += CCS[i, j, k] * cis(-dot(dir + 0.5(dirs[j] .- dirs[k]), q))
+        end
+    end
+    
+    Λxx
+end
+```
+
+To compute the superfluid stiffness we now just calculate $$D_S = \frac{1}{4} [ -K_x - \Lambda_{xx}(q = 0)]$$ (eq. 4). 
+
+![](assets/HBC/DS.png)
