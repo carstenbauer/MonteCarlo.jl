@@ -152,7 +152,6 @@ _simple_buffer(mc, ::EachSitePair, T) = zeros(T, length(lattice(mc)), length(lat
 
 
 # determined from type data
-_simple_buffer(mc, LI::Type, T) = _simple_buffer(mc, LI(mc, mc.model), T)
 _simple_buffer(mc, li::DeferredLatticeIteratorTemplate, T) = zeros(T, ndirections(mc, li)) # TODO
 
 # zero element for binner
@@ -170,47 +169,11 @@ function _binner_zero_element(mc, model, li::ApplySymmetries{LI, N}, eltype) whe
 end
 
 
-#########################################
-
-
-# # _get_temp_shape is the shape of the temporary array
-# # nothing is interpreted as "It's not needed"
-# _get_temp_shape(mc, model, li) = _get_shape(mc, model, li)
-# _get_temp_shape(mc, model, ::Type{<: Sum}) = 1
-# function _get_temp_shape(mc, model, ::LatticeIterationWrapper{LI}) where {LI}
-#     _get_shape(mc, model, LI)
-# end
-
-# final_shape refers to the shape of what the observable saves
-# here `nothing` means saving the eltype instead of an array 
-# _get_final_shape(mc, model, li) = _get_shape(mc, model, li)
-# _get_final_shape(mc, model, ::Type{<: Sum}) = nothing
-# _get_final_shape(mc, model, ::SuperfluidDensity) = nothing
-# function _get_final_shape(mc, model, s::ApplySymmetries{LI, N}) where {LI, N}
-#     if LI <: EachLocalQuadByDistance || LI <: EachLocalQuadBySyncedDistance
-#         shape = _get_shape(mc, model, LI)
-#         (first(shape), N)
-#     else
-#         throw(MethodError(_get_final_shape, (mc, model, s)))
-#     end
-# end
-
-# _get_shape(model, mask::RawMask) = (mask.nsites, mask.nsites)
-# _get_shape(model, mask::DistanceMask) = length(mask)
-# _get_shape(mc, model, ::Nothing) = nothing
-
-# _get_shape(mc, model, LI::Type) = _get_shape(LI(mc, model))
-# _get_shape(mc, model, ::Type{Nothing}) = nothing
-# _get_shape(mc, model, ::Type{EachSite}) = length(lattice(model))
-# _get_shape(mc, model, ::Type{EachSiteAndFlavor}) = nflavors(model) * length(lattice(model))
-# _get_shape(mc, model, ::Type{EachSitePair}) = (length(lattice(model)), length(lattice(model)))
-# _get_shape(iter::DeferredLatticeIterator) = ndirections(iter)
 
 
 # Once we change greens iterators to follow the "template -> iter" structure
 # this will be compat only
 # Some type piracy to make things easier
-Base.Nothing() = nothing
 Base.Nothing(::DQMC, ::Model) = nothing
 
 # To identify the requirement of equal-time Greens functions
@@ -233,7 +196,6 @@ Base.:(==)(a::GreensAt, b::GreensAt) = (a.k == b.k) && (a.l == b.l)
 
 requires(::AbstractMeasurement) = (Nothing, Nothing)
 requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
-# TODO ApplySymmetries{LI}
 
 
 @bm function generate_groups(mc, model, measurements)
@@ -242,7 +204,6 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
     # get unique requirements
     requirements = requires.(measurements)
     GIs = unique(first.(requirements))
-    # LIs = unique(last.(requirements))
 
     # init requirements
     # lattice_iterators = map(T -> T(mc, model), LIs)
@@ -261,9 +222,6 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
         ms = filter(m -> G == requires(m)[1], measurements)
         group = map(ms) do m
             LI = requires(m)[2]
-            # j = findfirst(==(LI), LIs)
-            # @assert j !== nothing
-            # (lattice_iterators[j], m)
             (LI === nothing ? nothing : LI(mc, model), m)
         end
         (G isa Type ? G(mc, model) : G) => group
