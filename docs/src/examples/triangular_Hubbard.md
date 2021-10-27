@@ -4,7 +4,9 @@ This example implements the model from the paper [Attractive Hubbard model on a 
 
 ### Simulation
 
-In the paper simulations were done with $500-1000$ sweeps and $\Delta\tau = 0.125$. The first figure is done with interaction strength $U = -4$, linear system size $L = 4$ at $\beta = 2, 5, 7$ for varying $\mu$. The following simulations should take about 2 minutes.
+In the paper simulations were done with $500-1000$ sweeps and $\Delta\tau = 0.125$. Occupations are measured the same way as in MonteCarlo.jl. Pairing correlations seem to use $$\Delta \Delta^\dagger$$ rather than the $$\Delta^\dagger \Delta + \Delta \Delta^\dagger$$ given in the paper. The latter is the default in MonteCarlo.jl. To have the former we need to explicitly pass `kernel = MonteCarlo.pc_kernel`.
+
+The first figure is done with interaction strength $U = -4$, linear system size $L = 4$ at $\beta = 2, 5, 7$ for varying $\mu$. The following simulations should take about 2 minutes.
 
 ```julia
 using MonteCarlo
@@ -26,7 +28,7 @@ N = length(mus) * length(betas)
         recorder = Discarder
     )
     dqmc[:occ] = occupation(dqmc, m)
-    dqmc[:PC] = pairing_correlation(dqmc, m)
+    dqmc[:PC] = pairing_correlation(dqmc, m, kernel = MonteCarlo.pc_kernel)
     run!(dqmc, verbose = false)
 
     # for simplicity we just keep the whole simulation around
