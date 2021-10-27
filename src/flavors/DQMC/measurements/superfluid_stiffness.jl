@@ -17,14 +17,21 @@ struct _SuperfluidStiffness{LI <: DeferredLatticeIterator} <: LatticeIterationWr
 end
 function (x::SuperfluidStiffness)(cache::LatticeIteratorCache, lattice::AbstractLattice)
     # We need to calculate 0.25 (Λₓₓ(dq) - Λₓₓ(0)) where
-    # Λₓₓ(q) = CCS[i, j, k] * cis(- dot(dq, dir[i], + 0.5 (dir[j] - dir[k])))
+    # Λₓₓ(q) = CCS[i, j, k] * dot(eₓ, dir[j]) * dot(eₓ, dir[k]) * 
+    #           cis(- dot(dq, dir[i], + 0.5 (dir[j] - dir[k])))
     # we collect the 0.25, the cis from q=dq and the cis from q=0 (1) into weights
+    # Idk why the dot(eₓ, dir[j/k]) is there but https://arxiv.org/pdf/1912.08848.pdf
+    # has them so I'll have them too (in J_x as prefactor 1 or 2)
+    # The 0.5 (dir[j] - dir[k]) comes from the same paper, eq 17-19
     all_dirs = directions(lattice)
-    hop_dirs = x.template.directions
-    weights = Matrix{ComplexF64}(undef, length(all_dirs), length(hop_dirs), length(hop_dirs))
+    hop_idxs = x.template.directions
+    dr = normalize(x.dq)
+    fs = map(idx -> dot(dr, all_dirs[idx]), hop_idxs)
+    weights = Matrix{ComplexF64}(undef, length(all_dirs), length(hop_idxs), length(hop_idxs))
     for (i, dr12) in enumerate(all_dirs)
-        for (j, dj) in enumerate(hop_dirs), (k, dk) in enumerate(hop_dirs)
-            weights[i,j,k] = 0.25 * (cis(-dot(x.dq, dr12 + 0.5 * (dirs[dj] - dirs[dk]))) - 1)
+        for (j, dj) in enumerate(hop_idxs), (k, dk) in enumerate(hop_idxs)
+            weights[i,j,k] = 0.25 * fs[j] * fs[k] *
+                (cis(-dot(x.dq, dr12 + 0.5 * (dirs[dj] - dirs[dk]))) - 1)
         end
     end
 
