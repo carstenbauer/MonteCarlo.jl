@@ -130,7 +130,7 @@ spin_density_susceptibility(mc, args...; kwargs...) = spin_density(mc, args..., 
 function pairing(
         dqmc::DQMC, model::Model, greens_iterator; 
         K = 1 + nearest_neighbor_count(dqmc), wrapper = nothing, 
-        lattice_iterator = EachLocalQuadByDistance(2:K), 
+        lattice_iterator = EachLocalQuadByDistance(1:K), 
         kernel = pc_combined_kernel, kwargs...
     )
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
@@ -434,6 +434,7 @@ function pc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     # G_{i, j+d'}^{↑, ↓}(τ, 0) G_{i+d, j}^{↓, ↑}(τ, 0)
     Gl0[src1, src2] * Gl0[trg1+N, trg2+N] - Gl0[src1, trg2+N] * Gl0[trg1+N, src2]
 end
+
 
 """
     pc_alt_kernel(mc, model, ij::NTuple{4, Integer}, G::GreensMatrix)
