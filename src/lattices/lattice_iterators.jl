@@ -26,6 +26,11 @@ struct LatticeIteratorCache
 end
 LatticeIteratorCache() = LatticeIteratorCache(Dict{Any, Any}())
 
+# for simplicity
+function Base.getindex(mc::MonteCarloFlavor, key::LICacheKeys)
+    get!(mc.lattice_iterator_cache, key, lattice(mc))
+end
+
 
 Base.getindex(cache::LatticeIteratorCache, key::LICacheKeys) = cache.cache[key]
 function Base.get!(cache::LatticeIteratorCache, key::LICacheKeys, lattice::AbstractLattice)

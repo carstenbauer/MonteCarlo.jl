@@ -620,7 +620,7 @@ The pairing susceptibility comes with three directional indices after taking `me
 
 The superfluid stiffness still requires a good amount of work. Let's start with the diamagnetic contribution $$K_x$$. As mentioned before the prefactors of $$K_x$$ match those of the hoppings in the Hamiltonian (except for 5th nearest neighbors which catch a factor of 4). The expectation values for $$\langle c_j^\dagger c_i \rangle$$ follow from the measured Greens function $$G_{ij} = c_i c_j^\dagger$$ as $$\delta_{ij} - G{ji}$$ (permutation of operators).
 
-To pick the correct sites we can poke at the backend of the lattice iterator interface. There are a few maps that are cached, one of which returns a list of (source, target) site index pairs given a directional index. It can be generated with `push!(mc.lattice_iterator_cache, Dir2SrcTrg())` and accessed via `dir2srctrg = mc.lattice_iterator_cache[Dir2SrcTrg()]`. The relevant directional indices can be determined from `directions(mc)`. Using that we calculate the total diamagnetic contribution $$K_x$$ as
+To pick the correct sites we can poke at the backend of the lattice iterator interface. There are a few maps that are cached, one of which returns a list of (source, target) site index pairs given a directional index. It can be fetched (and potentially generated) via `dir2srctrg = mc[Dir2SrcTrg()]`. The relevant directional indices can be determined from `directions(mc)`. Using that we calculate the total diamagnetic contribution $$K_x$$ as
 
 ```julia
 function dia_K_x(mc)
@@ -635,8 +635,7 @@ function dia_K_x(mc)
 
     # We use the dir2srctrg map to get all (src, trg) pairs relevant to the 
     # directions we specified with `idxs` above
-    push!(mc.lattice_iterator_cache, MonteCarlo.Dir2SrcTrg(), lattice(mc))
-    dir2srctrg = mc.lattice_iterator_cache[MonteCarlo.Dir2SrcTrg()]
+    dir2srctrg = mc[MonteCarlo.Dir2SrcTrg()]
     N = length(lattice(mc))
     
     Kx = ComplexF64(0)
