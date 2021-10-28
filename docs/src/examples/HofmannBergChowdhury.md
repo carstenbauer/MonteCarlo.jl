@@ -156,7 +156,7 @@ fig
 
 ![](assets/HBC/HBC_lattice.png)
 
-In the plot we indicate first group of nearest neighbor with black arrows and the second, i.e. the reversals with light gray ones. Next nearest neighbors are indicated with full (group 3) or dashed lines (group 4) like in the paper. The fifth nearest neighbors (group 5) are drawn in red like in the reference.
+In the plot we indicate the first group of nearest neighbors with black arrows and the second, i.e. the reversals with light gray ones. Next nearest neighbors are indicated with full (group 3) or dashed lines (group 4) like in the paper. The fifth nearest neighbors (group 5) are drawn in red like in the reference.
 
 
 ## Hopping and Interaction Matrix
@@ -194,7 +194,7 @@ MonteCarlo.greenseltype(::Type{DQMC}, ::HBCModel) = ComplexF64
 MonteCarlo.greens_matrix_type( ::Type{DQMC}, ::HBCModel) = BlockDiagonal{ComplexF64, 2, CMat64}
 ```
 
-for our model. The definition of the hopping matrix then follow from the various weights in the Hamiltonian as
+for our model. The definition of the hopping matrix then follows from the various weights in the Hamiltonian as
 
 ```julia
 function MonteCarlo.hopping_matrix(mc::DQMC, m::HBCModel{<: LatPhysLattice})
@@ -243,7 +243,7 @@ function MonteCarlo.hopping_matrix(mc::DQMC, m::HBCModel{<: LatPhysLattice})
 end
 ```
 
-We note that the hermitian conjugates of a hoppings $$c_j^\dagger c_i$$ can also be understood as reversing the bond direction. Since we include both directions in our lattice definitions, second and fifth nearest neighbor hermitian conjugates are taken care of. First nearest neighbors also get a phase shift from complex conjugation - this is included by swapping `t1p` and `t1m` between group one and two.
+We note that the hermitian conjugates of a hopping $$c_j^\dagger c_i$$ can also be understood as reversing the bond direction. Since we include both directions in our lattice definitions, second and fifth nearest neighbor hermitian conjugates are taken care of. First nearest neighbors get a phase shift from complex conjugation, which is included by swapping `t1p` and `t1m` between group one and two.
 
 The interaction matrix can almost be copied from the repulsive Hubbard model. The only difference is that the spin up and spin down blocks get the same sign. 
 
@@ -267,13 +267,13 @@ The interaction matrix can almost be copied from the repulsive Hubbard model. Th
 end
 ```
 
-In this case we do not need to set the matrix type since the (abstract) `HubbardModel` already uses `Diagonal` interaction matrices.
+In this case we do not need to set the type for the interaction matrix explicitly like we did for the hopping and greens matrices, because the (abstract) `HubbardModel` already uses `Diagonal` interaction matrices.
 
 
 ## Local Updates
 
 
-Our next task is to implement `propose_local!` and `accept_local!`. Since those only rely on specific indices, columns or rows for a large part of their calculation we have to dig into the optimized matrix types a bit. `propose_local` aims to calculate the determinant ratio $$R$$ and bosonic energy difference $$\Delta E_Boson = V(C_{new}) - V(c_{old})$$ where $C$ is the auxiliary field configuration. The determinant ratio is defined as
+Our next task is to implement `propose_local!` and `accept_local!`. Since those only rely on specific indices, columns or rows for a large part of their calculation we have to dig into the optimized matrix types a bit. `propose_local` aims to calculate the determinant ratio $$R$$ and bosonic energy difference $$\Delta E_Boson = V(C_{new}) - V(c_{old})$$ where $$C$$ is the auxiliary field configuration. The determinant ratio is defined as
 
 ```math
 R = \prod_\sigma \left[
@@ -282,7 +282,7 @@ R = \prod_\sigma \left[
     \right]
 ```
 
-where $i$ and $\tau$ are the lattice index and time slice index of the proposed change in the auxiliary field. This formula already assumes that the greens matrix $$G$$ is zero for all differing spin indices (i.e. spin up-down or down-up). Therefore it is just a product of two terms. With this `propose_local` is implemented as
+where $$i$$ and $$\tau$$ are the lattice index and time slice index of the proposed change in the auxiliary field. This formula already assumes that the greens matrix $$G$$ is zero for all differing spin indices (i.e. spin up-down or down-up). Therefore it is just a product of two terms. With this `propose_local` is implemented as
 
 ```julia
 @inline @bm function MonteCarlo.propose_local(
@@ -315,7 +315,7 @@ where $i$ and $\tau$ are the lattice index and time slice index of the proposed 
 end
 ```
 
-Note that the fields of our special matrix types are directly indexed here. A `BlockDiagonal` matrix contains all of its data in `B.blocks`. We define the first (upper left) block as spin up and the second (lower right) as spin down. `CMat64` and `CVec64` have their real and imaginary values split into two matrices `x.re` and `x.im` respectively.
+Note that the fields of our special matrix types are directly indexed here. A `BlockDiagonal` matrix contains all of its data in `B.blocks`. We define the first (upper left) block as spin up and the second (lower right) as spin down. Sitting at each block is a complex matrix represented by `CMat64`. It contains two real valued matrices at `x.re` and `x.im` representing the real and imaginary parts respectively.
 
 For `accept_local`  we need to update the auxiliary field and the currently active greens function. To avoid recalculating $$\Delta$$ it is returned in `propose_local` and will be passed to `accept_local`. The updated greens function is given by
 
@@ -328,7 +328,7 @@ G_{jk}^{\sigma \sigma^\prime} =
     G_{ik}^{\sigma \sigma^\prime}(\tau, \tau)
 ```
 
-where $$i$$ is again the site index of the proposed flip. Let's go through some observations/simplifications. First we note that for $$\sigma \ne \sigma^\prime$$ the greens function is and remains zero. The inversion of $$R$$ is an inversion of a diagonal matrix and thus simplifies to calculating the inverse of each element. Finally, $$\Delta$$ has the same value for spin up and spin down so it simplifies to a number.
+where $$i$$ is again the site index of the proposed flip. Let's go through some observations/simplifications. First we note that for $$\sigma \ne \sigma^\prime$$ the greens function is and remains zero. The inversion of $$R$$ is an inversion of a diagonal matrix and thus simplifies to calculating the inverse of each element. Finally, $$\Delta$$ has the same value for spin up and spin down so it is simply a number.
 
 Using these observations and applying optimizations relevant to our matrix types `accept_local` can be implemented as
 
@@ -476,7 +476,7 @@ end
 ## Utilities and other functionality
 
 
-Now that we have the lattice, the hopping and interaction matrix as well as `propose_local` and `accept_local!` we're done with all the difficult stuff. There are a couple of things one might want to add. For example, adding `energy_boson()` would enable global updates and boson energy measurements. Adding `save_model` and `_load` should help with reducing file size and help future proof things, but isn't strictly necessary. And adding `intE_kernel` would allow the interactive and total energy to be measured. Beyond that one might add some constructors and convenience function like `parameters`. 
+Now that we have the lattice, the hopping and interaction matrix as well as `propose_local` and `accept_local!` we're done implementing the model. There are a couple of things one might want to add. For example, adding `energy_boson()` would enable global updates and boson energy measurements. Adding `save_model` and `_load` should help with reducing file size and help future proof things, but isn't strictly necessary. And adding `intE_kernel` would allow the interactive and total energy to be measured. Beyond that one might add some constructors and convenience function like `parameters`. 
 
 The full code including these convenience functions can be found [here](HBC_model.jl)
 
@@ -503,7 +503,7 @@ where beta needs to run over a reasonable set of inverse temperatures. We will u
 
 !!! note
 
-    In our actual simulation we used a `BufferedConfigRecorder` to record configurations. That way the simulation can be replayed with different measurements. This is very useful when still unsure about what you want to measure how exactly those measurements are supposed to work.
+    In our actual simulation we used a `BufferedConfigRecorder` to record configurations. That way the simulation can be replayed with different measurements. This is very useful when you are still unsure about what you want to measure or how exactly those measurements are supposed to work.
 
 ## Measurements
 
@@ -514,7 +514,9 @@ We will consider the following measurements for comparison:
 3. Reciprocal s-wave pairing susceptibility, solid red line in figure 4a)
 4. Reciprocal charge susceptibility, solid blue line in figure 4a)
 
-The s-spin susceptibility $$\int_0^\beta d\tau \langle m_z(r^\prime, \tau) m_z(r, 0) \rangle$$ can be measure with
+#### Z-Spin Susceptibility
+
+The z-spin susceptibility $$\int_0^\beta d\tau \langle m_z(r^\prime, \tau) m_z(r, 0) \rangle$$ can be measure with
 
 ```julia
 mc[:SDSz] = spin_density_susceptibility(mc, m, :z)
@@ -522,7 +524,9 @@ mc[:SDSz] = spin_density_susceptibility(mc, m, :z)
 
 The integral will be evaluated by MonteCarlo.jl and the result, accessible with `mean(mc[:SDCz])`, will return the average result by direction. I.e. `mean(mc[:SDCz])[i]` will contain the average z-spin susceptibility in `directions(mc)[i]`.
 
-The paper defines the charge susceptibility as $$\int_0^\beta d\tau \langle N(\tau) N(0) \rangle$$ where $$N(\tau) = \sum_j (n_j(\tau) - \nu)$$ and $$\nu$$ is the filling. The charge density susceptibility that MonteCarlo.jl defines, on the other hand, is defined as $$\langle n_j(\tau) n_i(0)\rangle$$. If we expand the papers' definition, we get
+#### Reciprocal Charge Susceptibility
+
+The paper defines the charge susceptibility as $$\int_0^\beta d\tau \langle N(\tau) N(0) \rangle$$ where $$N(\tau) = \sum_j (n_j(\tau) - \nu)$$ and $$\nu$$ is the filling. The charge density susceptibility that MonteCarlo.jl defines, on the other hand, is $$\langle n_j(\tau) n_i(0)\rangle$$. To connect these two we expand the papers' definition:
 
 ```math
 \begin{aligned}
@@ -533,20 +537,25 @@ The paper defines the charge susceptibility as $$\int_0^\beta d\tau \langle N(\t
 \end{aligned}
 ```
 
-In the last step we associated $$\nu = \sum_i \langle n_i \rangle / N$$, i.e. the average occupation. We can use this representation to calculate the reciprocal charge susceptibility as $$1 / (O - \nu^2)$$ where $$O$$ is MonteCarlo.jl's charge density susceptibility and $\nu$ is the average occupation.
+In the last step we associated $$\nu = \sum_i \langle n_i \rangle / N$$, i.e. the average occupation. We can use this representation to calculate the reciprocal charge susceptibility as $$1 / (O - \nu^2)$$ where $$O$$ is MonteCarlo.jl's charge density susceptibility and $\nu$ is the average occupation. We measure
 
 ```julia
 mc[:occ] = occupation(mc, m)
 mc[:CDS] = charge_density_susceptibility(mc, m)
 ```
 
-The reciprocal s-wave pairing susceptibility may need some explanation. All susceptibilities in DQMC are given by an integral of the form $$O = \int_0^\beta d\tau \langle O(\tau) O(0) \rangle$$. MonteCarlo.jl calculates this integral whenever a `CombinedGreensIterator` is used, which is the case for every `{...}_susceptibility` measurement. 
-The paper defines the (s-wave) pairing susceptibilities as $$O(\tau) = \sum_j c_{j, \uparrow} c_{j, \downarrow} + h.c.$$. More generally you would consider a site offset between the pairs of operators and use weighted sums to get pairing susceptibilities of various symmetries like d-wave, p-wave, etc. For s-wave this offset is 0. In MonteCarlo.jl these offsets are set via the lattice iterator. For example you may use `EachLocalQuadByDistance([2, 4, 5])` to consider the `directions(mc)[[2, 4, 5]]` as offsets. 
-The `pairing_suceptibility` constructors uses the right iterators - we just need to pass the relevant directions. For s-wave that is 1 (corresponding to the smallest possible distance vector - 0).
+#### Reciprocal S-Wave Pairing Susceptibility
+
+The paper defines the (s-wave) pairing susceptibilities as $$O(\tau) = \sum_j c_{j, \uparrow} c_{j, \downarrow} + h.c.$$. More generally you would consider a site offset between the pairs of operators and use weighted sums to get pairing susceptibilities of various symmetries like d-wave, p-wave, etc. For s-wave this offset is $$\vec{0}$$. In MonteCarlo.jl these offsets are set via the lattice iterator. For example you may use `EachLocalQuadByDistance([2, 4, 5])` to consider the `directions(mc)[[2, 4, 5]]` as offsets. 
+
+The `pairing_suceptibility` constructors from MonteCarlo.jl is written with these offsets in mind. By default it will include offsets for all nearest neighbors as well as offsets of $$\vec{0}$$. To reduce computational complexity we may reduce these to just $$\vec{0}$$ offsets by requesting just first offset:
+
 
 ```julia
 mc[:PS] = pairing_susceptibility(mc, m, 1)
 ```
+
+#### Superfluid Stiffness
 
 The superfluid stiffness is given by $$0.25 [- K_x - \Lambda_{xx}(q = 0)]$$ in the paper. Both the diamagnetic contribution $$K_x$$ and the Fourier transformed current-current correlation $$\Lambda_{xx}(q)$$ are things we need to measure individually.
 
@@ -556,11 +565,11 @@ The diamagnetic contribution $$K_x$$ is the simpler one. For that we refer to eq
 mc[:G] = greens_measurement(mc, model)
 ```
 
-For the current-current correlations we need to measure $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$J_x(r, \tau)$$ is given in equation 14a - 14j. (We will leave the Fourier transform for later.) They are already implemented by MonteCarlo.jl, but we should briefly discuss them regardless. 
+For the current-current correlations we need to measure $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$J_x(r, \tau)$$ is given in equation 14a - 14j. These terms are already implemented by MonteCarlo.jl, but we should briefly discuss them regardless. (We will leave the Fourier transform for later.) 
 
-Much like $$K_x$$ these terms are closely related to the hopping terms of the Hamiltonian. The index $$\alpha$$ ($$\beta$$) refers to the direction of the hopping. Each term contains a hopping in +x direction weighted by $$i$$ and a hopping in the opposite direction weighted by $$-i$$ via the Hermitian conjugate. The fifth nearest neighbor terms also catch a factor 2. For the measurement we need to apply Wicks theorem to every combination of any two current $$J^\alpha_x$$ and also take care of an implied spin index on $$J^\alpha_x$$. The result can be found in the `cc_kernel` in MonteCarlo.jl.
+Much like $$K_x$$ these terms are closely related to the hopping terms of the Hamiltonian. The index $$\alpha$$ ($$\beta$$) refers to the direction of the hopping. Each term contains a hopping in +x direction weighted by $$i$$ and a hopping in the opposite direction weighted by $$-i$$ via the Hermitian conjugate. The fifth nearest neighbor terms also catch a factor 2. For the measurement we need to apply Wicks theorem to every combination of any two currents $$J^\alpha_x$$ and also take care of an implied spin index. The result can be found in the `cc_kernel` in MonteCarlo.jl.
 
-Let's get back to what we need to measure in our simulation. The `current_current_susceptibility` measurement measures $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$\alpha$$ and $$\beta$$ are the directions that passed. Since we set `t5 = 0` we can ignore equations 14g - 14j leaving 6 equations with 3 directions on 2 sublattices. MonteCarlo.jl does not care about sublattices, so we're left with three directions `[2, 6, 9]`. You can check these with `directions(mc)[[2, 6, 9]]` against the paper. Finally oru measurement is given by
+Let's get back to what we need to measure in our simulation. MonteCarlo.jl's `current_current_susceptibility` measures $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$\alpha$$ and $$\beta$$ are directions that get passedto the function. Since we set `t5 = 0` we can ignore equations 14g - 14j leaving 6 equations with 3 directions on 2 sublattices. MonteCarlo.jl does not care about sublattices, so we're left with three +x directions `[2, 6, 9]` which need to be passed. You can check these with `directions(mc)[[2, 6, 9]]` against the paper. Our measurement is given by
 
 ```julia
 mc[:CCS] = current_current_susceptibility(mc, model, [2, 6, 9])
@@ -572,7 +581,7 @@ To run the simulation we simply use `run!(mc)`.
 
 We should point out that these simulations are lot more complex than the other two examples. We are working with 128 sites as opposed to 16 and inverse temperatures as large as 40 instead of $$\le 12$$. We are also using complex matrices which bring $$2 - 4$$ times the complexity and we need to consider both a spin up and down sector in the greens matrix. 
 
-It is therefore adviced that you run this on a cluster, in parallel. To figure out how much time is needed you can check the sweep time for the smallest $$\beta$$ with measurements. The scaling should be roughly linear. Note that you can pass a `safe_before::TimeType` to make sure the simulation saves and exits in time. If your cluster restricts you to full nodes it might be useful to create files for each simulation and distribute filenames to different cores on the same node.
+It is therefore advised that you run this on a cluster, in parallel. To figure out how much time is needed you can check the sweep time for the smallest $$\beta$$ with measurements. The scaling should be roughly linear (w.r.t. $$\beta$$). Note that you can pass a `safe_before::TimeType` to make sure the simulation saves and exits in time. If your cluster restricts you to full nodes it might be useful to create files for each simulation beforehand and distribute filenames to different cores on the same node. (src/mpi.jl might be helpful.)
 
 
 
@@ -580,12 +589,12 @@ It is therefore adviced that you run this on a cluster, in parallel. To figure o
 
 
 
-In this section we plot the results from our simulations on top of the results from the paper. There are 5 points per temperature coming from different chemical potentials $$\mu$$. The filling varies from 0.22 to 0.265 between them. Note also that not every simulation did the full number of sweeps. The shortest simulation ran for about 3000 sweeps, including 1000 thermalization sweeps.
+In this section we plot the results from our simulations on top of the results from the paper. There are 5 points per temperature coming from different chemical potentials $$\mu$$. The filling varies from 0.22 to 0.265 between them. Note also that not every simulation did the full number of sweeps. The shortest simulation ran for about 3000 sweeps, which includes 1000 thermalization sweeps.
 
 
 ## Z-Spin Susceptibility
 
-To get the results from the paper we need to perform a $$q = 0$$ Fourier transform which is simply a sum. We use `real(sum(mean(mc[:SDCz])))` and plot against `1 / mc.parameters.beta`.
+To get the results from the paper we need to perform a $$q = 0$$ Fourier transform which is simply a sum. We calculate `real(sum(mean(mc[:SDCz])))` and plot against `1 / mc.parameters.beta`.
 
 ![](assets/HBC/SDCz.png)
 
@@ -610,7 +619,7 @@ where the factor `mc.parameters.beta / length(lattice(mc))` comes from the imagi
 
 ## Reciprocal Pairing Susceptibility
 
-The pairing susceptibility comes with three directional indices after taking `mean(mc[:PS])`. The first is associated with the distance $$r - r^\prime$$ between the two pairing operators $$\Delta$$ in $$\langle \Delta^\alpha(r) \Delta^\beta(r^\prime) \rangle$$. The second and third are displacements inside them. Since we care about s-wave pairing the internal displacements are zero or index 1. Thus we plot `1 / real(sum(mean(mc[:PS])[:, 1, 1]))` against `1 / mc.parameters.beta` for the reciprocal pairing susceptibility. 
+The pairing susceptibility comes with three directional indices after taking `mean(mc[:PS])`. The first is associated with the distance $$r - r^\prime$$ between the two pairing operators $$\Delta(r)$$ in $$\langle \Delta^\alpha(r) \Delta^\beta(r^\prime) \rangle$$. The second and third are displacements inside them. Since we only care about s-wave pairing the internal displacements are zero or index 1. Thus we plot `1 / real(sum(mean(mc[:PS])[:, 1, 1]))` against `1 / mc.parameters.beta` for the reciprocal pairing susceptibility. 
 
 ![](assets/HBC/PS.png)
 
@@ -620,7 +629,7 @@ The pairing susceptibility comes with three directional indices after taking `me
 
 The superfluid stiffness still requires a good amount of work. Let's start with the diamagnetic contribution $$K_x$$. As mentioned before the prefactors of $$K_x$$ match those of the hoppings in the Hamiltonian (except for 5th nearest neighbors which catch a factor of 4). The expectation values for $$\langle c_j^\dagger c_i \rangle$$ follow from the measured Greens function $$G_{ij} = c_i c_j^\dagger$$ as $$\delta_{ij} - G{ji}$$ (permutation of operators).
 
-To pick the correct sites we can poke at the backend of the lattice iterator interface. There are a few maps that are cached, one of which returns a list of (source, target) site index pairs given a directional index. It can be fetched (and potentially generated) via `dir2srctrg = mc[Dir2SrcTrg()]`. The relevant directional indices can be determined from `directions(mc)`. Using that we calculate the total diamagnetic contribution $$K_x$$ as
+To pick the correct sites we can poke at the backend of the lattice iterator interface. There are a few maps that get cached, one of which returns a list of (source, target) site index pairs given a directional index. It can be fetched (and potentially generated) via `dir2srctrg = mc[Dir2SrcTrg()]`. The relevant directional indices can be determined from `directions(mc)`. Using that we calculate the total diamagnetic contribution $$K_x$$ as
 
 ```julia
 function dia_K_x(mc)
@@ -652,7 +661,7 @@ function dia_K_x(mc)
 end
 ```
 
-For the Fourier transformed current-current correlation $$\Lambda_{xx}(q)$$ the paper uses two summations. The first (eq. 16) runs over positions without offsets from the basis. The second (eq. 17) then resolves those offsets with a shift by $$\hat{e}_y$$ and also translate positions to the center of the two sites involved with the hopping term. Combining both equations in a MonteCarlo.jl compatible style yields
+For the Fourier transformed current-current correlation $$\Lambda_{xx}(q)$$ the paper uses two summations. The first (eq. 16) runs over positions without offsets from the basis. The second (eq. 17) then resolves those offsets with a shift by $$\hat{e}_y$$ and also translates positions to the centers of the two sites involved with each hopping term. Combining both equations in a MonteCarlo.jl compatible style yields
 
 ```math
 \begin{equation}
@@ -661,7 +670,7 @@ For the Fourier transformed current-current correlation $$\Lambda_{xx}(q)$$ the 
 \end{equation}
 ```
 
-Here $$\Delta r_{12}$$ is the distance between any two sites including basis offsets and $$\Delta r_1$$ and $$\Delta r_2$$ are the hopping distances. The integral and the sum over $$r_0$$ are already performed during measuring. Putting this into code, we calculate
+Here $$\Delta r_{12}$$ is the distance between any two sites including basis offsets and $$\Delta r_1$$ and $$\Delta r_2$$ are the hopping distances. The integral over imaginary time and the sum over $$r_0$$ are already performed during measuring. This leaves the following to be calculated after measuring:
 
 ```julia
 function para_ccc(mc, q)
@@ -682,6 +691,6 @@ function para_ccc(mc, q)
 end
 ```
 
-To compute the superfluid stiffness we now just calculate $$D_S = \frac{1}{4} [ -K_x - \Lambda_{xx}(q = 0)]$$ (eq. 4). 
+To compute the superfluid stiffness we now just calculate $$D_S = \frac{1}{4} [ -K_x - \Lambda_{xx}(q = 0)]$$ (eq. 4).
 
 ![](assets/HBC/DS.png)
