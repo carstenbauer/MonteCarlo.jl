@@ -87,8 +87,8 @@ bot = Axis(fig[2, 1])
 
 # References
 p = pkgdir(MonteCarlo)
-top_ref = FileIO.load(joinpath(p, "docs/src/examples/assets/tri_Hub_ref1_1.png"))
-bot_ref = FileIO.load(joinpath(p, "docs/src/examples/assets/tri_Hub_ref1_2.png"))
+top_ref = FileIO.load(joinpath(p, "docs/src/examples/assets/triangular/tri_Hub_ref1_1.png"))
+bot_ref = FileIO.load(joinpath(p, "docs/src/examples/assets/triangular/tri_Hub_ref1_2.png"))
 ip = image!(top, -2..2, 0..2, top_ref'[:, end:-1:1])
 translate!(ip, 0, 0, -1)
 ip = image!(bot, -2..2, 0..2.5, bot_ref'[:, end:-1:1], transparency=true)
@@ -114,10 +114,10 @@ ylims!(top, 0 , 2)
 xlims!(bot, -2 , 2)
 ylims!(bot, 0 , 2.5)
 
-CairoMakie.save(joinpath(p, "docs/src/examples/assets/fig1_comparison.png"), fig)
+CairoMakie.save(joinpath(p, "docs/src/examples/assets/triangular/fig1_comparison.png"), fig)
 ```
 
-![](assets/fig1_comparison.png)
+![](assets/triangular/fig1_comparison.png)
 
 ### Other runs
 
@@ -125,11 +125,11 @@ The [paper](https://journals.aps.org/prb/abstract/10.1103/PhysRevB.48.3976) has 
 
 For $L = 6$ we use `mus = vcat(-2.0:0.25:-0.25, -0.1:0.1:1.1, 1.25, 1.5, 2.0)` with the same parameters other than that. The simulation should take about 5 minutes.
 
-![](assets/fig2_comparison.png)
+![](assets/triangular/fig2_comparison.png)
 
 For $L=8$ we use `mus = vcat(-2.0:0.5:-0.5, -0.1:0.1:1.1, 1.25, 1.5, 2.0)` and `betas = (2.0, 5.0, 6.0, 7.0)`. The resulting simulation takes about 30min.
 
-![](assets/fig3_comparison.png)
+![](assets/triangular/fig3_comparison.png)
 
 #### Charge Density Structure Factor
 
@@ -180,10 +180,10 @@ ys = map(dqmcs) do dqmc
 end
 ```
 
-![](assets/fig6_comparison.png)
+![](assets/triangular/fig6_comparison.png)
 
 #### Magnetic Susceptibility
 
 The uniform susceptibility featured in figure 7 of the paper can be reproduced more easily. For it we need to run our simulation with a `spin_density_susceptibility(dqmc, model, :z)` measurement. The result will again be in a partially summed per-distance-vector form. The $q=0$ Fourier transform follows from simple summation. With `L = 6` and `betas = [1.0, 2.0, 4.0, 5.0, 6.0, 7.0, 8.0]` this simulation should take about a minute.
 
-![](assets/fig7_comparison.png)
+![](assets/triangular/fig7_comparison.png)
