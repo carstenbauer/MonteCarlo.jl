@@ -17,7 +17,8 @@ makedocs(
         ],
         "Examples" => [
             "examples/triangular_Hubbard.md",
-            "examples/ALF1.md"
+            "examples/ALF1.md",
+            "examples/HofmannBergChowdhury.md"
         ],
         "Legacy" => [
             "Introduction" => "legacy/index.md",
