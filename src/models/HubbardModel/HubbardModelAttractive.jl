@@ -259,13 +259,13 @@ checkflavors(model::HubbardModelAttractive) = checkflavors(model, 1)
 function cdc_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::GreensMatrix)
     # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
     i, j = ij
-    4 * dagger(G)[i, i] * dagger(G)[j, j] + 2 * dagger(G)[i, j] * G[i, j]
+    4 * swapop(G)[i, i] * swapop(G)[j, j] + 2 * swapop(G)[i, j] * G[i, j]
 end
 function cdc_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, pg::NTuple{4})
     i, j = ij
     G00, G0l, Gl0, Gll = pg
     # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
-    4 * dagger(Gll)[i, i] * dagger(G00)[j, j] + 2 * dagger(G0l)[i, j] * Gl0[i, j]
+    4 * swapop(Gll)[i, i] * swapop(G00)[j, j] + 2 * swapop(G0l)[i, j] * Gl0[i, j]
 end
 
 mx_kernel(mc, ::HubbardModelAttractive, i, G::GreensMatrix) = 0.0
@@ -274,28 +274,28 @@ mz_kernel(mc, ::HubbardModelAttractive, i, G::GreensMatrix) = 0.0
 
 function sdc_x_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
-    2 * dagger(G)[i, j] * G[i, j]
+    2 * swapop(G)[i, j] * G[i, j]
 end
 function sdc_y_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
-    2 * dagger(G)[i, j] * G[i, j]
+    2 * swapop(G)[i, j] * G[i, j]
 end
 function sdc_z_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::GreensMatrix)
     i, j = ij
-    2 * dagger(G)[i, j] * G[i, j]
+    2 * swapop(G)[i, j] * G[i, j]
 end
 
 function sdc_x_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, pg::NTuple{4})
     i, j = ij
-    2 * dagger(pg[2])[i, j] * pg[3][i, j]
+    2 * swapop(pg[2])[i, j] * pg[3][i, j]
 end
 function sdc_y_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, pg::NTuple{4})
     i, j = ij
-    2 * dagger(pg[2])[i, j] * pg[3][i, j]
+    2 * swapop(pg[2])[i, j] * pg[3][i, j]
 end
 function sdc_z_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, pg::NTuple{4})
     i, j = ij
-    2 * dagger(pg[2])[i, j] * pg[3][i, j]
+    2 * swapop(pg[2])[i, j] * pg[3][i, j]
 end
 
 function pc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, G::GreensMatrix)
@@ -309,7 +309,7 @@ end
 function pc_alt_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, packed_greens::NTuple{4})
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
-    dagger(G0l)[trg1, trg2] * dagger(G0l)[src1, src2]
+    swapop(G0l)[trg1, trg2] * swapop(G0l)[src1, src2]
 end
 function pc_ref_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, packed_greens::NTuple{4})
     src1, trg1, src2, trg2 = sites
@@ -326,26 +326,14 @@ function cc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, pg::NTuple{4}
     # up-up counts, down-down counts, mixed only on 11s or 22s
     s1 = src1; t1 = trg1
     s2 = src2; t2 = trg2
-    output = -(
-        4.0 * (
-            T[t2, s2] * (I[s2, t2] - Gll[s2, t2]) - 
-            T[s2, t2] * (I[t2, s2] - Gll[t2, s2])
-        ) * (
-            T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - 
-            T[s1, t1] * (I[t1, s1] - G00[t1, s1])
-        ) +
-        - 2.0 * T[t2, s2] * T[t1, s1] * G0l[s1, t2] * Gl0[s2, t1] +
-        + 2.0 * T[t2, s2] * T[s1, t1] * G0l[t1, t2] * Gl0[s2, s1] +
-        + 2.0 * T[s2, t2] * T[t1, s1] * G0l[s1, s2] * Gl0[t2, t1] +
-        - 2.0 * T[s2, t2] * T[s1, t1] * G0l[t1, s2] * Gl0[t2, s1]
+    output = (
+        4.0 *(T[s2, t2] * (I[t2, s2] - Gll[t2, s2]) - T[t2, s2] * (I[t2, s2] - Gll[s2, t2])) * 
+        (T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - T[s1, t1] * (I[s1, t1] - G00[t1, s1])) +
+        - 2.0 * T[t2, s2] * T[t1, s1] * swapop(G0l)[t2, s1] * Gl0[s2, t1] +
+        + 2.0 * T[t2, s2] * T[s1, t1] * swapop(G0l)[t2, t1] * Gl0[s2, s1] +
+        + 2.0 * T[s2, t2] * T[t1, s1] * swapop(G0l)[s2, s1] * Gl0[t2, t1] +
+        - 2.0 * T[s2, t2] * T[s1, t1] * swapop(G0l)[s2, t1] * Gl0[t2, s1] 
     )
-    # output = 4.0 * 
-    #     (T[s1, t1] * Gll[t1, s1] - T[t1, s1] * Gll[s1, t1]) * 
-    #     (T[s2, t2] * G00[t2, s2] - T[t2, s2] * G00[s2, t2]) +
-    #     + 2.0 * T[t1, s1] * T[t2, s2] * (- G0l[s2, t1]) * Gl0[s1, t2] +
-    #     - 2.0 * T[s1, t1] * T[t2, s2] * (- G0l[s2, s1]) * Gl0[t1, t2] +
-    #     - 2.0 * T[t1, s1] * T[s2, t2] * (- G0l[t2, t1]) * Gl0[s1, s2] +
-    #     + 2.0 * T[s1, t1] * T[s2, t2] * (- G0l[t2, s1]) * Gl0[t1, s2] +
 
     output
 end

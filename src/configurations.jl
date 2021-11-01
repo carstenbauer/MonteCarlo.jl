@@ -91,6 +91,7 @@ See also [`ConfigRecorder`](@ref), [`Discarder`](@ref)
 """
 mutable struct BufferedConfigRecorder{CT} <: AbstractRecorder
     filename::FilePath
+    link_id::String
     buffer::Vector{CT}
     rate::Int64
     idx::Int64
@@ -98,11 +99,12 @@ mutable struct BufferedConfigRecorder{CT} <: AbstractRecorder
     total_length::Int64
     save_idx::Int64
 end
-function BufferedConfigRecorder(fn::String, buffer, rate, idx, chunk, N, sidx)
-    BufferedConfigRecorder(AbsolutePath(fn), buffer, rate, idx, chunk, N, sidx)
+function BufferedConfigRecorder(fn::String, link_id, buffer, rate, idx, chunk, N, sidx)
+    BufferedConfigRecorder(AbsolutePath(fn), link_id, buffer, rate, idx, chunk, N, sidx)
 end
 function BufferedConfigRecorder{CT}(filename, rate = 10, chunk_size = 1000) where CT
-    BufferedConfigRecorder(filename, Vector{CT}(undef, chunk_size), rate, 1, 1, 0, -1)
+    link_id = string(rand(UInt128))
+    BufferedConfigRecorder(filename, link_id, Vector{CT}(undef, chunk_size), rate, 1, 1, 0, -1)
 end
 function BufferedConfigRecorder(MC::Type, M::Type, filename; rate = 10, chunk_size = 1000)
     BufferedConfigRecorder{compressed_conf_type(MC, M)}(filename, rate, chunk_size)
@@ -123,6 +125,7 @@ function _push!(cr::BufferedConfigRecorder, data)
         chunk, idx = idx2chunk_idx(cr, cr.total_length+1)
         # load chunk if not loaded and required
         chunk != cr.chunk && idx != 1 && load_chunk!(cr, chunk)
+        cr.chunk = chunk
         cr.idx = idx
     elseif cr.idx > length(cr.buffer)
         # The buffer is full - commit to file
@@ -164,7 +167,7 @@ end
 # chunk loading and saving
 function save_final_chunk!(cr::BufferedConfigRecorder)
     if cr.total_length != (cr.chunk - 1) * length(cr.buffer) + cr.idx - 1
-        error("Attempting to save non-final chunk $(cr.chunk)!")
+        error("Attempting to save non-final chunk $(cr.chunk)!") # TODO this error triggered?
     end
     save_chunk!(cr)
     cr.save_idx = cr.total_length
@@ -193,45 +196,119 @@ function load_chunk!(cr::BufferedConfigRecorder, chunk)
     cr.idx = -1
 end
 
+function update_filepath!(cr::BufferedConfigRecorder, parent_path)
+    # this only messes with relative filepaths
+    # - update absolute path if necessary (parent path changed)
+    # - move and rename on collision if link_id doesn't match
+    # - replace if link_id matches
+
+    if cr.filename.is_relative
+        # get dir of parent savefile
+        path, _ = splitdir(parent_path)
+
+        # get adjusted absolute path, removing potential preceding /
+        rp = cr.filename.relative_path
+        filepath = joinpath(path, startswith(rp, '/') ? rp[2:end] : rp)
+
+        # if absolute_path does not point to a file the parent has been moved to
+        # a different system. In this case we assume that the file will be moved
+        # as well.
+        # if there is a file at absolute_path and the path differs from filepath
+        # we should move the file.
+        if isfile(cr.filename.absolute_path) && filepath != cr.filename.absolute_path
+
+            # if there is already a file at filepath we may need to replace it.
+            # If the id's don't match it belongs to a different simulation and
+            # we rename this file, otherwise we replace.
+            if isfile(filepath) 
+                target_link_id = try 
+                    JLD2.jldopen(filepath, "r") do f
+                        get(f, "link_id", "N/A") # maybe default to current?
+                    end
+                catch e # if we can't read the link_id we do not want to touch the file
+                    "ERROR"
+                end
+
+                if target_link_id != cr.link_id
+                    new_filepath = _generate_unique_filename(filepath)
+                    @warn(
+                        "There already exists an independent file at " * 
+                        "$filepath. Renaming to $new_filepath to avoid " *
+                        "overwriting other data."
+                    )
+                    filepath = new_filepath
+                else
+                    # we already have a matching file at the new location, so 
+                    # we don't need to replace anything
+                    cr.filename = FilePath(true, rp, filepath)
+                    return nothing
+                end
+            end
+
+            mv(cr.filename.absolute_path, filepath, force = true)
+        end
+
+        # update filepath
+        cr.filename = FilePath(true, string(filepath[length(path)+2:end]), filepath)
+    end
+
+    nothing
+end
 
 
 function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
-    if cr.save_idx != cr.total_length || !isfile(cr.filename.absolute_path)
-        save_final_chunk!(cr)
+    # save link_id
+    JLD2.jldopen(cr.filename.absolute_path, "a+") do file
+        if !haskey(file, "link_id") 
+            file["link_id"] = cr.link_id
+        end
+    end
+
+    # save current buffer
+    if !(cr.chunk == -1 && cr.idx == -1) # not in unitialized state
+        if cr.save_idx != cr.total_length || !isfile(cr.filename.absolute_path)
+            save_final_chunk!(cr)
+        end
     end
 
     # adjust relative FilePath
-    if cr.filename.is_relative
-        path, _ = splitdir(file.path)
-        filepath = joinpath(path, cr.filename.relative_path)
-        if filepath != cr.filename.absolute_path
-            if isfile(filepath)
-                new_filepath = _generate_unique_filename(filepath)
-                @warn "Config file '$filepath' already exists, renaming to '$new_filepath' to avoid collision."
-                filepath = new_filepath
-            end
-            mv(cr.filename.absolute_path, filepath)
-        end
-        cr.filename = FilePath(true, string(filepath[length(path)+1:end]), filepath)
-    end
+    update_filepath!(cr, file.path)
 
-    write(file, entryname * "/VERSION", 2)
+    # main save information
+    write(file, entryname * "/VERSION", 3)
     write(file, entryname * "/tag", "BufferedConfigRecorder")
     write(file, entryname * "/filename", cr.filename)
+    write(file, entryname * "/link_id", cr.link_id)
     write(file, entryname * "/buffer", cr.buffer)
     write(file, entryname * "/rate", cr.rate)
     write(file, entryname * "/total_length", cr.total_length)
     write(file, entryname * "/save_idx", cr.total_length)
     nothing
 end
+
 function _load(data, ::Val{:BufferedConfigRecorder})
-    if !(data["VERSION"] <= 2)
+    if !(data["VERSION"] <= 3)
         throw(ErrorException("Failed to load BufferedConfigRecorder version $(data["VERSION"])"))
     end
-    BufferedConfigRecorder(
-        data["filename"], data["buffer"], data["rate"], -1, -1, 
+
+    link_id = get(data, "link_id", "N/A")
+    
+    cr = BufferedConfigRecorder(
+        data["filename"], link_id, data["buffer"], data["rate"], -1, -1, 
         data["total_length"], data["save_idx"]
     )
+
+    # adjust relative FilePath
+    update_filepath!(cr, data.path)
+
+    # if link_id unknown get it from file or generate new
+    if link_id == "N/A" && isfile(cr.filename.absolute_path)
+        cr.link_id = JLD2.jldopen(cr.filename.absolute_path, "r") do file
+            haskey(file, "link_id") ? file["link_id"] : string(rand(UInt128))
+        end
+    end
+
+    return cr
 end
 
 

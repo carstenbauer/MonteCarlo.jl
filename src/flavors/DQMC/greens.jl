@@ -6,18 +6,19 @@
 `⟨cᵢ(k) cⱼ^†(l)⟩` where `k` and `l` are time slice indices contained in the 
 type.
 
-Related to this is the `D::Daggered` type, returned by `dagger(::GreensMatrix)`. 
-It represents `D[i, j] = ⟨cᵢ^†(l) cⱼ(k)⟩ = δᵢⱼ δₖₗ - ⟨cⱼ(k) cᵢ^†(l)⟩`.
+Related to this is the `P::Permuted` type, returned by `swapop(::GreensMatrix)`. 
+It represents `P[i, j] = ⟨cᵢ^†(l) cⱼ(k)⟩ = δᵢⱼ δₖₗ - ⟨cⱼ(k) cᵢ^†(l)⟩`.
 """
 struct GreensMatrix{T, M <: AbstractMatrix{T}} <: AbstractMatrix{T}
     k::Int
     l::Int
     val::M
 end
+
 """
 see GreensMatrix
 """
-struct Daggered{T, GT <: GreensMatrix{T}} <: AbstractMatrix{T}
+struct Permuted{T, GT <: GreensMatrix{T}} <: AbstractMatrix{T}
     x::GT
 end
 
@@ -25,17 +26,24 @@ end
 #     println(io, "G[i, j] = cᵢ(", x.k, ") cⱼ^†(", x.l, ") =")
 #     show(io, x.val)
 # end
-# function Base.show(io::IO, x::Daggered{<: GreensMatrix})
+# function Base.show(io::IO, x::Permuted{<: GreensMatrix})
 #     println(io, "G'[i, j] = cᵢ^†(", x.l, ") cⱼ(", x.k, ") =")
 #     show(io, I[x.x.k, x.x.l] * I - transpose(x.x.val))
 # end
 
 Base.size(x::GreensMatrix) = size(x.val)
-Base.size(x::Daggered) = size(x.x.val)
+Base.size(x::Permuted) = size(x.x.val)
 Base.getindex(x::GreensMatrix, i, j) = x.val[i, j]
-Base.getindex(x::Daggered, i, j) = I[x.x.k, x.x.l] * I[i, j] - x.x.val[j, i]
-dagger(x::GreensMatrix) = Daggered(x)
-dagger(x::Daggered) = x.x
+Base.getindex(x::Permuted, i, j) = I[x.x.k, x.x.l] * I[i, j] - x.x.val[j, i]
+
+"""
+    swapop(G::GreensMatrix)
+
+Permute the operator order of a `GreensMatrix` from ⟨cᵢ(k) cⱼ^†(l)⟩ to 
+⟨cᵢ^†(l) cⱼ(k)⟩.
+"""
+swapop(x::GreensMatrix) = Permuted(x)
+swapop(x::Permuted) = x.x
 Base.copy(x::GreensMatrix) = GreensMatrix(x.k, x.l, copy(x.val))
 function Base.:(==)(a::GreensMatrix, b::GreensMatrix)
     a.k == b.k && a.l == b.l && a.val == b.val
@@ -64,7 +72,14 @@ exponentials from left and right.
 Inplace version of `greens`.
 """
 @bm function greens!(mc::DQMC; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.Ur)
-    GreensMatrix(0, 0, _greens!(mc, output, input, temp))
+    # TODO rework measurements to work well with StructArrays and remove this    
+    if isdefined(mc.stack, :complex_greens_temp)
+        _greens!(mc, output, input, temp)
+        copyto!(mc.stack.complex_greens_temp, output)
+        GreensMatrix(0, 0, mc.stack.complex_greens_temp)
+    else
+        GreensMatrix(0, 0, _greens!(mc, output, input, temp))
+    end
 end
 
 
@@ -87,6 +102,7 @@ function _greens!(
     vmul!(target, eThalfplus, temp)
     return target
 end
+
 
 function _greens!(
         mc::DQMC_CBTrue, target::AbstractMatrix = mc.stack.greens_temp, 

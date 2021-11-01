@@ -126,7 +126,7 @@ end
 _load(data, g1::String, g2::String, gs::String...) = _load(data[g1], g2, gs...)
 function _load(data, g::String)
     if !(data["VERSION"] == 1)
-        throw(ErrorException("Failed to load $filename version $(data["VERSION"])"))
+        throw(ErrorException("Failed to load $(data.path) version $(data["VERSION"])"))
     end
 
     haskey(data[g], "RNG") && load_rng!(data)
@@ -147,7 +147,9 @@ See also: [`run!`](@ref)
 """
 function resume!(filename; kwargs...)
     data = if endswith(filename, "jld2")
-        JLD2.jldopen(filename, "r") else JLD.load(filename)
+        FileWrapper(JLD2.jldopen(filename, "r"), filename)
+    else 
+        FileWrapper(JLD.load(filename), filename)
     end
 
     if !(data["VERSION"] == 1)

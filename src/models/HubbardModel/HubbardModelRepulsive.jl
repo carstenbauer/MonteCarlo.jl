@@ -125,6 +125,10 @@ This is a performance critical method.
     nothing
 end
 
+# TODO
+# both of these could be a little bit faster if we used the zeros imposed by
+# BlockDiagonal (i.e. G[i, i+N] = 0)
+
 @inline @inbounds @bm function propose_local(
         mc::DQMC, model::HubbardModelRepulsive, i::Int, slice::Int, conf::HubbardConf
     )
@@ -134,7 +138,6 @@ end
     Δ = model.Δ
     R = model.R
 
-    # 
     α = acosh(exp(0.5Δτ * model.U))
     ΔE_Boson = -2.0α * conf[i, slice]
     Δ[1, 1] = exp(ΔE_Boson) - 1.0
@@ -170,7 +173,8 @@ end
         RΔ = model.RΔ
     end
 
-    # inverting R in-place, using that R is 2x2
+    # inverting R in-place, using that R is 2x2, i.e.:
+    # M^-1 = [a b; c d]^-1 = 1/det(M) [d -b; -c a]
     @bm "accept_local (inversion)" begin
         inv_div = 1.0 / detratio
         R[1, 2] = -R[1, 2] * inv_div
@@ -182,7 +186,7 @@ end
 
     # Compute (I - G) R^-1 Δ
     @bm "accept_local (IG, R)" begin
-        @turbo for m in axes(IG, 1)
+        @inbounds for m in axes(IG, 1)
             IG[m, 1] = -G[m, i]
             IG[m, 2] = -G[m, i+N]
         end
@@ -192,7 +196,7 @@ end
         vmul!(IGR, IG, RΔ)
     end
 
-    # TODO SSSLLOOOWWW  -  explicit @turbo loop?
+    # Slowest part, don't think there's much more we can do
     @bm "accept_local (finalize computation)" begin
         # G = G - IG * (R * Δ) * G[i:N:end, :]
 

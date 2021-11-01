@@ -190,7 +190,7 @@ end
         m = greens_measurement(mc, m1)
         @test m isa MonteCarlo.DQMCMeasurement
         @test m.greens_iterator == Greens()
-        @test m.lattice_iterator == Nothing
+        @test m.lattice_iterator === nothing
         @test m.kernel == MonteCarlo.greens_kernel
         @test m.observable isa LogBinner{Matrix{Float64}}
         @test m.temp === nothing
@@ -199,7 +199,7 @@ end
         m = occupation(mc, m1)
         @test m isa MonteCarlo.DQMCMeasurement
         @test m.greens_iterator == Greens()
-        @test m.lattice_iterator == EachSiteAndFlavor
+        @test m.lattice_iterator == EachSiteAndFlavor()
         @test m.kernel == MonteCarlo.occupation_kernel
         @test m.observable isa LogBinner{Vector{Float64}}
         @test m.temp isa Vector{Float64}
@@ -214,7 +214,7 @@ end
                 @test m.greens_iterator == CombinedGreensIterator(mc)
             end
             @test m isa MonteCarlo.DQMCMeasurement
-            @test m.lattice_iterator == EachSitePairByDistance
+            @test m.lattice_iterator == EachSitePairByDistance()
             @test m.kernel == MonteCarlo.cdc_kernel
             @test m.observable isa LogBinner{Vector{Float64}}
             @test m.temp isa Vector{Float64}
@@ -229,7 +229,7 @@ end
                     @test m.greens_iterator == CombinedGreensIterator(mc)
                 end
                 @test m isa MonteCarlo.DQMCMeasurement
-                @test m.lattice_iterator == EachSitePairByDistance
+                @test m.lattice_iterator == EachSitePairByDistance()
                 @test m.kernel == Core.eval(MonteCarlo, Symbol(:sdc_, dir, :_kernel))
                 @test m.observable isa LogBinner{Vector{Float64}}
                 @test m.temp isa Vector{Float64}
@@ -244,8 +244,8 @@ end
                 @test m.greens_iterator == CombinedGreensIterator(mc)
             end
             @test m isa MonteCarlo.DQMCMeasurement
-            @test m.lattice_iterator == EachLocalQuadByDistance{5}
-            @test m.kernel == MonteCarlo.pc_kernel
+            @test m.lattice_iterator == EachLocalQuadByDistance(1:5)
+            @test m.kernel == MonteCarlo.pc_combined_kernel
             @test m.observable isa LogBinner{Array{Float64, 3}}
             @test m.temp isa Array{Float64, 3}
         end
@@ -255,17 +255,17 @@ end
             m = magnetization(mc, m1, dir)
             @test m isa MonteCarlo.DQMCMeasurement
             @test m.greens_iterator == Greens()
-            @test m.lattice_iterator == EachSite
+            @test m.lattice_iterator == EachSite()
             @test m.kernel == Core.eval(MonteCarlo, Symbol(:m, dir, :_kernel))
             @test m.observable isa LogBinner{Vector{Float64}}
             @test m.temp isa Vector{Float64}
         end
 
         # Current Current susceptibility
-        m = current_current_susceptibility(mc, m1)
+        m = current_current_susceptibility(mc, m1, lattice_iterator = EachLocalQuadBySyncedDistance(2:5))
         @test m isa MonteCarlo.DQMCMeasurement
         @test m.greens_iterator == CombinedGreensIterator(mc)
-        @test m.lattice_iterator == EachLocalQuadBySyncedDistance{5}
+        @test m.lattice_iterator == EachLocalQuadBySyncedDistance(2:5)
         @test m.kernel == MonteCarlo.cc_kernel
         @test m.observable isa LogBinner{Matrix{Float64}}
         @test m.temp isa Matrix{Float64}

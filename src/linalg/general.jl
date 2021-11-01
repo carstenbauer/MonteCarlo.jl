@@ -75,6 +75,8 @@ function rvadd!(A::Matrix{T}, B::Matrix{T}) where {T <: Real}
     end
 end
 function vsub!(O::Matrix{T}, A::Matrix{T}, ::UniformScaling) where {T <: Real}
+    # Note: 
+    # one loop with A[i, j] - T(i = j) seems to have similar min, worse max time
     T1 = one(T)
     @turbo for i in axes(O, 1), j in axes(O, 2)
         O[i, j] = A[i, j]
@@ -119,6 +121,13 @@ function vinv!(v::Vector{T}) where {T<:Real}
     T1 = one(T)
     @turbo for i in eachindex(v)
         v[i] = T1 / v[i]
+    end
+    v
+end
+function vinv!(v::Vector{T}, w::Vector{T}) where {T<:Real}
+    T1 = one(T)
+    @turbo for i in eachindex(v)
+        v[i] = T1 / w[i]
     end
     v
 end

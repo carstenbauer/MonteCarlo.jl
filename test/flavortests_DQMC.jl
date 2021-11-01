@@ -46,7 +46,7 @@ end
     @test length(m) == 2
 end
 
-@testset "DQMC utilities " begin
+@testset "DQMC utilities" begin
     m = HubbardModelAttractive(8, 1);
 
     # Getters
@@ -94,6 +94,7 @@ end
         dqmc.recorder, dqmc.thermalization_measurements, dqmc.measurements
     )
     for field in fieldnames(DQMC)
+        field == :lattice_iterator_cache && continue
         @test getfield(dqmc, field) == getfield(mc, field)
     end
 
@@ -104,11 +105,13 @@ end
         dqmc.thermalization_measurements, dqmc.measurements
     )
     for field in fieldnames(DQMC)
+        field == :lattice_iterator_cache && continue
         @test getfield(dqmc, field) == getfield(mc, field)
     end
 
     mc = DQMC(dqmc)
     for field in fieldnames(DQMC)
+        field == :lattice_iterator_cache && continue
         @test getfield(dqmc, field) == getfield(mc, field)
     end
 
@@ -118,6 +121,7 @@ end
             @test mc.last_sweep == 9147
         elseif field == :recorder
             @test mc.recorder isa Discarder
+        elseif field == :lattice_iterator_cache
         else
             @test getfield(dqmc, field) == getfield(mc, field)
         end
@@ -134,7 +138,6 @@ end
     m = HubbardModelAttractive(2, 2, mu=0.5)
     mc = DQMC(m, beta=1.0, safe_mult=10, thermalization=1, sweeps=1)
     MonteCarlo.initialize_stack(mc, mc.ut_stack)
-    run!(mc, verbose=false)
 
     G = greens(mc)
     @test G isa GreensMatrix
@@ -169,8 +172,8 @@ end
     @test G[2, 1] == M[2, 1]
     @test G[2, 2] == M[2, 2]
 
-    D = dagger(G)
-    @test D isa MonteCarlo.Daggered
+    D = swapop(G)
+    @test D isa MonteCarlo.Permuted
     @test D[1, 1] == -M[1, 1]
     @test D[2, 1] == -M[1, 2]
     @test D[1, 2] == -M[2, 1]
@@ -178,12 +181,12 @@ end
     @test size(D) == size(D.x.val)
 
     G = GreensMatrix(7, 7, M)
-    D = dagger(G)
+    D = swapop(G)
     @test D[1, 1] == 1 - M[1, 1]
     @test D[2, 1] == -M[1, 2]
     @test D[1, 2] == -M[2, 1]
     @test D[2, 2] == 1 - M[2, 2]
-    @test dagger(D) == G
+    @test swapop(D) == G
 
     G2 = GreensMatrix(7, 7, M)
     @test G == G2
@@ -288,10 +291,6 @@ end
         @test getfield(mc1.stack, field) ≈ getfield(mc2.stack, field)
     end
     
-end
-
-@testset "LinAlg and Slice Matrices" begin
-    include("slice_matrices.jl")
 end
 
 @testset "Unequal Time Stack" begin
@@ -459,16 +458,16 @@ end
 
     @info "Exact Greens comparison"
     for model in models, beta in (1.0, 10.0)
-        @testset "$(typeof(model))" begin
+        @testset "$(typeof(model).name.name) β=$(beta)" begin
             Random.seed!(123)
             dqmc = DQMC(
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
                 thermalization = 1, sweeps = 2, measure_rate = 1
             )
-            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.parameters.beta)"
+            # @info "Running DQMC ($(typeof(model).name.name)) β=$(dqmc.parameters.beta)"
 
             dqmc[:G] = greens_measurement(dqmc, model)
-            @time run!(dqmc, verbose=false)
+            run!(dqmc, verbose=false)
             
             # error tolerance
             atol = 1e-13

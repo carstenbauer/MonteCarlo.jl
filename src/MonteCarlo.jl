@@ -17,13 +17,25 @@ using CodecZlib
 struct FileWrapper{T}
     file::T
     path::String
+
+    FileWrapper(file::T, path) where T = new{T}(file, abspath(path))
 end
 
-Base.getindex(fw::FileWrapper, k) = getindex(fw.file, k)
+function Base.getindex(fw::FileWrapper{T}, k) where T
+    out = getindex(fw.file, k)
+    if out isa Union{JLD2.JLDFile, JLD2.Group, Dict} # JLD generates a nested dict :(
+        return FileWrapper(out, fw.path)
+    else
+        out
+    end
+end
 Base.setindex!(fw::FileWrapper, k, v) = setindex!(fw.file, k, v)
 Base.haskey(fw::FileWrapper, k) = haskey(fw.file, k)
 Base.write(fw::FileWrapper, x) = write(fw.file, x)
 Base.write(fw::FileWrapper, k, x) = write(fw.file, k, x)
+Base.close(fw::FileWrapper) = close(fw.file)
+Base.get(fw::FileWrapper, k, default) = haskey(fw, k) ? fw[k] : default
+Base.keys(fw::FileWrapper) = keys(fw.file)
 
 # To allow switching between JLD and JLD2:
 const UnknownType = Union{JLD.UnsupportedType, JLD2.UnknownType}
@@ -35,7 +47,7 @@ include("helpers.jl")
 export enable_benchmarks, disable_benchmarks, print_timer, reset_timer!
 include("linalg/general.jl")
 include("linalg/UDT.jl")
-# include("linalg/complex.jl") # TODO
+include("linalg/complex.jl") # TODO
 include("linalg/blockdiagonal.jl")
 include("flavors/abstract.jl")
 include("models/abstract.jl")
@@ -64,7 +76,7 @@ export neighbors, directions
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/main.jl")
 export Greens, GreensAt, CombinedGreensIterator
-export GreensMatrix, dagger
+export GreensMatrix, swapop
 export boson_energy_measurement, greens_measurement, occupation, magnetization
 export charge_density, charge_density_correlation, charge_density_susceptibility
 export spin_density, spin_density_correlation, spin_density_susceptibility

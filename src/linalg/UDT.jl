@@ -29,7 +29,7 @@
 end
 
 # Needed for pivoted as well
-@inline function reflectorApply!(x::AbstractVector, τ::Number, A::StridedMatrix)
+@inline function reflectorApply!(x::AbstractVector{<: Real}, τ::Real, A::StridedMatrix{<: Real})
     m, n = size(A)
     @inbounds for j = 1:n
         # dot
@@ -129,7 +129,8 @@ end
 ################################################################################
 
 
-
+# this method skips using a view(x, j:n, j) and requires passing of 
+# normu = dot(view(x, j:n, j), view(x, j:n, j))
 @inline function reflector!(x::Matrix{C}, normu, j=1, n=size(x, 1)) where {C <: Real}
     @inbounds begin
         ξ1 = x[j, j]
@@ -149,9 +150,9 @@ end
 
 
 function indmaxcolumn(A::Matrix{C}, j=1, n=size(A, 1)) where {C <: Real}
-    max = 0.0
+    squared_norm = 0.0
     @turbo for k in j:n
-        max += abs2(A[k, j])
+        squared_norm += abs2(A[k, j])
     end
     ii = j
     @inbounds for i in j+1:n
@@ -159,12 +160,12 @@ function indmaxcolumn(A::Matrix{C}, j=1, n=size(A, 1)) where {C <: Real}
         @turbo for k in j:n
             mi += abs2(A[k, i])
         end
-        if abs(mi) > max
-            max = mi
+        if abs(mi) > squared_norm
+            squared_norm = mi
             ii = i
         end
     end
-    return ii, max
+    return ii, squared_norm
 end
 
 
@@ -328,6 +329,27 @@ end
         end
     end
     ξ1/ν
+end
+
+
+@inline function reflectorApply!(x::AbstractVector, τ::Number, A::StridedMatrix)
+    m, n = size(A)
+    @inbounds for j = 1:n
+        # dot
+        vAj = A[1, j]
+        @inbounds for i = 2:m
+            vAj += conj(x[i]) * A[i, j]
+        end
+
+        vAj = conj(τ)*vAj
+
+        # ger
+        A[1, j] -= vAj
+        @inbounds for i = 2:m
+            A[i, j] -= x[i]*vAj
+        end
+    end
+    return A
 end
 
 
