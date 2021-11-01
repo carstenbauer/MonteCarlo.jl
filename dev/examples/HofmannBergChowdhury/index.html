@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Crosscheck with 2020 Paper · MonteCarlo.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="MonteCarlo.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">MonteCarlo.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Introduction</a></li><li><span class="tocitem">DQMC</span><ul><li><a class="tocitem" href="../../DQMC/Introduction/">Introduction</a></li><li><a class="tocitem" href="../../DQMC/model/">Model</a></li><li><a class="tocitem" href="../../DQMC/lattice/">Lattices</a></li><li><a class="tocitem" href="../../DQMC/dqmc/">DQMC</a></li><li><a class="tocitem" href="../../DQMC/recorder/">Configuration Recorder</a></li><li><a class="tocitem" href="../../DQMC/scheduler/">Update Scheduler</a></li><li><a class="tocitem" href="../../DQMC/measurements/">Measurements</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../triangular_Hubbard/">Triangular Attractive Hubbard</a></li><li><a class="tocitem" href="../ALF1/">Crosscheck with ALF</a></li><li class="is-active"><a class="tocitem" href>Crosscheck with 2020 Paper</a><ul class="internal"><li><a class="tocitem" href="#Introduction-1"><span>Introduction</span></a></li><li class="toplevel"><a class="tocitem" href="#Implementation-1"><span>Implementation</span></a></li><li><a class="tocitem" href="#The-Lattice-1"><span>The Lattice</span></a></li><li><a class="tocitem" href="#Hopping-and-Interaction-Matrix-1"><span>Hopping and Interaction Matrix</span></a></li><li><a class="tocitem" href="#Local-Updates-1"><span>Local Updates</span></a></li><li><a class="tocitem" href="#Utilities-and-other-functionality-1"><span>Utilities and other functionality</span></a></li><li class="toplevel"><a class="tocitem" href="#Simulation-Setup-1"><span>Simulation Setup</span></a></li><li><a class="tocitem" href="#Measurements-1"><span>Measurements</span></a></li><li><a class="tocitem" href="#Running-the-simulations-1"><span>Running the simulations</span></a></li><li class="toplevel"><a class="tocitem" href="#Results-1"><span>Results</span></a></li><li><a class="tocitem" href="#Z-Spin-Susceptibility-2"><span>Z-Spin Susceptibility</span></a></li><li><a class="tocitem" href="#Reciprocal-Charge-Susceptibility-2"><span>Reciprocal Charge Susceptibility</span></a></li><li><a class="tocitem" href="#Reciprocal-Pairing-Susceptibility-1"><span>Reciprocal Pairing Susceptibility</span></a></li><li><a class="tocitem" href="#Superfluid-Stiffness-2"><span>Superfluid Stiffness</span></a></li></ul></li></ul></li><li><span class="tocitem">Legacy</span><ul><li><a class="tocitem" href="../../legacy/">Introduction</a></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Manual</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/manual/gettingstarted/">Getting started</a></li><li><a class="tocitem" href="../../legacy/manual/showcase/">Showcase</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Physical models</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/models/ising/">Ising model</a></li><li><a class="tocitem" href="../../legacy/models/hubbardattractive/">Attractive Hubbard model</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-4" type="checkbox"/><label class="tocitem" for="menuitem-4-4"><span class="docs-label">Monte Carlo flavors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/flavors/mc/">MC</a></li><li><a class="tocitem" href="../../legacy/flavors/dqmc/">DQMC</a></li></ul></li><li><a class="tocitem" href="../../legacy/lattices/">Lattices</a></li><li><a class="tocitem" href="../../legacy/customize/">Customize</a></li><li><input class="collapse-toggle" id="menuitem-4-7" type="checkbox"/><label class="tocitem" for="menuitem-4-7"><span class="docs-label">Interfaces</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/interfaces/MC/">MC</a></li><li><a class="tocitem" href="../../legacy/interfaces/DQMC/">DQMC</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-8" type="checkbox"/><label class="tocitem" for="menuitem-4-8"><span class="docs-label">General exports</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/methods/general/">General</a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Crosscheck with 2020 Paper</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Crosscheck with 2020 Paper</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/carstenbauer/MonteCarlo.jl/blob/master/docs/src/examples/HofmannBergChowdhury.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Crosscheck-with-2020-Paper-1"><a class="docs-heading-anchor" href="#Crosscheck-with-2020-Paper-1">Crosscheck with 2020 Paper</a><a class="docs-heading-anchor-permalink" href="#Crosscheck-with-2020-Paper-1" title="Permalink"></a></h1><p>This will be a rather extensive example and crosscheck with the 2020 paper <a href="https://journals.aps.org/prb/abstract/10.1103/PhysRevB.102.201112">&quot;Superconductivity, pseudogap, and phase separation in topological flat bands:&#39;a quantum Monte Carlo study&quot;</a> (<a href="https://arxiv.org/pdf/1912.08848.pdf">arxiv</a>) by Hofmann, Berg and Chowdhury. </p><h2 id="Introduction-1"><a class="docs-heading-anchor" href="#Introduction-1">Introduction</a><a class="docs-heading-anchor-permalink" href="#Introduction-1" title="Permalink"></a></h2><p>The paper investigates an attractive square lattice Hubbard model with complex hoppings up to the 5th order. It generates a flat and a dispersive band, where the flatness of the former can increased with the right ratio of hoppings. At partial filling of the flat band superconductivity is observed. The model reads</p><div>\[\begin{aligned}
+	H_{kin} &amp;= \left[
+        -t_1 \sum_{\langle i, j \rangle_1, \sigma} e^{i\phi_{ij}^\sigma} c_{i, \sigma}^\dagger c_{j, \sigma}
+        -t_2 \sum_{\langle i, j \rangle_2, \sigma} s_{\langle i, j \rangle_2} c_{i, \sigma}^\dagger c_{j, \sigma}
+        -t_5 \sum_{\langle i, j \rangle_5, \sigma} c_{i, \sigma}^\dagger c_{j, \sigma}
+        + h.c.
+    \right] - \mu \sum_i n_i \\
+    H_{int} = - \frac{U}{2} \sum_i (n_i - 1)^2
+\end{aligned}\]</div><p>where <span>$t_n$</span> refers to n-th nearest neighbor hopping and <span>$\langle i, j \rangle_n$</span> refers to the involved site pairs. We will discuss the prefactors more closely when implementing the lattice model. The interactive term is a variation of what we use in our standard attractive Hubbard model and can be dealt with using the same Hirsch transformation.</p><h1 id="Implementation-1"><a class="docs-heading-anchor" href="#Implementation-1">Implementation</a><a class="docs-heading-anchor-permalink" href="#Implementation-1" title="Permalink"></a></h1><h2 id="The-Lattice-1"><a class="docs-heading-anchor" href="#The-Lattice-1">The Lattice</a><a class="docs-heading-anchor-permalink" href="#The-Lattice-1" title="Permalink"></a></h2><p>The model is defined for a square lattice, however the paper suggests defining it via two site basis <span>$A = (0, 0)$</span>, <span>$B = (0, 1)$</span> with lattice vector <span>$a_1 = (1, 1)$</span> and <span>$a_2 = (1, -1)$</span>. We will follow this suggestion. The model uses first, second and fifth neighbor hoppings.</p><p>The nearest neighbors are directed, catching different values for <span>$\phi{ij}^\sigma$</span> as a result. We need to create two groups, one with directions as indicated in figure 1a) in the paper, and one with the reverse. For second nearest neighbors the prefactor <span>$s_{\langle i, j \rangle_2}$</span> depends on the combination of sublattice and direction. In <span>$a_1$</span> direction the value is positive (negative) on the A (B) sublattice, and in <span>$a_2$</span> it is negative (positive) on the A (B) sublattice. The fifth nearest neighbors always have the same weight and thus do not require special grouping.</p><p>We implement the lattice with <a href="https://github.com/janattig/LatticePhysics.jl">LatticePhysics.jl</a>. The package requires us to define a unitcell with all bonds we want to see in the full lattice. </p><pre><code class="language-julia">using LatticePhysics, LatPhysUnitcellLibrary
+
+function LatPhysUnitcellLibrary.getUnitcellSquare(
+            unitcell_type  :: Type{U},
+            implementation :: Val{17}
+        ) :: U where {LS,LB,S&lt;:AbstractSite{LS,2},B&lt;:AbstractBond{LB,2}, U&lt;:AbstractUnitcell{S,B}}
+
+    # return a new Unitcell
+    return newUnitcell(
+        # Type of the unitcell
+        U,
+
+        # Bravais lattice vectors
+        [[1.0, +1.0], [1.0, -1.0]],
+        
+        # Basis sites
+        S[
+            newSite(S, [0.0, 0.0], getDefaultLabelN(LS, 1)),
+            newSite(S, [0.0, 1.0], getDefaultLabelN(LS, 2))
+        ],
+
+        # Bonds
+        B[
+            # NN, directed
+            # bonds from ref plot, π/4 weight for spin up
+            newBond(B, 1, 2, getDefaultLabelN(LB, 1), (0, 1)),
+            newBond(B, 1, 2, getDefaultLabelN(LB, 1), (-1, 0)),
+            newBond(B, 2, 1, getDefaultLabelN(LB, 1), (+1, -1)),
+            newBond(B, 2, 1, getDefaultLabelN(LB, 1), (0, 0)),
+
+            # NN reversal
+            newBond(B, 2, 1, getDefaultLabelN(LB, 2), (0, -1)),
+            newBond(B, 2, 1, getDefaultLabelN(LB, 2), (+1, 0)),
+            newBond(B, 1, 2, getDefaultLabelN(LB, 2), (-1, +1)),
+            newBond(B, 1, 2, getDefaultLabelN(LB, 2), (0, 0)),
+            
+            # NNN
+            # positive weight (forward and backward facing)
+            newBond(B, 1, 1, getDefaultLabelN(LB, 3), (+1, 0)),
+            newBond(B, 1, 1, getDefaultLabelN(LB, 3), (-1, 0)),
+            newBond(B, 2, 2, getDefaultLabelN(LB, 3), (0, +1)),
+            newBond(B, 2, 2, getDefaultLabelN(LB, 3), (0, -1)),
+            # negative weight
+            newBond(B, 1, 1, getDefaultLabelN(LB, 4), (0, +1)),
+            newBond(B, 1, 1, getDefaultLabelN(LB, 4), (0, -1)),
+            newBond(B, 2, 2, getDefaultLabelN(LB, 4), (+1, 0)),
+            newBond(B, 2, 2, getDefaultLabelN(LB, 4), (-1, 0)),
+            
+            # Fifth nearest neighbors (forward)
+            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (2, 0)),
+            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (2, 0)),
+            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (0, 2)),
+            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (0, 2)),  
+            # backwards facing bonds (backwards)
+            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (-2, 0)),
+            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (-2, 0)),
+            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (0, -2)),
+            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (0, -2)), 
+        ]
+    )
+end</code></pre><p>With this implementation we can then generate a lattice of arbitrary size with</p><pre><code class="language-julia">L = 8
+uc = LatticePhysics.getUnitcellSquare(17)
+lpl = getLatticePeriodic(uc, L)</code></pre><p>where <code>L</code> is the linear system size. Note that due to the two basis sites the total number of sites is <span>$2L^2$</span>. To verify our lattice implementation it is useful to create a comparable plot. In Makie, for example, we may run</p><pre><code class="language-julia">using GLMakie
+
+# get small lattice without periodic bonds
+uc = LatticePhysics.getUnitcellSquare(17)
+lpl = getLatticeOpen(uc, 3)
+
+# create figure and axis without background grid and stretching
+fig = Figure()
+ax = Axis(fig[1, 1], aspect=DataAspect(), xgridvisible = false, ygridvisible = false)
+
+# collect list of bonds grouped by label
+ps = Point2f.(point.(sites(lpl)))
+ls = [Point2f[] for _ in 1:5]
+for b in bonds(lpl)
+    push!(ls[b.label], ps[b.from], ps[b.to])
+end
+
+# Draw arrows for NN groups
+ds = ls[1][2:2:end] .- ls[1][1:2:end]
+arrows!(ax, ls[1][1:2:end] .+ 0.35 .* ds, 0.55 .* ds, color = :black)
+ds = ls[2][2:2:end] .- ls[2][1:2:end]
+arrows!(ax, ls[2][1:2:end] .+ 0.65 .* ds, 0.25 .* ds, color = :lightgray)
+
+# NNN
+linesegments!(ax, ls[3], color = :black, linewidth=1)
+linesegments!(ax, ls[4], color = :black, linewidth=1, linestyle = :dash)
+
+# 5th nearest neighbors
+linesegments!(ax, ls[5] .+ Point2f(0, 0.05), color = :red)
+
+# draw A and B sites
+As = [Point2f(point(s)) for s in sites(lpl) if s.label == 1]
+Bs = [Point2f(point(s)) for s in sites(lpl) if s.label == 2]
+scatter!(ax, As, color = :black, markersize = 10)
+scatter!(ax, Bs, color = :black, marker=&#39;■&#39;, markersize = 8)
+
+# Label A and B sites
+text!(ax, &quot;A&quot;, position = Point2f(-0.2, 0), align = (:right, :center))
+text!(ax, &quot;B&quot;, position = Point2f(-0.2, 1), align = (:right, :center))
+
+Makie.save(&quot;HBC_lattice.png&quot;, fig)
+fig</code></pre><p><img src="../assets/HBC/HBC_lattice.png" alt/></p><p>In the plot we indicate the first group of nearest neighbors with black arrows and the second, i.e. the reversals with light gray ones. Next nearest neighbors are indicated with full (group 3) or dashed lines (group 4) like in the paper. The fifth nearest neighbors (group 5) are drawn in red like in the reference.</p><h2 id="Hopping-and-Interaction-Matrix-1"><a class="docs-heading-anchor" href="#Hopping-and-Interaction-Matrix-1">Hopping and Interaction Matrix</a><a class="docs-heading-anchor-permalink" href="#Hopping-and-Interaction-Matrix-1" title="Permalink"></a></h2><p>Now that we have the lattice we can generate a fitting hopping matrix. But before we do this, let us briefly discuss some optimizations. </p><p><a href="https://github.com/JuliaSIMD/LoopVectorization.jl">LoopVectorization.jl</a> is a great tool when pushing for peak single threaded/single core linear algebra performance. The linear algebra needed for DQMC is reimplemented in MonteCarlo.jl using it for both <code>Float64</code> and <code>ComplexF64</code>. The latter uses <code>MonteCarlo.CMat64</code> and <code>MonteCarlo.CVec64</code> as concrete array types which are based on <a href="https://github.com/JuliaArrays/StructArrays.jl">StructArrays.jl</a> under the hood. They should be used in this model. Furthermore we can make use of <code>MonteCarlo.BlockDiagonal</code> as we have no terms with differing spin indices. Thus we set</p><pre><code class="language-julia">MonteCarlo.@with_kw_noshow struct HBCModel{LT&lt;:AbstractLattice} &lt;: HubbardModel
+    # parameters with defaults based on paper
+    mu::Float64 = 0.0
+    U::Float64 = 1.0
+    @assert U &gt;= 0. &quot;U must be positive.&quot;
+    t1::Float64 = 1.0
+    t2::Float64 = 1.0 / sqrt(2.0)
+    t5::Float64 = (1 - sqrt(2)) / 4
+
+    # lattice
+    l::LT
+
+    # two fermion flavors (up, down)
+    flv::Int = 2
+    
+    # temp storage to avoid allocations in propose_local and accept_local
+    IG::CMat64  = StructArray(Matrix{ComplexF64}(undef, length(l), 2))
+    IGR::CMat64 = StructArray(Matrix{ComplexF64}(undef, length(l), 2))
+    R::Diagonal{ComplexF64, CVec64} = Diagonal(StructArray(Vector{ComplexF64}(undef, 2)))
+end
+
+MonteCarlo.hoppingeltype(::Type{DQMC}, ::HBCModel) = ComplexF64
+MonteCarlo.hopping_matrix_type(::Type{DQMC}, ::HBCModel) = BlockDiagonal{ComplexF64, 2, CMat64}
+MonteCarlo.greenseltype(::Type{DQMC}, ::HBCModel) = ComplexF64
+MonteCarlo.greens_matrix_type( ::Type{DQMC}, ::HBCModel) = BlockDiagonal{ComplexF64, 2, CMat64}</code></pre><p>for our model. The definition of the hopping matrix then follows from the various weights in the Hamiltonian as</p><pre><code class="language-julia">function MonteCarlo.hopping_matrix(mc::DQMC, m::HBCModel{&lt;: LatPhysLattice})
+    # number of sites
+    N = length(m.l)
+
+    # spin up and spin down blocks of T
+    tup = diagm(0 =&gt; fill(-ComplexF64(m.mu), N))
+    tdown = diagm(0 =&gt; fill(-ComplexF64(m.mu), N))
+
+    # positive and negative prefactors for t1, t2
+    t1p = m.t1 * cis(+pi/4) # ϕ_ij^↑ = + π/4
+    t1m = m.t1 * cis(-pi/4) # ϕ_ij^↓ = - π/4
+    t2p = + m.t2
+    t2m = - m.t2
+    
+    for b in bonds(m.l.lattice)
+        # NN paper direction
+        if b.label == 1 
+            tup[b.from, b.to]   = - t1p
+            tdown[b.from, b.to] = - t1m
+        
+        # NN reverse direction
+        elseif b.label == 2
+            tup[b.from, b.to]   = - t1m
+            tdown[b.from, b.to] = - t1p
+            
+        # NNN solid bonds
+        elseif b.label == 3
+            tup[b.from, b.to]   = - t2p
+            tdown[b.from, b.to] = - t2p
+
+        # NNN dashed bonds
+        elseif b.label == 4
+            tup[b.from, b.to]   = - t2m
+            tdown[b.from, b.to] = - t2m
+
+        # Fifth nearest neighbors
+        else
+            tup[b.from, b.to]   = - m.t5
+            tdown[b.from, b.to] = - m.t5
+        end
+    end
+
+    return BlockDiagonal(StructArray(tup), StructArray(tdown))
+end</code></pre><p>We note that the hermitian conjugates of a hopping <span>$c_j^\dagger c_i$</span> can also be understood as reversing the bond direction. Since we include both directions in our lattice definitions, second and fifth nearest neighbor hermitian conjugates are taken care of. First nearest neighbors get a phase shift from complex conjugation, which is included by swapping <code>t1p</code> and <code>t1m</code> between group one and two.</p><p>The interaction matrix can almost be copied from the repulsive Hubbard model. The only difference is that the spin up and spin down blocks get the same sign. </p><pre><code class="language-julia">@inline @bm function MonteCarlo.interaction_matrix_exp!(mc::DQMC, m::HBCModel,
+            result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
+    dtau = mc.parameters.delta_tau
+    lambda = acosh(exp(0.5 * m.U * dtau))
+    N = length(lattice(m))
+    
+    # spin up block
+    @inbounds for i in 1:N
+        result.diag[i] = exp(sign(power) * lambda * conf[i, slice])
+    end
+
+    # spin down block
+    @inbounds for i in 1:N
+        result.diag[N+i] = exp(sign(power) * lambda * conf[i, slice])
+    end
+    nothing
+end</code></pre><p>In this case we do not need to set the type for the interaction matrix explicitly like we did for the hopping and greens matrices, because the (abstract) <code>HubbardModel</code> already uses <code>Diagonal</code> interaction matrices.</p><h2 id="Local-Updates-1"><a class="docs-heading-anchor" href="#Local-Updates-1">Local Updates</a><a class="docs-heading-anchor-permalink" href="#Local-Updates-1" title="Permalink"></a></h2><p>Our next task is to implement <code>propose_local!</code> and <code>accept_local!</code>. Since those only rely on specific indices, columns or rows for a large part of their calculation we have to dig into the optimized matrix types a bit. <code>propose_local</code> aims to calculate the determinant ratio <span>$R$</span> and bosonic energy difference <span>$\Delta E_Boson = V(C_{new}) - V(c_{old})$</span> where <span>$C$</span> is the auxiliary field configuration. The determinant ratio is defined as</p><div>\[R = \prod_\sigma \left[
+        1 + \left( \exp(\Delta E_Boson) - 1 \right) 
+        \left( 1 - G_{ii}^{\sigma, \sigma}(\tau, \tau) \right)
+    \right]\]</div><p>where <span>$i$</span> and <span>$\tau$</span> are the lattice index and time slice index of the proposed change in the auxiliary field. This formula already assumes that the greens matrix <span>$G$</span> is zero for all differing spin indices (i.e. spin up-down or down-up). Therefore it is just a product of two terms. With this <code>propose_local</code> is implemented as</p><pre><code class="language-julia">@inline @bm function MonteCarlo.propose_local(
+        mc::DQMC, model::HBModel, i::Int, slice::Int, conf::HubbardConf
+    )
+    N = length(model.l)
+    G = mc.stack.greens
+    Δτ = mc.parameters.delta_tau
+    R = model.R
+
+    α = acosh(exp(0.5Δτ * model.U))
+    ΔE_boson = -2.0α * conf[i, slice]
+    Δ = exp(ΔE_boson) - 1.0
+
+    # Unrolled R = I + Δ * (I - G)
+    # up-up term
+    R.diag.re[1] = 1.0 + Δ * (1.0 - G.blocks[1].re[i, i])
+    R.diag.im[1] = - Δ * G.blocks[1].im[i, i]
+    # down-down term
+    R.diag.re[2] = 1.0 + Δ * (1.0 - G.blocks[2].re[i, i])
+    R.diag.im[2] = - Δ * G.blocks[2].im[i, i]
+
+    # Calculate &quot;determinant&quot;
+    detratio = ComplexF64(
+        R.diag.re[1] * R.diag.re[2] - R.diag.im[1] * R.diag.im[2],
+        R.diag.re[1] * R.diag.im[2] + R.diag.im[1] * R.diag.re[2]
+    )
+    
+    return detratio, ΔE_boson, Δ
+end</code></pre><p>Note that the fields of our special matrix types are directly indexed here. A <code>BlockDiagonal</code> matrix contains all of its data in <code>B.blocks</code>. We define the first (upper left) block as spin up and the second (lower right) as spin down. Sitting at each block is a complex matrix represented by <code>CMat64</code>. It contains two real valued matrices at <code>x.re</code> and <code>x.im</code> representing the real and imaginary parts respectively.</p><p>For <code>accept_local</code>  we need to update the auxiliary field and the currently active greens function. To avoid recalculating <span>$\Delta$</span> it is returned in <code>propose_local</code> and will be passed to <code>accept_local</code>. The updated greens function is given by</p><div>\[G_{jk}^{\sigma \sigma^\prime} = 
+    G_{jk}^{\sigma \sigma^\prime} -
+    \left(I - G^{\sigma \sigma^\prime}(\tau, \tau) \right)_{ji}
+    R_{\sigma, \sigma^\prime}^{-1} 
+    \Delta_{ii}^{\sigma \sigma^\prime}(\tau)
+    G_{ik}^{\sigma \sigma^\prime}(\tau, \tau)\]</div><p>where <span>$i$</span> is again the site index of the proposed flip. Let&#39;s go through some observations/simplifications. First we note that for <span>$\sigma \ne \sigma^\prime$</span> the greens function is and remains zero. The inversion of <span>$R$</span> is an inversion of a diagonal matrix and thus simplifies to calculating the inverse of each element. Finally, <span>$\Delta$</span> has the same value for spin up and spin down so it is simply a number.</p><p>Using these observations and applying optimizations relevant to our matrix types <code>accept_local</code> can be implemented as</p><pre><code class="language-julia">@inline @bm function MonteCarlo.accept_local!(
+        mc::DQMC, model::HBModel, i::Int, slice::Int, conf::HubbardConf, 
+        detratio, ΔE_boson, Δ)
+
+    @bm &quot;accept_local (init)&quot; begin
+        N = length(model.l)
+        G = mc.stack.greens
+        IG = model.IG
+        IGR = model.IGR
+        R = model.R
+    end
+    
+    # compute R⁻¹ Δ, using that R is Diagonal, Δ is Number
+    # using Δ / (a + ib) = Δ / (a^2 + b^2) * (a - ib)
+    @bm &quot;accept_local (inversion)&quot; begin
+        f = Δ / (R.diag.re[1]^2 + R.diag.im[1]^2)
+        R.diag.re[1] = +f * R.diag.re[1]
+        R.diag.im[1] = -f * R.diag.im[1]
+        f = Δ / (R.diag.re[2]^2 + R.diag.im[2]^2)
+        R.diag.re[2] = +f * R.diag.re[2]
+        R.diag.im[2] = -f * R.diag.im[2]
+    end
+
+    # Compute (I - G) R^-1 Δ
+    # Note IG is reduced to non-zero entries. Full IG would be
+    # (I-G)[:, i]        0
+    #     0         (I-G)[:, i+N]
+    # our IG is [(I-G)[:, i]  (I-G)[:, i+N]]
+    @bm &quot;accept_local (IG, R)&quot; begin
+        # Calculate IG = I - G (relevant entries only)
+        @turbo for m in axes(IG, 1)
+            IG.re[m, 1] = -G.blocks[1].re[m, i]
+        end
+        @turbo for m in axes(IG, 1)
+            IG.re[m, 2] = -G.blocks[2].re[m, i]
+        end
+        @turbo for m in axes(IG, 1)
+            IG.im[m, 1] = -G.blocks[1].im[m, i]
+        end
+        @turbo for m in axes(IG, 1)
+            IG.im[m, 2] = -G.blocks[2].im[m, i]
+        end
+        IG.re[i, 1] += 1.0
+        IG.re[i, 2] += 1.0
+        
+        # Calculate IGR = IG * R where R = R⁻¹ Δ from the 
+        # previous calculation (relevant entries only)
+        # spin up-up block 
+        @turbo for m in axes(IG, 1)
+            IGR.re[m, 1] = IG.re[m, 1] * R.diag.re[1]
+        end
+        @turbo for m in axes(IG, 1)
+            IGR.re[m, 1] -= IG.im[m, 1] * R.diag.im[1]
+        end
+        @turbo for m in axes(IG, 1)
+            IGR.im[m, 1] = IG.re[m, 1] * R.diag.im[1]
+        end
+        @turbo for m in axes(IG, 1)
+            IGR.im[m, 1] += IG.im[m, 1] * R.diag.re[1]
+        end
+        
+        # spin down-down block
+        @turbo for m in axes(IG, 1)
+            IGR.re[m, 2] = IG.re[m, 2] * R.diag.re[2]
+        end
+        @turbo for m in axes(IG, 1)
+            IGR.re[m, 2] -= IG.im[m, 2] * R.diag.im[2]
+        end
+        @turbo for m in axes(IG, 1)
+            IGR.im[m, 2] = IG.re[m, 2] * R.diag.im[2]
+        end
+        @turbo for m in axes(IG, 1)
+            IGR.im[m, 2] += IG.im[m, 2] * R.diag.re[2]
+        end
+    end
+
+    # Update G according to G = G - (I - G)[:, i:N:end] * R⁻¹ * Δ * G[i:N:end, :]
+    # We already have IG = (I - G)[:, i:N:end] * R⁻¹ * Δ
+    @bm &quot;accept_local (finalize computation)&quot; begin
+        # get blocks to write less
+        G1 = G.blocks[1]
+        G2 = G.blocks[2]
+        temp1 = mc.stack.greens_temp.blocks[1]
+        temp2 = mc.stack.greens_temp.blocks[2]
+
+        # compute temp = IG[:, i:N:end] * G[i:N:end, :]
+        # spin up-up block
+        @turbo for m in axes(G1, 1), n in axes(G1, 2)
+            temp1.re[m, n] = IGR.re[m, 1] * G1.re[i, n]
+        end
+        @turbo for m in axes(G1, 1), n in axes(G1, 2)
+            temp1.re[m, n] -= IGR.im[m, 1] * G1.im[i, n]
+        end
+        @turbo for m in axes(G1, 1), n in axes(G1, 2)
+            temp1.im[m, n] = IGR.im[m, 1] * G1.re[i, n]
+        end
+        @turbo for m in axes(G1, 1), n in axes(G1, 2)
+            temp1.im[m, n] += IGR.re[m, 1] * G1.im[i, n]
+        end
+        
+        # spin down-down block
+        @turbo for m in axes(G2, 1), n in axes(G2, 2)
+            temp2.re[m, n] = IGR.re[m, 2] * G2.re[i, n]
+        end
+        @turbo for m in axes(G2, 1), n in axes(G2, 2)
+            temp2.re[m, n] -= IGR.im[m, 2] * G2.im[i, n]
+        end
+        @turbo for m in axes(G2, 1), n in axes(G2, 2)
+            temp2.im[m, n] = IGR.im[m, 2] * G2.re[i, n]
+        end
+        @turbo for m in axes(G2, 1), n in axes(G2, 2)
+            temp2.im[m, n] += IGR.re[m, 2] * G2.im[i, n]
+        end
+
+        # Calculate G = G - temp
+        # spin up-up block
+        @turbo for m in axes(G1, 1), n in axes(G1, 2)
+            G1.re[m, n] = G1.re[m, n] - temp1.re[m, n]
+        end
+        @turbo for m in axes(G1, 1), n in axes(G1, 2)
+            G1.im[m, n] = G1.im[m, n] - temp1.im[m, n]
+        end
+        
+        # spin down-down block
+        @turbo for m in axes(G2, 1), n in axes(G2, 2)
+            G2.re[m, n] = G2.re[m, n] - temp2.re[m, n]
+        end
+        @turbo for m in axes(G2, 1), n in axes(G2, 2)
+            G2.im[m, n] = G2.im[m, n] - temp2.im[m, n]
+        end
+
+        # Update configuration
+        conf[i, slice] *= -1
+    end
+
+    nothing
+end</code></pre><h2 id="Utilities-and-other-functionality-1"><a class="docs-heading-anchor" href="#Utilities-and-other-functionality-1">Utilities and other functionality</a><a class="docs-heading-anchor-permalink" href="#Utilities-and-other-functionality-1" title="Permalink"></a></h2><p>Now that we have the lattice, the hopping and interaction matrix as well as <code>propose_local</code> and <code>accept_local!</code> we&#39;re done implementing the model. There are a couple of things one might want to add. For example, adding <code>energy_boson()</code> would enable global updates and boson energy measurements. Adding <code>save_model</code> and <code>_load</code> should help with reducing file size and help future proof things, but isn&#39;t strictly necessary. And adding <code>intE_kernel</code> would allow the interactive and total energy to be measured. Beyond that one might add some constructors and convenience function like <code>parameters</code>. </p><p>The full code including these convenience functions can be found <a href="../HBC_model.jl">here</a></p><h1 id="Simulation-Setup-1"><a class="docs-heading-anchor" href="#Simulation-Setup-1">Simulation Setup</a><a class="docs-heading-anchor-permalink" href="#Simulation-Setup-1" title="Permalink"></a></h1><p>To keep the runtime of this crosscheck reasonable we used the smallest linear system size the paper considers, <code>L = 8</code>. We also set <code>U = 1</code> and the fifth nearest neighbor hopping <code>t5 = 0</code>. This corresponds to a flatness ratio <span>$F = 0.2$</span>. To be comparable to the paper we will need to tune the chemical potential <span>$\mu$</span> to hit half filling. This can be done through trial and error on a smaller lattice. The optimal <span>$\mu$</span>, after running the main simulation with a small set of different values, seems to be <span>$\mu \approx -2.206$</span>. Thus the basic setup for our simulation becomes</p><pre><code class="language-julia">uc = LatticePhysics.getUnitcellSquare(17)
+lpl = getLatticePeriodic(uc, 8)
+l = LatPhysLattice(lpl)
+m = HBModel(l, t5 = 0.0, mu = -2.206) # other defaults match F = 0.2 setup
+mc = DQMC(
+    m, beta = beta, thermalization = 1000, sweeps = 5000, 
+    measure_rate = 5, print_rate = 100, recorder = Discarder()
+)</code></pre><p>where beta needs to run over a reasonable set of inverse temperatures. We will use <code>[2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 12.0, 14.0, 17.0, 20.0, 25.0, 30.0, 35.0, 40.0]</code>. </p><div class="admonition is-info"><header class="admonition-header">Note</header><div class="admonition-body"><p>In our actual simulation we used a <code>BufferedConfigRecorder</code> to record configurations. That way the simulation can be replayed with different measurements. This is very useful when you are still unsure about what you want to measure or how exactly those measurements are supposed to work.</p></div></div><h2 id="Measurements-1"><a class="docs-heading-anchor" href="#Measurements-1">Measurements</a><a class="docs-heading-anchor-permalink" href="#Measurements-1" title="Permalink"></a></h2><p>We will consider the following measurements for comparison:</p><ol><li>Z-spin susceptibility, solid red line in figure 1d)</li><li>Superfluid stiffness, figure 2b)</li><li>Reciprocal s-wave pairing susceptibility, solid red line in figure 4a)</li><li>Reciprocal charge susceptibility, solid blue line in figure 4a)</li></ol><h4 id="Z-Spin-Susceptibility-1"><a class="docs-heading-anchor" href="#Z-Spin-Susceptibility-1">Z-Spin Susceptibility</a><a class="docs-heading-anchor-permalink" href="#Z-Spin-Susceptibility-1" title="Permalink"></a></h4><p>The z-spin susceptibility <span>$\int_0^\beta d\tau \langle m_z(r^\prime, \tau) m_z(r, 0) \rangle$</span> can be measure with</p><pre><code class="language-julia">mc[:SDSz] = spin_density_susceptibility(mc, m, :z)</code></pre><p>The integral will be evaluated by MonteCarlo.jl and the result, accessible with <code>mean(mc[:SDCz])</code>, will return the average result by direction. I.e. <code>mean(mc[:SDCz])[i]</code> will contain the average z-spin susceptibility in <code>directions(mc)[i]</code>.</p><h4 id="Reciprocal-Charge-Susceptibility-1"><a class="docs-heading-anchor" href="#Reciprocal-Charge-Susceptibility-1">Reciprocal Charge Susceptibility</a><a class="docs-heading-anchor-permalink" href="#Reciprocal-Charge-Susceptibility-1" title="Permalink"></a></h4><p>The paper defines the charge susceptibility as <span>$\int_0^\beta d\tau \langle N(\tau) N(0) \rangle$</span> where <span>$N(\tau) = \sum_j (n_j(\tau) - \nu)$</span> and <span>$\nu$</span> is the filling. The charge density susceptibility that MonteCarlo.jl defines, on the other hand, is <span>$\langle n_j(\tau) n_i(0)\rangle$</span>. To connect these two we expand the papers&#39; definition:</p><div>\[\begin{aligned}
+	\langle N(\tau) N(0) \rangle 
+        &amp;= \langle \sum_j (n_j(\tau) - \nu) \sum_i (n_i(0) - \nu) \rangle \\
+        &amp;= \sum_{ij} \langle n_j(\tau) n_i(0) - n_j(\tau) \nu - \nu n_i(0) + \nu \nu \rangle \\
+        &amp;= \sum_{ij} \langle n_j(\tau) n_i(0) \rangle - \langle \sum_i n_i \rangle^2
+\end{aligned}\]</div><p>In the last step we associated <span>$\nu = \sum_i \langle n_i \rangle / N$</span>, i.e. the average occupation. We can use this representation to calculate the reciprocal charge susceptibility as <span>$1 / (O - \nu^2)$</span> where <span>$O$</span> is MonteCarlo.jl&#39;s charge density susceptibility and <span>$\nu$</span> is the average occupation. We measure</p><pre><code class="language-julia">mc[:occ] = occupation(mc, m)
+mc[:CDS] = charge_density_susceptibility(mc, m)</code></pre><h4 id="Reciprocal-S-Wave-Pairing-Susceptibility-1"><a class="docs-heading-anchor" href="#Reciprocal-S-Wave-Pairing-Susceptibility-1">Reciprocal S-Wave Pairing Susceptibility</a><a class="docs-heading-anchor-permalink" href="#Reciprocal-S-Wave-Pairing-Susceptibility-1" title="Permalink"></a></h4><p>The paper defines the (s-wave) pairing susceptibilities as <span>$O(\tau) = \sum_j c_{j, \uparrow} c_{j, \downarrow} + h.c.$</span>. More generally you would consider a site offset between the pairs of operators and use weighted sums to get pairing susceptibilities of various symmetries like d-wave, p-wave, etc. For s-wave this offset is <span>$\vec{0}$</span>. In MonteCarlo.jl these offsets are set via the lattice iterator. For example you may use <code>EachLocalQuadByDistance([2, 4, 5])</code> to consider the <code>directions(mc)[[2, 4, 5]]</code> as offsets. </p><p>The <code>pairing_suceptibility</code> constructors from MonteCarlo.jl is written with these offsets in mind. By default it will include offsets for all nearest neighbors as well as offsets of <span>$\vec{0}$</span>. To reduce computational complexity we may reduce these to just <span>$\vec{0}$</span> offsets by requesting just first offset:</p><pre><code class="language-julia">mc[:PS] = pairing_susceptibility(mc, m, 1)</code></pre><h4 id="Superfluid-Stiffness-1"><a class="docs-heading-anchor" href="#Superfluid-Stiffness-1">Superfluid Stiffness</a><a class="docs-heading-anchor-permalink" href="#Superfluid-Stiffness-1" title="Permalink"></a></h4><p>The superfluid stiffness is given by <span>$0.25 [- K_x - \Lambda_{xx}(q = 0)]$</span> in the paper. Both the diamagnetic contribution <span>$K_x$</span> and the Fourier transformed current-current correlation <span>$\Lambda_{xx}(q)$</span> are things we need to measure individually.</p><p>The diamagnetic contribution <span>$K_x$</span> is the simpler one. For that we refer to equations 15a - 15j in the paper. The sum of all of these is the <span>$K_x$</span> we seek. Since all terms are quadratic in creation and annihilation operators we do not need to worry about expanding them with Wicks theorem. Instead we can simply measure the Greens matrix during the simulation. If we compare the equations with the Hamiltonian we will also notice that they are (almost) the same as the hopping terms. Thus we can get weights from the hopping matrix and apply them afterwards. We measure</p><pre><code class="language-julia">mc[:G] = greens_measurement(mc, model)</code></pre><p>For the current-current correlations we need to measure <span>$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$</span> where <span>$J_x(r, \tau)$</span> is given in equation 14a - 14j. These terms are already implemented by MonteCarlo.jl, but we should briefly discuss them regardless. (We will leave the Fourier transform for later.) </p><p>Much like <span>$K_x$</span> these terms are closely related to the hopping terms of the Hamiltonian. The index <span>$\alpha$</span> (<span>$\beta$</span>) refers to the direction of the hopping. Each term contains a hopping in +x direction weighted by <span>$i$</span> and a hopping in the opposite direction weighted by <span>$-i$</span> via the Hermitian conjugate. The fifth nearest neighbor terms also catch a factor 2. For the measurement we need to apply Wicks theorem to every combination of any two currents <span>$J^\alpha_x$</span> and also take care of an implied spin index. The result can be found in the <code>cc_kernel</code> in MonteCarlo.jl.</p><p>Let&#39;s get back to what we need to measure in our simulation. MonteCarlo.jl&#39;s <code>current_current_susceptibility</code> measures <span>$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$</span> where <span>$\alpha$</span> and <span>$\beta$</span> are directions that get passedto the function. Since we set <code>t5 = 0</code> we can ignore equations 14g - 14j leaving 6 equations with 3 directions on 2 sublattices. MonteCarlo.jl does not care about sublattices, so we&#39;re left with three +x directions <code>[2, 6, 9]</code> which need to be passed. You can check these with <code>directions(mc)[[2, 6, 9]]</code> against the paper. Our measurement is given by</p><pre><code class="language-julia">mc[:CCS] = current_current_susceptibility(mc, model, [2, 6, 9])</code></pre><h2 id="Running-the-simulations-1"><a class="docs-heading-anchor" href="#Running-the-simulations-1">Running the simulations</a><a class="docs-heading-anchor-permalink" href="#Running-the-simulations-1" title="Permalink"></a></h2><p>To run the simulation we simply use <code>run!(mc)</code>.</p><p>We should point out that these simulations are lot more complex than the other two examples. We are working with 128 sites as opposed to 16 and inverse temperatures as large as 40 instead of <span>$\le 12$</span>. We are also using complex matrices which bring <span>$2 - 4$</span> times the complexity and we need to consider both a spin up and down sector in the greens matrix. </p><p>It is therefore advised that you run this on a cluster, in parallel. To figure out how much time is needed you can check the sweep time for the smallest <span>$\beta$</span> with measurements. The scaling should be roughly linear (w.r.t. <span>$\beta$</span>). Note that you can pass a <code>safe_before::TimeType</code> to make sure the simulation saves and exits in time. If your cluster restricts you to full nodes it might be useful to create files for each simulation beforehand and distribute filenames to different cores on the same node. (src/mpi.jl might be helpful.)</p><h1 id="Results-1"><a class="docs-heading-anchor" href="#Results-1">Results</a><a class="docs-heading-anchor-permalink" href="#Results-1" title="Permalink"></a></h1><p>In this section we plot the results from our simulations on top of the results from the paper. There are 5 points per temperature coming from different chemical potentials <span>$\mu$</span>. The filling varies from 0.22 to 0.265 between them. Note also that not every simulation did the full number of sweeps. The shortest simulation ran for about 3000 sweeps, which includes 1000 thermalization sweeps.</p><h2 id="Z-Spin-Susceptibility-2"><a class="docs-heading-anchor" href="#Z-Spin-Susceptibility-2">Z-Spin Susceptibility</a><a class="docs-heading-anchor-permalink" href="#Z-Spin-Susceptibility-2" title="Permalink"></a></h2><p>To get the results from the paper we need to perform a <span>$q = 0$</span> Fourier transform which is simply a sum. We calculate <code>real(sum(mean(mc[:SDCz])))</code> and plot against <code>1 / mc.parameters.beta</code>.</p><p><img src="../assets/HBC/SDCz.png" alt/></p><h2 id="Reciprocal-Charge-Susceptibility-2"><a class="docs-heading-anchor" href="#Reciprocal-Charge-Susceptibility-2">Reciprocal Charge Susceptibility</a><a class="docs-heading-anchor-permalink" href="#Reciprocal-Charge-Susceptibility-2" title="Permalink"></a></h2><p>For the reciprocal charge susceptibility we plot</p><pre><code class="language-julia">CDS = real(sum(mean(mc[:CDS])))
+occ = real(sum(mean(mc[:occ])))
+xs = 1 / mc.parameters.beta
+ys = 1 / (CDS - mc.parameters.beta * occ^2 / length(lattice(mc)))</code></pre><p>where the factor <code>mc.parameters.beta / length(lattice(mc))</code> comes from the imaginary time integral.</p><p><img src="../assets/HBC/CDS.png" alt/></p><h2 id="Reciprocal-Pairing-Susceptibility-1"><a class="docs-heading-anchor" href="#Reciprocal-Pairing-Susceptibility-1">Reciprocal Pairing Susceptibility</a><a class="docs-heading-anchor-permalink" href="#Reciprocal-Pairing-Susceptibility-1" title="Permalink"></a></h2><p>The pairing susceptibility comes with three directional indices after taking <code>mean(mc[:PS])</code>. The first is associated with the distance <span>$r - r^\prime$</span> between the two pairing operators <span>$\Delta(r)$</span> in <span>$\langle \Delta^\alpha(r) \Delta^\beta(r^\prime) \rangle$</span>. The second and third are displacements inside them. Since we only care about s-wave pairing the internal displacements are zero or index 1. Thus we plot <code>1 / real(sum(mean(mc[:PS])[:, 1, 1]))</code> against <code>1 / mc.parameters.beta</code> for the reciprocal pairing susceptibility. </p><p><img src="../assets/HBC/PS.png" alt/></p><h2 id="Superfluid-Stiffness-2"><a class="docs-heading-anchor" href="#Superfluid-Stiffness-2">Superfluid Stiffness</a><a class="docs-heading-anchor-permalink" href="#Superfluid-Stiffness-2" title="Permalink"></a></h2><p>The superfluid stiffness still requires a good amount of work. Let&#39;s start with the diamagnetic contribution <span>$K_x$</span>. As mentioned before the prefactors of <span>$K_x$</span> match those of the hoppings in the Hamiltonian (except for 5th nearest neighbors which catch a factor of 4). The expectation values for <span>$\langle c_j^\dagger c_i \rangle$</span> follow from the measured Greens function <span>$G_{ij} = c_i c_j^\dagger$</span> as <span>$\delta_{ij} - G{ji}$</span> (permutation of operators).</p><p>To pick the correct sites we can poke at the backend of the lattice iterator interface. There are a few maps that get cached, one of which returns a list of (source, target) site index pairs given a directional index. It can be fetched (and potentially generated) via <code>dir2srctrg = mc[Dir2SrcTrg()]</code>. The relevant directional indices can be determined from <code>directions(mc)</code>. Using that we calculate the total diamagnetic contribution <span>$K_x$</span> as</p><pre><code class="language-julia">function dia_K_x(mc)
+    # directional indices for K_x (see directions(mc)[idxs]
+    # These correspond to 
+    # K1 &amp; K4, K1 &amp; K4 h.c., K2 &amp; K5, K3 &amp; K6 h.c., K2 &amp; K5 h.c., K3 &amp; K5
+    idxs = [2, 4, 6, 7, 8, 9]
+    
+    # T contains the prefactors used in K_x, G contains ⟨c_i c_j^†⟩
+    T = Matrix(MonteCarlo.hopping_matrix(mc, mc.model))
+    G = mean(mc[:G])
+
+    # We use the dir2srctrg map to get all (src, trg) pairs relevant to the 
+    # directions we specified with `idxs` above
+    dir2srctrg = mc[MonteCarlo.Dir2SrcTrg()]
+    N = length(lattice(mc))
+    
+    Kx = ComplexF64(0)
+    for dir_idx in idxs
+        for (src, trg) in dir2srctrg[dir_idx]
+            # c_j^† c_i = δ_ij - G[i, j], but δ always 0 (no onsite)
+            Kx -= T[trg, src] * G[src, trg]         # up-up
+            Kx -= T[trg+N, src+N] * G[src+N, trg+N] # down-down
+        end
+    end
+
+    # normalize
+    Kx /= N
+end</code></pre><p>For the Fourier transformed current-current correlation <span>$\Lambda_{xx}(q)$</span> the paper uses two summations. The first (eq. 16) runs over positions without offsets from the basis. The second (eq. 17) then resolves those offsets with a shift by <span>$\hat{e}_y$</span> and also translates positions to the centers of the two sites involved with each hopping term. Combining both equations in a MonteCarlo.jl compatible style yields</p><div>\[\begin{equation}
+    \Lambda_{xx}(q) = \sum_{\Delta r_{12}} \sum_{\Delta r_1, \Delta r_2} e^{- i q (\Delta r_{12} + 0.5 (\Delta r_1 - \Delta r_2))}
+                      \int_0^\beta \sum_{r_0} \langle J_x^{\Delta r_1}(r_0 + \Delta r_{12}, \tau) J_x^{\Delta r_2}(r_0, 0) \rangle d\tau
+\end{equation}\]</div><p>Here <span>$\Delta r_{12}$</span> is the distance between any two sites including basis offsets and <span>$\Delta r_1$</span> and <span>$\Delta r_2$</span> are the hopping distances. The integral over imaginary time and the sum over <span>$r_0$</span> are already performed during measuring. This leaves the following to be calculated after measuring:</p><pre><code class="language-julia">function para_ccc(mc, q)
+    # direction indices for J1 &amp; J4, J2 &amp; J5, J3 &amp; J6 (h.c. included in measurement)
+    idxs = [2, 6, 9]
+
+    CCS = mean(mc[:CCS])
+    dirs = directions(lattice(mc))
+    Λxx = ComplexF64(0)
+
+    for (i, dir) in enumerate(dirs)
+        for j in idxs, k in idxs
+            Λxx += CCS[i, j, k] * cis(-dot(dir + 0.5(dirs[j] .- dirs[k]), q))
+        end
+    end
+    
+    Λxx
+end</code></pre><p>To compute the superfluid stiffness we now just calculate <span>$D_S = \frac{1}{4} [ -K_x - \Lambda_{xx}(q = 0)]$</span> (eq. 4).</p><p><img src="../assets/HBC/DS.png" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ALF1/">« Crosscheck with ALF</a><a class="docs-footer-nextpage" href="../../legacy/">Introduction »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Monday 1 November 2021 10:12">Monday 1 November 2021</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
