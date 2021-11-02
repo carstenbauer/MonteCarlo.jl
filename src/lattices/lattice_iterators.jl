@@ -38,7 +38,7 @@ function Base.get!(cache::LatticeIteratorCache, key::LICacheKeys, lattice::Abstr
     cache[key]
 end
 Base.empty!(cache::LatticeIteratorCache) = empty!(cache.cache)
-Base.haskey(cache::LatticeIterationCache, key::LICacheKeys) = haskey(cache.cache, key)
+Base.haskey(cache::LatticeIteratorCache, key::LICacheKeys) = haskey(cache.cache, key)
 
 
 # For shifting sites across periodic bounds
