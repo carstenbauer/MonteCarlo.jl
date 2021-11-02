@@ -89,6 +89,7 @@ function save_lattice(file::JLDFile, lattice::LatPhysLattice, entryname::String)
     write(file, entryname * "/tag", "LatPhysLattice")
     _save_lattice(file, lattice.lattice, entryname * "/lattice")
     write(file, entryname * "/neighs", lattice.neighs)
+    write(file, entryname * "/bonds", lattice.bonds)
     nothing
 end
 function _save_lattice(file::JLDFile, lattice::LatPhysBase.AbstractLattice, entryname::String)
@@ -130,7 +131,7 @@ end
 
 function _load(data, ::Val{:LatPhysLattice})
     @assert data["VERSION"] == 0
-    LatPhysLattice(load_lattice(data["lattice"]), data["neighs"])
+    LatPhysLattice(load_lattice(data["lattice"]), data["neighs"], data["bonds"])
 end
 function load_lattice(data)
     sites = load_sites(data["sites"])
