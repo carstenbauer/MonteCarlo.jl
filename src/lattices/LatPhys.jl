@@ -5,19 +5,20 @@ import .LatticePhysics.LatPhysBase, .LatticePhysics
 struct LatPhysLattice{LT <: LatPhysBase.AbstractLattice} <: AbstractLattice
     lattice::LT
     neighs::Matrix{Int}
+    bonds::Vector{Vector{Int}}
 end
 export LatPhysLattice
 
 function LatPhysLattice(lattice::LatPhysBase.AbstractLattice)
     # Build lookup table for neighbors
     # neighs[:, site] = list of neighoring site indices
-    nested_bonds = [Int[] for _ in 1:LatPhysBase.numSites(lattice)]
+    nested_bonds = [Int[] for _ in 1:numSites(lattice)]
     for b in LatPhysBase.bonds(lattice)
         push!(nested_bonds[LatPhysBase.from(b)], LatPhysBase.to(b))
     end
     max_bonds = maximum(length(x) for x in nested_bonds)
 
-    neighs = fill(-1, max_bonds, LatPhysBase.numSites(lattice))
+    neighs = fill(-1, max_bonds, numSites(lattice))
     for (src, targets) in enumerate(nested_bonds)
         for (idx, trg) in enumerate(targets)
             neighs[idx, src] = trg
@@ -27,7 +28,7 @@ function LatPhysLattice(lattice::LatPhysBase.AbstractLattice)
         "neighs is padded with -1 to indicated the lack of a bond. This is " *
         "due to the lattice having an irregular number of bonds per site."
     )
-    LatPhysLattice(lattice, neighs)
+    LatPhysLattice(lattice, neighs, nested_bonds)
 end
 
 @inline Base.length(l::LatPhysLattice) = numSites(l.lattice)
@@ -59,7 +60,7 @@ end
     )
 end
 @inline function neighbors(l::LatPhysLattice, site_index::Integer)
-    l.neighs[:, site_index]
+    l.bonds[site_index]
 end
 
 @inline neighbors_lookup_table(l::LatPhysLattice) = copy(l.neighs)
