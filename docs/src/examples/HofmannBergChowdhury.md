@@ -277,7 +277,7 @@ Our next task is to implement `propose_local!` and `accept_local!`. Since those 
 
 ```math
 R = \prod_\sigma \left[
-        1 + \left( \exp(\Delta E_Boson) - 1 \right) 
+        1 + \left( \exp(\Delta E_{Boson}) - 1 \right) 
         \left( 1 - G_{ii}^{\sigma, \sigma}(\tau, \tau) \right)
     \right]
 ```
