@@ -49,7 +49,11 @@ function _load(data, ::Val{:DQMC})
     conf = data["conf"]
     recorder = _load(data["configs"], to_tag(data["configs"]))
     last_sweep = data["last_sweep"]
-    model = _load(data["Model"], to_tag(data["Model"]))
+    model = try
+        _load(data["Model"], to_tag(data["Model"]))
+    catch e
+        _load(data["Model"], Val(:DummyModel))
+    end
     scheduler = if haskey(data, "Scheduler")
         _load(data["Scheduler"], to_tag(data["Scheduler"]))
     else

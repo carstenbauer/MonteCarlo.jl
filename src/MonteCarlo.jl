@@ -107,6 +107,7 @@ export ReplicaExchange, ReplicaPull, connect, disconnect
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardModel/HubbardModel.jl")
+include("models/DummyModel.jl")
 export IsingEnergyMeasurement, IsingMagnetizationMeasurement
 
 include("FileIO.jl")
