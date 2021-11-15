@@ -71,7 +71,6 @@ end
 ################################################################################
 
 
-
 """
     superfluid_stiffness(dqmc, model[; Ls, kwargs...])
 
@@ -92,18 +91,7 @@ function superfluid_stiffness(
     shift_dir = Float64[1, 0]
     
     # find all hopping directions (skipping on-site)
-    dir2srctrg = mc[Dir2SrcTrg()]
-    T = hopping_matrix(mc, model)
-    valid_directions = Int64[]
-    
-    for i in 2:length(dir2srctrg)
-        for (src, trg) in dir2srctrg[i]
-            if T[trg, src] != 0
-                push!(valid_directions, i)
-                break
-            end
-        end
-    end
+    valid_directions = hopping_directions(dqmc, model)
 
     # reduce to directions that have a positive component in shift_dir
     dirs = directions(lattice(dqmc))

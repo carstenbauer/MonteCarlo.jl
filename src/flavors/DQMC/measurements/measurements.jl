@@ -18,6 +18,30 @@ function nearest_neighbor_count(mc, ϵ = 1e-6)
 end
 
 
+"""
+    hopping_directions(dqmc, model)
+
+Returns directional indices corresponding to original hopping directions. This
+is derived from the hopping matrix and does not include on-site "hoppings".
+"""
+function hopping_directions(dqmc::DQMC, model)
+    dir2srctrg = dqmc[Dir2SrcTrg()]
+    T = hopping_matrix(dqmc, model)
+    valid_directions = Int64[]
+    
+    for i in 2:length(dir2srctrg)
+        for (src, trg) in dir2srctrg[i]
+            if T[trg, src] != 0
+                push!(valid_directions, i)
+                break
+            end
+        end
+    end
+
+    valid_directions
+end
+
+
 ################################################################################
 ### Measurement constructors
 ################################################################################
@@ -162,9 +186,9 @@ see larger values than expected.
 """
 function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
-        K = 1 + nearest_neighbor_count(dqmc),
+        directions = hopping_directions(dqmc, model),
         greens_iterator = CombinedGreensIterator(dqmc), wrapper = nothing,
-        lattice_iterator = EachLocalQuadByDistance(2:K), kwargs...
+        lattice_iterator = EachLocalQuadByDistance(directions), kwargs...
     )
     @assert is_approximately_hermitian(hopping_matrix(dqmc, model)) "CCS assumes Hermitian matrix"
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
