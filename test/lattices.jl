@@ -318,23 +318,35 @@ using MonteCarlo: directed_norm
         @test check
     end
 
-    # @testset "SuperfluidDensity Wrapper" begin
-    #     iter = EachSitePairByDistance(dqmc1, dqmc1.model)
-    #     wrapped = MonteCarlo.SuperfluidDensity{EachSitePairByDistance}(
-    #         1:3, [[1, 0], [0, 1], [1, 1]], [[0, 1], [1, 0], [1, -1]]
-    #     )(dqmc1, dqmc1.model)
+    @testset "Superfluid Stiffness Wrapper" begin
+        iter = EachLocalQuadByDistance([2, 3, 4, 5])(dqmc3, dqmc3.model)
+        wrapped = MonteCarlo.SuperfluidStiffness(
+            EachLocalQuadByDistance([2, 3, 4, 5]), [1.0, 0.0]
+        )(dqmc3, dqmc3.model)
 
-    #     @test eltype(wrapped) == eltype(iter)
-    #     @test length(wrapped) == length(iter)
+        @test eltype(wrapped) == eltype(iter)
+        @test length(wrapped) == length(iter)
         
-    #     check = true
-    #     vals = collect(iter)
-    #     wals = collect(wrapped)
-    #     for (v, w) in zip(vals, wals)
-    #         check = check && (v == w)
-    #     end
-    #     @test check
-    # end
+        check = true
+        vals = collect(iter)
+        wals = collect(wrapped)
+        for (v, w) in zip(vals, wals)
+            check = check && (v == w)
+        end
+        @test check
+
+        all_dirs = directions(lattice(dqmc3))
+        fs = map(idx -> dot([1.0, 0.0], all_dirs[idx]), [2,3,4,5])
+        weights = Array{ComplexF64}(undef, length(all_dirs), 4, 4)
+        for (i, dr12) in enumerate(all_dirs)
+            for (j, dj) in enumerate([2,3,4,5]), (k, dk) in enumerate([2,3,4,5])
+                weights[i,j,k] = 0.25 * fs[j] * fs[k] *
+                    (cis(-dot([1.0, 0.0], dr12 + 0.5 * (all_dirs[dj] - all_dirs[dk]))) - 1)
+            end
+        end
+
+        @test weights ≈ wrapped.weights
+    end
 
 
     # TODO

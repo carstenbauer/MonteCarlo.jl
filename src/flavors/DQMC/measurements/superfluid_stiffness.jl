@@ -3,19 +3,19 @@
 ################################################################################
 
 
-struct SuperfluidStiffness{IT, N, T} <: AbstractLatticeIteratorTemplate
+struct SuperfluidStiffness{IT <: DeferredLatticeIteratorTemplate} <: AbstractLatticeIteratorTemplate
     template::IT
     dq::Vector{Float64}
 end
-function SuperfluidStiffness(template::DeferredLatticeIteratorTemplate, dq)
-    SuperfluidStiffness(template, dq)
-end
+# function SuperfluidStiffness(template::DeferredLatticeIteratorTemplate, dq)
+#     SuperfluidStiffness(template, dq)
+# end
 
 struct _SuperfluidStiffness{LI <: DeferredLatticeIterator} <: LatticeIterationWrapper{LI}
     iter::LI
-    weights::Matrix{ComplexF64}
+    weights::Array{ComplexF64, 3}
 end
-function (x::SuperfluidStiffness)(cache::LatticeIteratorCache, lattice::AbstractLattice)
+function (x::SuperfluidStiffness)(cache::LatticeIteratorCache, l::AbstractLattice)
     # We need to calculate 0.25 (Λₓₓ(dq) - Λₓₓ(0)) where
     # Λₓₓ(q) = CCS[i, j, k] * dot(eₓ, dir[j]) * dot(eₓ, dir[k]) * 
     #           cis(- dot(dq, dir[i], + 0.5 (dir[j] - dir[k])))
@@ -23,19 +23,19 @@ function (x::SuperfluidStiffness)(cache::LatticeIteratorCache, lattice::Abstract
     # Idk why the dot(eₓ, dir[j/k]) is there but https://arxiv.org/pdf/1912.08848.pdf
     # has them so I'll have them too (in J_x as prefactor 1 or 2)
     # The 0.5 (dir[j] - dir[k]) comes from the same paper, eq 17-19
-    all_dirs = directions(lattice)
+    all_dirs = directions(l)
     hop_idxs = x.template.directions
     dr = normalize(x.dq)
     fs = map(idx -> dot(dr, all_dirs[idx]), hop_idxs)
-    weights = Matrix{ComplexF64}(undef, length(all_dirs), length(hop_idxs), length(hop_idxs))
+    weights = Array{ComplexF64}(undef, length(all_dirs), length(hop_idxs), length(hop_idxs))
     for (i, dr12) in enumerate(all_dirs)
         for (j, dj) in enumerate(hop_idxs), (k, dk) in enumerate(hop_idxs)
             weights[i,j,k] = 0.25 * fs[j] * fs[k] *
-                (cis(-dot(x.dq, dr12 + 0.5 * (dirs[dj] - dirs[dk]))) - 1)
+                (cis(-dot(x.dq, dr12 + 0.5 * (all_dirs[dj] - all_dirs[dk]))) - 1)
         end
     end
 
-    _SuperfluidStiffness(x.template(cache, lattice), weights)
+    _SuperfluidStiffness(x.template(cache, l), weights)
 end
 
 Base.iterate(s::_SuperfluidStiffness) = iterate(s.iter)
@@ -71,7 +71,6 @@ end
 ################################################################################
 
 
-
 """
     superfluid_stiffness(dqmc, model[; Ls, kwargs...])
 
@@ -92,25 +91,14 @@ function superfluid_stiffness(
     shift_dir = Float64[1, 0]
     
     # find all hopping directions (skipping on-site)
-    dir2srctrg = mc[Dir2SrcTrg()]
-    T = hopping_matrix(mc, model)
-    valid_directions = Int64[]
-    
-    for i in 2:length(dir2srctrg)
-        for (src, trg) in dir2srctrg[i]
-            if T[trg, src] != 0
-                push!(valid_directions, i)
-                break
-            end
-        end
-    end
+    valid_directions = hopping_directions(dqmc, model)
 
     # reduce to directions that have a positive component in shift_dir
     dirs = directions(lattice(dqmc))
     filter!(idx -> dot(dirs[idx], shift_dir) > 0, valid_directions)
 
     # create lattice iterator
-    long = 2pi / Ls[1] * shift_dir
+    long = [0.0, 0.0] # 2pi / Ls[1] * shift_dir # 
     li = SuperfluidStiffness(EachLocalQuadByDistance(valid_directions), long)
 
     current_current_susceptibility(dqmc, model, lattice_iterator = li)
