@@ -107,7 +107,7 @@ end
         HubbardModelAttractive(2, 2, U = 0.0, mu = 1.0, t = 1.0)
     )
 
-    @info "Exact Greens comparison (ED)"
+    println("Exact Greens comparison (ED)")
     for model in models, beta in (1.0, 10.0)
         @testset "$(typeof(model))" begin
             Random.seed!(123)
@@ -115,7 +115,7 @@ end
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
                 thermalization = 1, sweeps = 2, measure_rate=1
             )
-            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.parameters.beta)"
+            print("  Running DQMC ($(typeof(model).name.name)) β=$(dqmc.parameters.beta) in ")
 
             dqmc[:G]    = greens_measurement(dqmc, model)
             dqmc[:E]    = total_energy(dqmc, model)
@@ -160,7 +160,7 @@ end
             # G = I - U * inv(I + D) * adjoint(U)
             G = U * inv(I + D) * adjoint(U)
         
-            @info "Running ED"
+            print("    Running ED and checking in ")
             @time begin
                 H = HamiltonMatrix(model)
 
@@ -392,6 +392,7 @@ end
         HubbardModelAttractive(2, 2, U = 1.0, mu = 1.0, t = 1.0)
     )
 
+    println("Finite U ED Comparison")
     for model in models
         @testset "$(typeof(model))" begin
             Random.seed!(123)
@@ -402,7 +403,10 @@ end
                 #     (LocalSweep(10), Adaptive(),), (GlobalShuffle(), GlobalFlip())
                 # )
             )
-            @info "Running DQMC ($(typeof(model).name)) β=$(dqmc.parameters.beta), 10k + 10k sweeps"
+            print(
+                "  Running DQMC ($(typeof(model).name.name)) " * 
+                "β=$(dqmc.parameters.beta), 10k + 10k sweeps in "
+            )
 
             dqmc[:G]    = greens_measurement(dqmc, model)
             dqmc[:E]    = total_energy(dqmc, model)
@@ -444,7 +448,7 @@ end
             rtol = 2dqmc.parameters.delta_tau^2
             N = length(lattice(model))
         
-            @info "Running ED"
+            print("    Running ED and checking in ")
             @time begin
                 H = HamiltonMatrix(model)
 
