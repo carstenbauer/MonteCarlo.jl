@@ -110,12 +110,11 @@ end
     println("Exact Greens comparison (ED)")
     for model in models, beta in (1.0, 10.0)
         @testset "$(typeof(model))" begin
-            Random.seed!(123)
             dqmc = DQMC(
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
                 thermalization = 1, sweeps = 2, measure_rate=1
             )
-            print("  Running DQMC ($(typeof(model).name.name)) β=$(dqmc.parameters.beta) in ")
+            print("  Running DQMC ($(typeof(model).name.name)) β=$(dqmc.parameters.beta)\n    ")
 
             dqmc[:G]    = greens_measurement(dqmc, model)
             dqmc[:E]    = total_energy(dqmc, model)
@@ -127,7 +126,9 @@ end
             dqmc[:SDCx] = spin_density_correlation(dqmc, model, :x)
             dqmc[:SDCy] = spin_density_correlation(dqmc, model, :y)
             dqmc[:SDCz] = spin_density_correlation(dqmc, model, :z)
-            dqmc[:PC]   = pairing_correlation(dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4))
+            dqmc[:PC]   = pairing_correlation(
+                dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
+            )
 
             # Unequal time
             l1s = [0, 3, 5, 7, 3, 0, MonteCarlo.nslices(dqmc), 0]
@@ -140,8 +141,12 @@ end
             dqmc[:SDSx] = spin_density_susceptibility(dqmc, model, :x)
             dqmc[:SDSy] = spin_density_susceptibility(dqmc, model, :y)
             dqmc[:SDSz] = spin_density_susceptibility(dqmc, model, :z)
-            dqmc[:PS]   = pairing_susceptibility(dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4))
-            dqmc[:CCS]  = current_current_susceptibility(dqmc, model, lattice_iterator = EachLocalQuadBySyncedDistance(1:4))
+            dqmc[:PS]   = pairing_susceptibility(
+                dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
+            )
+            dqmc[:CCS]  = current_current_susceptibility(
+                dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
+            )
 
             
             @time run!(dqmc, verbose=false)
@@ -160,7 +165,7 @@ end
             # G = I - U * inv(I + D) * adjoint(U)
             G = U * inv(I + D) * adjoint(U)
         
-            print("    Running ED and checking in ")
+            print("    Running ED and checking (tolerance: $atol, $rtol%)\n    ")
             @time begin
                 H = HamiltonMatrix(model)
 
@@ -173,10 +178,14 @@ end
                 # G_DQMC is smaller because it doesn't differentiate between spin up/down
                 @testset "Greens" begin
                     G_DQMC = mean(dqmc.measurements[:G])
+                    occs = mean(dqmc.measurements[:Occs])  
                     G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.parameters.beta)
                     @test check(G_DQMC, G_ED[1:size(G_DQMC, 1), 1:size(G_DQMC, 2)], atol, rtol)
                     @test check(G, G_ED[1:size(G_DQMC, 1), 1:size(G_DQMC, 2)], atol, rtol)
                     @test check(G_DQMC, G, atol, rtol)
+                    for i in 1:size(G_DQMC, 1)
+                        @test check(occs[i],  1 - G_ED[i, i], atol, rtol)
+                    end
                 end
 
 
@@ -258,7 +267,7 @@ end
                     PC = mean(dqmc.measurements[:PC])
                     ED_PC = zeros(ComplexF64, size(PC))
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.EachLocalQuadByDistance{4}(dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:PC], dqmc, model)
                         ED_PC[dirs] += expectation_value(
                             pairing_correlation(src1, trg1, src2, trg2), 
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -275,7 +284,9 @@ end
                     for (i, tau1, tau2) in zip(eachindex(l1s), 0.1l1s, 0.1l2s)
                         UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
                         M = size(UTG, 1)
-                        ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l, beta=dqmc.parameters.beta)
+                        ED_UTG = calculate_Greens_matrix(
+                            H, tau2, tau1, model.l, beta=dqmc.parameters.beta
+                        )
 
                         @testset "[$i] $tau1 -> $tau2" begin
                             for k in 1:M, l in 1:M
@@ -337,7 +348,7 @@ end
                     PS = mean(dqmc.measurements[:PS])
                     ED_PS = zeros(Float64, size(PS))
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.EachLocalQuadByDistance{4}(dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:PS], dqmc, model)
                         ED_PS[dirs] += expectation_value_integrated(
                             state -> begin
                                 sign1, _state  = annihilate(state, trg1, DOWN)
@@ -364,7 +375,7 @@ end
                     ED_CCS = zeros(Float64, size(CCS))
                     T = dqmc.stack.hopping_matrix
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.EachLocalQuadBySyncedDistance{4}(dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:CCS], dqmc, model)
                         ED_CCS[dirs] -= expectation_value_integrated(
                             # actually the order of this doesn't seem to matter
                             current_density(src2, trg2, T), 
@@ -405,7 +416,7 @@ end
             )
             print(
                 "  Running DQMC ($(typeof(model).name.name)) " * 
-                "β=$(dqmc.parameters.beta), 10k + 10k sweeps in "
+                "β=$(dqmc.parameters.beta), 10k + 10k sweeps\n    "
             )
 
             dqmc[:G]    = greens_measurement(dqmc, model)
@@ -418,7 +429,9 @@ end
             dqmc[:SDCx] = spin_density_correlation(dqmc, model, :x)
             dqmc[:SDCy] = spin_density_correlation(dqmc, model, :y)
             dqmc[:SDCz] = spin_density_correlation(dqmc, model, :z)
-            dqmc[:PC]   = pairing_correlation(dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4))
+            dqmc[:PC]   = pairing_correlation(
+                dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
+            )
 
             # Unequal time
             l1s = [0, 3, 5, 7, 3, 0]
@@ -436,8 +449,12 @@ end
             dqmc[:SDSx] = spin_density_susceptibility(dqmc, model, :x)
             dqmc[:SDSy] = spin_density_susceptibility(dqmc, model, :y)
             dqmc[:SDSz] = spin_density_susceptibility(dqmc, model, :z)
-            dqmc[:PS]   = pairing_susceptibility(dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4))
-            dqmc[:CCS]  = current_current_susceptibility(dqmc, model, lattice_iterator = EachLocalQuadBySyncedDistance(1:4))
+            dqmc[:PS]   = pairing_susceptibility(
+                dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
+            )
+            dqmc[:CCS]  = current_current_susceptibility(
+                dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
+            )
 
             # MonteCarlo.enable_benchmarks()
 
@@ -448,7 +465,7 @@ end
             rtol = 2dqmc.parameters.delta_tau^2
             N = length(lattice(model))
         
-            print("    Running ED and checking in ")
+            print("    Running ED and checking (tolerance: $atol, $rtol%)\n    ")
             @time begin
                 H = HamiltonMatrix(model)
 
@@ -553,7 +570,7 @@ end
                     PC = mean(dqmc.measurements[:PC])
                     ED_PC = zeros(ComplexF64, size(PC))
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.EachLocalQuadByDistance{4}(dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:PC], dqmc, model)
                         ED_PC[dirs] += expectation_value(
                             pairing_correlation(src1, trg1, src2, trg2), 
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -572,17 +589,14 @@ end
                         UTG = mean(dqmc.measurements[Symbol(:UTG, i)])
                         # ΔUTG = std_error(dqmc.measurements[Symbol(:UTG, i)])
                         M = size(UTG, 1)
-                        ED_UTG = calculate_Greens_matrix(H, tau2, tau1, model.l, beta=dqmc.parameters.beta)
+                        ED_UTG = calculate_Greens_matrix(
+                            H, tau2, tau1, model.l, beta=dqmc.parameters.beta
+                        )
 
                         @testset "[$i] $tau1 -> $tau2" begin
                             for k in 1:M, l in 1:M
                                 @test check(UTG[k, l], ED_UTG[k, l], atol, rtol)
                             end
-                            # println("[$i] $tau1 -> $tau2")
-                            # display(UTG)
-                            # println()
-                            # display(ED_UTG)
-                            # println()
                         end
                     end
                 end
@@ -639,7 +653,7 @@ end
                     PS = mean(dqmc.measurements[:PS])
                     ED_PS = zeros(Float64, size(PS))
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.EachLocalQuadByDistance{4}(dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:PS], dqmc, model)
                         ED_PS[dirs] += expectation_value_integrated(
                             state -> begin
                                 sign1, _state  = annihilate(state, trg1, DOWN)
@@ -666,7 +680,7 @@ end
                     ED_CCS = zeros(Float64, size(CCS))
                     T = dqmc.stack.hopping_matrix
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.EachLocalQuadBySyncedDistance{4}(dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:CCS], dqmc, model)
                         ED_CCS[dirs] -= expectation_value_integrated(
                             # actually the order of this doesn't seem to matter
                             current_density(src2, trg2, T), 
