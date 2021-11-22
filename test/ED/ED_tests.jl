@@ -165,7 +165,7 @@ end
             # G = I - U * inv(I + D) * adjoint(U)
             G = U * inv(I + D) * adjoint(U)
         
-            print("    Running ED and checking (tolerance: $atol, $rtol%)\n    ")
+            print("    Running ED and checking (tolerance: $atol, $(100rtol)%)\n    ")
             @time begin
                 H = HamiltonMatrix(model)
 
@@ -465,7 +465,7 @@ end
             rtol = 2dqmc.parameters.delta_tau^2
             N = length(lattice(model))
         
-            print("    Running ED and checking (tolerance: $atol, $rtol%)\n    ")
+            print("    Running ED and checking (tolerance: $atol, $(100rtol)%)\n    ")
             @time begin
                 H = HamiltonMatrix(model)
 
