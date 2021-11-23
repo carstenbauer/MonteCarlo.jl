@@ -116,20 +116,82 @@ function apply_symmetry(data::AbstractArray{T, 2}, weights=(1)) where {T}
 end
 
 
+################################################################################
+### Superfluid Stiffness
+################################################################################
 
-# cc2superfluid density
-superfluid_density(mc, key::Symbol, L = lattice(mc).L) = superfluid_density(mc, mc[key], L)
-function superfluid_density(mc, m::DQMCMeasurement, L=lattice(mc).L)
-    dirs = directions(mc)
-    qx, qy = reciprocal_vectors(lattice(mc), L)
-    superfluid_density(mean(m), dirs, qx, qy)
-end
-function superfluid_density(data::Array{T, 2}, dirs, qx, qy, skip_zero_distance=true) where {T}
-    output = ComplexF64(0)
-    for i in axes(data, 1)
-        for j in 1+skip_zero_distance:size(data, 2)
-            output += (cis(dot(qy, dirs[j])) - cis(dot(qx, dirs[j]))) * data[i, j]
+
+
+function superfluid_stiffness(
+        mc::DQMC, G::DQMCMeasurement, ccs::DQMCMeasurement; 
+        shift_dir = [1., 0.], calculate_error = false
+    )
+    # find all hopping directions (skipping on-site)
+    valid_directions = hopping_directions(mc, mc.model)
+
+    # reduce to directions that have a positive component in shift_dir
+    dirs = directions(lattice(mc))
+    filter!(idx -> dot(dirs[idx], shift_dir) > 0, valid_directions)
+
+    # Reduce to valid (ccs_idx, dir_idx) pairs (we may have more or less in 
+    # the measurement)
+    ind_dir = Pair{Int, Int}[]
+    for (i, j) in enumerate(ccs.lattice_iterator.directions)
+        if j in valid_directions
+            push!(ind_dir, i => j)
         end
     end
-    output
+    if length(ind_dir) != length(valid_directions)
+        @warn("Missing directions in Superfluid Stiffness")
+    end
+
+    Kx  = dia_K_x(mc, mean(G), last.(ind_dir))
+    Λxx = para_ccc(mc, mean(ccs), ind_dir)
+
+    if calculate_error
+        @warn "Errors not implemented for sfs yet"
+        return 0.25 * (-Kx - Λxx), 0.0
+    else
+        return 0.25 * (-Kx - Λxx)
+    end
+end
+
+
+function dia_K_x(mc, G, idxs)
+    T = Matrix(MonteCarlo.hopping_matrix(mc, mc.model))
+
+    push!(mc.lattice_iterator_cache, MonteCarlo.Dir2SrcTrg(), lattice(mc))
+    dir2srctrg = mc.lattice_iterator_cache[MonteCarlo.Dir2SrcTrg()]
+    N = length(lattice(mc))
+    
+    Kx = ComplexF64(0)
+    f = 1.0 + (model(mc) isa HubbardModelAttractive)
+    for shift in 0:N:size(G, 1)-1
+        for i in idxs
+            for (src, trg) in dir2srctrg[i]
+                # c_j^† c_i = δ_ij - G[i, j], but δ always 0 cause no onsite
+                Kx -= f * T[trg+shift, src+shift] * G[src+shift, trg+shift]
+                # reverse directions cause we filter those out beforehand
+                Kx -= f * T[src+shift, trg+shift] * G[trg+shift, src+shift]
+            end
+        end
+    end
+    Kx /= N
+end
+
+# uses directions with filter > 0
+function para_ccc(mc, ccs, ind_dir)
+    #dq = [2pi / size(lattice(mc))[2], 0.0]
+    dq = [0.0, 0.0]
+    dirs = directions(lattice(mc))
+    Λxx = ComplexF64(0)
+
+    for (i, dir) in enumerate(dirs)
+        for (j, jdir) in ind_dir, (k, kdir) in ind_dir
+            # result += ccs[i, j] * (cis(dot(dir, long)) - cis(dot(dir, trans)))
+            Λxx += ccs[i, j, k] * cis(-dot(dir + 0.5(dirs[jdir] .- dirs[kdir]), dq))
+        end
+    end
+    
+    Λxx
 end
