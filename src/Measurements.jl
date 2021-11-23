@@ -176,6 +176,37 @@ end
 end
 
 
+# Wrapper to evaluate on load?
+"""
+    ValueWrapper(mc, ::Val{key})
+    ValueWrapper(mc, m::AbstractMeasurement)
+
+Attempt to calculate a (value, error) pair for a given measurement.
+
+Call chain:
+1. `to_value!(mc, v::Val{key}) = mc[key] = ValueWrapper(mc, v)`
+2. `ValueWrapper(mc, ::Val{key}) = ValueWrapper(mc, mc[key])`
+3. `ValueWrapper(mc, measurement) = ...`
+"""
+struct ValueWrapper{T1, T2} <: AbstractMeasurement
+    exp_value::T1
+    std_error::T2
+end
+
+
+to_value!(mc, v::Val{key}) where key = mc[key] = ValueWrapper(mc, v)
+ValueWrapper(mc, ::Val{key}) where key = ValueWrapper(mc, mc[key])
+# Fall back to the measurement itself if no conversion is available
+ValueWrapper(mc::MonteCarloFlavor, m::AbstractMeasurement) = m
+MonteCarloObservable.mean(v::ValueWrapper) = v.exp_value
+MonteCarloObservable.std_error(v::ValueWrapper) = v.std_error
+Base.show(io::IO, ::MIME"text/plain", m::ValueWrapper) = show(io, m)
+function Base.show(io::IO, m::ValueWrapper)
+    print(io, m.exp_value)
+    print(io, " ± ")
+    print(io, m.std_error)
+end
+
 
 ################################################################################
 # called by simulation
