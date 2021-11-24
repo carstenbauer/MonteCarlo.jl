@@ -284,12 +284,12 @@ to_tag(::Type{<: DQMCMeasurement}) = Val(:DQMCMeasurement)
 
 function ValueWrapper(mc::DQMC, m::DQMCMeasurement)
     err = std_error(m)
-    ValueWrapper(m |> mean |> mean, sqrt(err.^2 |> sum) / length(err))
+    ValueWrapper(m |> mean |> sum, sqrt(err.^2 |> sum))
 end
 
 function ValueWrapper(mc::DQMC, m::DQMCMeasurement{<: Any, <: EachLocalQuadByDistance})
     err = std_error(m)[:, 1, 1]
-    ValueWrapper(mean(m)[:, 1, 1] |> mean, sqrt(err.^2 |> sum) / length(err))
+    ValueWrapper(mean(m)[:, 1, 1] |> sum, sqrt(err.^2 |> sum))
 end
 
 function ValueWrapper(mc::DQMC, m::DQMCMeasurement{<: Any, <: Nothing})
