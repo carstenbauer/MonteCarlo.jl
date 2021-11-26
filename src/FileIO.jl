@@ -102,13 +102,72 @@ end
 to_tag(::Type{<: AbstractLattice}) = Val(:Generic)
 to_tag(::Type{<: Model}) = Val(:Generic)
 
+
+"""
+    load(filename)
+    load(path_or_collection; prefix = "", postfix = "jld|jld2", simplify = false)
+
+Loads one or many MonteCarlo simulations from the given file path, directory or 
+`Vector` thereof.
+
+If the given argument is directory or `Vector` of directories and file paths all
+the directories will be expanded recursively. You can use `prefix` and `postfix`
+to filter valid filenames. (These are only applied to the filename, not the 
+full path.)
+Loading will be done in parallel with `pmap` if multiple workers are available.
+Any keyword arguments beyond the ones listed will be passed to pmap. If 
+`simplify = true` a conversion of measurements to `ValueWrapper` will be 
+attempted. (This is useful to reduce the memory requirements. )
+"""
+function load(path_or_filename::String; kwargs...)
+    if isfile(path_or_filename)
+        return _load(path_or_filename)
+    elseif isdir(path_or_filename)
+        return load([path_or_filename]; kwargs...)
+    end
+end
+
+# get all files in directory recursively
+function to_files(path_or_filename)
+    if isfile(path_or_filename)
+        return [path_or_filename]
+    elseif isdir(path_or_filename)
+        return vcat(to_files.(readdir(path_or_filename, join=true))...)
+    else
+        error("$path_or_filename is neither a valid directory nor file path.")
+    end
+end
+
+function load(
+        paths_or_filenames::Vector{String}; 
+        prefix = "", postfix = r"jld|jld2", simplify = false, kwargs...
+    )
+    # Normalize input to filepaths (recursively)
+    files = String[]
+    for path_or_file in paths_or_filenames
+        _files = to_files(path_or_file)
+        filter!(_files) do filepath
+            _, filename = splitdir(filepath)
+            startswith(filename, prefix) && endswith(filename, postfix)
+        end
+        append!(files, _files)
+    end
+
+    pmap(files; kwargs...) do filepath
+        mc = load(filepath)
+        simplify && simplify_measurements!(mc)
+        return mc
+    end
+end
+
+
 """
     load(filename[, groups...])
 
 Loads a MonteCarlo simulation (or part thereof) from the given JLD-file 
 `filename`.
 """
-function load(filename, groups::String...)
+function _load(filename, groups::String...)
     data = if endswith(filename, "jld2")
         FileWrapper(JLD2.jldopen(filename, "r"), filename)
     else 
@@ -291,3 +350,5 @@ function load_rng!(data; rng = _GLOBAL_RNG, entryname::String="RNG")
         error("Error while restoring RNG state: ", e)
     end
 end
+
+
