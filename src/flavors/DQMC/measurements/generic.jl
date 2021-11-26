@@ -277,25 +277,6 @@ end
 to_tag(::Type{<: DQMCMeasurement}) = Val(:DQMCMeasurement)
 
 
-################################################################################
-### ValueWrapper
-################################################################################
-
-
-function ValueWrapper(mc::DQMC, m::DQMCMeasurement)
-    err = std_error(m)
-    ValueWrapper(m |> mean |> sum, sqrt(err.^2 |> sum))
-end
-
-function ValueWrapper(mc::DQMC, m::DQMCMeasurement{<: Any, <: EachLocalQuadByDistance})
-    err = std_error(m)[:, 1, 1]
-    ValueWrapper(mean(m)[:, 1, 1] |> sum, sqrt(err.^2 |> sum))
-end
-
-function ValueWrapper(mc::DQMC, m::DQMCMeasurement{<: Any, <: Nothing})
-    ValueWrapper(m |> mean, m |> std_error)
-end
-
 
 ################################################################################
 ### Greens function related
