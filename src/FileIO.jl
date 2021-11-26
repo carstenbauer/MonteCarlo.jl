@@ -103,29 +103,6 @@ to_tag(::Type{<: AbstractLattice}) = Val(:Generic)
 to_tag(::Type{<: Model}) = Val(:Generic)
 
 
-"""
-    load(filename)
-    load(path_or_collection; prefix = "", postfix = "jld|jld2", simplify = false)
-
-Loads one or many MonteCarlo simulations from the given file path, directory or 
-`Vector` thereof.
-
-If the given argument is directory or `Vector` of directories and file paths all
-the directories will be expanded recursively. You can use `prefix` and `postfix`
-to filter valid filenames. (These are only applied to the filename, not the 
-full path.)
-Loading will be done in parallel with `pmap` if multiple workers are available.
-Any keyword arguments beyond the ones listed will be passed to pmap. If 
-`simplify = true` a conversion of measurements to `ValueWrapper` will be 
-attempted. (This is useful to reduce the memory requirements. )
-"""
-function load(path_or_filename::String; kwargs...)
-    if isfile(path_or_filename)
-        return _load(path_or_filename)
-    elseif isdir(path_or_filename)
-        return load([path_or_filename]; kwargs...)
-    end
-end
 
 # get all files in directory recursively
 function to_files(path_or_filename)
@@ -163,24 +140,41 @@ end
 
 """
     load(filename[, groups...])
+    load(path_or_collection; prefix = "", postfix = "jld|jld2", simplify = false)
 
-Loads a MonteCarlo simulation (or part thereof) from the given JLD-file 
-`filename`.
+Loads one or many MonteCarlo simulations from the given file path, directory or 
+`Vector` thereof.
+
+If the given argument is directory or `Vector` of directories and file paths all
+the directories will be expanded recursively. You can use `prefix` and `postfix`
+to filter valid filenames. (These are only applied to the filename, not the 
+full path.)
+Loading will be done in parallel with `pmap` if multiple workers are available.
+Any keyword arguments beyond the ones listed will be passed to pmap. If 
+`simplify = true` a conversion of measurements to `ValueWrapper` will be 
+attempted. (This is useful to reduce the memory requirements. )
 """
-function _load(filename, groups::String...)
-    data = if endswith(filename, "jld2")
-        FileWrapper(JLD2.jldopen(filename, "r"), filename)
-    else 
-        FileWrapper(JLD.load(filename), filename)
-    end
-    output = try 
-        if haskey(data, "MC") && !("MC" in groups)
-            _load(data, "MC", groups...) else _load(data, groups...)
+function load(filename::String, groups::String...; kwargs...)
+    if isfile(filename)
+        data = if endswith(filename, "jld2")
+            FileWrapper(JLD2.jldopen(filename, "r"), filename)
+        else 
+            FileWrapper(JLD.load(filename), filename)
         end
-    finally
-        endswith(filename, "jld2") && close(data.file)
+        output = try 
+            if haskey(data, "MC") && !("MC" in groups)
+                _load(data, "MC", groups...) else _load(data, groups...)
+            end
+        finally
+            endswith(filename, "jld2") && close(data.file)
+        end
+        
+        return output
+    elseif isdir(filename)
+        return load([filename]; kwargs...)
+    else
+        error("$filename is not a valid file or directory.")
     end
-    output
 end
 _load(data, g1::String, g2::String, gs::String...) = _load(data[g1], g2, gs...)
 function _load(data, g::String)
