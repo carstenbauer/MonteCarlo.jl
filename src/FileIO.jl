@@ -115,9 +115,11 @@ function to_files(path_or_filename)
     end
 end
 
+_adjust_prediction(old, new) = 0.95old + 0.05new
+
 function load(
         paths_or_filenames::Vector{String}; 
-        prefix = "", postfix = r"jld|jld2", simplify = false, kwargs...
+        prefix = "", postfix = r"jld|jld2", simplify = false, silent = false
     )
     # Normalize input to filepaths (recursively)
     files = String[]
@@ -130,11 +132,32 @@ function load(
         append!(files, _files)
     end
 
-    pmap(files; kwargs...) do filepath
-        mc = load(filepath)
+    # Bad time estimate
+    N = length(files)
+    Nstr = string(N)
+    time_prediction = 1.0
+    
+    mcs = map(enumerate(files)) do (i, f)
+        t = @sprintf("%3.2fs", time_prediction * (N - i + 1))
+        silent || print("\r[", lpad(i, length(Nstr), ' '), "/$N] ($t) Loading $f             ")
+        silent || flush(stdout)
+
+        t0 = time()
+        mc = load(f)
         simplify && simplify_measurements!(mc)
-        return mc
+
+        dt = time() - t0
+        if i == 1
+            time_prediction = dt
+        else
+            time_prediction = adjust_prediction(time_prediction, dt)
+        end
+
+        mc
     end
+    silent || println()
+
+    return mcs
 end
 
 
@@ -148,11 +171,8 @@ Loads one or many MonteCarlo simulations from the given file path, directory or
 If the given argument is directory or `Vector` of directories and file paths all
 the directories will be expanded recursively. You can use `prefix` and `postfix`
 to filter valid filenames. (These are only applied to the filename, not the 
-full path.)
-Loading will be done in parallel with `pmap` if multiple workers are available.
-Any keyword arguments beyond the ones listed will be passed to pmap. If 
-`simplify = true` a conversion of measurements to `ValueWrapper` will be 
-attempted. (This is useful to reduce the memory requirements. )
+full path.)  If `simplify = true` a conversion of measurements to `ValueWrapper` 
+will be attempted. (This is useful to reduce the memory requirements.)
 """
 function load(filename::String, groups::String...; kwargs...)
     if isfile(filename)
