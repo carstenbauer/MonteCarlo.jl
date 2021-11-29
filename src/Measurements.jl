@@ -218,13 +218,7 @@ end
 simplify(ms, mc, v::Val{key}) where key = ms[key] = ValueWrapper(mc, v)
 ValueWrapper(mc, ::Val{key}) where key = ValueWrapper(mc, mc[key])
 function ValueWrapper(mc::MonteCarloFlavor, m::AbstractMeasurement)
-    try
-        return ValueWrapper(mean(m), std_error(m))
-    catch e
-        # Fall back to the measurement itself if no conversion is available
-        @warn exception = e
-        return m
-    end
+    return ValueWrapper(mean(m), std_error(m))
 end
 MonteCarloObservable.mean(v::ValueWrapper) = v.exp_value
 MonteCarloObservable.std_error(v::ValueWrapper) = v.std_error
