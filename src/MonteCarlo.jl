@@ -8,6 +8,7 @@ import MonteCarloObservable.AbstractObservable
 using Parameters, Requires
 using TimerOutputs, LoopVectorization, StructArrays
 using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random, Distributed
+import ProgressMeter
 
 import JLD, JLD2
 using CodecZlib

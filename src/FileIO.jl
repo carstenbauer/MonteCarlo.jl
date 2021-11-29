@@ -115,11 +115,10 @@ function to_files(path_or_filename)
     end
 end
 
-_adjust_prediction(old, new) = 0.95old + 0.05new
-
 function load(
         paths_or_filenames::Vector{String}; 
-        prefix = "", postfix = r"jld|jld2", simplify = false, silent = false
+        prefix = "", postfix = r"jld|jld2", simplify = false, silent = false,
+        parallel = true
     )
     # Normalize input to filepaths (recursively)
     files = String[]
@@ -132,30 +131,18 @@ function load(
         append!(files, _files)
     end
 
-    # Bad time estimate
-    N = length(files)
-    Nstr = string(N)
-    time_prediction = 1.0
-    
-    mcs = map(enumerate(files)) do (i, f)
-        t = @sprintf("%3.2fs", time_prediction * (N - i + 1))
-        silent || print("\r[", lpad(i, length(Nstr), ' '), "/$N] ($t) Loading $f             ")
-        silent || flush(stdout)
+    println(
+        "Loading $(length(files)) Simulations", 
+        parallel && nprocs() > 1 ? " on $(nworkers()) workers" : ""
+    )
+    flush(stdout)
 
-        t0 = time()
+    # Might be worth shuffling files for more equal load times?
+    mcs = ProgressMeter.@showprogress pmap(files, distributed = parallel) do f
         mc = load(f)
         simplify && simplify_measurements!(mc)
-
-        dt = time() - t0
-        if i == 1
-            time_prediction = dt
-        else
-            time_prediction = adjust_prediction(time_prediction, dt)
-        end
-
         mc
     end
-    silent || println()
 
     return mcs
 end
