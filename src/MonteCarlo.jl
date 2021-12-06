@@ -6,9 +6,21 @@ using Reexport
 @reexport using MonteCarloObservable, Random
 import MonteCarloObservable.AbstractObservable
 using Parameters, Requires
-using TimerOutputs, LoopVectorization, StructArrays
+using TimerOutputs, StructArrays
 using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random, Distributed
 import ProgressMeter
+
+if get(ENV, "MONTECARLO_USE_LOOPVECTORIZATION", "true") == "true"
+    using LoopVectorization
+else
+    printstyled(
+        "Using MonteCarlo.jl without LoopVectorization. This should only be done for tests.",
+        color = :red
+    )
+    macro turbo(code)
+        esc(quote @inbounds @fastmath $code end)
+    end
+end
 
 import JLD, JLD2
 using CodecZlib
