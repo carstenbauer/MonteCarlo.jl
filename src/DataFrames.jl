@@ -14,6 +14,10 @@ function build_default_getter(whitelist, blacklist, replace)
     end
 end
 
+function DataFrames.DataFrame(mcs::Vector{Union{Nothing, T}}; kwargs...) where {T <: MonteCarloFlavor}
+    clean = [mc for mc in mcs if mc !== nothing]
+    DataFrame(clean; kwargs...)
+end
 function DataFrames.DataFrame(
         mcs::Vector{<: MonteCarloFlavor};
         whitelist = [], blacklist = [], replace = identity,
