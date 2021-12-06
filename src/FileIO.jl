@@ -118,7 +118,7 @@ end
 function load(
         paths_or_filenames::Vector{String}; 
         prefix = "", postfix = r"jld|jld2", simplify = false, silent = false,
-        parallel = true
+        parallel = true, on_error = e -> @error(exception = e)
     )
     # Normalize input to filepaths (recursively)
     files = String[]
@@ -138,7 +138,7 @@ function load(
     flush(stdout)
 
     # Might be worth shuffling files for more equal load times?
-    mcs = ProgressMeter.@showprogress pmap(files, distributed = parallel) do f
+    mcs = ProgressMeter.@showprogress pmap(files, distributed = parallel, on_error = on_error) do f
         mc = load(f)
         simplify && simplify_measurements!(mc)
         mc
