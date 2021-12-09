@@ -470,8 +470,8 @@ end
             run!(dqmc, verbose=false)
             
             # error tolerance
-            atol = 1e-13
-            rtol = 1e-13
+            atol = 1e-12
+            rtol = 1e-12
             N = length(lattice(model))
 
             # Direct calculation similar to what DQMC should be doing
