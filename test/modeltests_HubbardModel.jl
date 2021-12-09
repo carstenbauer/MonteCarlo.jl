@@ -5,8 +5,8 @@
     @test HubbardModelRepulsive <: HubbardModel
 
     # constructors
-    @test HubbardModel(1, 1, U =  1.0) isa HubbardModelRepulsive
-    @test HubbardModel(1, 1, U = -1.0) isa HubbardModelAttractive
+    @test HubbardModel(1, 1, U = -1.0) isa HubbardModelRepulsive
+    @test HubbardModel(1, 1, U =  1.0) isa HubbardModelAttractive
 
     for T in (HubbardModelAttractive, HubbardModelRepulsive)
         m = T(8, 1)

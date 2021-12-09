@@ -4,7 +4,7 @@ The `Model` is an abstract type whose concrete versions should implement lightwe
 
 ## Attractive Hubbard Model
 
-The attractive (negative $U$) Hubbard model is given by
+The attractive (negative interaction term) Hubbard model is given by
 
 ```math
 \mathcal{H} = -t \sum_{\langle i,j \rangle, \sigma} \left( c^\dagger_{i\sigma} c_{j\sigma} + \text{h.c.} \right) - |U| \sum_j \left( n_{j\uparrow} - \frac{1}{2} \right) \left( n_{j\downarrow} - \frac{1}{2} \right) - \mu\sum_j n_{j},
@@ -16,7 +16,7 @@ The parameters $U = 1.0$, $t = 1.0$ and $\mu = 0$ as well as the lattice are sav
 
 ## Repulsive Hubbard Model
 
-The repulsive (positive $U$) Hubbard model is given by
+The repulsive (positive interaction term) Hubbard model is given by
 
 ```math
 \mathcal{H} = -t \sum_{\langle i,j \rangle, \sigma} \left( c^\dagger_{i\sigma} c_{j\sigma} + \text{h.c.} \right) + |U| \sum_j \left( n_{j\uparrow} - \frac{1}{2} \right) \left( n_{j\downarrow} - \frac{1}{2} \right),

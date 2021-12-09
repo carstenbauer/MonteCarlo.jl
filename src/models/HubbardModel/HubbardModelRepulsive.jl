@@ -62,7 +62,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelRepulsive) = print(io,
 
 
 # Convenience
-@inline parameters(m::HubbardModelRepulsive) = (N = length(m.l), t = m.t, U = m.U)
+@inline parameters(m::HubbardModelRepulsive) = (N = length(m.l), t = m.t, U = -m.U)
 
 # optional optimization
 hopping_matrix_type(::Type{DQMC}, ::HubbardModelRepulsive) = BlockDiagonal{Float64, 2, Matrix{Float64}}

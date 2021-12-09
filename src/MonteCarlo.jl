@@ -6,8 +6,21 @@ using Reexport
 @reexport using MonteCarloObservable, Random
 import MonteCarloObservable.AbstractObservable
 using Parameters, Requires
-using TimerOutputs, LoopVectorization, StructArrays
+using TimerOutputs, StructArrays
 using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random, Distributed
+import ProgressMeter
+
+if get(ENV, "MONTECARLO_USE_LOOPVECTORIZATION", "true") == "true"
+    using LoopVectorization
+else
+    printstyled(
+        "Using MonteCarlo.jl without LoopVectorization. This should only be done for tests.",
+        color = :red
+    )
+    macro turbo(code)
+        esc(quote @inbounds @fastmath $code end)
+    end
+end
 
 import JLD, JLD2
 using CodecZlib
@@ -120,6 +133,7 @@ function __init__()
         include("flavors/DQMC/updates/mpi_updates.jl")
         export MPIReplicaExchange, MPIReplicaPull
     end
+    @require DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0" include("DataFrames.jl")
 end
 
 end # module

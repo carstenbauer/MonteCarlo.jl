@@ -102,26 +102,86 @@ end
 to_tag(::Type{<: AbstractLattice}) = Val(:Generic)
 to_tag(::Type{<: Model}) = Val(:Generic)
 
+
+
+# get all files in directory recursively
+function to_files(path_or_filename)
+    if isfile(path_or_filename)
+        return [path_or_filename]
+    elseif isdir(path_or_filename)
+        return vcat(to_files.(readdir(path_or_filename, join=true))...)
+    else
+        error("$path_or_filename is neither a valid directory nor file path.")
+    end
+end
+
+function load(
+        paths_or_filenames::Vector{String}; 
+        prefix = "", postfix = r"jld|jld2", simplify = false, silent = false,
+        parallel = true, on_error = e -> @error(exception = e)
+    )
+    # Normalize input to filepaths (recursively)
+    files = String[]
+    for path_or_file in paths_or_filenames
+        _files = to_files(path_or_file)
+        filter!(_files) do filepath
+            _, filename = splitdir(filepath)
+            startswith(filename, prefix) && endswith(filename, postfix)
+        end
+        append!(files, _files)
+    end
+
+    println(
+        "Loading $(length(files)) Simulations", 
+        parallel && nprocs() > 1 ? " on $(nworkers()) workers" : ""
+    )
+    flush(stdout)
+
+    # Might be worth shuffling files for more equal load times?
+    mcs = ProgressMeter.@showprogress pmap(files, distributed = parallel, on_error = on_error) do f
+        mc = load(f)
+        simplify && simplify_measurements!(mc)
+        mc
+    end
+
+    return mcs
+end
+
+
 """
     load(filename[, groups...])
+    load(path_or_collection; prefix = "", postfix = "jld|jld2", simplify = false)
 
-Loads a MonteCarlo simulation (or part thereof) from the given JLD-file 
-`filename`.
+Loads one or many MonteCarlo simulations from the given file path, directory or 
+`Vector` thereof.
+
+If the given argument is directory or `Vector` of directories and file paths all
+the directories will be expanded recursively. You can use `prefix` and `postfix`
+to filter valid filenames. (These are only applied to the filename, not the 
+full path.)  If `simplify = true` a conversion of measurements to `ValueWrapper` 
+will be attempted. (This is useful to reduce the memory requirements.)
 """
-function load(filename, groups::String...)
-    data = if endswith(filename, "jld2")
-        FileWrapper(JLD2.jldopen(filename, "r"), filename)
-    else 
-        FileWrapper(JLD.load(filename), filename)
-    end
-    output = try 
-        if haskey(data, "MC") && !("MC" in groups)
-            _load(data, "MC", groups...) else _load(data, groups...)
+function load(filename::String, groups::String...; kwargs...)
+    if isfile(filename)
+        data = if endswith(filename, "jld2")
+            FileWrapper(JLD2.jldopen(filename, "r"), filename)
+        else 
+            FileWrapper(JLD.load(filename), filename)
         end
-    finally
-        endswith(filename, "jld2") && close(data.file)
+        output = try 
+            if haskey(data, "MC") && !("MC" in groups)
+                _load(data, "MC", groups...) else _load(data, groups...)
+            end
+        finally
+            endswith(filename, "jld2") && close(data.file)
+        end
+        
+        return output
+    elseif isdir(filename)
+        return load([filename]; kwargs...)
+    else
+        error("$filename is not a valid file or directory.")
     end
-    output
 end
 _load(data, g1::String, g2::String, gs::String...) = _load(data[g1], g2, gs...)
 function _load(data, g::String)
@@ -291,3 +351,5 @@ function load_rng!(data; rng = _GLOBAL_RNG, entryname::String="RNG")
         error("Error while restoring RNG state: ", e)
     end
 end
+
+
