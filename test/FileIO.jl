@@ -354,7 +354,7 @@ end
 
 @time @testset "DQMC" begin
     isfile("testfile.confs") && rm("testfile.confs")
-    model = HubbardModelAttractive(4, 2, t = 1.7, U = 5.5)
+    model = HubbardModelAttractive(4, 2, t = 1.7, U = 2.5)
     mc = DQMC(
         model, beta = 1.0, thermalization = 21, sweeps = 117, measure_rate = 1, 
         recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, "testfile.confs", rate = 1)
@@ -382,7 +382,7 @@ end
 
     # Run for 1s with known RNG
     Random.seed!(123)
-    model = HubbardModelAttractive(2, 2, t = 1.7, U = 5.5)
+    model = HubbardModelAttractive(2, 2, t = 1.7, U = 2.5)
     mc = DQMC(
         model, beta = 1.0, thermalization = 0, sweeps = 10_000_000, measure_rate = 100,
         recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, "testfile.confs", rate = 100)
@@ -419,7 +419,7 @@ end
 
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
-    model = HubbardModelAttractive(2, 2, t = 1.7, U = 5.5)
+    model = HubbardModelAttractive(2, 2, t = 1.7, U = 2.5)
     mc = DQMC(
         model, beta = 1.0, thermalization = 0, sweeps = 100length(cs), measure_rate = 100,
         recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, "testfile.confs", rate = 100)
