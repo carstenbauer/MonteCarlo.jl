@@ -207,6 +207,27 @@ end
 
 
 @testset "DQMC stack" begin
+    # chunk generation
+    Random.seed!()
+    check_chunks = true
+    for _ in 1:100
+        slices = rand(1:100)
+        chunk_size = rand(1:12)
+        chunks = MonteCarlo.generate_chunks(slices, chunk_size)
+        for chunk in chunks
+            check_chunks = check_chunks && (first(chunk) > 0)
+            check_chunks = check_chunks && (last(chunk) <= slices)
+            check_chunks = check_chunks && (length(chunk) <= chunk_size)
+            if !check_chunks
+                println("Chunk checks failed for $slices slices and $chunk_size chunk size")
+                println("$chunk")
+                @goto BREAK_TWICE
+            end
+        end
+    end
+    @label BREAK_TWICE
+    @test check_chunks
+
     m = HubbardModelAttractive(8, 1);
 
     # constructors
