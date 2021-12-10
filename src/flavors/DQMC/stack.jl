@@ -29,20 +29,12 @@ mutable struct DQMCStack{
 
     ranges::Array{UnitRange, 1}
     n_elements::Int
-    current_slice::Int # running internally over 0:mc.parameters.slices+1, where 0 and mc.parameters.slices+1 are artifcial to prepare next sweep direction.
+    # running internally over 0:mc.parameters.slices+1, where 0 and 
+    # mc.parameters.slices+1 are artifcial to prepare next sweep direction.
+    current_slice::Int 
+    # current index into ranges
+    current_range::Int
     direction::Int
-
-    # # -------- Global update backup
-    # gb_u_stack::Array{GreensElType, 3}
-    # gb_d_stack::Matrix{Float64}
-    # gb_t_stack::Array{GreensElType, 3}
-
-    # gb_greens::GreensMatType
-    # gb_log_det::Float64
-
-    # gb_conf::Array{Float64, 3}
-    # # --------
-
 
     # preallocated, reused arrays
     curr_U::GreensMatType
@@ -119,6 +111,12 @@ function is_approximately_hermitian(M; atol = 0.0, rtol = sqrt(eps(maximum(abs.(
 end
 
 
+function generate_chunks(length, max_chunk_size)
+    N_chunks = cld(length, max_chunk_size)
+    step = length / N_chunks
+    [round(Int, (i-1) * step) + 1 : round(Int, i * step) for i in 1:N_chunks]
+end
+
 function initialize_stack(mc::DQMC, ::DQMCStack)
     GreensElType = geltype(mc)
     GreensMatType = gmattype(mc)
@@ -126,7 +124,13 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
     N = length(lattice(mc))
     flv = nflavors(mc.model)
 
-    mc.stack.n_elements = convert(Int, mc.parameters.slices / mc.parameters.safe_mult) + 1
+    # Generate safe multiplication chunks
+    # - every chunk must have ≤ safe_mult elements
+    # - chunks should have close to equal size
+    mc.stack.ranges = generate_chunks(mc.parameters.slices, mc.parameters.safe_mult)
+    @assert first(mc.stack.ranges[1]) == 1
+    @assert last(mc.stack.ranges[end]) == mc.parameters.slices
+    mc.stack.n_elements = length(mc.stack.ranges) + 1
 
     mc.stack.u_stack = [GreensMatType(undef, flv*N, flv*N) for _ in 1:mc.stack.n_elements]
     mc.stack.d_stack = [zeros(Float64, flv*N) for _ in 1:mc.stack.n_elements]
@@ -157,19 +161,13 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
     mc.stack.tmp2 = GreensMatType(undef, flv*N, flv*N)
 
 
-    # # Global update backup
-    # mc.stack.gb_u_stack = zero(mc.stack.u_stack)
-    # mc.stack.gb_d_stack = zero(mc.stack.d_stack)
-    # mc.stack.gb_t_stack = zero(mc.stack.t_stack)
-    # mc.stack.gb_greens = zero(mc.stack.greens)
-    # mc.stack.gb_log_det = 0.
-    # mc.stack.gb_conf = zero(mc.conf)
-
-    mc.stack.ranges = UnitRange[]
-
-    for i in 1:mc.stack.n_elements - 1
-        push!(mc.stack.ranges, 1 + (i - 1) * mc.parameters.safe_mult:i * mc.parameters.safe_mult)
-    end
+    # mc.stack.ranges = UnitRange[]
+    # for i in 1:mc.stack.n_elements - 1
+    #     push!(
+    #         mc.stack.ranges, 
+    #         1 + (i - 1) * mc.parameters.safe_mult : i * mc.parameters.safe_mult
+    #     )
+    # end
 
     mc.stack.curr_U = GreensMatType(undef, flv*N, flv*N)
     mc.stack.eV = init_interaction_matrix(mc.model)
@@ -288,7 +286,18 @@ Build slice matrix stack from scratch.
     end
 
     mc.stack.current_slice = mc.parameters.slices + 1
+    # strictly this should be +1 but we special based on current_slice anyway
+    mc.stack.current_range = length(mc.stack.ranges)
     mc.stack.direction = -1
+
+    # Calculate valid greens function
+    copyto!(mc.stack.Ul, mc.stack.u_stack[end])
+    copyto!(mc.stack.Dl, mc.stack.d_stack[end])
+    copyto!(mc.stack.Tl, mc.stack.t_stack[end])
+    copyto!(mc.stack.Ur, I)
+    mc.stack.Dr .= one(eltype(mc.stack.Dr))
+    copyto!(mc.stack.Tr, I)
+    calculate_greens(mc)
 
     nothing
 end
@@ -304,7 +313,18 @@ end
     end
 
     mc.stack.current_slice = 0
+    # strictly this should be 0 but we special based on current_slice anyway
+    mc.stack.current_range = 1
     mc.stack.direction = 1
+
+    # Calculate valid greens function
+    copyto!(mc.stack.Ul, I)
+    mc.stack.Dl .= one(eltype(mc.stack.Dl))
+    copyto!(mc.stack.Tl, I)
+    copyto!(mc.stack.Ur, mc.stack.u_stack[1])
+    copyto!(mc.stack.Dr, mc.stack.d_stack[1])
+    copyto!(mc.stack.Tr, mc.stack.t_stack[1])
+    calculate_greens(mc)
 
     nothing
 end
@@ -552,132 +572,129 @@ end
 end
 
 @bm function propagate(mc::DQMC)
+    flush(stdout)
+    @debug(
+        '[' * lpad(mc.stack.current_slice, 3, ' ') * " -> " * 
+        rpad(mc.stack.current_slice + mc.stack.direction, 3, ' ') * 
+        ", " * mc.stack.direction == +1 ? '+' : '-', "] "
+    )
+
+    # Advance according to direction
+    mc.stack.current_slice += mc.stack.direction
+
     @inbounds if mc.stack.direction == 1
-        if mod(mc.stack.current_slice, mc.parameters.safe_mult) == 0
-            mc.stack.current_slice +=1 # slice we are going to
-            if mc.stack.current_slice == 1
-                copyto!(mc.stack.Ur, mc.stack.u_stack[1])
-                copyto!(mc.stack.Dr, mc.stack.d_stack[1])
-                copyto!(mc.stack.Tr, mc.stack.t_stack[1])
-                copyto!(mc.stack.u_stack[1], I)
-                mc.stack.d_stack[1] .= one(eltype(mc.stack.d_stack[1]))
-                copyto!(mc.stack.t_stack[1], I)
-                copyto!(mc.stack.Ul, mc.stack.u_stack[1])
-                copyto!(mc.stack.Dl, mc.stack.d_stack[1])
-                copyto!(mc.stack.Tl, mc.stack.t_stack[1])
+        if mc.stack.current_slice == 1
+            @debug("init direction, clearing 1 to I")
+            copyto!(mc.stack.u_stack[1], I)
+            mc.stack.d_stack[1] .= one(eltype(mc.stack.d_stack[1]))
+            copyto!(mc.stack.t_stack[1], I)
 
-                calculate_greens(mc) # greens_1 ( === greens_{m+1} )
+        elseif mc.stack.current_slice-1 == last(mc.stack.ranges[mc.stack.current_range])
+            idx = mc.stack.current_range
+            @debug("Stabilize: decompose into $idx -> $(idx+1)")
 
-            elseif 1 < mc.stack.current_slice <= mc.parameters.slices
-                idx = Int((mc.stack.current_slice - 1)/mc.parameters.safe_mult)
+            copyto!(mc.stack.Ur, mc.stack.u_stack[idx+1])
+            copyto!(mc.stack.Dr, mc.stack.d_stack[idx+1])
+            copyto!(mc.stack.Tr, mc.stack.t_stack[idx+1])
+            add_slice_sequence_left(mc, idx)
+            copyto!(mc.stack.Ul, mc.stack.u_stack[idx+1])
+            copyto!(mc.stack.Dl, mc.stack.d_stack[idx+1])
+            copyto!(mc.stack.Tl, mc.stack.t_stack[idx+1])
 
-                copyto!(mc.stack.Ur, mc.stack.u_stack[idx+1])
-                copyto!(mc.stack.Dr, mc.stack.d_stack[idx+1])
-                copyto!(mc.stack.Tr, mc.stack.t_stack[idx+1])
-                add_slice_sequence_left(mc, idx)
-                copyto!(mc.stack.Ul, mc.stack.u_stack[idx+1])
-                copyto!(mc.stack.Dl, mc.stack.d_stack[idx+1])
-                copyto!(mc.stack.Tl, mc.stack.t_stack[idx+1])
+            if mc.parameters.check_propagation_error
+                copyto!(mc.stack.greens_temp, mc.stack.greens)
+            end
 
-                if mc.parameters.check_propagation_error
-                    copyto!(mc.stack.greens_temp, mc.stack.greens)
+            # Should this be mc.stack.greens_temp?
+            # If so, shouldn't this only run w/ mc.parameters.all_checks = true?
+            wrap_greens!(mc, mc.stack.greens_temp, mc.stack.current_slice - 1, 1)
+
+            calculate_greens(mc) # greens_{slice we are propagating to}
+
+            if mc.parameters.check_propagation_error
+                # OPT: could probably be optimized through explicit loop
+                greensdiff = maximum(abs.(mc.stack.greens_temp - mc.stack.greens)) 
+                if greensdiff > 1e-7
+                    push!(mc.analysis.propagation_error, greensdiff)
+                    mc.parameters.silent || @printf(
+                        "->%d \t+1 Propagation instability\t %.1e\n", 
+                        mc.stack.current_slice, greensdiff
+                    )
                 end
+            end
 
-                # Should this be mc.stack.greens_temp?
-                # If so, shouldn't this only run w/ mc.parameters.all_checks = true?
-                wrap_greens!(mc, mc.stack.greens_temp, mc.stack.current_slice - 1, 1)
-
-                calculate_greens(mc) # greens_{slice we are propagating to}
-
-                if mc.parameters.check_propagation_error
-                    # OPT: could probably be optimized through explicit loop
-                    greensdiff = maximum(abs.(mc.stack.greens_temp - mc.stack.greens)) 
-                    if greensdiff > 1e-7
-                        push!(mc.analysis.propagation_error, greensdiff)
-                        mc.parameters.silent || @printf(
-                            "->%d \t+1 Propagation instability\t %.1e\n", 
-                            mc.stack.current_slice, greensdiff
-                        )
-                    end
-                end
-
-            else # we are going to mc.parameters.slices+1
-                idx = mc.stack.n_elements - 1
-                add_slice_sequence_left(mc, idx)
+            if mc.stack.current_range == length(mc.stack.ranges)
+                # We are going from M -> M+1. Switch direction.
+                @assert mc.stack.current_slice == mc.parameters.slices + 1
                 mc.stack.direction = -1
-                mc.stack.current_slice = mc.parameters.slices+1 # redundant
                 propagate(mc)
+            else
+                mc.stack.current_range += 1
             end
 
         else
-            # Wrapping
-            wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice, 1)
-            mc.stack.current_slice += 1
+            @debug("standard wrap")
+            # Wrapping (we already advanced current_slice but wrap according to previous)
+            wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice-1, 1)
         end
 
-    else # mc.stack.direction == -1
-        if mod(mc.stack.current_slice-1, mc.parameters.safe_mult) == 0
-            mc.stack.current_slice -= 1 # slice we are going to
-            if mc.stack.current_slice == mc.parameters.slices
-                copyto!(mc.stack.Ul, mc.stack.u_stack[end])
-                copyto!(mc.stack.Dl, mc.stack.d_stack[end])
-                copyto!(mc.stack.Tl, mc.stack.t_stack[end])
-                copyto!(mc.stack.u_stack[end], I)
-                mc.stack.d_stack[end] .= one(eltype(mc.stack.d_stack[end]))
-                copyto!(mc.stack.t_stack[end], I)
-                copyto!(mc.stack.Ur, mc.stack.u_stack[end])
-                copyto!(mc.stack.Dr, mc.stack.d_stack[end])
-                copyto!(mc.stack.Tr, mc.stack.t_stack[end])
+    else # REVERSE
+        if mc.stack.current_slice == mc.parameters.slices
+            @debug("init direction, clearing end to I")
+            copyto!(mc.stack.u_stack[end], I)
+            mc.stack.d_stack[end] .= one(eltype(mc.stack.d_stack[end]))
+            copyto!(mc.stack.t_stack[end], I)
 
-                calculate_greens(mc) # greens_{mc.parameters.slices+1} === greens_1
+            # wrap to greens_{mc.parameters.slices}
+            wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice + 1, -1)
 
-                # wrap to greens_{mc.parameters.slices}
-                wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice + 1, -1)
+        elseif mc.stack.current_slice+1 == first(mc.stack.ranges[mc.stack.current_range])
+            idx = mc.stack.current_range
+            @debug("Stabilize: decompose into $(idx+1) -> $idx")
 
-            elseif 0 < mc.stack.current_slice < mc.parameters.slices
-                idx = Int(mc.stack.current_slice / mc.parameters.safe_mult) + 1
+            copyto!(mc.stack.Ul, mc.stack.u_stack[idx])
+            copyto!(mc.stack.Dl, mc.stack.d_stack[idx])
+            copyto!(mc.stack.Tl, mc.stack.t_stack[idx])
+            add_slice_sequence_right(mc, idx)
+            copyto!(mc.stack.Ur, mc.stack.u_stack[idx])
+            copyto!(mc.stack.Dr, mc.stack.d_stack[idx])
+            copyto!(mc.stack.Tr, mc.stack.t_stack[idx])
 
-                copyto!(mc.stack.Ul, mc.stack.u_stack[idx])
-                copyto!(mc.stack.Dl, mc.stack.d_stack[idx])
-                copyto!(mc.stack.Tl, mc.stack.t_stack[idx])
-                add_slice_sequence_right(mc, idx)
-                copyto!(mc.stack.Ur, mc.stack.u_stack[idx])
-                copyto!(mc.stack.Dr, mc.stack.d_stack[idx])
-                copyto!(mc.stack.Tr, mc.stack.t_stack[idx])
+            if mc.parameters.check_propagation_error
+                copyto!(mc.stack.greens_temp, mc.stack.greens)
+            end
 
-                if mc.parameters.check_propagation_error
-                    copyto!(mc.stack.greens_temp, mc.stack.greens)
+            calculate_greens(mc)
+
+            if mc.parameters.check_propagation_error
+                # OPT: could probably be optimized through explicit loop
+                greensdiff = maximum(abs.(mc.stack.greens_temp - mc.stack.greens)) 
+                if greensdiff > 1e-7
+                    push!(mc.analysis.propagation_error, greensdiff)
+                    mc.parameters.silent || @printf(
+                        "->%d \t-1 Propagation instability\t %.1e\n", 
+                        mc.stack.current_slice, greensdiff
+                    )
                 end
+            end
 
-                calculate_greens(mc)
-
-                if mc.parameters.check_propagation_error
-                    # OPT: could probably be optimized through explicit loop
-                    greensdiff = maximum(abs.(mc.stack.greens_temp - mc.stack.greens)) 
-                    if greensdiff > 1e-7
-                        push!(mc.analysis.propagation_error, greensdiff)
-                        mc.parameters.silent || @printf(
-                            "->%d \t-1 Propagation instability\t %.1e\n", 
-                            mc.stack.current_slice, greensdiff
-                        )
-                    end
-                end
-
-                wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice + 1, -1)
-
-            else # we are going to 0
-                idx = 1
-                add_slice_sequence_right(mc, idx)
-                mc.stack.direction = 1
-                mc.stack.current_slice = 0 # redundant
+            if mc.stack.current_range == 1
+                # We are going from 1 -> 0. Switch direction.
+                @assert mc.stack.current_slice == 0
+                mc.stack.direction = +1
                 propagate(mc)
+            else
+                # We'd be undoing this wrap in forward 1 if we always applied it
+                wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice + 1, -1)
+                mc.stack.current_range -= 1
             end
 
         else
-            # Wrapping
-            wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice, -1)
-            mc.stack.current_slice -= 1
+            @debug("standard wrap")
+            # Wrapping (we already advanced current_slice but wrap according to previous)
+            wrap_greens!(mc, mc.stack.greens, mc.stack.current_slice+1, -1)
         end
     end
+
     nothing
 end
