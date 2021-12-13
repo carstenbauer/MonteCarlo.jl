@@ -1,9 +1,3 @@
-# Replace LoopVectorization.@turbo with @inbounds @fastmath for faster CI. The
-# main thing we want to test here is not optimizations from LoopVectorization
-# but that the functions we wrote are correct. We can do that without the fairly
-# large compile time overhead of LoopVectorization.
-ENV["MONTECARLO_USE_LOOPVECTORIZATION"] = false
-
 using MonteCarlo, MonteCarloObservable, StableDQMC
 using Test
 using LinearAlgebra, Random, Dates

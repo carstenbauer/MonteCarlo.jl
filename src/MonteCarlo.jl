@@ -11,7 +11,8 @@ using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random, Distribute
 import ProgressMeter
 
 if get(ENV, "MONTECARLO_USE_LOOPVECTORIZATION", "true") == "true"
-    using LoopVectorization
+    import LoopVectorization
+    using LoopVectorization: @turbo
 else
     printstyled(
         "Using MonteCarlo.jl without LoopVectorization. This should only be done for tests.",
