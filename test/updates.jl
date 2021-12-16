@@ -90,6 +90,7 @@ MonteCarlo.update(::GoodUpdate, args...) = 1.0
         io = IOBuffer()
         MonteCarlo.show_statistics(io, mc.scheduler)
         @test String(take!(io)) == "Update statistics (since start):\n\tBadUpdate              0.0% accepted   (  0 / 100)\n\tGoodUpdate           100.0% accepted   (200 / 200)\n\t--------------------------------------------------\n\tTotal                 66.7% accepted   (200 / 300)\n"
+        @test MonteCarlo.max_acceptance(scheduler) == 1.0
     end
 end
 
