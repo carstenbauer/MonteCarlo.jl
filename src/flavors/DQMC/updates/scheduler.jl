@@ -189,7 +189,7 @@ function max_acceptance(s::SimpleScheduler)
     output = 0.0
     for update in s.sequence
         if update isa AcceptanceStatistics
-            output = max(output, update.accepted / min(1, update.total))
+            output = max(output, update.accepted / max(1, update.total))
         end
     end
     output
@@ -388,12 +388,12 @@ function max_acceptance(s::AdaptiveScheduler)
     output = 0.0
     for update in s.sequence
         if update isa AcceptanceStatistics
-            output = max(output, update.accepted / min(1, update.total))
+            output = max(output, update.accepted / max(1, update.total))
         end
     end
     for update in s.adaptive_pool
         if update isa AcceptanceStatistics
-            output = max(output, update.accepted / min(1, update.total))
+            output = max(output, update.accepted / max(1, update.total))
         end
     end
     output
