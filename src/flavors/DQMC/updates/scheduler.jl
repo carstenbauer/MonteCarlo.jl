@@ -185,6 +185,16 @@ function update(s::SimpleScheduler, mc::DQMC, model)
     return nothing
 end
 
+function max_acceptance(s::SimpleScheduler)
+    output = 0.0
+    for update in s.sequence
+        if update isa AcceptanceStatistics
+            output = max(output, update.accepted / min(1, update.total))
+        end
+    end
+    output
+end
+
 function show_statistics(io::IO, s::SimpleScheduler, prefix="")
     println(io, prefix, "Update statistics (since start):")
 
@@ -372,6 +382,21 @@ function update(s::AdaptiveScheduler, mc::DQMC, model)
     mc.last_sweep += 1
 
     return nothing
+end
+
+function max_acceptance(s::AdaptiveScheduler)
+    output = 0.0
+    for update in s.sequence
+        if update isa AcceptanceStatistics
+            output = max(output, update.accepted / min(1, update.total))
+        end
+    end
+    for update in s.adaptive_pool
+        if update isa AcceptanceStatistics
+            output = max(output, update.accepted / min(1, update.total))
+        end
+    end
+    output
 end
 
 function show_statistics(io::IO, s::AdaptiveScheduler, prefix="")
