@@ -227,6 +227,9 @@ See also: [`resume!`](@ref)
                 println("\t", mc.last_sweep)
                 show_statistics(stdout, mc.scheduler, "\t\t")
                 save(fail_filename, mc, overwrite = overwrite, rename = false)
+                if overwrite && isfile(resumable_filename)
+                    rm(resumable_filename)
+                end
                 return true
             end
         end
