@@ -210,12 +210,34 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
     end
 
     mc.stack.hopping_matrix = T
-    mc.stack.hopping_matrix_exp = exp(-0.5 * dtau * T)
-    mc.stack.hopping_matrix_exp_inv = exp(0.5 * dtau * T)
+    try
+        mc.stack.hopping_matrix_exp = exp(-0.5 * dtau * T)
+        mc.stack.hopping_matrix_exp_inv = exp(0.5 * dtau * T)
+    catch e
+        @error "LAPACK failed to calculate matrix exponentials... Using Taylor expansion" exception = e
+        mc.stack.hopping_matrix_exp = taylor_exp(-0.5 * dtau * T)
+        mc.stack.hopping_matrix_exp_inv = taylor_exp(0.5 * dtau * T)
+    end
     mc.stack.hopping_matrix_exp_squared = mc.stack.hopping_matrix_exp * mc.stack.hopping_matrix_exp
     mc.stack.hopping_matrix_exp_inv_squared = mc.stack.hopping_matrix_exp_inv * mc.stack.hopping_matrix_exp_inv
     nothing
 end
+
+function taylor_exp(A; step_precision = 1, max_iter = 10_000)
+    # if the next step adds less than step_precision (in unit of output float 
+    # epsilons) we stop
+    temp = A
+    output = I + A
+    for n in 2:max_iter
+        temp = temp * A ./ n
+        output += temp
+        if all(temp ./ eps.(output) .< step_precision)
+            return output
+        end
+    end
+    error("Failed to generate sufficiently accurate matrix exponential.")
+end
+
 
 # checkerboard
 rem_eff_zeros!(X::AbstractArray) = map!(e -> abs.(e)<1e-15 ? zero(e) : e,X,X)
