@@ -62,7 +62,8 @@ function initialize_stack(mc::DQMC, s::UnequalTimeStack)
     GreensMatType = gmattype(mc)
     N = length(lattice(mc))
     flv = nflavors(mc.model)
-    M = convert(Int, mc.parameters.slices / mc.parameters.safe_mult) + 1
+    # mirror stack
+    M = mc.stack.n_elements
 
     # B_{n*safe_mult} ... B_1
     s.forward_idx = 1
@@ -198,6 +199,9 @@ end
         s.backward_idx = length(mc.stack.ranges)+1
     end
 
+    # @assert 1 <= s.forward_idx
+    # @assert upto-1 <= length(mc.stack.ranges)
+
     # forward
     @bm "forward build" begin
         @inbounds for idx in s.forward_idx:upto-1
@@ -226,6 +230,9 @@ end
         s.backward_idx = length(mc.stack.ranges)+1
     end
 
+    # @assert s.backward_idx-1 <= length(mc.stack.ranges)
+    # @assert 1 <= downto
+
     # backward
     @bm "backward build" begin
         @inbounds for idx in s.backward_idx-1:-1:downto
@@ -252,6 +259,9 @@ end
         s.forward_idx = 1
         s.backward_idx = length(mc.stack.ranges)+1
     end
+
+    # @assert 1 <= from
+    # @assert to <= length(mc.stack.ranges)
 
     # inverse
     @bm "inverse build" begin
@@ -332,8 +342,47 @@ end
 
 
 
-
-
+# Notes on ranges:
+# Let's say we are looking for the first full block in a product chain 
+# i i+1 ... j-1 j. We can find this with _find_range_with_value(mc, i - 1) + 1
+# - if i is the first element of a block ... i-1 | i ... then 
+#   _find_range_with_value(mc, i-1) is the block just before that
+# - if i is not the first element, then i-1 is in the same block. Thus 
+#   _find_range_with_value(mc, i-1) == _find_range_with_value(mc, i) and the 
+#   first full block is _find_range_with_value(mc, i-1) + 1
+# Similarly for last full block we can check _find_range_with_value(mc, i+1) - 1
+function _find_range_with_value(mc, val)
+    # This returns the index of the range in mc.stack.ranges which contains val.
+    # If val is below or above all of the ranges it returns 0 or length(ranges)+1
+    ranges = mc.stack.ranges
+    if val < 1
+        return 0
+    elseif val > last(last(ranges))
+        return length(ranges) + 1
+    else
+        # this might actually be exact?
+        estimate = clamp(
+            trunc(Int, length(mc.stack.ranges) * (val-1) / (last(last(ranges)) - 1) + 1), 
+            1, length(ranges)
+        )
+        low = first(ranges[estimate])
+        high = last(ranges[estimate])
+        while 1 <= estimate <= length(ranges)
+            if low <= val <= high
+                return estimate
+            elseif val < low
+                estimate -= 1
+                high = low - 1
+                low = first(ranges[estimate])
+            else
+                estimate += 1
+                low = high + 1
+                high = last(ranges[estimate])
+            end
+        end
+        error("Failed to find slice index in ranges. Oh no.")
+    end
+end
 
 # low = slice2, high = slice1
 """
@@ -357,12 +406,16 @@ function compute_inverse_udt_block!(
 
     # Combine pre-computed blocks
     @bm "inverse pre-computed" begin
-        lower = div(low+1 + mc.parameters.safe_mult - 2, mc.parameters.safe_mult) + 1
-        upper = div(high, mc.parameters.safe_mult)
+        # lower = div(low+1 + mc.parameters.safe_mult - 2, mc.parameters.safe_mult) + 1
+        lower = _find_range_with_value(mc, low) + 1 
+        # upper = div(high, mc.parameters.safe_mult)
+        upper = _find_range_with_value(mc, high+1) - 1
+
         lazy_build_inv!(mc, s, lower, upper)
         copyto!(U, I)
         D .= 1
         copyto!(T, I)
+
         # UDT combining style
         for idx in lower:upper
             # () is operation order, [] marks UDT decomposition
@@ -381,8 +434,13 @@ function compute_inverse_udt_block!(
 
     # remaining multiplications to reach specified bounds
     @bm "inverse fine tuning" begin
-        lower_slice = (lower-1) * mc.parameters.safe_mult + 1
-        upper_slice = upper * mc.parameters.safe_mult
+        # lower_slice = (lower-1) * mc.parameters.safe_mult + 1
+        lower_slice = if lower <= length(mc.stack.ranges)
+            first(mc.stack.ranges[lower]) else last(last(mc.stack.ranges)) + 1
+        end
+        # upper_slice = upper * mc.parameters.safe_mult
+        upper_slice = upper > 0 ? last(mc.stack.ranges[upper]) : 0
+
 
         for slice in min(lower_slice-1, high) : -1 : low+1
             multiply_slice_matrix_inv_left!(mc, mc.model, slice, U)
@@ -419,10 +477,14 @@ function compute_forward_udt_block!(
     )
     # B(slice, 1) = B_slice B_{slice-1} ⋯ B_1 = Ul Dl Tl
     @bm "forward B" begin
-        idx = div(slice-1, mc.parameters.safe_mult)
+        # idx = div(slice-1, mc.parameters.safe_mult)
+        idx = max(0, _find_range_with_value(mc, slice) - 1)
+        
         lazy_build_forward!(mc, s, idx+1)
         copyto!(T, s.forward_u_stack[idx+1])
-        for l in mc.parameters.safe_mult * idx + 1 : slice
+        target = idx > 0 ? last(mc.stack.ranges[idx]) + 1 : 1
+
+        for l in target : slice
             multiply_slice_matrix_left!(mc, mc.model, l, T)
         end
         vmul!(tmp, T, Diagonal(s.forward_d_stack[idx+1]))
@@ -450,15 +512,21 @@ function compute_backward_udt_block!(
     )
     # B(N, slice) = B_N B_{N-1} ⋯ B_{slice+1} = (Ur Dr Tr)^† = Tr^† Dr^† Ur^†
     @bm "backward B" begin
-        idx = div.(slice + mc.parameters.safe_mult - 1, mc.parameters.safe_mult)
-        lazy_build_backward!(mc, s, idx+1)
-        copyto!(U, s.backward_u_stack[idx+1])
-        for l in mc.parameters.safe_mult * idx : -1 : slice+1
+        # idx = div.(slice + mc.parameters.safe_mult - 1, mc.parameters.safe_mult)
+        idx = _find_range_with_value(mc, slice) + 1
+
+        lazy_build_backward!(mc, s, idx)
+        copyto!(U, s.backward_u_stack[idx])
+        target = if idx <= length(mc.stack.ranges)
+            first(mc.stack.ranges[idx]) - 1 else last(last(mc.stack.ranges))
+        end
+        
+        for l in target : -1 : slice+1
             multiply_daggered_slice_matrix_left!(mc, mc.model, l, U)
         end
-        vmul!(tmp, U, Diagonal(s.backward_d_stack[idx+1]))
+        vmul!(tmp, U, Diagonal(s.backward_d_stack[idx]))
         udt_AVX_pivot!(U, D, tmp, mc.stack.pivot, mc.stack.tempv)
-        vmul!(T, tmp, s.backward_t_stack[idx + 1])
+        vmul!(T, tmp, s.backward_t_stack[idx])
     end
     return nothing
 end
@@ -472,15 +540,15 @@ end
     # k ≥ l or slice1 ≥ slice2
     # B_{l+1}^-1 B_{l+2}^-1 ⋯ B_{k-1}^-1 B_k^-1
     compute_inverse_udt_block!(mc, s, slice2, slice1) # low high
-
+    
     # B(slice2, 1) = Ul Dl Tl
     compute_forward_udt_block!(mc, s, slice2)
-
+    
     # B(N, slice1) = (Ur Dr Tr)^† = Tr^† Dr^† Ur^†
     compute_backward_udt_block!(mc, s, slice1)
-
-
-
+    
+    
+    
     # U D T remains valid here
     @bm "compute G" begin
         # [B_{l+1}^-1 B_{l+2}^-1 ⋯ B_k^-1 + B_l ⋯ B_1 B_N ⋯ B_{k+1}]^-1
