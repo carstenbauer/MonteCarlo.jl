@@ -27,7 +27,7 @@ mutable struct DQMCStack{
     tmp1::GreensMatType
     tmp2::GreensMatType
 
-    ranges::Array{UnitRange, 1}
+    ranges::Vector{UnitRange{Int}}
     n_elements::Int
     # running internally over 0:mc.parameters.slices+1, where 0 and 
     # mc.parameters.slices+1 are artifcial to prepare next sweep direction.
@@ -49,7 +49,7 @@ mutable struct DQMCStack{
 
     # checkerboard hopping matrices
     checkerboard::Matrix{Int} # src, trg, bondid
-    groups::Vector{UnitRange}
+    groups::Vector{UnitRange{Int}}
     n_groups::Int
     chkr_hop_half::Vector{SparseMatrixCSC{HoppingElType, Int64}}
     chkr_hop_half_inv::Vector{SparseMatrixCSC{HoppingElType, Int64}}
