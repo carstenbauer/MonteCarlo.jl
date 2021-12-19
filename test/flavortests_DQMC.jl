@@ -1,5 +1,6 @@
 include("testfunctions.jl")
 
+
 @testset "DQMC Parameters" begin
     P1 = MonteCarlo.DQMCParameters(beta=5.0) #defaults to delta_tau = 0.1
     @test all((P1.beta, P1.delta_tau, P1.slices) .== (5.0, 0.1, 50))
@@ -15,6 +16,7 @@ include("testfunctions.jl")
 
     @test parameters(P4) == (beta = 5.0, delta_tau = 0.1, thermalization = 100, sweeps = 100)
 end
+
 
 @testset "Magnitude Stats" begin
     m = MonteCarlo.MagnitudeStats()
@@ -45,6 +47,7 @@ end
     @test mean(m) ≈ 10^(0.5*(log10(1e-7) + log10(1e-5)))
     @test length(m) == 2
 end
+
 
 @testset "DQMC utilities" begin
     m = HubbardModelAttractive(8, 1);
@@ -132,6 +135,7 @@ end
         typeof(dqmc.scheduler)
     }
 end
+
 
 
 @testset "GreensMatrix" begin
@@ -314,7 +318,22 @@ end
     
 end
 
+
 @testset "Unequal Time Stack" begin
+    @testset "range index search" begin
+        m = HubbardModelAttractive(2, 2)
+        mc = DQMC(m, beta = 2.3, safe_mult = 10, delta_tau = 0.1)
+        
+        @test MonteCarlo._find_range_with_value(mc, -81273) == 0
+        @test MonteCarlo._find_range_with_value(mc, 0) == 0
+        for i in 1:23
+            idx = MonteCarlo._find_range_with_value(mc, i)
+            @test i in mc.stack.ranges[idx]
+        end
+        @test MonteCarlo._find_range_with_value(mc, 24) == length(mc.stack.ranges)+1
+        @test MonteCarlo._find_range_with_value(mc, 1239874) == length(mc.stack.ranges)+1
+    end
+
     m = HubbardModelAttractive(6, 1);
     dqmc = DQMC(m; beta=15.0, safe_mult=5)
     MonteCarlo.initialize_stack(dqmc, dqmc.ut_stack)
