@@ -150,7 +150,7 @@ let
             # taylor exp
             E = exp(Matrix(B))
             T = MonteCarlo.taylor_exp(B)
-            @test all(abs.(T .- E) .< 10_000eps.(E))
+            @test all(abs.(T .- E) .< 10_000eps.(abs.(E)))
 
             # Test (avx) multiplications
             vmul!(B1, B2, B3)
@@ -240,7 +240,7 @@ let
         # taylor exp
         E = exp(Matrix(M1))
         T = MonteCarlo.taylor_exp(C1)
-        @test all(abs.(T .- E) .< 10_000eps.(E))
+        @test all(abs.(T .- E) .< 10_000eps.(abs.(E)))
 
         @test C1 isa CMat64
         @test M1 == C1
