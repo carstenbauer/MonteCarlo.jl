@@ -2,6 +2,11 @@ let
 
     # Complex and Real Matrix mults, BlockDiagonal, UDT
     for type in (Float64, ComplexF64)
+        M = rand(type, 8, 8)
+        E = exp(M)
+        T = MonteCarlo.taylor_exp(M)
+        @test all(abs.(T .- E) .< 10_000eps.(abs.(E)))
+
         @testset "avx multiplications ($type)" begin
             A = rand(type, 8, 8)
             B = rand(type, 8, 8)
@@ -142,6 +147,11 @@ let
             B3 = BlockDiagonal(rand(type, 4, 4), rand(type, 4, 4))
             M3 = Matrix(B3)
         
+            # taylor exp
+            E = exp(Matrix(B))
+            T = MonteCarlo.taylor_exp(B)
+            @test all(abs.(T .- E) .< 10_000eps.(E))
+
             # Test (avx) multiplications
             vmul!(B1, B2, B3)
             vmul!(M1, M2, M3)
@@ -226,6 +236,11 @@ let
         C2 = StructArray(M2)
         M3 = rand(ComplexF64, 8, 8)    
         C3 = StructArray(M3)
+
+        # taylor exp
+        E = exp(Matrix(M1))
+        T = MonteCarlo.taylor_exp(C1)
+        @test all(abs.(T .- E) .< 10_000eps.(E))
 
         @test C1 isa CMat64
         @test M1 == C1

@@ -231,7 +231,7 @@ function taylor_exp(A; step_precision = 1, max_iter = 10_000)
     for n in 2:max_iter
         temp = temp * A ./ n
         output += temp
-        if all(temp ./ eps.(output) .< step_precision)
+        if all(abs.(temp) ./ eps.(abs.(output)) .< step_precision) # abs for Complex
             return output
         end
     end
