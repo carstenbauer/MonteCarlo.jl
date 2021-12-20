@@ -237,6 +237,20 @@ end
     # constructors
     dqmc = DQMC(m; beta=5.0)
 
+    # subtype getters
+    @test MonteCarlo.geltype(dqmc.stack) == Float64
+    @test MonteCarlo.heltype(dqmc.stack) == Float64
+    @test MonteCarlo.gmattype(dqmc.stack) == Matrix{Float64}
+    @test MonteCarlo.hmattype(dqmc.stack) == Matrix{Float64}
+    @test MonteCarlo.imattype(dqmc.stack) == Diagonal{Float64, Vector{Float64}}
+    
+    @test MonteCarlo.geltype(dqmc) == Float64
+    @test MonteCarlo.heltype(dqmc) == Float64
+    @test MonteCarlo.gmattype(dqmc) == Matrix{Float64}
+    @test MonteCarlo.hmattype(dqmc) == Matrix{Float64}
+    @test MonteCarlo.imattype(dqmc) == Diagonal{Float64, Vector{Float64}}
+
+
     # generic checkerboard
     sq = MonteCarlo.SquareLattice(4);
     @test MonteCarlo.build_checkerboard(sq) == ([1.0 3.0 5.0 7.0 9.0 11.0 13.0 15.0 1.0 2.0 4.0 6.0 9.0 10.0 12.0 14.0 2.0 3.0 4.0 5.0 8.0 10.0 11.0 16.0 6.0 7.0 8.0 12.0 13.0 14.0 15.0 16.0; 2.0 4.0 6.0 8.0 10.0 12.0 14.0 16.0 5.0 3.0 8.0 7.0 13.0 11.0 16.0 15.0 6.0 7.0 1.0 9.0 12.0 14.0 15.0 13.0 10.0 11.0 5.0 9.0 1.0 2.0 3.0 4.0; 1.0 5.0 9.0 13.0 17.0 21.0 25.0 29.0 2.0 3.0 8.0 11.0 18.0 19.0 24.0 27.0 4.0 6.0 7.0 10.0 16.0 20.0 22.0 31.0 12.0 14.0 15.0 23.0 26.0 28.0 30.0 32.0], UnitRange[1:8, 9:16, 17:24, 25:32], 4)
