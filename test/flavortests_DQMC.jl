@@ -1,5 +1,6 @@
 include("testfunctions.jl")
 
+
 @testset "DQMC Parameters" begin
     P1 = MonteCarlo.DQMCParameters(beta=5.0) #defaults to delta_tau = 0.1
     @test all((P1.beta, P1.delta_tau, P1.slices) .== (5.0, 0.1, 50))
@@ -15,6 +16,7 @@ include("testfunctions.jl")
 
     @test parameters(P4) == (beta = 5.0, delta_tau = 0.1, thermalization = 100, sweeps = 100)
 end
+
 
 @testset "Magnitude Stats" begin
     m = MonteCarlo.MagnitudeStats()
@@ -45,6 +47,7 @@ end
     @test mean(m) ≈ 10^(0.5*(log10(1e-7) + log10(1e-5)))
     @test length(m) == 2
 end
+
 
 @testset "DQMC utilities" begin
     m = HubbardModelAttractive(8, 1);
@@ -132,6 +135,7 @@ end
         typeof(dqmc.scheduler)
     }
 end
+
 
 
 @testset "GreensMatrix" begin
@@ -233,6 +237,20 @@ end
     # constructors
     dqmc = DQMC(m; beta=5.0)
 
+    # subtype getters
+    @test MonteCarlo.geltype(dqmc.stack) == Float64
+    @test MonteCarlo.heltype(dqmc.stack) == Float64
+    @test MonteCarlo.gmattype(dqmc.stack) == Matrix{Float64}
+    @test MonteCarlo.hmattype(dqmc.stack) == Matrix{Float64}
+    @test MonteCarlo.imattype(dqmc.stack) == Diagonal{Float64, Vector{Float64}}
+    
+    @test MonteCarlo.geltype(dqmc) == Float64
+    @test MonteCarlo.heltype(dqmc) == Float64
+    @test MonteCarlo.gmattype(dqmc) == Matrix{Float64}
+    @test MonteCarlo.hmattype(dqmc) == Matrix{Float64}
+    @test MonteCarlo.imattype(dqmc) == Diagonal{Float64, Vector{Float64}}
+
+
     # generic checkerboard
     sq = MonteCarlo.SquareLattice(4);
     @test MonteCarlo.build_checkerboard(sq) == ([1.0 3.0 5.0 7.0 9.0 11.0 13.0 15.0 1.0 2.0 4.0 6.0 9.0 10.0 12.0 14.0 2.0 3.0 4.0 5.0 8.0 10.0 11.0 16.0 6.0 7.0 8.0 12.0 13.0 14.0 15.0 16.0; 2.0 4.0 6.0 8.0 10.0 12.0 14.0 16.0 5.0 3.0 8.0 7.0 13.0 11.0 16.0 15.0 6.0 7.0 1.0 9.0 12.0 14.0 15.0 13.0 10.0 11.0 5.0 9.0 1.0 2.0 3.0 4.0; 1.0 5.0 9.0 13.0 17.0 21.0 25.0 29.0 2.0 3.0 8.0 11.0 18.0 19.0 24.0 27.0 4.0 6.0 7.0 10.0 16.0 20.0 22.0 31.0 12.0 14.0 15.0 23.0 26.0 28.0 30.0 32.0], UnitRange[1:8, 9:16, 17:24, 25:32], 4)
@@ -314,7 +332,22 @@ end
     
 end
 
+
 @testset "Unequal Time Stack" begin
+    @testset "range index search" begin
+        m = HubbardModelAttractive(2, 2)
+        mc = DQMC(m, beta = 2.3, safe_mult = 10, delta_tau = 0.1)
+        
+        @test MonteCarlo._find_range_with_value(mc, -81273) == 0
+        @test MonteCarlo._find_range_with_value(mc, 0) == 0
+        for i in 1:23
+            idx = MonteCarlo._find_range_with_value(mc, i)
+            @test i in mc.stack.ranges[idx]
+        end
+        @test MonteCarlo._find_range_with_value(mc, 24) == length(mc.stack.ranges)+1
+        @test MonteCarlo._find_range_with_value(mc, 1239874) == length(mc.stack.ranges)+1
+    end
+
     m = HubbardModelAttractive(6, 1);
     dqmc = DQMC(m; beta=15.0, safe_mult=5)
     MonteCarlo.initialize_stack(dqmc, dqmc.ut_stack)

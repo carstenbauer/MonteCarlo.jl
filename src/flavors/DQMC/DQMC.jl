@@ -154,7 +154,9 @@ See also: [`resume!`](@ref)
         safe_every::TimePeriod = Hour(10000),
         grace_period::TimePeriod = Minute(5),
         resumable_filename::String = "resumable_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld2",
-        overwrite = false
+        overwrite = false,
+        min_update_rate = 0.001,
+        fail_filename = "failed_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld2"
     )
 
     # Update number of sweeps
@@ -185,6 +187,8 @@ See also: [`resume!`](@ref)
     reverse_build_stack(mc, mc.stack)
     propagate(mc)
 
+    min_sweeps = round(Int, 1 / min_update_rate)
+
     _time = time() # for step estimations
     t0 = time() # for analysis.runtime, may need to reset
     verbose && println("\n\nThermalization stage - ", thermalization)
@@ -213,6 +217,20 @@ See also: [`resume!`](@ref)
                 for (requirement, group) in groups
                     apply!(requirement, group, mc, mc.model, mc.last_sweep)
                 end
+            end
+        end
+
+        if mc.last_sweep > min_sweeps
+            acc = max_acceptance(mc.scheduler)
+            if acc < min_update_rate
+                println("Cancelling Simulation due to low acceptance rate:")
+                println("\t", mc.last_sweep)
+                show_statistics(stdout, mc.scheduler, "\t\t")
+                save(fail_filename, mc, overwrite = overwrite, rename = false)
+                if overwrite && isfile(resumable_filename)
+                    rm(resumable_filename)
+                end
+                return true
             end
         end
 
