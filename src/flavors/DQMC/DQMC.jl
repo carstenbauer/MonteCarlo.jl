@@ -167,6 +167,7 @@ See also: [`resume!`](@ref)
     total_sweeps = sweeps + thermalization
 
     # Generate measurement groups
+    init!(mc)
     th_groups = generate_groups(
         mc, mc.model, 
         [mc.measurements[k] for k in keys(mc.thermalization_measurements) if !(k in ignore)]
@@ -183,7 +184,6 @@ See also: [`resume!`](@ref)
 
     # fresh stack
     verbose && println("Preparing Green's function stack")
-    init!(mc)
     reverse_build_stack(mc, mc.stack)
     propagate(mc)
 
@@ -357,6 +357,7 @@ function replay!(
         "There are no measurements set up for this simulation!"
     )
     # Generate measurement groups
+    init!(mc)
     groups = generate_groups(
         mc, mc.model, 
         [mc.measurements[k] for k in keys(mc.measurements) if !(k in ignore)]
@@ -368,7 +369,6 @@ function replay!(
     end
 
     verbose && println("Preparing Green's function stack")
-    init!(mc)
     build_stack(mc, mc.stack)
     propagate(mc)
     mc.stack.current_slice = 1

@@ -398,3 +398,30 @@ function MonteCarlo.intE_kernel(mc, model::AttractiveGHQHubbardModel, G::GreensM
     end
     -model.U * output
 end
+
+
+function save_model(
+        file::JLDFile,
+        m::AttractiveGHQHubbardModel,
+        entryname::String="Model"
+    )
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/tag", "AttractiveGHQHubbardModel")
+
+    write(file, entryname * "/mu", m.mu)
+    write(file, entryname * "/U", m.U)
+    write(file, entryname * "/t", m.t)
+    save_lattice(file, m.l, entryname * "/l")
+
+    nothing
+end
+
+function _load(data, ::Val{:AttractiveGHQHubbardModel})
+    l = _load(data["l"], to_tag(data["l"]))
+    AttractiveGHQHubbardModel(
+        mu = data["mu"],
+        U = data["U"],
+        t = data["t"],
+        l = l
+    )
+end

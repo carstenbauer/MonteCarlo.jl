@@ -269,3 +269,29 @@ end
 function MonteCarlo.intE_kernel(mc, model::RepulsiveGHQHubbardModel, G::GreensMatrix)
     model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
 end
+
+function save_model(
+        file::JLDFile,
+        m::RepulsiveGHQHubbardModel,
+        entryname::String="Model"
+    )
+    write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/tag", "RepulsiveGHQHubbardModel")
+
+    write(file, entryname * "/mu", m.mu)
+    write(file, entryname * "/U", m.U)
+    write(file, entryname * "/t", m.t)
+    save_lattice(file, m.l, entryname * "/l")
+
+    nothing
+end
+
+function _load(data, ::Val{:RepulsiveGHQHubbardModel})
+    l = _load(data["l"], to_tag(data["l"]))
+    RepulsiveGHQHubbardModel(
+        mu = data["mu"],
+        U = data["U"],
+        t = data["t"],
+        l = l
+    )
+end
