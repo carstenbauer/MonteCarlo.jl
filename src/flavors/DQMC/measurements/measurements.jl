@@ -556,8 +556,7 @@ function nonintE(T::AbstractArray, G::AbstractArray)
     for i in axes(G, 1), j in axes(G, 2)
         output += T[j, i] * (I[i, j] - G[i, j])
     end
-    # 2 because we're using spin up/down symmetry
-    2.0 * output
+    output
 end
 function nonintE(T::BlockDiagonal{X, N}, G::BlockDiagonal{X, N}) where {X, N}
     output = zero(eltype(G))

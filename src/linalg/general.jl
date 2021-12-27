@@ -18,9 +18,21 @@ function vmul!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}) where {T <: Real}
         C[m,n] = A[m,n] * B.diag[n]
     end
 end
+function vmul!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}, range) where {T <: Real}
+    @views d = B.diag[range]
+    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+        C[m,n] = A[m,n] * d[n]
+    end
+end
 function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}) where {T <: Real}
     @turbo for m in 1:size(C, 1), n in 1:size(C, 2)
         C[m,n] = A.diag[m] * B[m,n]
+    end
+end
+function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}, range) where {T <: Real}
+    @views d = A.diag[range]
+    @turbo for m in 1:size(C, 1), n in 1:size(C, 2)
+        C[m,n] = d[m] * B[m,n]
     end
 end
 function vmul!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}) where {T <: Real}

@@ -69,6 +69,9 @@ function BlockDiagonal{T, N, AT}(::UniformScaling, n, m) where {T, N, AT}
     BlockDiagonal([AT(I, n, n) for _ in 1:N]...)
 end
 
+# Shorthand for typing functions
+const BD{N} = BlockDiagonal{<: Number, N}
+
 function Base.Matrix(B::BlockDiagonal{T, N}) where {T, N}
     n = size(B.blocks[1], 1)
     M = N * n
@@ -116,7 +119,7 @@ function Base.setindex!(B::BlockDiagonal, val, i, j)
     throw(BoundsError(B, (i, j)))
 end
 
-function Base.copyto!(B1::BlockDiagonal{T, N}, B2::BlockDiagonal{T, N}) where {T, N}
+function Base.copyto!(B1::BD{N}, B2::BD{N}) where {N}
     @inbounds for i in 1:N
         copyto!(B1.blocks[i], B2.blocks[i])
     end
@@ -201,13 +204,12 @@ end
 ################################################################################
 
 
-
-function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T, N}
+function vmul!(C::BD{N}, A::BD{N}, B::BD{N}) where {N}
     @inbounds for i in 1:N
         vmul!(C.blocks[i], A.blocks[i], B.blocks[i])
     end
 end
-function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, B::Diagonal) where {T, N}
+function vmul!(C::BD{N}, A::BD{N}, B::Diagonal) where {N}
     # Assuming correct size
     n = 0
     @inbounds for i in 1:N
@@ -215,10 +217,10 @@ function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, B::Diagonal) wher
         a = A.blocks[i]
         s = 1+n
         n += size(a, 1)
-        @views vmul!(c, a, Diagonal(B.diag[s:n]))
+        vmul!(c, a, B, s:n)
     end
 end
-function vmul!(C::BlockDiagonal{T, N}, A::Diagonal, B::BlockDiagonal{T, N}) where {T, N}
+function vmul!(C::BD{N}, A::Diagonal, B::BD{N}) where {N}
     # Assuming correct size
     n = 0
     @inbounds for i in 1:N
@@ -226,10 +228,10 @@ function vmul!(C::BlockDiagonal{T, N}, A::Diagonal, B::BlockDiagonal{T, N}) wher
         b = B.blocks[i]
         s = 1+n
         n += size(b, 1)
-        @views vmul!(c, Diagonal(A.diag[s:n]), b)
+        vmul!(c, A, b, s:n)
     end
 end
-function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, X::Adjoint{T}) where {T, N}
+function vmul!(C::BD{N}, A::BD{N}, X::Adjoint) where {N}
     B = X.parent
     @inbounds for i in 1:N
         a = A.blocks[i]
@@ -238,7 +240,7 @@ function vmul!(C::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, X::Adjoint{T}) wh
         vmul!(c, a, Adjoint(b))
     end
 end
-function vmul!(C::BlockDiagonal{T, N}, X::Adjoint{T}, B::BlockDiagonal{T, N}) where {T, N}
+function vmul!(C::BD{N}, X::Adjoint, B::BD{N}) where {N}
     A = X.parent
     @inbounds for i in 1:N
         a = A.blocks[i]
@@ -247,7 +249,7 @@ function vmul!(C::BlockDiagonal{T, N}, X::Adjoint{T}, B::BlockDiagonal{T, N}) wh
         vmul!(c, Adjoint(a), b)
     end
 end
-function vmul!(C::BD, X1::Adjoint{T, BD}, X2::Adjoint{T, BD}) where {T, N, BD <: BlockDiagonal{T, N}}
+function vmul!(C::BD{N}, X1::Adjoint, X2::Adjoint) where {N}
     A = X1.parent
     B = X2.parent
     @inbounds for i in 1:N
@@ -277,7 +279,7 @@ function lvmul!(A::Diagonal, B::BlockDiagonal)
 end
 
 # used in greens(k, l)
-function rvadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T, N}
+function rvadd!(A::BD{N}, B::BD{N}) where {N}
     @inbounds for i in 1:N
         a = A.blocks[i]
         b = B.blocks[i]
@@ -285,7 +287,7 @@ function rvadd!(A::BlockDiagonal{T, N}, B::BlockDiagonal{T, N}) where {T, N}
     end
 end
 # used in equal time greens
-function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal) where {T, N}
+function rvadd!(B::BD{N}, D::Diagonal) where {N}
     # Assuming correct size
     n = 0
     @inbounds for block in B.blocks
@@ -295,7 +297,7 @@ function rvadd!(B::BlockDiagonal{T, N}, D::Diagonal) where {T, N}
     end
 end
 # used in CombinedGreensIterator
-function vsub!(O::BlockDiagonal{T, N}, A::BlockDiagonal{T, N}, ::UniformScaling) where {T, N}
+function vsub!(O::BD{N}, A::BD{N}, ::UniformScaling) where {N}
     @inbounds for i in 1:N
         vsub!(O.blocks[i], A.blocks[i], I)
     end

@@ -338,6 +338,14 @@ function cc_kernel(mc, ::HubbardModelAttractive, sites::NTuple{4}, pg::NTuple{4}
     output
 end
 
+@inline function nonintE_kernel(mc, model::HubbardModelAttractive, G::GreensMatrix)
+    # <T> = \sum Tji * (Iij - Gij) = - \sum Tji * (Gij - Iij)
+    T = mc.stack.hopping_matrix
+    # 2 because we're using spin up/down symmetry
+    2.0 * nonintE(T, G.val)
+end
+
+
 function intE_kernel(mc, model::HubbardModelAttractive, G::GreensMatrix)
     # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... 
     # = U [G↑↑ G↓↓ - G↓↑ G↑↓ - 0.5 G↑↑ - 0.5 G↓↓ + G↑↓ + 0.25]

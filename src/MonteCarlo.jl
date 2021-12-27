@@ -107,7 +107,8 @@ export ReplicaExchange, ReplicaPull, connect, disconnect
 
 include("models/Ising/IsingModel.jl")
 include("models/HubbardModel/HubbardModel.jl")
-include("models/GaußHermite/GaußHermite.jl")
+include("models/GaußHermite/GaußHermiteRepulsive.jl")
+include("models/GaußHermite/GaußHermiteAttractive.jl")
 export IsingEnergyMeasurement, IsingMagnetizationMeasurement
 
 include("FileIO.jl")
@@ -116,7 +117,8 @@ export save, load, resume!
 
 export reset!
 export run!, resume!, replay!
-export Model, IsingModel, GHQHubbardModel
+export Model, IsingModel
+export RepulsiveGHQHubbardModel, AttractiveGHQHubbardModel
 export HubbardModel, HubbardModelAttractive, HubbardModelRepulsive
 export MonteCarloFlavor, MC, DQMC
 export greens, greens!, lattice, model, parameters

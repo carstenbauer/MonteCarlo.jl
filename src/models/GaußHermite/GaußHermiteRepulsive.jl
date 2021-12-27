@@ -7,7 +7,14 @@
 const GHQConf = Array{Int8, 2} 
 const GHQDistribution = (Int8(-2), Int8(-1), Int8(1), Int8(2))
 
-MonteCarlo.@with_kw_noshow struct GHQHubbardModel{LT <: AbstractLattice} <: Model
+"""
+    RepulsiveGHQHubbardModel(; l[, U, mu, t])
+
+H = -t ∑ cⱼ^† cᵢ + U ∑ (n↑ - n↓)²                v- we can ignore constants like this
+  = -t ∑ cⱼ^† cᵢ - U ∑ [(n↑ - 0.5)(n↓ - 0.5) + 1/4]
+
+"""
+MonteCarlo.@with_kw_noshow struct RepulsiveGHQHubbardModel{LT <: AbstractLattice} <: Model
     # user optional
     mu::Float64 = 0.0
     U::Float64 = 1.0
@@ -26,17 +33,41 @@ MonteCarlo.@with_kw_noshow struct GHQHubbardModel{LT <: AbstractLattice} <: Mode
     RΔ::Matrix{Float64}  = Matrix{Float64}(undef, 2, 2)
 end
 
-# TODO printing, constructors
+# TODO constructors
 
-@inline MonteCarlo.nflavors(m::GHQHubbardModel) = m.flv
-@inline MonteCarlo.lattice(m::GHQHubbardModel) = m.l
+# cosmetics
+import Base.summary
+import Base.show
+Base.summary(model::RepulsiveGHQHubbardModel) = "Gauß-Hermite Quadrature Hubbard model"
+function Base.show(io::IO, model::RepulsiveGHQHubbardModel)
+    print(io, model.U < 0.0 ? "attractive " : "repulsive ")
+    print(io, "Gauß-Hermite Quadrature Hubbard model, $(length(model.l)) sites")
+end
+Base.show(io::IO, ::MIME"text/plain", model::RepulsiveGHQHubbardModel) = print(io, model)
 
-@inline function Base.rand(::Type{DQMC}, m::GHQHubbardModel, nslices::Int)
+@inline MonteCarlo.nflavors(m::RepulsiveGHQHubbardModel) = m.flv
+@inline MonteCarlo.lattice(m::RepulsiveGHQHubbardModel) = m.l
+
+@inline function Base.rand(::Type{DQMC}, m::RepulsiveGHQHubbardModel, nslices::Int)
     rand(GHQDistribution, length(m.l), nslices)
 end
 
 
-function MonteCarlo.hopping_matrix(mc::DQMC, m::GHQHubbardModel{L}) where {L<:AbstractLattice}
+# TODO: type optimizations
+@inline function hopping_matrix_type(::Type{DQMC}, m::RepulsiveGHQHubbardModel)
+    return BlockDiagonal{Float64, 2, Matrix{Float64}}
+end
+@inline function greens_matrix_type( ::Type{DQMC}, m::RepulsiveGHQHubbardModel)
+    return BlockDiagonal{Float64, 2, Matrix{Float64}}
+end
+@inline function interaction_matrix_type(::Type{DQMC}, m::RepulsiveGHQHubbardModel)
+    return Diagonal{Float64, Vector{Float64}}
+end
+@inline greenseltype(::Type{DQMC}, m::RepulsiveGHQHubbardModel) = Float64
+
+
+
+function MonteCarlo.hopping_matrix(mc::DQMC, m::RepulsiveGHQHubbardModel{L}) where {L<:AbstractLattice}
     N = length(m.l)
     T = diagm(0 => fill(-m.mu, N))
 
@@ -51,7 +82,7 @@ function MonteCarlo.hopping_matrix(mc::DQMC, m::GHQHubbardModel{L}) where {L<:Ab
     return BlockDiagonal(T, copy(T))
 end
 
-function MonteCarlo.init_interaction_matrix(m::GHQHubbardModel)
+function MonteCarlo.init_interaction_matrix(m::RepulsiveGHQHubbardModel)
     N = length(lattice(m))
     flv = nflavors(m)
     Diagonal(zeros(Float64, N*flv))
@@ -76,7 +107,7 @@ _γ(x) = 3.449489742783178 - 1.632993161855452 * abs(x)
 _η(x) = sign(x) * (2.2520650012209886 * abs(x) - 1.202769754670408)
 
 @inline @bm function MonteCarlo.interaction_matrix_exp!(
-        mc::DQMC, model::GHQHubbardModel,
+        mc::DQMC, model::RepulsiveGHQHubbardModel,
         result::Diagonal, conf::GHQConf, slice::Int, power::Float64 = 1.
     )
     N = length(lattice(model))
@@ -97,7 +128,7 @@ end
 
 
 @inline @bm function MonteCarlo.propose_local(
-        mc::DQMC, model::GHQHubbardModel, i::Int, slice::Int, conf::GHQConf
+        mc::DQMC, model::RepulsiveGHQHubbardModel, i::Int, slice::Int, conf::GHQConf
     )
     N = length(model.l)
     G = mc.stack.greens
@@ -131,7 +162,7 @@ end
 
 
 @inline @bm function MonteCarlo.accept_local!(
-        mc::DQMC, model::GHQHubbardModel, i::Int, slice::Int, conf::GHQConf, 
+        mc::DQMC, model::RepulsiveGHQHubbardModel, i::Int, slice::Int, conf::GHQConf, 
         weight, ΔE_boson, passthrough
     )
 
@@ -198,8 +229,8 @@ end
 end
 
 # TODO global (test this)
-energy_boson(mc, ::GHQHubbardModel, conf=nothing) = 0.0
-function global_update(mc::DQMC, model::GHQHubbardModel, temp_conf::AbstractArray)
+energy_boson(mc, ::RepulsiveGHQHubbardModel, conf=nothing) = 0.0
+function global_update(mc::DQMC, model::RepulsiveGHQHubbardModel, temp_conf::AbstractArray)
     detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, temp_conf)
 
     p = exp(- ΔE_boson) * detratio
@@ -219,21 +250,15 @@ function global_update(mc::DQMC, model::GHQHubbardModel, temp_conf::AbstractArra
     return 0
 end
 
-# TODO: type optimizations
-MonteCarlo.hopping_matrix_type(::Type{DQMC}, ::GHQHubbardModel) = BlockDiagonal{Float64, 2, Matrix{Float64}}
-MonteCarlo.greens_matrix_type( ::Type{DQMC}, ::GHQHubbardModel) = BlockDiagonal{Float64, 2, Matrix{Float64}}
-MonteCarlo.interaction_matrix_type(::Type{DQMC}, ::GHQHubbardModel) = Diagonal{Float64, Vector{Float64}}
-@inline MonteCarlo.greenseltype(::Type{DQMC}, m::GHQHubbardModel) = Float64
-
 # checked
-function MonteCarlo.compress(mc::DQMC, ::GHQHubbardModel, c)
+function MonteCarlo.compress(mc::DQMC, ::RepulsiveGHQHubbardModel, c)
     # converts (-2, -1, 1, 2) -> (10, 00, 01, 11)
     # first bit is value (0 -> 1, 1 -> 2), second is sign (0 -> -, 1 -> +)
     bools = [(abs(v) == 2, sign(v) == 1)[step] for v in c for step in (1, 2)]
     BitArray(bools)
 end
-MonteCarlo.compressed_conf_type(::Type{<: DQMC}, ::Type{<: GHQHubbardModel}) = BitArray
-function MonteCarlo.decompress(::DQMC, ::GHQHubbardModel, c)
+MonteCarlo.compressed_conf_type(::Type{<: DQMC}, ::Type{<: RepulsiveGHQHubbardModel}) = BitArray
+function MonteCarlo.decompress(::DQMC, ::RepulsiveGHQHubbardModel, c)
     map(1:2:length(c)) do i
         # (c[i] ? 2 : 1)       * (c[i+1] ? +1 : -1)
         (Int8(1) + Int8(c[i])) * (Int8(2) * Int8(c[i+1]) - Int8(1))
@@ -241,6 +266,6 @@ function MonteCarlo.decompress(::DQMC, ::GHQHubbardModel, c)
 end
 
 # checked
-function MonteCarlo.intE_kernel(mc, model::GHQHubbardModel, G::GreensMatrix)
+function MonteCarlo.intE_kernel(mc, model::RepulsiveGHQHubbardModel, G::GreensMatrix)
     model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
 end
