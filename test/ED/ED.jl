@@ -143,7 +143,7 @@ end
 
 
 
-function Greens(site1, site2, substate1, substate2)
+function MonteCarlo.Greens(site1, site2, substate1, substate2)
     s -> begin
         _sign1, state = create(s, site1, substate1)
         # _sign1 == 0. && return 0.0, VOID
