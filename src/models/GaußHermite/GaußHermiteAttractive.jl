@@ -25,7 +25,7 @@ MonteCarlo.@with_kw_noshow struct AttractiveGHQHubbardModel{LT <: AbstractLattic
     # to avoid allocations (TODO always real?)
     IG::CMat64  = StructArray(zeros(ComplexF64, 2length(l), 2))
     IGR::CMat64 = StructArray(Matrix{ComplexF64}(undef, 2length(l), 2))
-    R::CMat64   = StructArray(Matrix{ComplexF64}(undef, 2, 2))
+    R::CVec64   = StructArray(Vector{ComplexF64}(undef, 2))
     Δ::CVec64   = StructArray(Vector{ComplexF64}(undef, 2))
 end
 
@@ -132,32 +132,22 @@ end
 
     # Unrolled R = I + Δ * (I - G)
     # Cross terms 0 with BlockDiagonal
-    R.re[1, 1] = 1.0 + Δ.re[1] * (1.0 - G.blocks[1].re[i, i])
-    #R.re[1, 2] =     - Δ.re[1] * G.re[i, i+N]
-    #R.re[2, 1] =     - Δ.re[2] * G.re[i+N, i]
-    R.re[2, 2] = 1.0 + Δ.re[2] * (1.0 - G.blocks[2].re[i, i])
+    R.re[1] = 1.0 + Δ.re[1] * (1.0 - G.blocks[1].re[i, i])
+    R.re[2] = 1.0 + Δ.re[2] * (1.0 - G.blocks[2].re[i, i])
 
-    R.re[1, 1] += Δ.im[1] * G.blocks[1].im[i, i]
-    #R.re[1, 2] += Δ.im[1] * G.im[i, i+N]
-    #R.re[2, 1] += Δ.im[2] * G.im[i+N, i]
-    R.re[2, 2] += Δ.im[2] * G.blocks[2].im[i, i]
+    R.re[1] += Δ.im[1] * G.blocks[1].im[i, i]
+    R.re[2] += Δ.im[2] * G.blocks[2].im[i, i]
 
-    R.im[1, 1] = - Δ.re[1] * G.blocks[1].im[i, i]
-    #R.im[1, 2] = - Δ.re[1] * G.im[i, i+N]
-    #R.im[2, 1] = - Δ.re[2] * G.im[i+N, i]
-    R.im[2, 2] = - Δ.re[2] * G.blocks[2].im[i, i]
+    R.im[1] = - Δ.re[1] * G.blocks[1].im[i, i]
+    R.im[2] = - Δ.re[2] * G.blocks[2].im[i, i]
 
-    R.im[1, 1] +=   Δ.im[1] * (1.0 - G.blocks[1].re[i, i])
-    #R.im[1, 2] += - Δ.im[1] * G.re[i, i+N]
-    #R.im[2, 1] += - Δ.im[2] * G.re[i+N, i]
-    R.im[2, 2] +=   Δ.im[2] * (1.0 - G.blocks[2].re[i, i])
+    R.im[1] +=  Δ.im[1] * (1.0 - G.blocks[1].re[i, i])
+    R.im[2] +=  Δ.im[2] * (1.0 - G.blocks[2].re[i, i])
     
     # detratio = R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
     detratio = ComplexF64(
-        (R.re[1, 1] * R.re[2, 2] - R.re[1, 2] * R.re[2, 1]) -
-        (R.im[1, 1] * R.im[2, 2] - R.im[1, 2] * R.im[2, 1]),
-        (R.re[1, 1] * R.im[2, 2] - R.re[1, 2] * R.im[2, 1]) +
-        (R.im[1, 1] * R.re[2, 2] - R.im[1, 2] * R.re[2, 1])
+        R.re[1] * R.re[2] - R.im[1] * R.im[2],
+        R.re[1] * R.im[2] + R.im[1] * R.re[2]
     )
 
     # @info detratio
@@ -181,22 +171,15 @@ end
         x_new, detratio = passthrough
     end
 
-    # inverting R in-place, using that R is 2x2
+    # Calculates R⁻¹ Δ -> R inplace using
+    # - detratio = det(R)
+    # - 1/c = c* / (c c*) (complex numbers)
+    # - Diagonal shape of R
+    # This does not include the γ part of the weight... I don't know why, 
+    # but with it the results are wrong (regardless of whether we include γ
+    # in interaction_matrix_exp)
     @bm "accept_local (inversion)" begin
-        # This does not include the γ part of the weight... I don't know why, 
-        # but with it the results are wrong (regardless of whether we include γ
-        # in interaction_matrix_exp)
-        # inv_div = 1.0 / detratio
-        # R[1, 2] = -R[1, 2] * inv_div
-        # R[2, 1] = -R[2, 1] * inv_div
-        # x = R[1, 1]
-        # R[1, 1] = R[2, 2] * inv_div
-        # R[2, 2] = x * inv_div
-
-        # OK? ✓
-        # result = inv(Matrix(R)) * Diagonal(Vector(Δ))
         @inbounds @fastmath begin
-            # Δ / det(R) = Δ * conj(det(R)) / (det(R) * conj(det(R)))
             inv_div = 1.0 / abs2(detratio)
             Δ[1] *= inv_div
             Δ[2] *= inv_div
@@ -206,47 +189,23 @@ end
             inv_div2_im = Δ.im[2] * real(detratio) - Δ.re[2] * imag(detratio)
 
             # Need to be saved for imaginary part
-            r11 = R.re[1, 1]
-            r12 = R.re[1, 2]
-            r21 = R.re[2, 1]
-            r22 = R.re[2, 2]
+            r11 = R.re[1]
+            r22 = R.re[2]
 
             # inv_div_im's enter with negative sign because of implied conj
             # This does re = re² - im²
-            R.re[1, 1] =   inv_div1_re * R.re[2, 2] - inv_div1_im * R.im[2, 2]
-            R.re[2, 1] = -(inv_div1_re * R.re[2, 1] - inv_div1_im * R.im[2, 1])
-            R.re[1, 2] = -(inv_div2_re * R.re[1, 2] - inv_div2_im * R.im[1, 2])
-            R.re[2, 2] =   inv_div2_re * r11 - inv_div2_im * R.im[1, 1]
+            R.re[1] = inv_div1_re * R.re[2] - inv_div1_im * R.im[2]
+            R.re[2] = inv_div2_re * r11     - inv_div2_im * R.im[1]
 
             # This does im = re * im + im * re
             r11_im = R.im[1, 1]
-            R.im[1, 1] =   inv_div1_re * R.im[2, 2] + inv_div1_im * r22
-            R.im[2, 1] = -(inv_div1_re * R.im[2, 1] + inv_div1_im * r21)
-            R.im[1, 2] = -(inv_div2_re * R.im[1, 2] + inv_div2_im * r12)
-            R.im[2, 2] =   inv_div2_re * r11_im + inv_div2_im * r11
+            R.im[1] = inv_div1_re * R.im[2] + inv_div1_im * r22
+            R.im[2] = inv_div2_re * r11_im  + inv_div2_im * r11
         end
-        # println("----")
-        # display(result)
-        # display(R)
-        # println("----")
     end
 
-    # Compute (I - G) R^-1 Δ ✓
+    # Compute (I - G)[:, i:N:end] {{R⁻¹ Δ}} -> IGR
     @bm "accept_local (IG, R)" begin
-        # @inbounds for m in axes(IG, 1)
-        #     IG[m, 1] = -G[m, i]
-        #     IG[m, 2] = -G[m, i+N]
-        # end
-        # IG[i, 1] += 1.0
-        # IG[i+N, 2] += 1.0
-        # vmul!(RΔ, R, Δ)
-        # vmul!(IGR, IG, RΔ)
-
-        # g = Matrix(G)
-        # ig = I - g
-        # sliced = ig[:, i:N:end]
-        # result = sliced * Matrix(R)
-
         # Do IG = I - G (relevant entries only)
         @turbo for m in axes(G.blocks[1], 1)
             IG.re[m, 1] = -G.blocks[1].re[m, i]
@@ -264,41 +223,16 @@ end
         @inbounds IG.re[i+N, 2] += 1.0
                 
         # Do IGR = IG * R
-        vmul!(IGR, IG, R)
-
-        # println("----")
-        # display(IGR)
-        # display(result)
-        # println("----")
+        vmul!(IGR, IG, Diagonal(R))
     end
 
+    # Calculate G -= {{(I - G)[:, i:N:end] * R⁻¹ Δ}} G[i:N:end, :]
     @bm "accept_local (finalize computation)" begin
-        # A = Matrix(IGR) * Matrix(G)[i:N:end, :]
-        # B = Matrix(G) + A
-
-        # # BlockDiagonal version
+        # BlockDiagonal version
         G1 = G.blocks[1]
         G2 = G.blocks[2]
         temp1 = mc.stack.greens_temp.blocks[1]
         temp2 = mc.stack.greens_temp.blocks[2]
-
-        # @turbo for m in axes(G1, 1), n in axes(G1, 2)
-        #     temp1[m, n] = IGR[m, 1] * G1[i, n]
-        # end
-        # @turbo for m in axes(G2, 1), n in axes(G2, 2)
-        #     temp2[m, n] = IGR[m+N, 2] * G2[i, n]
-        # end
-
-        # @turbo for m in axes(G1, 1), n in axes(G1, 2)
-        #     G1[m, n] = G1[m, n] - temp1[m, n]
-        # end
-        # @turbo for m in axes(G2, 1), n in axes(G2, 2)
-        #     G2[m, n] = G2[m, n] - temp2[m, n]
-        # end
-
-        # TODO
-        # needs block diagonal
-        # G = G - IG * (R * Δ) * G[i:N:end, :]
 
         # IG * (R * Δ) * G[i:N:end, :]
         # real part
@@ -343,11 +277,6 @@ end
             G2.im[m, n] = G2.im[m, n] - temp2.im[m, n]
         end
         
-        # println("----")
-        # display(Matrix(G))
-        # display(B)
-        # println("----")
-
         # update conf
         conf[i, slice] = x_new
     end
