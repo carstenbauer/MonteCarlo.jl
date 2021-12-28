@@ -205,7 +205,7 @@ end
 #
 # Loads an IsingModel from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function _load(data, ::Val{:IsingModel})
+function _load_model(data, ::Val{:IsingModel})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load IsingModel version $(data["VERSION"])"))
     end

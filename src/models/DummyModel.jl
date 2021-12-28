@@ -10,16 +10,20 @@ end
 
 Base.show(io::IO, model::DummyModel) = print(io, "DummyModel()")
 
+hopping_matrix_type(::Type{DQMC}, ::DummyModel) = Matrix{Float64}
+greens_matrix_type( ::Type{DQMC}, ::DummyModel) = Matrix{Float64}
+interaction_matrix_type(::Type{DQMC}, ::DummyModel) = Diagonal{Float64, Vector{Float64}}
+greenseltype(::Type{DQMC}, m::DummyModel) = Float64
+hoppingeltype(::Type{DQMC}, m::DummyModel) = Float64
+
+
+
 function save_model(file::JLDFile, m::DummyModel, entryname::String="Model")
-    close(file) 
-    # This is fine because we're creating temp files with "overwrite = true"
-    if file isa FileWrapper && isfile(file.path) 
-        rm(file.path)
-    end
+    close(file)
     error("DummyModel cannot be saved.")
 end
 
-function _load(data, ::Val{:DummyModel})
+function _load_model(data, ::Val)
     tag = to_tag(data)
     @warn "Failed to load $tag, creating DummyModel"
     DummyModel(_load_to_dict(data))

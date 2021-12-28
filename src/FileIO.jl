@@ -65,10 +65,19 @@ function save(
         backend.jldopen(filename, mode, compress=compress; kwargs...), filename
     )
 
-    write(file, "VERSION", 1)
-    save_mc(file, mc, "MC")
-    save_rng(file)
-    close(file.file)
+    try
+        write(file, "VERSION", 1)
+        save_mc(file, mc, "MC")
+        save_rng(file)
+    catch e
+        if overwrite && !isempty(temp_filename) && isfile(temp_filename)
+            rm(filename)
+            mv(temp_filename, filename)
+        end
+        @error exception = e
+    finally
+        close(file.file)
+    end
 
     if overwrite && !isempty(temp_filename) && isfile(temp_filename)
         rm(temp_filename)

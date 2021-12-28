@@ -263,7 +263,7 @@ end
 #
 # Loads a DQMCParameters object from a given `data` dictionary produced by
 # `JLD.load(filename)`.
-function _load(data, ::Val{:HubbardModelRepulsive})
+function _load_model(data, ::Val{:HubbardModelRepulsive})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load HubbardModelRepulsive version $(data["VERSION"])"))
     end
