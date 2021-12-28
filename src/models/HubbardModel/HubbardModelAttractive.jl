@@ -229,11 +229,7 @@ function save_model(
     nothing
 end
 
-#     load_parameters(data, ::Type{<: DQMCParameters})
-#
-# Loads a DQMCParameters object from a given `data` dictionary produced by
-# `JLD.load(filename)`.
-function _load(data, ::Val{:HubbardModelAttractive})
+function _load_model(data, ::Val{:HubbardModelAttractive})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load HubbardModelAttractive version $(data["VERSION"])"))
     end

@@ -10,6 +10,16 @@ end
 
 Base.show(io::IO, model::DummyModel) = print(io, "DummyModel()")
 
+function Base.getproperty(obj::DummyModel, field::Symbol)
+    if hasfield(DummyModel, field)
+        return getfield(obj, field)
+    else
+        return getfield(obj, data)[string(field)]
+    end
+end
+
+
+
 hopping_matrix_type(::Type{DQMC}, ::DummyModel) = Matrix{Float64}
 greens_matrix_type( ::Type{DQMC}, ::DummyModel) = Matrix{Float64}
 interaction_matrix_type(::Type{DQMC}, ::DummyModel) = Diagonal{Float64, Vector{Float64}}
@@ -29,8 +39,9 @@ function _load_model(data, ::Val)
     DummyModel(_load_to_dict(data))
 end
 
+_load_to_dict(file::FileWrapper) = _load_to_dict(file.file)
 _load_to_dict(data) = data
-function _load_to_dict(data::Union{FileWrapper{<: JLD2.Group}, JLD2.Group})
+function _load_to_dict(data::Union{JLD.JldFile, JLD2.JLDFile, JLD2.Group})
     output = Dict{String, Any}()
     for key in keys(data)
         push!(output, key => _load_to_dict(data[key]))

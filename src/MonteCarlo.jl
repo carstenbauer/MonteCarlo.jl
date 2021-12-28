@@ -53,7 +53,8 @@ Base.keys(fw::FileWrapper) = keys(fw.file)
 
 # To allow switching between JLD and JLD2:
 const UnknownType = Union{JLD.UnsupportedType, JLD2.UnknownType}
-const JLDFile = Union{FileWrapper{<: JLD.JldFile}, FileWrapper{<: JLD2.JLDFile}, JLD.JldFile, JLD2.JLDFile}
+const _JLDFile = Union{JLD.JldFile, JLD2.JLDFile, Dict, JLD2.Group}
+const JLDFile = Union{FileWrapper{<: _JLDFile}, _JLDFile}
 
 
 

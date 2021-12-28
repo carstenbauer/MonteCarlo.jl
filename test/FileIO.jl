@@ -440,31 +440,33 @@ end
 end
 
 
+function is_file_content_equal(file1, file2)
+    data1 = open(readavailable, file1, "r")
+    data2 = open(readavailable, file2, "r")
+    if length(data1) != length(data2)
+        return false
+    end
+    return all((a == b for (a, b) in zip(data1, data2)))
+end
 
 @testset "DummyModel" begin
     cp("assets/dummy_in.jld2", "dummy_in.jld2", force = true)
     mc = MonteCarlo.load("dummy_in.jld2")
     @test mc.model isa MonteCarlo.DummyModel
-    @test mc.model.data["x"] == 7
-    @test mc.model.data["y"] == "foo"
+    @test mc.model.data["data"].x == 7
+    @test mc.model.data["data"].y == "foo"
 
-    @test_throws ErrorException MonteCarlo.save("dummy_out.jld2")
-    @test !isfile("dummy_out.jld2")
-    @test_throws ErrorException MonteCarlo.save("dummy_in.jld2", overwrite=true)
+    MonteCarlo.save("dummy_in.jld2", mc, overwrite=true)
     @test isfile("dummy_in.jld2")
+    @test is_file_content_equal("dummy_in.jld2", "assets/dummy_in.jld2")
 
+    #=
+    # Generated with
     struct TestModel <: MonteCarlo.Model
         x::Int64
         y::String
     end
 
-    mc = MonteCarlo.load("dummy_in.jld2")
-    @test mc.model isa TestModel
-    @test mc.model.x == 7
-    @test mc.model.y == "foo"
-
-    #=
-    # Generated with
     Base.rand(::Type{DQMC}, ::TestModel, n::Int64) = Base.rand(4, n)
     MonteCarlo.lattice(::TestModel) = SquareLattice(2)
     MonteCarlo.nflavors(::TestModel) = 1
