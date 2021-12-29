@@ -84,11 +84,6 @@ Regarding the choices for `NSweep`, `N_skip` and `NBin` it is also important to 
 
 which features a quadratic interaction rather than the $\sim (n_\uparrow - 0.5)(n_\downarrow - 0.5)$ term used in MonteCarlo.jl. If we apply a Hirsch transformation (like in MonteCarlo.jl) to both of these interactions, we end up with the same expression. Thus they would be the same from the simulations point of view. However ALF uses a different, (potentially) more precise transformation based on Gauß-Hermite quadrature. Thus some small differences are to be expected.
 
-<!-- TODO -->
-<!--
-It is not clear, a priori, whether and which observables will match exactly. We will see in the results that many match close to perfectly but not all. Another consequence of the different transformation is that ALF is slower per sweep, but can reach a target precision at a much larger $\Delta\tau$ and potentially less sweeps. 
--->
-
 For more information on the Hamiltonian and transformation used by ALF see the [ALF documentation](https://git.physik.uni-wuerzburg.de/ALF/ALF/-/blob/master/Documentation/doc.png)
 
 
