@@ -37,33 +37,33 @@ function DQMC(model::M;
         last_sweep = 0,
         measure_rate = 10,
         recording_rate = measure_rate,
-        recorder = ConfigRecorder(DQMC, M, recording_rate),
         scheduler = SimpleScheduler(LocalSweep()),
+        field = choose_field(model),
+        recorder = ConfigRecorder(field, recording_rate),
         kwargs...
     ) where M<:Model
     # default params
     # paramskwargs = filter(kw->kw[1] in fieldnames(DQMCParameters), kwargs)
     parameters = DQMCParameters(measure_rate = measure_rate; kwargs...)
 
+    seed == -1 || Random.seed!(seed)
+    field_data = field(parameters, model)
+    rand!(field_data)
+
     HET = hoppingeltype(DQMC, model)
     GET = greenseltype(DQMC, model)
     HMT = hopping_matrix_type(DQMC, model)
     GMT = greens_matrix_type(DQMC, model)
-    IMT = interaction_matrix_type(DQMC, model)
+    IMT = interaction_matrix_type(field_data)
     stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
     ut_stack = UnequalTimeStack{GET, GMT}()
 
-    seed == -1 || Random.seed!(seed)
-    conf = rand(DQMC, model, parameters.slices)
     analysis = DQMCAnalysis()
     CB = checkerboard ? CheckerboardTrue : CheckerboardFalse
 
     mc = DQMC(
-        CB, 
-        model, conf, deepcopy(conf), last_sweep,
-        stack, ut_stack, scheduler,
-        parameters, analysis,
-        recorder, thermalization_measurements, measurements
+        CB, model, field_data, last_sweep, stack, ut_stack, scheduler,
+        parameters, analysis, recorder, thermalization_measurements, measurements
     )
     
     init!(mc)
@@ -85,7 +85,8 @@ DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
 @inline beta(mc::DQMC) = mc.parameters.beta
 @inline nslices(mc::DQMC) = mc.parameters.slices
 @inline model(mc::DQMC) = mc.model
-@inline conf(mc::DQMC) = mc.conf
+@inline field(mc::DQMC) = mc.field
+@inline conf(mc::DQMC) = error("Replace this with field?")
 @inline current_slice(mc::DQMC) = mc.stack.current_slice
 @inline last_sweep(mc::DQMC) = mc.last_sweep
 @inline configurations(mc::DQMC) = mc.recorder
@@ -212,7 +213,7 @@ See also: [`resume!`](@ref)
                 t0 = time()
             end
         else
-            push!(mc.recorder, mc, mc.model, mc.last_sweep)
+            push!(mc.recorder, field(mc), mc.last_sweep)
             if iszero(mc.last_sweep % mc.parameters.measure_rate)
                 for (requirement, group) in groups
                     apply!(requirement, group, mc, mc.model, mc.last_sweep)
@@ -372,13 +373,14 @@ function replay!(
     build_stack(mc, mc.stack)
     propagate(mc)
     mc.stack.current_slice = 1
-    mc.conf = rand(DQMC, mc.model, nslices(mc))
+    rand!(field(mc))
 
     _time = time()
     verbose && println("\n\nReplaying measurement stage - ", length(configurations))
     prepare!(mc.measurements, mc, mc.model)
     for i in mc.last_sweep+1:mc.parameters.measure_rate:length(configurations)
-        copyto!(mc.conf, decompress(mc, mc.model, configurations[i]))
+        # copyto!(mc.conf, decompress(mc, mc.model, configurations[i]))
+        decompress!(field(mc), configurations[i])
         calculate_greens(mc, 0) # outputs to mc.stack.greens
         for (requirement, group) in groups
             apply!(requirement, group, mc, mc.model, i)

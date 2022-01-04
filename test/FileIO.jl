@@ -102,11 +102,11 @@
 
     @testset "Parent related file IO (moving, renaming, replacing)" begin
         m = HubbardModelAttractive(2, 2)
-        recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, RelativePath("testfile.confs"))
+        recorder = BufferedConfigRecorder(DensityHirschField, RelativePath("testfile.confs"))
         link_id = recorder.link_id
         mc = DQMC(m, beta=1.0, recorder = recorder)
-        mc.conf .= rand(DQMC, m, mc.parameters.slices)
-        push!(recorder, mc, mc.model, 0)
+        mc.field.conf .= rand(mc.field)
+        push!(recorder, mc.field, 0)
 
         # BCR should not save on construction
         @test recorder.filename.absolute_path == joinpath(pwd(), "testfile.confs")
@@ -284,7 +284,7 @@ function test_dqmc(mc, x)
     for f in fieldnames(typeof(mc.parameters))
         @test getfield(mc.parameters, f) == getfield(x.parameters, f)
     end
-    # @test mc.conf == x.conf
+    @test mc.field.conf == x.field.conf
     @test mc.model.mu == x.model.mu
     @test mc.model.t == x.model.t
     @test mc.model.U == x.model.U
@@ -357,7 +357,7 @@ end
     model = HubbardModelAttractive(4, 2, t = 1.7, U = 2.5)
     mc = DQMC(
         model, beta = 1.0, thermalization = 21, sweeps = 117, measure_rate = 1, 
-        recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, "testfile.confs", rate = 1)
+        recorder = BufferedConfigRecorder(DensityHirschField, "testfile.confs", rate = 1)
     )
     mc[:CDC] = charge_density_correlation(mc, model)
     run!(mc, verbose=false)
@@ -365,7 +365,7 @@ end
     save("testfile.jld", mc)
     x = load("testfile.jld")
     rm("testfile.jld")
-    @test mc.conf == x.conf
+    @test mc.field.conf == x.field.conf
 
     # Repeat these tests once with x being replayed rather than loaded
     test_dqmc(mc, x)    
@@ -385,7 +385,7 @@ end
     model = HubbardModelAttractive(2, 2, t = 1.7, U = 2.5)
     mc = DQMC(
         model, beta = 1.0, thermalization = 0, sweeps = 10_000_000, measure_rate = 100,
-        recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, "testfile.confs", rate = 100)
+        recorder = BufferedConfigRecorder(DensityHirschField, "testfile.confs", rate = 100)
     )
     mc[:CDC] = charge_density_correlation(mc, model)
 
@@ -422,7 +422,7 @@ end
     model = HubbardModelAttractive(2, 2, t = 1.7, U = 2.5)
     mc = DQMC(
         model, beta = 1.0, thermalization = 0, sweeps = 100length(cs), measure_rate = 100,
-        recorder = BufferedConfigRecorder(DQMC, HubbardModelAttractive, "testfile.confs", rate = 100)
+        recorder = BufferedConfigRecorder(DensityHirschField, "testfile.confs", rate = 100)
     )
     state = run!(mc, verbose = false)
     matches = true

@@ -145,7 +145,7 @@ end
 end
 
 
-using MonteCarlo: conf, current_slice, nslices
+using MonteCarlo: field, conf, temp_conf, current_slice, nslices
 
 @testset "Global update" begin
     # Verify that split greens calculation matches the normal one
@@ -191,8 +191,8 @@ using MonteCarlo: conf, current_slice, nslices
             # This is the backbone check for all global and parallel updates
             for _ in 1:10
                 # re-initialize everything with a random conf
-                mc1.conf .= rand(DQMC, model, nslices(mc1))
-                mc2.conf .= mc1.conf
+                mc1.field.conf .= rand(field(mc1))
+                mc2.field.conf .= mc1.field.conf
                 for mc in (mc1, mc2)
                     MonteCarlo.init!(mc)
                     MonteCarlo.reverse_build_stack(mc, mc.stack)
@@ -200,22 +200,23 @@ using MonteCarlo: conf, current_slice, nslices
                 end
 
                 # global update
-                temp_conf = shuffle(deepcopy(conf(mc1)))
-                detratio, ΔE_boson, passthrough = MonteCarlo.propose_global_from_conf(mc1, model, temp_conf)
+                copyto!(temp_conf(field(mc1)), conf(field(mc1))) # necessary for boson_energy
+                shuffle!(conf(field(mc1)))
+                detratio, ΔE_boson, passthrough = MonteCarlo.propose_global_from_conf(mc1, model, field(mc1))
                 global_p = exp(- ΔE_boson) * detratio
-                MonteCarlo.accept_global!(mc1, model, temp_conf, passthrough)
+                MonteCarlo.accept_global!(mc1, model, field(mc1), passthrough)
 
                 # global update through successive local updates
                 local_p = 1.0
                 for t in 1:nslices(mc2)
                     for i in 1:length(lattice(mc2))
-                        if mc2.conf[i, current_slice(mc2)] != temp_conf[i, current_slice(mc2)]
+                        if mc2.field.conf[i, current_slice(mc2)] != mc1.field.conf[i, current_slice(mc2)]
                             detratio, ΔE_boson, passthrough = MonteCarlo.propose_local(
-                                mc2, model, i, current_slice(mc2), conf(mc2)
+                                mc2, model, field(mc2), i, current_slice(mc2)
                             )
                             local_p *= real(exp(- ΔE_boson) * detratio)
                             MonteCarlo.accept_local!(
-                                mc2, model, i, current_slice(mc2), conf(mc2), detratio, ΔE_boson, passthrough
+                                mc2, model, field(mc2), i, current_slice(mc2), detratio, ΔE_boson, passthrough
                             )
                         end
                     end
@@ -229,7 +230,7 @@ using MonteCarlo: conf, current_slice, nslices
 
                 # Verify
                 @test local_p ≈ global_p
-                @test mc1.conf == mc2.conf
+                @test mc1.field.conf == mc2.field.conf
                 @test current_slice(mc1) == current_slice(mc2)
                 @test mc1.stack.greens ≈ mc2.stack.greens
             end
@@ -242,32 +243,36 @@ using MonteCarlo: conf, current_slice, nslices
         MonteCarlo.init!(mc)
         MonteCarlo.reverse_build_stack(mc, mc.stack)
         MonteCarlo.propagate(mc)
-        c = deepcopy(conf(mc))
+        c = deepcopy(conf(field(mc)))
         return mc, model, c
     end
 
     # Check config adjustments for global updates
     mc, model, c = setup()
-    MonteCarlo.update(GlobalFlip(), mc, model)
-    @test mc.temp_conf == -c
+    MonteCarlo.propose_conf!(GlobalFlip(), mc, model, field(mc))
+    @test mc.field.conf == -c
+    @test mc.field.temp_conf == c
 
     # make this unlikely to fail randomly via big conf size
     mc, model, c = setup()
-    MonteCarlo.update(GlobalShuffle(), mc, model)
-    @test sum(mc.temp_conf) == sum(c)
-    @test mc.temp_conf != c
+    MonteCarlo.propose_conf!(GlobalShuffle(), mc, model, field(mc))
+    @test sum(mc.field.temp_conf) == sum(c)
+    @test mc.field.conf != c
+    @test mc.field.temp_conf == c
 
     mc, model, c = setup()
     u = SpatialShuffle()
     MonteCarlo.init!(mc, u)
-    MonteCarlo.update(u, mc, model)
-    @test mc.temp_conf == c[u.indices, :]
+    MonteCarlo.propose_conf!(u, mc, model, field(mc))
+    @test mc.field.conf == c[u.indices, :]
+    @test mc.field.temp_conf == c
 
     mc, model, c = setup()
     u = TemporalShuffle()
     MonteCarlo.init!(mc, u)
-    MonteCarlo.update(u, mc, model)
-    @test mc.temp_conf == c[:, u.indices]
+    MonteCarlo.propose_conf!(u, mc, model, field(mc))
+    @test mc.field.conf == c[:, u.indices]
+    @test mc.field.temp_conf == c
 
     #=
     Lattice with conf:
@@ -299,29 +304,32 @@ using MonteCarlo: conf, current_slice, nslices
     model = HubbardModelAttractive(3, 2)
     mc = DQMC(model, beta=1.0)
     MonteCarlo.init!(mc)
-    mc.conf .= _conf
+    mc.field.conf .= _conf
     MonteCarlo.reverse_build_stack(mc, mc.stack)
     MonteCarlo.propagate(mc)
-    MonteCarlo.update(Denoise(), mc, model)
-    @test mc.temp_conf == [[+1, +1, -1, +1, +1, +1, -1, +1, -1][i] for i in 1:9, slice in 1:10]
+    MonteCarlo.propose_conf!(Denoise(), mc, model, field(mc))
+    @test mc.field.conf == [[+1, +1, -1, +1, +1, +1, -1, +1, -1][i] for i in 1:9, slice in 1:10]
+    @test mc.field.temp_conf == _conf
 
     model = HubbardModelAttractive(3, 2)
     mc = DQMC(model, beta=1.0)
     MonteCarlo.init!(mc)
-    mc.conf .= _conf
+    mc.field.conf .= _conf
     MonteCarlo.reverse_build_stack(mc, mc.stack)
     MonteCarlo.propagate(mc)
-    MonteCarlo.update(DenoiseFlip(), mc, model)
-    @test mc.temp_conf == [[-1, -1, +1, -1, -1, -1, +1, -1, +1][i] for i in 1:9, slice in 1:10]
+    MonteCarlo.propose_conf!(DenoiseFlip(), mc, model, field(mc))
+    @test mc.field.conf == [[-1, -1, +1, -1, -1, -1, +1, -1, +1][i] for i in 1:9, slice in 1:10]
+    @test mc.field.temp_conf == _conf
 
     model = HubbardModelAttractive(3, 2)
     mc = DQMC(model, beta=1.0)
     MonteCarlo.init!(mc)
-    mc.conf .= _conf
+    mc.field.conf .= _conf
     MonteCarlo.reverse_build_stack(mc, mc.stack)
     MonteCarlo.propagate(mc)
-    MonteCarlo.update(StaggeredDenoise(), mc, model)
-    @test mc.temp_conf == [[-1, +1, +1, +1, -1, +1, +1, +1, +1][i] for i in 1:9, slice in 1:10]
+    MonteCarlo.propose_conf!(StaggeredDenoise(), mc, model, field(mc))
+    @test mc.field.conf == [[-1, +1, +1, +1, -1, +1, +1, +1, +1][i] for i in 1:9, slice in 1:10]
+    @test mc.field.temp_conf == _conf
 end
 
 using Distributed

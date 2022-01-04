@@ -62,6 +62,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 
 # Convenience
 @inline parameters(m::HubbardModelAttractive) = (N = length(m.l), t = m.t, U = m.U, mu = m.mu)
+choose_field(::HubbardModelAttractive) = DensityHirschField
 
 
 """
@@ -88,122 +89,6 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:Abstra
     end
 
     return T
-end
-
-
-"""
-Calculate the interaction matrix exponential `expV = exp(- power * delta_tau * V(slice))`
-and store it in `result::Matrix`.
-
-This is a performance critical method.
-"""
-@inline @bm function interaction_matrix_exp!(mc::DQMC, m::HubbardModelAttractive,
-            result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
-    dtau = mc.parameters.delta_tau
-    lambda = acosh(exp(0.5 * m.U * dtau))
-
-    N = size(result, 1)
-    @inbounds for i in 1:N
-        result.diag[i] = exp(sign(power) * lambda * conf[i, slice])
-    end
-    nothing
-end
-
-
-@inline @bm function propose_local(
-        mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf
-    )
-    # see for example dos Santos Introduction to quantum Monte-Carlo
-    greens = mc.stack.greens
-    dtau = mc.parameters.delta_tau
-    lambda = acosh(exp(m.U * dtau/2))
-
-    @inbounds ΔE_boson = -2. * lambda * conf[i, slice]
-    γ = exp(ΔE_boson) - 1
-    @inbounds detratio = (1 + γ * (1 - greens[i,i]))^2 
-    # squared because of two spin sectors
-
-    return detratio, ΔE_boson, γ
-end
-
-@inline @bm function accept_local!(
-        mc::DQMC, m::HubbardModelAttractive, i::Int, slice::Int, conf::HubbardConf, 
-        detratio, ΔE_boson, γ)
-    greens = mc.stack.greens
-
-    # Unoptimized Version
-    # u = -greens[:, i]
-    # u[i] += 1.
-    # greens .-= kron(u * 1./(1 + gamma * u[i]), transpose(gamma * greens[i, :]))
-    # conf[i, slice] .*= -1.
-
-    # Optimized
-    # copy! and `.=` allocate, this doesn't. Synced loop is marginally faster
-    @turbo for j in eachindex(m.IG)
-        m.IG[j] = -greens[j, i]
-        m.G[j] = greens[i, j]
-    end
-    @inbounds m.IG[i] += 1.0
-    # This is way faster for small systems and still ~33% faster at L = 15
-    # Also no allocations here
-    @inbounds x = γ / (1.0 + γ * m.IG[i])
-    @turbo for k in eachindex(m.IG), l in eachindex(m.G)
-        greens[k, l] -= m.IG[k] * x * m.G[l]
-    end
-    @inbounds conf[i, slice] *= -1
-    nothing
-end
-
-@bm function propose_global_from_conf(mc::DQMC, m::HubbardModelAttractive, conf::AbstractArray)
-    # G = calculate_greens(mc, current_slice(mc)-1, mc.s.greens_temp)
-    # @assert G ≈ mc.s.greens
-    # D = copy(mc.s.Dl)
-    # new_greens = calculate_greens(mc, current_slice(mc)-1, mc.s.greens_temp, conf)
-    
-    # # Computing prod(D) is unstable at larger beta
-    # detratio = 1.0
-    # for i in eachindex(mc.s.Dl)
-    #     detratio *= (D[i] / mc.s.Dl[i])^2
-    # end
-    # ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
-    # return detratio, ΔE_Boson, new_greens
-
-
-    
-    # I don't think we need this...
-    @assert mc.stack.current_slice == 1
-    @assert mc.stack.direction == 1
-
-    # This should be just after calculating greens, so mc.s.Dl is from the UDT
-    # decomposed G
-    copyto!(mc.stack.tempvf, mc.stack.Dl)
-
-    # -1?
-    inv_det(mc, current_slice(mc)-1, conf)
-
-    # This may help with stability
-    detratio = 1.0
-    for i in eachindex(mc.stack.tempvf)
-        detratio *= mc.stack.tempvf[i] * mc.stack.Dr[i]
-        # detratio *= mc.s.Dl[i] / D[i]
-    end
-    ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
-    # new_greens = finish_calculate_greens(
-    #     mc.s.Ul, mc.s.Dl, mc.s.Tl, mc.s.Ur, mc.s.Dr, mc.s.Tr,
-    #     mc.s.greens_temp, mc.s.pivot, mc.s.tempv
-    # )
-    # @info detratio^2
-    return detratio^2, ΔE_Boson, nothing #new_greens
-end
-
-
-"""
-Calculate energy contribution of the boson, i.e. Hubbard-Stratonovich/Hirsch field.
-"""
-@inline function energy_boson(mc::DQMC, m::HubbardModelAttractive, hsfield = conf(mc))
-    dtau = mc.parameters.delta_tau
-    lambda = acosh(exp(m.U * dtau/2))
-    return lambda * sum(hsfield)
 end
 
 
@@ -253,7 +138,7 @@ to_tag(::Type{<: HubbardModelAttractive}) = Val(:HubbardModelAttractive)
 ################################################################################
 ### Measurement kernels
 ################################################################################
-checkflavors(model::HubbardModelAttractive) = checkflavors(model, 1)
+checkflavors(mc, m::HubbardModelAttractive) = checkflavors(mc, m, 1)
 
 
 function cdc_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::GreensMatrix)

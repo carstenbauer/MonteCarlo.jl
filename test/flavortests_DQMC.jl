@@ -69,12 +69,11 @@ end
 
     # DQMC mandatory
     m = DummyModel(SquareLattice(2))
-    @test_throws MethodError rand(DQMC, m, 4)
-    @test_throws ErrorException MonteCarlo.nflavors(m)
+    # @test_throws MethodError rand(DQMC, m, 4)
     @test_throws MethodError MonteCarlo.hopping_matrix(dqmc, m)
-    @test_throws MethodError MonteCarlo.interaction_matrix_exp!(dqmc, m, zeros(2,2), zeros(2,2), 1, 1.0)
-    @test_throws MethodError MonteCarlo.propose_local(dqmc, m, 1, 1, zeros(2,2))
-    @test_throws MethodError MonteCarlo.accept_local!(dqmc, m, 1, 1, zeros(2,2), 1.0, 1.0, nothing)
+    # @test_throws MethodError MonteCarlo.interaction_matrix_exp!(dqmc, m, zeros(2,2), zeros(2,2), 1, 1.0)
+    # @test_throws MethodError MonteCarlo.propose_local(dqmc, m, 1, 1, zeros(2,2))
+    # @test_throws MethodError MonteCarlo.accept_local!(dqmc, m, 1, 1, zeros(2,2), 1.0, 1.0, nothing)
 
     MonteCarlo.nflavors(::DummyModel) = 2
     MonteCarlo.lattice(m::DummyModel) = m.lattice
@@ -82,17 +81,15 @@ end
     # DQMC optional
     @test MonteCarlo.greenseltype(DQMC, m) == ComplexF64
     @test MonteCarlo.interaction_matrix_type(DQMC, m) == Matrix{ComplexF64}
-    @test MonteCarlo.init_interaction_matrix(m) == zeros(ComplexF64, 8, 8)
-    @test_throws MethodError MonteCarlo.energy_boson(dqmc, m, MonteCarlo.conf(dqmc))
     @test parameters(m) == NamedTuple()
 
     # constructors
     mc = DQMC{
-        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.conf),
+        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.field),
         typeof(dqmc.recorder), typeof(dqmc.stack), typeof(dqmc.ut_stack), 
         typeof(dqmc.scheduler)
     }(
-        dqmc.model, dqmc.conf, dqmc.temp_conf, dqmc.last_sweep, dqmc.stack, 
+        dqmc.model, dqmc.field, dqmc.last_sweep, dqmc.stack, 
         dqmc.ut_stack, dqmc.scheduler, dqmc.parameters, dqmc.analysis, 
         dqmc.recorder, dqmc.thermalization_measurements, dqmc.measurements
     )
@@ -102,7 +99,7 @@ end
     end
 
     mc = DQMC(
-        MonteCarlo.CheckerboardFalse, dqmc.model, dqmc.conf, dqmc.temp_conf, 
+        MonteCarlo.CheckerboardFalse, dqmc.model, dqmc.field, 
         dqmc.last_sweep, dqmc.stack, dqmc.ut_stack, dqmc.scheduler, 
         dqmc.parameters, dqmc.analysis, dqmc.recorder, 
         dqmc.thermalization_measurements, dqmc.measurements
@@ -130,7 +127,7 @@ end
         end
     end
     @test mc isa DQMC{
-        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.conf),
+        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.field),
         Discarder, typeof(dqmc.stack), typeof(dqmc.ut_stack), 
         typeof(dqmc.scheduler)
     }
@@ -258,7 +255,7 @@ end
     m = HubbardModelAttractive(8, 2, mu=0.5)
     mc1 = DQMC(m, beta=5.0)
     mc2 = DQMC(m, beta=5.0, checkerboard=false)
-    mc2.conf = deepcopy(mc1.conf)
+    mc2.field.conf .= deepcopy(mc1.field.conf)
     MonteCarlo.init_hopping_matrices(mc1, m)
     MonteCarlo.init_hopping_matrices(mc2, m)
     MonteCarlo.build_stack(mc1, mc1.stack)
@@ -312,7 +309,7 @@ end
 
     m = HubbardModelAttractive(8, 1);
     mc2 = DQMC(m; beta=5.0)
-    mc2.conf .= mc1.conf
+    mc2.field.conf .= mc1.field.conf
     MonteCarlo.init!(mc2)
     MonteCarlo.reverse_build_stack(mc2, mc2.stack)
     MonteCarlo.propagate(mc2)

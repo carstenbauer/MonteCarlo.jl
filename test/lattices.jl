@@ -68,7 +68,7 @@ using MonteCarlo: directed_norm
         for dqmc in dqmcs
             iter = EachSiteAndFlavor()(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
-            Nflavors = MonteCarlo.nflavors(dqmc.model)
+            Nflavors = MonteCarlo.nflavors(MonteCarlo.field(dqmc))
             @test collect(iter) == 1:Nsites*Nflavors
             @test length(iter) == Nsites*Nflavors
             @test eltype(iter) == Int64

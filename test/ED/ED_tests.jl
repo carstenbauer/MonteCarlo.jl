@@ -399,7 +399,7 @@ end
 
 @testset "Repulsive/Attractive Hubbard Model (ED)" begin
     models = (
-        HubbardModelRepulsive(2, 2, U = 1.0, t = 1.0),
+        HubbardModelRepulsive(2, 2, U = -1.0, t = 1.0),
         HubbardModelAttractive(2, 2, U = 1.0, mu = 1.0, t = 1.0)
     )
 

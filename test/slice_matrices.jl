@@ -43,7 +43,7 @@ end
 
     # No checkerboard
     for slice in rand(1:50, 2)
-        MonteCarlo.interaction_matrix_exp!(dqmc, m, eV, dqmc.conf, slice, 1.)
+        MonteCarlo.interaction_matrix_exp!(dqmc, m, dqmc.field, eV, slice, 1.)
 
         # MonteCarlo.slice_matrix
         @test MonteCarlo.slice_matrix(dqmc, m, slice, 1.) ≈ eT * eT * eV
@@ -87,7 +87,7 @@ end
     dqmc = DQMC(m, beta=5.0, checkerboard=true)
 
     for slice in rand(1:50, 2)
-        MonteCarlo.interaction_matrix_exp!(dqmc, m, eV, dqmc.conf, slice, 1.)
+        MonteCarlo.interaction_matrix_exp!(dqmc, m, dqmc.field, eV, slice, 1.)
 
         # MonteCarlo.slice_matrix
         @test maximum(abs,

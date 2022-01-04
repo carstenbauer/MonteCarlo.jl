@@ -147,7 +147,7 @@ _simple_buffer(mc, t::Type, T) = _simple_buffer(mc, t(), T)
 _simple_buffer(mc, ::Type{Nothing}, T) = nothing
 _simple_buffer(mc, ::Nothing, T) = nothing
 _simple_buffer(mc, ::EachSite, T) = zeros(T, length(lattice(mc)))
-_simple_buffer(mc, ::EachSiteAndFlavor, T) = zeros(T, nflavors(model(mc)) * length(lattice(mc)))
+_simple_buffer(mc, ::EachSiteAndFlavor, T) = zeros(T, nflavors(field(mc)) * length(lattice(mc)))
 _simple_buffer(mc, ::EachSitePair, T) = zeros(T, length(lattice(mc)), length(lattice(mc)))
 
 

@@ -122,7 +122,7 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
     GreensMatType = gmattype(mc)
     HoppingElType = heltype(mc)
     N = length(lattice(mc))
-    flv = nflavors(mc.model)
+    flv = nflavors(field(mc))
 
     # Generate safe multiplication chunks
     # - every chunk must have ≤ safe_mult elements
@@ -170,7 +170,7 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
     # end
 
     mc.stack.curr_U = GreensMatType(undef, flv*N, flv*N)
-    mc.stack.eV = init_interaction_matrix(mc.model)
+    mc.stack.eV = init_interaction_matrix(field(mc))
 
     nothing
 end
@@ -183,7 +183,7 @@ function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerbo
 end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
     N = length(lattice(m))
-    flv = nflavors(m)
+    flv = nflavors(field(mc))
     dtau = mc.parameters.delta_tau
 
     T = hopping_matrix(mc, m)
@@ -244,7 +244,7 @@ rem_eff_zeros!(X::AbstractArray) = map!(e -> abs.(e)<1e-15 ? zero(e) : e,X,X)
 function init_checkerboard_matrices(mc::DQMC, m::Model)
     s = mc.stack
     l = lattice(m)
-    flv = nflavors(m)
+    flv = nflavors(field(mc))
     H = heltype(mc)
     N = length(l)
     dtau = mc.parameters.delta_tau
@@ -514,8 +514,8 @@ Compute the effective equal-time greens function from scratch at a given `slice`
 This does not invalidate the stack, but it does overwrite `mc.stack.greens`.
 """
 @bm function calculate_greens(
-        mc::DQMC, slice::Int, output::AbstractMatrix = mc.stack.greens, 
-        conf::AbstractArray = mc.conf, safe_mult::Int = mc.parameters.safe_mult
+        mc::DQMC, slice, output = mc.stack.greens, 
+        field = field(mc), safe_mult = mc.parameters.safe_mult
     )
     copyto!(mc.stack.curr_U, I)
     copyto!(mc.stack.Ur, I)
@@ -528,13 +528,13 @@ This does not invalidate the stack, but it does overwrite `mc.stack.greens`.
         stop = mc.parameters.slices
         for k in reverse(start:stop)
             if mod(k,safe_mult) == 0
-                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
                 vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dr))
                 udt_AVX_pivot!(mc.stack.curr_U, mc.stack.Dr, mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv)
                 copyto!(mc.stack.tmp2, mc.stack.Tr)
                 vmul!(mc.stack.Tr, mc.stack.tmp1, mc.stack.tmp2)
             else
-                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
             end
         end
         vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dr))
@@ -555,13 +555,13 @@ This does not invalidate the stack, but it does overwrite `mc.stack.greens`.
         stop = slice
         for k in start:stop
             if mod(k,safe_mult) == 0
-                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
                 vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dl))
                 udt_AVX_pivot!(mc.stack.curr_U, mc.stack.Dl, mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv)
                 copyto!(mc.stack.tmp2, mc.stack.Tl)
                 vmul!(mc.stack.Tl, mc.stack.tmp1, mc.stack.tmp2)
             else
-                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
             end
         end
         vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dl))

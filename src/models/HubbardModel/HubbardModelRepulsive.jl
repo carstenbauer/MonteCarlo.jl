@@ -23,21 +23,20 @@ greens matrix is used.
 """
 @with_kw_noshow struct HubbardModelRepulsive{LT<:AbstractLattice} <: HubbardModel
     # user optional
-    U::Float64 = 1.0
-    @assert U >= 0. "U must be positive."
+    U::Float64 = -1.0
     t::Float64 = 1.0
 
     # mandatory (this or (L, dims))
     l::LT
 
-    # non-user fields
-    flv::Int = 2
-    # to avoid allocations (TODO always real?)
-    IG::Matrix{Float64}  = Matrix{Float64}(undef, 2length(l), 2)
-    IGR::Matrix{Float64} = Matrix{Float64}(undef, 2length(l), 2)
-    R::Matrix{Float64}   = Matrix{Float64}(undef, 2, 2)
-    Δ::Diagonal{Float64, Vector{Float64}} = Diagonal(Vector{Float64}(undef, 2))
-    RΔ::Matrix{Float64}  = Matrix{Float64}(undef, 2, 2)
+    # # non-user fields
+    # flv::Int = 2
+    # # to avoid allocations (TODO always real?)
+    # IG::Matrix{Float64}  = Matrix{Float64}(undef, 2length(l), 2)
+    # IGR::Matrix{Float64} = Matrix{Float64}(undef, 2length(l), 2)
+    # R::Matrix{Float64}   = Matrix{Float64}(undef, 2, 2)
+    # Δ::Diagonal{Float64, Vector{Float64}} = Diagonal(Vector{Float64}(undef, 2))
+    # RΔ::Matrix{Float64}  = Matrix{Float64}(undef, 2, 2)
 end
 
 
@@ -62,13 +61,15 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelRepulsive) = print(io,
 
 
 # Convenience
-@inline parameters(m::HubbardModelRepulsive) = (N = length(m.l), t = m.t, U = -m.U)
+@inline parameters(m::HubbardModelRepulsive) = (N = length(m.l), t = m.t, U = m.U)
+
 
 # optional optimization
 hopping_matrix_type(::Type{DQMC}, ::HubbardModelRepulsive) = BlockDiagonal{Float64, 2, Matrix{Float64}}
 greens_matrix_type( ::Type{DQMC}, ::HubbardModelRepulsive) = BlockDiagonal{Float64, 2, Matrix{Float64}}
 
 
+choose_field(::HubbardModelRepulsive) = MagneticHirschField
 
 """
     hopping_matrix(mc::DQMC, m::HubbardModelRepulsive)
@@ -97,148 +98,6 @@ function hopping_matrix(mc::DQMC, model::HubbardModelRepulsive)
     end
 
     return BlockDiagonal(T, copy(T))
-end
-
-
-"""
-    interaction_matrix_exp!(
-        mc::DQMC, model::HubbardModelRepulsive, result, conf, slice, power
-    )
-
-Calculate the interaction matrix exponential `expV = exp(- power * delta_tau * V(slice))`
-and store it in `result::Matrix`.
-
-This is a performance critical method.
-"""
-@inline @bm function interaction_matrix_exp!(mc::DQMC, model::HubbardModelRepulsive,
-            result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
-    dtau = mc.parameters.delta_tau
-    lambda = acosh(exp(0.5 * model.U * dtau))
-    N = length(lattice(model))
-    
-    @inbounds for i in 1:N
-        result.diag[i] = exp(sign(power) * lambda * conf[i, slice])
-    end
-    @inbounds for i in 1:N
-        result.diag[i+N] = exp(-sign(power) * lambda * conf[i, slice])
-    end
-    nothing
-end
-
-# TODO
-# both of these could be a little bit faster if we used the zeros imposed by
-# BlockDiagonal (i.e. G[i, i+N] = 0)
-
-@inline @inbounds @bm function propose_local(
-        mc::DQMC, model::HubbardModelRepulsive, i::Int, slice::Int, conf::HubbardConf
-    )
-    N = length(model.l)
-    G = mc.stack.greens
-    Δτ = mc.parameters.delta_tau
-    Δ = model.Δ
-    R = model.R
-
-    α = acosh(exp(0.5Δτ * model.U))
-    ΔE_Boson = -2.0α * conf[i, slice]
-    Δ[1, 1] = exp(ΔE_Boson) - 1.0
-    Δ[2, 2] = exp(-ΔE_Boson) - 1.0
-
-    # Unrolled R = I + Δ * (I - G)
-    R[1, 1] = 1.0 + Δ[1, 1] * (1.0 - G[i, i])
-    R[1, 2] = - Δ[1, 1] * G[i, i+N]
-    R[2, 1] = - Δ[2, 2] * G[i+N, i]
-    R[2, 2] = 1.0 + Δ[2, 2] * (1.0 - G[i+N, i+N])
-
-    # Calculate det of 2x2 Matrix
-    # det() vs unrolled: 206ns -> 2.28ns
-    detratio = R[1, 1] * R[2, 2] - R[1, 2] * R[2, 1]
-
-    # There is no bosonic part (exp(-ΔE_Boson)) to the partition function.
-    # Therefore pass 0.0
-    return detratio, 0.0, nothing
-end
-
-@inline @inbounds @bm function accept_local!(
-        mc::DQMC, model::HubbardModelRepulsive, i::Int, slice::Int, 
-        conf::HubbardConf, detratio, args...
-    )
-
-    @bm "accept_local (init)" begin
-        N = length(model.l)
-        G = mc.stack.greens
-        IG = model.IG
-        IGR = model.IGR
-        Δ = model.Δ
-        R = model.R
-        RΔ = model.RΔ
-    end
-
-    # inverting R in-place, using that R is 2x2, i.e.:
-    # M^-1 = [a b; c d]^-1 = 1/det(M) [d -b; -c a]
-    @bm "accept_local (inversion)" begin
-        inv_div = 1.0 / detratio
-        R[1, 2] = -R[1, 2] * inv_div
-        R[2, 1] = -R[2, 1] * inv_div
-        x = R[1, 1]
-        R[1, 1] = R[2, 2] * inv_div
-        R[2, 2] = x * inv_div
-    end
-
-    # Compute (I - G) R^-1 Δ
-    @bm "accept_local (IG, R)" begin
-        @inbounds for m in axes(IG, 1)
-            IG[m, 1] = -G[m, i]
-            IG[m, 2] = -G[m, i+N]
-        end
-        IG[i, 1] += 1.0
-        IG[i+N, 2] += 1.0
-        vmul!(RΔ, R, Δ)
-        vmul!(IGR, IG, RΔ)
-    end
-
-    # Slowest part, don't think there's much more we can do
-    @bm "accept_local (finalize computation)" begin
-        # G = G - IG * (R * Δ) * G[i:N:end, :]
-
-        # @turbo for m in axes(G, 1), n in axes(G, 2)
-        #     mc.s.greens_temp[m, n] = IGR[m, 1] * G[i, n] + IGR[m, 2] * G[i+N, n]
-        # end
-
-        # @turbo for m in axes(G, 1), n in axes(G, 2)
-        #     G[m, n] = G[m, n] - mc.s.greens_temp[m, n]
-        # end
-
-        # BlockDiagonal version
-        G1 = G.blocks[1]
-        G2 = G.blocks[2]
-        temp1 = mc.stack.greens_temp.blocks[1]
-        temp2 = mc.stack.greens_temp.blocks[2]
-
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            temp1[m, n] = IGR[m, 1] * G1[i, n]
-        end
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            temp2[m, n] = IGR[m+N, 2] * G2[i, n]
-        end
-
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            G1[m, n] = G1[m, n] - temp1[m, n]
-        end
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            G2[m, n] = G2[m, n] - temp2[m, n]
-        end
-
-        # Always
-        conf[i, slice] *= -1
-    end
-
-    nothing
-end
-
-
-@inline function energy_boson(mc::DQMC, m::HubbardModelRepulsive, hsfield = conf(mc))
-    # There is no purely bosonic part in the partition function
-    0.0
 end
 
 greens(mc::DQMC, model::HubbardModelRepulsive) = greens(mc)
@@ -288,5 +147,5 @@ to_tag(::Type{<: HubbardModelRepulsive}) = Val(:HubbardModelRepulsive)
 
 function intE_kernel(mc, model::HubbardModelRepulsive, G::GreensMatrix)
     # up-down zero
-    model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
+    - model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
 end

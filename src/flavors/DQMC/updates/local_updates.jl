@@ -21,12 +21,12 @@ Performs a sweep of local moves along spatial dimension at the current
 imaginary time slice.
 """
 @bm function sweep_spatial(mc::DQMC, m)
-    N = size(conf(mc), 1)
+    N = size(conf(field(mc)), 1)
 
     # @inbounds for i in rand(1:N, N)
     accepted = 0
     @inbounds for i in 1:N
-        detratio, ΔE_boson, passthrough = propose_local(mc, m, i, current_slice(mc), conf(mc))
+        detratio, ΔE_boson, passthrough = propose_local(mc, m, field(mc), i, current_slice(mc))
 
         if mc.parameters.check_sign_problem
             if abs(imag(detratio)) > 1e-6
@@ -50,7 +50,7 @@ imaginary time slice.
         # p = p / (1.0 + p)
         # Metropolis
         if p > 1 || rand() < p
-            accept_local!(mc, m, i, current_slice(mc), conf(mc), detratio, ΔE_boson, passthrough)
+            accept_local!(mc, m, field(mc), i, current_slice(mc), detratio, ΔE_boson, passthrough)
             accepted += 1
         end
     end
@@ -78,5 +78,5 @@ sites and `M` is the number of time slices.
 """
 LocalSweep(mc, model, N=1) = N == 1 ? LocalSweep() : LocalSweep(N)
 LocalSweep(N) = [LocalSweep() for _ in 1:N]
-@bm update(::LocalSweep, mc::DQMC, model) = local_sweep(mc, model) / 2length(conf(mc))
+@bm update(::LocalSweep, mc::DQMC, model, field) = local_sweep(mc, model) / 2length(field)
 name(::LocalSweep) = "LocalSweep"

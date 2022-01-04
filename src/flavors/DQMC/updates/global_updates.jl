@@ -11,6 +11,10 @@
 # * all weights (det(G)) should be real positive
 # * local updates already check ratios (det(G)/det(G')) so it's probably OK to 
 #   ignore phases here!?
+# * With the introduction of fields we now pass it through slice matrix 
+#   functions because we dispatch on it down the line. (interaction_matrix_exp!)
+#   These functions now assume the conf that matters to be field.conf, so we
+#   need to update that instead of a temp_conf
 
 
 
@@ -55,8 +59,8 @@ end
 # fully. We use that det(UDT) = prod(D), i.e. that det(U) = 1 by definition and
 # det(T) = 1 because T is unit-triangular by construction
 @bm function inv_det(
-        mc::DQMC, slice::Int, 
-        conf::AbstractArray = mc.conf, safe_mult::Int = mc.parameters.safe_mult
+        mc::DQMC, slice::Int, field::AbstractField, 
+        safe_mult::Int = mc.parameters.safe_mult
     )
     copyto!(mc.stack.curr_U, I)
     copyto!(mc.stack.Ur, I)
@@ -69,13 +73,13 @@ end
         stop = mc.parameters.slices
         for k in reverse(start:stop)
             if mod(k,safe_mult) == 0
-                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
                 vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dr))
                 udt_AVX_pivot!(mc.stack.curr_U, mc.stack.Dr, mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv)
                 copyto!(mc.stack.tmp2, mc.stack.Tr)
                 vmul!(mc.stack.Tr, mc.stack.tmp1, mc.stack.tmp2)
             else
-                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
             end
         end
         vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dr))
@@ -96,13 +100,13 @@ end
         stop = slice
         for k in start:stop
             if mod(k,safe_mult) == 0
-                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
                 vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dl))
                 udt_AVX_pivot!(mc.stack.curr_U, mc.stack.Dl, mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv)
                 copyto!(mc.stack.tmp2, mc.stack.Tl)
                 vmul!(mc.stack.Tl, mc.stack.tmp1, mc.stack.tmp2)
             else
-                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
             end
         end
         vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dl))
@@ -126,7 +130,7 @@ end
 
 
 
-@bm function propose_global_from_conf(mc::DQMC, m::Model, conf::AbstractArray)
+@bm function propose_global_from_conf(mc::DQMC, m::Model, field::AbstractField)
     # I don't think we need this...
     @assert mc.stack.current_slice == 1
     @assert mc.stack.direction == 1
@@ -141,7 +145,7 @@ end
     # where Ur, Ul, Tl only contribute complex phases and Tr contributes 1
     # Since we are already checking for sign problems in local updates we ignore
     # the phases here and set det(G) = 1 / det(Dr)
-    inv_det(mc, current_slice(mc)-1, conf)
+    inv_det(mc, current_slice(mc)-1, field)
 
     # This loop helps with stability - it multiplies large and small numbers
     # whihc avoid reaching extremely large or small (typemin/max) floats
@@ -149,20 +153,19 @@ end
     for i in eachindex(mc.stack.tempvf)
         detratio *= mc.stack.tempvf[i] * mc.stack.Dr[i]
     end
-    ΔE_Boson = energy_boson(mc, m, conf) - energy_boson(mc, m)
+    ΔE_Boson = energy_boson(field, conf(field)) - energy_boson(field, temp_conf(field))
     
     # @info detratio
     return detratio, ΔE_Boson, nothing
 end
 
-@bm function accept_global!(mc::DQMC, m::Model, conf, passthrough)
+@bm function accept_global!(mc::DQMC, m::Model, field, passthrough)
     # for checking
     # new_G = finish_calculate_greens(
     #     mc.stack.Ul, mc.stack.Dl, mc.stack.Tl, mc.stack.Ur, mc.stack.Dr, mc.stack.Tr,
     #     mc.stack.greens_temp, mc.stack.pivot, mc.stack.tempv
     # )
 
-    copyto!(mc.conf, conf)
     # Need a full stack rebuild
     reverse_build_stack(mc, mc.stack)
     # This calculates greens
@@ -178,8 +181,8 @@ end
 
 
 # This does a MC update with the given temp_conf as the proposed new_conf
-function global_update(mc::DQMC, model::Model, temp_conf::AbstractArray)
-    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, temp_conf)
+function global_update(mc::DQMC, model::Model, field::AbstractField)
+    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, field)
 
     p = exp(- ΔE_boson) * detratio
     @assert imag(p) == 0.0 "p = $p should always be real because ΔE_boson = $ΔE_boson and detratio = $detratio should always be real..."
@@ -189,8 +192,10 @@ function global_update(mc::DQMC, model::Model, temp_conf::AbstractArray)
     # p = p / (1.0 + p)
     # Metropolis
     if p > 1 || rand() < p
-        accept_global!(mc, model, temp_conf, passthrough)
+        accept_global!(mc, model, field, passthrough)
         return 1
+    else
+        copyto!(field.conf, field.temp_conf)
     end
 
     return 0
@@ -205,6 +210,12 @@ end
 
 
 abstract type AbstractGlobalUpdate <: AbstractUpdate end
+requires_temp_conf(update::AbstractGlobalUpdate) = true
+@inline function update(u::AbstractGlobalUpdate, mc, model, field)
+    propose_conf!(u, mc, model, field)
+    return global_update(mc, model, field)
+end
+
 
 
 
@@ -217,10 +228,11 @@ struct GlobalFlip <: AbstractGlobalUpdate end
 GlobalFlip(mc, model) = GlobalFlip()
 name(::GlobalFlip) = "GlobalFlip"
 
-@bm function update(u::GlobalFlip, mc, model)
-    c = conf(mc)
-    @. mc.temp_conf = -c
-    return global_update(mc, model, mc.temp_conf)
+@bm function propose_conf!(::GlobalFlip, mc, model, field)
+    c = conf(field); tc = temp_conf(field)
+    copyto!(tc, c)
+    c .*= -1
+    return nothing
 end
 
 
@@ -236,10 +248,10 @@ GlobalShuffle(mc, model) = GlobalShuffle()
 name(::GlobalShuffle) = "GlobalShuffle"
 
 
-@bm function update(u::GlobalShuffle, mc, model)
-    copyto!(mc.temp_conf, conf(mc))
-    shuffle!(mc.temp_conf)
-    return global_update(mc, model, mc.temp_conf)
+@bm function propose_conf!(::GlobalShuffle, mc, model, field)
+    copyto!(temp_conf(field), conf(field))
+    shuffle!(conf(field))
+    return nothing
 end
 
 
@@ -265,12 +277,14 @@ end
 name(::SpatialShuffle) = "SpatialShuffle"
 
 
-@bm function update(u::SpatialShuffle, mc, model)
+@bm function propose_conf!(u::SpatialShuffle, mc, model, field)
+    c = conf(field); tc = temp_conf(field)
+    copyto!(tc, c)
     shuffle!(u.indices)
     for slice in 1:nslices(mc), (i, j) in enumerate(u.indices)
-        mc.temp_conf[i, slice] = mc.conf[j, slice]
+        c[i, slice] = tc[j, slice]
     end
-    return global_update(mc, model, mc.temp_conf)
+    return nothing
 end
 
 
@@ -296,12 +310,14 @@ end
 name(::TemporalShuffle) = "TemporalShuffle"
 
 
-@bm function update(u::TemporalShuffle, mc, model)
+@bm function propose_conf!(u::TemporalShuffle, mc, model, field)
+    c = conf(field); tc = temp_conf(field)
+    copyto!(tc, c)
     shuffle!(u.indices)
     for (k, l) in enumerate(u.indices), i in 1:length(lattice(mc))
-        mc.temp_conf[i, k] = mc.conf[i, l]
+        c[i, k] = tc[i, l]
     end
-    return global_update(mc, model, mc.temp_conf)
+    return nothing
 end
 
 
@@ -317,15 +333,17 @@ Denoise(mc, model) = Denoise()
 name(::Denoise) = "Denoise"
 
 
-@bm function update(::Denoise, mc, model)
+@bm function propose_conf!(::Denoise, mc, model, field)
+    c = conf(field); tc = temp_conf(field)
+    copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))
-        average = mc.conf[i, slice]
+        average = tc[i, slice]
         for j in neighbors(lattice(model), i)
-            average += 2 * mc.conf[j, slice]
+            average += 2 * tc[j, slice]
         end
-        mc.temp_conf[i, slice] = sign(average)
+        c[i, slice] = sign(average)
     end
-    return global_update(mc, model, mc.temp_conf)
+    return nothing
 end
 
 
@@ -341,15 +359,17 @@ DenoiseFlip(mc, model) = DenoiseFlip()
 name(::DenoiseFlip) = "DenoiseFlip"
 
 
-@bm function update(::DenoiseFlip, mc, model)
+@bm function propose_conf!(::DenoiseFlip, mc, model, field)
+    c = conf(field); tc = temp_conf(field)
+    copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))
-        average = mc.conf[i, slice]
+        average = tc[i, slice]
         for j in neighbors(lattice(model), i)
-            average += 2 * mc.conf[j, slice]
+            average += 2 * tc[j, slice]
         end
-        mc.temp_conf[i, slice] = -sign(average)
+        c[i, slice] = -sign(average)
     end
-    return global_update(mc, model, mc.temp_conf)
+    return nothing
 end
 
 
@@ -364,13 +384,15 @@ StaggeredDenoise(mc, model) = StaggeredDenoise()
 name(::StaggeredDenoise) = "StaggeredDenoise"
 
 
-@bm function update(::StaggeredDenoise, mc, model)
+@bm function propose_conf!(::StaggeredDenoise, mc, model, field)
+    c = conf(field); tc = temp_conf(field)
+    copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))
-        average = mc.conf[i, slice]
+        average = tc[i, slice]
         for j in neighbors(lattice(model), i)
-            average += 2 * mc.conf[j, slice]
+            average += 2 * tc[j, slice]
         end
-        mc.temp_conf[i, slice] = (1 - 2 * (i % 2)) * sign(average)
+        c[i, slice] = (1 - 2 * (i % 2)) * sign(average)
     end
-    return global_update(mc, model, mc.temp_conf)
+    return nothing
 end

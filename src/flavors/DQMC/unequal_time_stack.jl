@@ -61,7 +61,7 @@ function initialize_stack(mc::DQMC, s::UnequalTimeStack)
     GreensElType  = geltype(mc)
     GreensMatType = gmattype(mc)
     N = length(lattice(mc))
-    flv = nflavors(mc.model)
+    flv = nflavors(field(mc))
     # mirror stack
     M = mc.stack.n_elements
 
