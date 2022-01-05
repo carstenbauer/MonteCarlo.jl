@@ -30,12 +30,6 @@ element G[i, j] corresponds to the up-up and down-down element.
     @assert U >= 0. "U must be positive."
     t::Float64 = 1.0
     l::LT
-
-    # non-user fields
-    flv::Int = 1
-    # to avoid allocations (TODO always real?)
-    IG::Vector{Float64} = Vector{Float64}(undef, length(l))
-    G::Vector{Float64} = Vector{Float64}(undef, length(l))
 end
 
 
@@ -109,7 +103,6 @@ function save_model(
     write(file, entryname * "/U", m.U)
     write(file, entryname * "/t", m.t)
     save_lattice(file, m.l, entryname * "/l")
-    write(file, entryname * "/flv", m.flv)
 
     nothing
 end
@@ -129,7 +122,6 @@ function _load(data, ::Val{:HubbardModelAttractive})
         U = data["U"],
         t = data["t"],
         l = l,
-        flv = data["flv"]
     )
 end
 to_tag(::Type{<: HubbardModelAttractive}) = Val(:HubbardModelAttractive)
@@ -138,6 +130,8 @@ to_tag(::Type{<: HubbardModelAttractive}) = Val(:HubbardModelAttractive)
 ################################################################################
 ### Measurement kernels
 ################################################################################
+
+
 checkflavors(mc, m::HubbardModelAttractive) = checkflavors(mc, m, 1)
 
 

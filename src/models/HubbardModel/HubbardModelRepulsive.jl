@@ -28,15 +28,6 @@ greens matrix is used.
 
     # mandatory (this or (L, dims))
     l::LT
-
-    # # non-user fields
-    # flv::Int = 2
-    # # to avoid allocations (TODO always real?)
-    # IG::Matrix{Float64}  = Matrix{Float64}(undef, 2length(l), 2)
-    # IGR::Matrix{Float64} = Matrix{Float64}(undef, 2length(l), 2)
-    # R::Matrix{Float64}   = Matrix{Float64}(undef, 2, 2)
-    # Δ::Diagonal{Float64, Vector{Float64}} = Diagonal(Vector{Float64}(undef, 2))
-    # RΔ::Matrix{Float64}  = Matrix{Float64}(undef, 2, 2)
 end
 
 
@@ -67,9 +58,8 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelRepulsive) = print(io,
 # optional optimization
 hopping_matrix_type(::Type{DQMC}, ::HubbardModelRepulsive) = BlockDiagonal{Float64, 2, Matrix{Float64}}
 greens_matrix_type( ::Type{DQMC}, ::HubbardModelRepulsive) = BlockDiagonal{Float64, 2, Matrix{Float64}}
-
-
 choose_field(::HubbardModelRepulsive) = MagneticHirschField
+
 
 """
     hopping_matrix(mc::DQMC, m::HubbardModelRepulsive)
@@ -113,7 +103,6 @@ function save_model(
     write(file, entryname * "/U", m.U)
     write(file, entryname * "/t", m.t)
     save_lattice(file, m.l, entryname * "/l")
-    write(file, entryname * "/flv", m.flv)
 
     nothing
 end
@@ -132,7 +121,6 @@ function _load(data, ::Val{:HubbardModelRepulsive})
         U = data["U"],
         t = data["t"],
         l = l,
-        flv = data["flv"]
     )
 end
 to_tag(::Type{<: HubbardModelRepulsive}) = Val(:HubbardModelRepulsive)
