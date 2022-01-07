@@ -23,9 +23,9 @@
         @test m.t == 0.5
         @test typeof(m) == T{SquareLattice}
         
-        d = Dict(:l => l, :U => 0.5)
+        d = Dict(:l => l, :U => T == HubbardModelAttractive ? 0.5 : -0.5)
         m = T(d)
         @test typeof(m) == T{SquareLattice}
-        @test m.U == 0.5
+        @test m.U == (T == HubbardModelAttractive ? 0.5 : -0.5)
     end
 end

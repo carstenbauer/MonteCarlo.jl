@@ -42,11 +42,6 @@ macro benchmark_test(name, code)
 end
 
 @testset "All Tests" begin
-    # println("Gauß-Hermite Quadrature")
-    # @time @testset "Gauß-Hermite Quadrature" begin
-    #     include("GaußHermiteModel.jl")
-    # end
-
     println("Utilities")
     @time @testset "Utilities" begin
         @bm function test1(x, y)
@@ -130,6 +125,11 @@ end
         include("ED/ED_tests.jl")
     end
     # 71.714791 seconds (52.37 M allocations: 14.521 GiB, 1.82% gc time, 4.57% compilation time)
+
+    println("Gauß-Hermite Quadrature")
+    @time @testset "Gauß-Hermite Quadrature" begin
+        include("GaußHermiteModel.jl")
+    end
 
     println("File IO")
     @time @testset "File IO" begin

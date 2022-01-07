@@ -82,6 +82,7 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:Abstra
         end
     end
 
+    # TODO we need to adjust this based on field type (flavors)
     return T
 end
 

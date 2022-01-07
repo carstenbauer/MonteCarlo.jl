@@ -291,7 +291,7 @@ function test_dqmc(mc, x)
     for f in fieldnames(typeof(mc.model.l))
         @test getfield(mc.model.l, f) == getfield(x.model.l, f)
     end
-    @test mc.model.flv == x.model.flv
+    @test MonteCarlo.nflavors(mc.field) == MonteCarlo.nflavors(x.field)
     @test mc.scheduler == x.scheduler
     for (k, v) in mc.thermalization_measurements
         for f in fieldnames(typeof(v))

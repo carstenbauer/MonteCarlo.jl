@@ -1,22 +1,31 @@
-@testset "Weights and Nodes" begin
-    # Make sure the optimized results match the mathematical formulas
-    # See ALF Documentation for the formulas
-    @test MonteCarlo._γ(-2) ≈ Float64(BigFloat(1) - sqrt(BigFloat(6)) / BigFloat(3))  rtol=2e-15 
-    @test MonteCarlo._γ(-1) ≈ Float64(BigFloat(1) + sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
-    @test MonteCarlo._γ(+1) ≈ Float64(BigFloat(1) + sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
-    @test MonteCarlo._γ(+2) ≈ Float64(BigFloat(1) - sqrt(BigFloat(6)) / BigFloat(3))  rtol=2e-15 
+@testset "Lookup tables" begin
+    param = MonteCarlo.DQMCParameters(beta = 1.0)
+    model = HubbardModelRepulsive(2, 2)
+    field = MagneticGHQField(param, model)
+
+    @test field.α == sqrt(-0.5 * 0.1 * model.U)
     
-    @test MonteCarlo._η(-2) ≈ Float64(- sqrt(BigFloat(2) * (BigFloat(3) + sqrt(BigFloat(6)))))  rtol=1e-15
-    @test MonteCarlo._η(-1) ≈ Float64(- sqrt(BigFloat(2) * (BigFloat(3) - sqrt(BigFloat(6)))))  rtol=1e-15
-    @test MonteCarlo._η(+1) ≈ Float64(+ sqrt(BigFloat(2) * (BigFloat(3) - sqrt(BigFloat(6)))))  rtol=1e-15
-    @test MonteCarlo._η(+2) ≈ Float64(+ sqrt(BigFloat(2) * (BigFloat(3) + sqrt(BigFloat(6)))))  rtol=1e-15    
+    # See ALF Documentation for the formulas of η and γ
+    @test field.γ[3 + -2] ≈ Float64(BigFloat(1) - sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
+    @test field.γ[3 + -1] ≈ Float64(BigFloat(1) + sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
+    @test field.γ[3 + +1] ≈ Float64(BigFloat(1) + sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
+    @test field.γ[3 + +2] ≈ Float64(BigFloat(1) - sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
+    
+    @test field.η[3 + -2] ≈ Float64(- sqrt(BigFloat(2) * (BigFloat(3) + sqrt(BigFloat(6)))))  rtol=1e-15
+    @test field.η[3 + -1] ≈ Float64(- sqrt(BigFloat(2) * (BigFloat(3) - sqrt(BigFloat(6)))))  rtol=1e-15
+    @test field.η[3 + +1] ≈ Float64(+ sqrt(BigFloat(2) * (BigFloat(3) - sqrt(BigFloat(6)))))  rtol=1e-15
+    @test field.η[3 + +2] ≈ Float64(+ sqrt(BigFloat(2) * (BigFloat(3) + sqrt(BigFloat(6)))))  rtol=1e-15
+
+    @test field.choices[3 + -2, :] == [-1, +1, +2]
+    @test field.choices[3 + -1, :] == [-2, +1, +2]
+    @test field.choices[3 + +1, :] == [-2, -1, +2]
+    @test field.choices[3 + +2, :] == [-2, -1, +1]
 end
 
 @testset "Exact Greens test" begin
-    # Note - this relies on γ not affecting exp(... V) or G
     models = (
-        RepulsiveGHQHubbardModel(l = SquareLattice(5), U = 0.0),
-        AttractiveGHQHubbardModel(l = SquareLattice(5), U = 0.0)
+        HubbardModelRepulsive(l = SquareLattice(5), U = 0.0),
+        # HubbardModelAttractive(l = SquareLattice(5), U = 0.0)
     )
     for model in models
         for beta in (1.0, 8.9)
@@ -24,7 +33,7 @@ end
                 Random.seed!(123)
                 dqmc = DQMC(
                     model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
-                    thermalization = 1, sweeps = 2, measure_rate = 1
+                    thermalization = 1, sweeps = 2, measure_rate = 1, field = MagneticGHQField
                 )
                 # @info "Running DQMC ($(typeof(model).name.name)) β=$(dqmc.parameters.beta)"
 
@@ -56,14 +65,15 @@ include("ED/ED.jl")
 
 @testset "ED Comparison" begin
     models = (
-        RepulsiveGHQHubbardModel(l = SquareLattice(2), U = 1.0),
-        AttractiveGHQHubbardModel(l = SquareLattice(2), U = 1.0)
+        HubbardModelRepulsive(l = SquareLattice(2), U = -1.0),
+        # HubbardModelAttractive(l = SquareLattice(2), U = 1.0)
     )
     for model in models
         @testset "$(typeof(model).name.name)" begin
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
-                thermalization = 10_000, sweeps = 10_000, print_rate=1000
+                thermalization = 10_000, sweeps = 10_000, print_rate=1000, 
+                field = MagneticGHQField
             )
             print(
                 "  Running DQMC ($(typeof(model).name.name)) " * 
@@ -109,7 +119,7 @@ include("ED/ED.jl")
 
             # MonteCarlo.enable_benchmarks()
 
-            @time run!(dqmc, verbose=!true)
+            @time run!(dqmc, verbose = false)
             
             # Absolute tolerance from Trotter decompositon
             atol = 2.5dqmc.parameters.delta_tau^2
@@ -118,11 +128,7 @@ include("ED/ED.jl")
 
             print("    Running ED and checking (tolerance: $atol, $(100rtol)%)\n    ")
             @time begin
-                if model isa RepulsiveGHQHubbardModel
-                    H = HamiltonMatrix(HubbardModelRepulsive(2, 2, U = 1.0, t = 1.0))
-                else
-                    H = HamiltonMatrix(HubbardModelAttractive(2, 2, U = 1.0, t = 1.0))
-                end
+                H = HamiltonMatrix(model)
 
                 @testset "(total) energy" begin
                     dqmc_E = mean(dqmc[:E])
@@ -130,20 +136,15 @@ include("ED/ED.jl")
                     @test dqmc_E ≈ ED_E atol=atol rtol=rtol
                 end
             
-                # G_DQMC is smaller because it doesn't differentiate between spin up/down
                 @testset "Greens" begin
                     G_DQMC = mean(dqmc.measurements[:G])
-                    occs = mean(dqmc.measurements[:Occs])                                   # measuring
-                    # occs2 = mean(MonteCarlo.occupations(dqmc.measurements[:Greens]))            # wrapping
-                    # occs3 = mean(MonteCarlo.OccupationMeasurement(dqmc.measurements[:Greens]))  # copying
+                    occs = mean(dqmc.measurements[:Occs])
                     G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.parameters.beta)
                     for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
                         @test check(G_DQMC[i, j], G_ED[i, j], atol, rtol)
                     end
                     for i in 1:size(G_DQMC, 1)
                         @test check(occs[i],  1 - G_ED[i, i], atol, rtol)
-                        # @test isapprox(occs2[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
-                        # @test isapprox(occs3[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
                     end
                 end
 

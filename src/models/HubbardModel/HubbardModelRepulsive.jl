@@ -24,6 +24,7 @@ greens matrix is used.
 @with_kw_noshow struct HubbardModelRepulsive{LT<:AbstractLattice} <: HubbardModel
     # user optional
     U::Float64 = -1.0
+    @assert U <= 0. "U must be negative."
     t::Float64 = 1.0
 
     # mandatory (this or (L, dims))
