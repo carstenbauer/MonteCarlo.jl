@@ -6,20 +6,20 @@
     @test field.α == sqrt(-0.5 * 0.1 * model.U)
     
     # See ALF Documentation for the formulas of η and γ
-    @test field.γ[3 + -2] ≈ Float64(BigFloat(1) - sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
-    @test field.γ[3 + -1] ≈ Float64(BigFloat(1) + sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
-    @test field.γ[3 + +1] ≈ Float64(BigFloat(1) + sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
-    @test field.γ[3 + +2] ≈ Float64(BigFloat(1) - sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
+    @test field.γ[1] ≈ Float64(BigFloat(1) - sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
+    @test field.γ[2] ≈ Float64(BigFloat(1) + sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
+    @test field.γ[3] ≈ Float64(BigFloat(1) + sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
+    @test field.γ[4] ≈ Float64(BigFloat(1) - sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
     
-    @test field.η[3 + -2] ≈ Float64(- sqrt(BigFloat(2) * (BigFloat(3) + sqrt(BigFloat(6)))))  rtol=1e-15
-    @test field.η[3 + -1] ≈ Float64(- sqrt(BigFloat(2) * (BigFloat(3) - sqrt(BigFloat(6)))))  rtol=1e-15
-    @test field.η[3 + +1] ≈ Float64(+ sqrt(BigFloat(2) * (BigFloat(3) - sqrt(BigFloat(6)))))  rtol=1e-15
-    @test field.η[3 + +2] ≈ Float64(+ sqrt(BigFloat(2) * (BigFloat(3) + sqrt(BigFloat(6)))))  rtol=1e-15
+    @test field.η[1] ≈ Float64(- sqrt(BigFloat(2) * (BigFloat(3) + sqrt(BigFloat(6)))))  rtol=1e-15
+    @test field.η[2] ≈ Float64(- sqrt(BigFloat(2) * (BigFloat(3) - sqrt(BigFloat(6)))))  rtol=1e-15
+    @test field.η[3] ≈ Float64(+ sqrt(BigFloat(2) * (BigFloat(3) - sqrt(BigFloat(6)))))  rtol=1e-15
+    @test field.η[4] ≈ Float64(+ sqrt(BigFloat(2) * (BigFloat(3) + sqrt(BigFloat(6)))))  rtol=1e-15
 
-    @test field.choices[3 + -2, :] == [-1, +1, +2]
-    @test field.choices[3 + -1, :] == [-2, +1, +2]
-    @test field.choices[3 + +1, :] == [-2, -1, +2]
-    @test field.choices[3 + +2, :] == [-2, -1, +1]
+    @test field.choices[1, :] == Int8[2, 3, 4]
+    @test field.choices[2, :] == Int8[1, 3, 4]
+    @test field.choices[3, :] == Int8[1, 2, 4]
+    @test field.choices[4, :] == Int8[1, 2, 3]
 end
 
 @testset "Exact Greens test" begin

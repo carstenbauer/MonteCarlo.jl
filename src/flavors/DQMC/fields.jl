@@ -366,28 +366,30 @@ end
 ### Gauß-Hermite Quadrature
 ################################################################################
 
-# TODO simplify field -2, -1, 1, 2 -> 1, 2, 3, 4
 
 abstract type AbstractGHQField <: AbstractField end
 
-Base.rand(f::AbstractGHQField) = rand((Int8(-2), Int8(-1), Int8(1), Int8(2)), size(f.conf))
-Random.rand!(f::AbstractGHQField) = rand!(f.conf, (Int8(-2), Int8(-1), Int8(1), Int8(2)))
+
+# These represent (-2, -1, +1, 2)
+const _GHQVALS = (Int8(1), Int8(2), Int8(3), Int8(4))
+Base.rand(f::AbstractGHQField) = rand(_GHQVALS, size(f.conf))
+Random.rand!(f::AbstractGHQField) = rand!(f.conf, _GHQVALS)
 compressed_conf_type(::AbstractGHQField) = BitArray
 function compress(f::AbstractGHQField)
-    # converts (-2, -1, 1, 2) -> (10, 00, 01, 11)
-    # first bit is value (0 -> 1, 1 -> 2), second is sign (0 -> -, 1 -> +)
-    BitArray((abs(v) == 2, sign(v) == 1)[step] for v in f.conf for step in (1, 2))
+    # converts (1, 2, 3, 4) -> (00, 01, 10, 11)
+    BitArray((div(v-1, 2), (v-1) % 2)[step] for v in f.conf for step in (1, 2))
 end
 function decompress(::AbstractGHQField, c)
+    # converts (00, 01, 10, 11) -> (1, 2, 3, 4)
     map(1:2:length(c)) do i
-        # (c[i] ? 2 : 1)       * (c[i+1] ? +1 : -1)
-        (Int8(1) + Int8(c[i])) * (Int8(2) * Int8(c[i+1]) - Int8(1))
+        #  1    +    2 * bit1    +    bit2
+        Int8(1) + Int8(2) * c[i] + Int8(c[i+1])
     end
 end
 function decompress!(f::AbstractGHQField, c)
     for i in eachindex(f.conf)
-        #               (c[2i-1] ? 2 : 1)     *        (c[2i] ? +1 : -1)
-        f.conf[i] = (Int8(1) + Int8(c[2i-1])) * (Int8(2) * Int8(c[2i]) - Int8(1))
+        #  1    +    2 * bit1    +    bit2
+        Int8(1) + Int8(2) * c[i] + Int8(c[i+1])
     end
 end
 
@@ -426,15 +428,9 @@ function MagneticGHQField(param::DQMCParameters, model, U = model.U)
     _α = sqrt(-0.5 * param.delta_tau * ComplexF64(U))
     α = abs(imag(_α)) < 1e-12 ? real(_α) : _α
     s6 = sqrt(6)
-    gammas = Float64[1 - s6/3, 1 + s6/3, 0, 1 + s6/3, 1 - s6/3]
-    etas = Float64[-sqrt(6 + 2s6), -sqrt(6 - 2s6), 0, sqrt(6 - 2s6), sqrt(6 + 2s6)]
-    choices = Int8[
-        -1  1  2;
-        -2  1  2;
-         0  0  0;
-        -2 -1  2;
-        -2 -1  1   
-    ]
+    gammas = Float64[1 - s6/3, 1 + s6/3, 1 + s6/3, 1 - s6/3]
+    etas = Float64[-sqrt(6 + 2s6), -sqrt(6 - 2s6), sqrt(6 - 2s6), sqrt(6 + 2s6)]
+    choices = Int8[2 3 4; 1 3 4; 1 2 4; 1 2 3]
 
     N = length(lattice(model))
     MagneticGHQField(
@@ -463,10 +459,10 @@ energy_boson(mc, ::MagneticGHQField, conf=nothing) = 0.0
     )
     N = size(f.conf, 1)
     @inbounds for i in 1:N
-        result.diag[i]   = exp(+power * f.α * f.η[3 + f.conf[i, slice]])
+        result.diag[i]   = exp(+power * f.α * f.η[f.conf[i, slice]])
     end
     @inbounds for i in 1:N
-        result.diag[i+N] = exp(-power * f.α * f.η[3 + f.conf[i, slice]])
+        result.diag[i+N] = exp(-power * f.α * f.η[f.conf[i, slice]])
     end
 
     nothing
@@ -476,9 +472,9 @@ end
 @inline @bm function MonteCarlo.propose_local(mc, f::MagneticGHQField, G, i, slice)
     N = size(f.conf, 1)
     x_old = f.conf[i, slice]
-    x_new = @inbounds f.choices[3 + x_old, rand(1:3)]
+    x_new = @inbounds f.choices[x_old, rand(1:3)]
 
-    exp_ratio = exp(f.α * (f.η[3 + x_new] - f.η[3 + x_old]))
+    exp_ratio = exp(f.α * (f.η[x_new] - f.η[x_old]))
     f.Δ.diag[1] = exp_ratio - 1.0
     f.Δ.diag[2] = 1 / exp_ratio - 1.0
 
@@ -490,7 +486,7 @@ end
     
     detratio = f.R[1, 1] * f.R[2, 2] - f.R[1, 2] * f.R[2, 1]
     
-    return detratio * f.γ[3+x_new] / f.γ[3+x_old], 0.0, (x_new, detratio)
+    return detratio * f.γ[x_new] / f.γ[x_old], 0.0, (x_new, detratio)
 end
 
 
