@@ -59,10 +59,6 @@ const JLDFile = Union{FileWrapper{<: JLD.JldFile}, FileWrapper{<: JLD2.JLDFile},
 
 include("helpers.jl")
 export enable_benchmarks, disable_benchmarks, print_timer, reset_timer!
-include("linalg/general.jl")
-include("linalg/UDT.jl")
-include("linalg/complex.jl") # TODO
-include("linalg/blockdiagonal.jl")
 include("flavors/abstract.jl")
 include("models/abstract.jl")
 include("lattices/abstract.jl")

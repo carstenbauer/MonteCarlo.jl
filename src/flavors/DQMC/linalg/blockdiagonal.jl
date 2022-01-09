@@ -1,10 +1,3 @@
-# TODO
-# - find need allocations in attractive case
-# - decimate allocations here
-# - I guess maybe it's additional Diagonal's etc?
-
-
-
 ################################################################################
 ### Type and general utility
 ################################################################################
@@ -23,7 +16,7 @@ Notes:
 `size`, `copy`, `log`, `exp`, `det`, `*`
 - BlockDiagonal of 2 equally sized square matrices is heavily tested and used
 - BlockDiagonal of more equally sized square matrices should work
-- irregularly sized and non-square matrices sometimes work (TODO)
+- irregularly sized and non-square matrices are not supported
 - methods generally assume correct size and use @inbounds for performance.
 """
 struct BlockDiagonal{T, N, AT <: AbstractMatrix{T}} <: AbstractMatrix{T}
@@ -74,11 +67,8 @@ const BD{N} = BlockDiagonal{<: Number, N}
 
 function Base.Matrix(B::BlockDiagonal{T, N}) where {T, N}
     n = size(B.blocks[1], 1)
-    M = N * n
-    output = zeros(T, M, M)
-    for i in 1:N
-        @views copyto!(output[(i-1)*n+1 : i*n, (i-1)*n+1 : i*n], B.blocks[i])
-    end
+    output = zeros(T, N * n, N * n)
+    copyto!(output, B)
     output
 end
 
@@ -165,7 +155,7 @@ function Base.:(*)(B1::BlockDiagonal{T1, N}, B2::BlockDiagonal{T2, N}) where {T1
 end
 
 function Base.exp(B::BlockDiagonal)
-    BlockDiagonal(map(block -> exp(block), B.blocks)...)
+    BlockDiagonal(map(block -> exp(block), B.blocks))
 end
 
 # This takes super long to compile...? 
@@ -208,92 +198,63 @@ function vmul!(C::BD{N}, A::BD{N}, B::BD{N}) where {N}
     @inbounds for i in 1:N
         vmul!(C.blocks[i], A.blocks[i], B.blocks[i])
     end
+    nothing
 end
 function vmul!(C::BD{N}, A::BD{N}, B::Diagonal) where {N}
-    # Assuming correct size
-    n = 0
+    n = size(C.blocks[1], 1)
     @inbounds for i in 1:N
-        c = C.blocks[i]
-        a = A.blocks[i]
-        s = 1+n
-        n += size(a, 1)
-        vmul!(c, a, B, s:n)
+        vmul!(C.blocks[i], A.blocks[i], B, (i-1)*n+1 : i*n)
     end
+    nothing
 end
 function vmul!(C::BD{N}, A::Diagonal, B::BD{N}) where {N}
     # Assuming correct size
-    n = 0
+    n = size(C.blocks[1], 1)
     @inbounds for i in 1:N
-        c = C.blocks[i]
-        b = B.blocks[i]
-        s = 1+n
-        n += size(b, 1)
-        vmul!(c, A, b, s:n)
+        vmul!(C.blocks[i], A, B.blocks[i], (i-1)*n+1 : i*n)
     end
+    nothing
 end
-function vmul!(C::BD{N}, A::BD{N}, X::Adjoint) where {N}
-    B = X.parent
+function vmul!(C::BD{N}, A::BD{N}, B::Adjoint) where {N}
     @inbounds for i in 1:N
-        a = A.blocks[i]
-        b = B.blocks[i]
-        c = C.blocks[i]
-        vmul!(c, a, Adjoint(b))
+        vmul!(C.blocks[i], A.blocks[i], Adjoint(B.parent.blocks[i]))
     end
 end
-function vmul!(C::BD{N}, X::Adjoint, B::BD{N}) where {N}
-    A = X.parent
+function vmul!(C::BD{N}, A::Adjoint, B::BD{N}) where {N}
     @inbounds for i in 1:N
-        a = A.blocks[i]
-        b = B.blocks[i]
-        c = C.blocks[i]
-        vmul!(c, Adjoint(a), b)
+        vmul!(C.blocks[i], Adjoint(A.parent.blocks[i]), B.blocks[i])
     end
 end
-function vmul!(C::BD{N}, X1::Adjoint, X2::Adjoint) where {N}
-    A = X1.parent
-    B = X2.parent
+function vmul!(C::BD{N}, A::Adjoint, B::Adjoint) where {N}
     @inbounds for i in 1:N
-        a = A.blocks[i]
-        b = B.blocks[i]
-        c = C.blocks[i]
-        vmul!(c, Adjoint(a), Adjoint(b))
+        vmul!(C.blocks[i], Adjoint(A.parent.blocks[i]), Adjoint(B.parent.blocks[i]))
     end
 end
-function rvmul!(A::BlockDiagonal, B::Diagonal)
-    # Assuming correct size
-    n = 0
-    @inbounds for block in A.blocks
-        s = 1+n
-        n += size(block, 1)
-        @views rvmul!(block, Diagonal(B.diag[s:n]))
+function rvmul!(A::BD{N}, B::Diagonal) where {N}
+    n = size(A.blocks[1], 1)
+    @inbounds for i in 1:N
+        @views rvmul!(A.blocks[i], Diagonal(B.diag[(i-1)*n+1 : i*n]))
     end
 end
-function lvmul!(A::Diagonal, B::BlockDiagonal)
-    # Assuming correct size
-    n = 0
-    @inbounds for block in B.blocks
-        s = 1+n
-        n += size(block, 1)
-        @views lvmul!(Diagonal(A.diag[s:n]), block)
+function lvmul!(A::Diagonal, B::BD{N}) where {N}
+    n = size(B.blocks[1], 1)
+    @inbounds for i in 1:N
+        @views lvmul!(Diagonal(A.diag[(i-1)*n+1 : i*n]), B.blocks[i])
     end
 end
 
 # used in greens(k, l)
 function rvadd!(A::BD{N}, B::BD{N}) where {N}
     @inbounds for i in 1:N
-        a = A.blocks[i]
-        b = B.blocks[i]
-        rvadd!(a, b)
+        rvadd!(A.blocks[i], B.blocks[i])
     end
 end
 # used in equal time greens
 function rvadd!(B::BD{N}, D::Diagonal) where {N}
     # Assuming correct size
-    n = 0
-    @inbounds for block in B.blocks
-        s = 1+n
-        n += size(block, 1)
-        @views rvadd!(block, Diagonal(D.diag[s:n]))
+    n = size(B.blocks[1], 1)
+    @inbounds for i in 1:N
+        @views rvadd!(B.blocks[i], Diagonal(D.diag[(i-1)*n+1 : i*n]))
     end
 end
 # used in CombinedGreensIterator
@@ -356,11 +317,9 @@ end
 
 function rdivp!(A::BD, T::BD, O::BD, pivot) where {ET, N, BD <: BlockDiagonal{ET, N}}
     # Assuming correct size
-    n = 0
+    n = size(A.blocks[1], 1)
     @inbounds for i in 1:N
-        s = 1+n
-        n += size(A.blocks[i], 1)
-        @views rdivp!(A.blocks[i], T.blocks[i], O.blocks[i], pivot[s:n])
+        @views rdivp!(A.blocks[i], T.blocks[i], O.blocks[i], pivot[(i-1)*n+1 : i*n])
     end
     A
 end
