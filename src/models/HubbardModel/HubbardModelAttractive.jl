@@ -59,6 +59,7 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelAttractive) = print(io
 choose_field(::HubbardModelAttractive) = DensityHirschField
 
 
+
 """
 Calculates the hopping matrix \$T_{i, j}\$ where \$i, j\$ are
 site indices.
@@ -82,15 +83,13 @@ function hopping_matrix(mc::DQMC, m::HubbardModelAttractive{L}) where {L<:Abstra
         end
     end
 
-    # TODO we need to adjust this based on field type (flavors)
-    return T
+    if max(nflavors(field(mc)), nflavors(m)) == 1
+        return T
+    else
+        return BlockDiagonal(T, copy(T))
+    end
 end
 
-
-function greens(mc::DQMC, model::HubbardModelAttractive)
-    G = greens!(mc)
-    vcat(hcat(G, zeros(size(G))), hcat(zeros(size(G)), G))
-end
 
 function save_model(
         file::JLDFile,
@@ -131,9 +130,6 @@ to_tag(::Type{<: HubbardModelAttractive}) = Val(:HubbardModelAttractive)
 ################################################################################
 ### Measurement kernels
 ################################################################################
-
-
-checkflavors(mc, m::HubbardModelAttractive) = checkflavors(mc, m, 1)
 
 
 function cdc_kernel(mc, ::HubbardModelAttractive, ij::NTuple{2}, G::GreensMatrix)

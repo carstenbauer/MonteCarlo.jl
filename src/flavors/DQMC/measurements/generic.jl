@@ -189,10 +189,6 @@ GreensAt(k::Integer, l::Integer) = GreensAt(k, l)
 # GreensAt{k, l}(::DQMC, ::Model) where {k, l} = GreensAt(k, l)
 Base.:(==)(a::GreensAt, b::GreensAt) = (a.k == b.k) && (a.l == b.l)
 
-# maybe we want to some stuff to get custom indexing?
-# How would this integrate with greens iterators? maybe:
-# greens(mc::DQMC, model::Model) = greens(mc)
-
 
 requires(::AbstractMeasurement) = (Nothing, Nothing)
 requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)

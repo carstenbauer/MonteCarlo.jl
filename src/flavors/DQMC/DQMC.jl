@@ -50,13 +50,8 @@ function DQMC(model::M;
     field_data = field(parameters, model)
     rand!(field_data)
 
-    HET = hoppingeltype(DQMC, model)
-    GET = greenseltype(DQMC, model)
-    HMT = hopping_matrix_type(DQMC, model)
-    GMT = greens_matrix_type(DQMC, model)
-    IMT = interaction_matrix_type(field_data)
-    stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
-    ut_stack = UnequalTimeStack{GET, GMT}()
+    stack = DQMCStack(field_data, model)
+    ut_stack = UnequalTimeStack{geltype(stack), gmattype(stack)}()
 
     analysis = DQMCAnalysis()
     CB = checkerboard ? CheckerboardTrue : CheckerboardFalse

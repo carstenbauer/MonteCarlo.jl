@@ -29,8 +29,35 @@ end
 
 # implement DQMC interface: optional
 @inline lattice(m::HubbardModel) = m.l
-@inline greenseltype(::Type{DQMC}, m::HubbardModel) = Float64
+nflavors(::HubbardModel) = 1
+# @inline greenseltype(::Type{DQMC}, m::HubbardModel) = Float64
 
+hopping_eltype(model::HubbardModel) = typeof(model.t)
+function hopping_matrix_type(field::AbstractField, model::HubbardModel)
+    flv = max(nflavors(field), nflavors(model))
+    T = hopping_eltype(model)
+    MT = matrix_type(T)
+    if flv == 1
+        return MT
+    else
+        return BlockDiagonal{T, flv, MT}
+    end
+end
+
+function greens_matrix_type(f::AbstractHirschField{T}, m::HubbardModel) where {T}
+    if max(nflavors(f), nflavors(m)) == 1
+        return matrix_type(T)
+    else
+        return BlockDiagonal{T, 2, matrix_type(T)}
+    end
+end
+function greens_matrix_type(f::AbstractGHQField{T}, m::HubbardModel) where {T}
+    if max(nflavors(f), nflavors(m)) == 1
+        return matrix_type(T)
+    else
+        return BlockDiagonal{T, 2, matrix_type(T)}
+    end
+end
 
 include("HubbardModelAttractive.jl")
 include("HubbardModelRepulsive.jl")

@@ -47,18 +47,6 @@ end
 ################################################################################
 
 
-
-function checkflavors(mc, ::Model, N=2)
-    if nflavors(field(mc)) != N
-        @warn(
-            "$N flavors are required, but $(nflavors(field(mc))) have been found"
-        )
-    end
-    nothing
-end
-
-
-
 # This has lattice_iteratorator = Nothing, because it straight up copies G
 function greens_measurement(
         mc::DQMC, model::Model, greens_iterator = Greens(); 
@@ -90,7 +78,6 @@ function charge_density(
         mc::DQMC, model::Model, greens_iterator; 
         wrapper = nothing, lattice_iterator = EachSitePairByDistance(), kwargs...
     )
-    checkflavors(mc, model)
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     Measurement(mc, model, greens_iterator, li, cdc_kernel; kwargs...)
 end
@@ -114,7 +101,6 @@ function magnetization(
         mc::DQMC, model::Model, dir::Symbol; 
         wrapper = nothing, lattice_iterator = EachSite(), kwargs...
     )
-    checkflavors(mc, model)
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     if dir == :x; 
         return Measurement(mc, model, Greens(), li, mx_kernel; kwargs...)
@@ -133,7 +119,6 @@ function spin_density(
         dqmc, model, dir::Symbol, greens_iterator; 
         wrapper = nothing, lattice_iterator = EachSitePairByDistance(), kwargs...
     )
-    checkflavors(dqmc, model)
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     dir in (:x, :y, :z) || throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
     if     dir == :x

@@ -3,8 +3,11 @@ mutable struct DQMCStack{
         HoppingElType <: Number, 
         GreensMatType <: AbstractArray{GreensElType},
         HoppingMatType <: AbstractArray{HoppingElType},
-        InteractionMatType <: AbstractArray
+        InteractionMatType <: AbstractArray,
+        FieldCacheType <: AbstractFieldCache
     } <: AbstractDQMCStack
+
+    field_cache::FieldCacheType
 
     u_stack::Vector{GreensMatType}
     d_stack::Vector{Vector{Float64}}
@@ -63,10 +66,12 @@ mutable struct DQMCStack{
     chkr_mu_inv::SparseMatrixCSC{HoppingElType, Int64}
 
 
-    function DQMCStack{GET, HET, GMT, HMT, IMT}() where {
+    function DQMCStack{GET, HET, GMT, HMT, IMT}(field_cache::FCT) where {
             GET<:Number, HET<:Number, 
-            GMT<:AbstractArray{GET}, HMT<:AbstractArray{HET}, IMT<:AbstractArray
+            GMT<:AbstractArray{GET}, HMT<:AbstractArray{HET}, IMT<:AbstractArray,
+            FCT<:AbstractFieldCache
         }
+        @assert isconcretetype(FCT);
         @assert isconcretetype(GET);
         @assert isconcretetype(HET);
         @assert isconcretetype(GMT);
@@ -74,7 +79,9 @@ mutable struct DQMCStack{
         @assert isconcretetype(IMT);
         @assert eltype(GMT) == GET;
         @assert eltype(HMT) == HET;
-        new{GET, HET, GMT, HMT, IMT}()
+        stack = new{GET, HET, GMT, HMT, IMT, FCT}()
+        stack.field_cache = field_cache
+        return stack
     end
 end
 
@@ -90,6 +97,27 @@ heltype(mc::DQMC) = heltype(mc.stack)
 gmattype(mc::DQMC) = gmattype(mc.stack)
 hmattype(mc::DQMC) = hmattype(mc.stack)
 imattype(mc::DQMC) = imattype(mc.stack)
+
+
+# Would be cool to have a function that automatically determines the type but
+# I don't want to spend a lot of time on figuring that one out.
+# function greens_matrix_type(field::AbstractField, model::Model)
+#     IMT = interaction_matrix_type(field, model)
+#     HMT = hopping_matrix_type(field, model)
+#     ...
+# end
+
+function DQMCStack(field::AbstractField, model::Model)
+    # Why do we need eltypes?
+    HET = hopping_eltype(model)
+    GET = greens_eltype(field, model)
+    
+    IMT = interaction_matrix_type(field, model)
+    HMT = hopping_matrix_type(field, model)
+    GMT = greens_matrix_type(field, model)
+
+    DQMCStack{GET, HET, GMT, HMT, IMT}(FieldCache(field, model))
+end
 
 
 
@@ -160,17 +188,8 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
     mc.stack.tmp1 = GreensMatType(undef, flv*N, flv*N)
     mc.stack.tmp2 = GreensMatType(undef, flv*N, flv*N)
 
-
-    # mc.stack.ranges = UnitRange[]
-    # for i in 1:mc.stack.n_elements - 1
-    #     push!(
-    #         mc.stack.ranges, 
-    #         1 + (i - 1) * mc.parameters.safe_mult : i * mc.parameters.safe_mult
-    #     )
-    # end
-
     mc.stack.curr_U = GreensMatType(undef, flv*N, flv*N)
-    mc.stack.eV = init_interaction_matrix(field(mc))
+    mc.stack.eV = init_interaction_matrix(field(mc), model(mc))
 
     nothing
 end

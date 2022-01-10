@@ -1,43 +1,46 @@
 """
-    greenseltype(::Type{DQMC}, m::Model)
+    greens_eltype(field, model)
 
 Returns the type of the elements of the Green's function matrix. Defaults to 
-    `ComplexF64`.
+Float64 if both the hopping and interaction matrix contain floats and ComplexF64
+otherwise.
 """
-greenseltype(::Type{DQMC}, m::Model) = ComplexF64
+function greens_eltype(field::AbstractField, model::Model)
+    generalized_eltype(interaction_eltype(field), hopping_eltype(model))
+end
 
 """
-    hoppingeltype(::Type{DQMC}, m::Model)
+    hopping_eltype(model)
 
 Returns the type of the elements of the hopping matrix. Defaults to `Float64`.
 """
-hoppingeltype(::Type{DQMC}, m::Model) = Float64
+hopping_eltype(::Model) = Float64
 
 
+
+# """
+#     interaction_matrix_type(T::Type{DQMC}, m::Model)
+
+# Returns the (matrix) type of the interaction matrix. Defaults to 
+# `Matrix{greenseltype(T, m)}`.
+# """
+# interaction_matrix_type(T::Type{DQMC}, m::Model) = Matrix{greenseltype(T, m)}
 
 """
-    interaction_matrix_type(T::Type{DQMC}, m::Model)
-
-Returns the (matrix) type of the interaction matrix. Defaults to 
-`Matrix{greenseltype(T, m)}`.
-"""
-interaction_matrix_type(T::Type{DQMC}, m::Model) = Matrix{greenseltype(T, m)}
-
-"""
-    hopping_matrix_type(T::Type{DQMC}, m::Model)
+    hopping_matrix_type(field, model)
 
 Returns the (matrix) type of the hopping matrix. Defaults to 
-`Matrix{hoppingeltype(T, m)}`.
+`Matrix{hopping_eltype(model)}`.
 """
-hopping_matrix_type(T::Type{DQMC}, m::Model) = Matrix{hoppingeltype(T, m)}
+hopping_matrix_type(::AbstractField, m::Model) = Matrix{hopping_eltype(m)}
 
 """
-    greens_matrix_type(T::Type{DQMC}, m::Model)
+    greens_matrix_type(field, model)
 
 Returns the (matrix) type of the greens and most work matrices. Defaults to 
-`Matrix{greenseltype(T, m)}`.
+`Matrix{greens_eltype(T, m)}`.
 """
-greens_matrix_type(T::Type{DQMC}, m::Model) = Matrix{greenseltype(T, m)}
+greens_matrix_type(::AbstractField, m::Model) = Matrix{greens_eltype(T, m)}
 
 """
     interaction_matrix_exp!(
@@ -71,15 +74,14 @@ holding the current configuration. Returns the Green's function determinant
 ratio, the boson energy difference `ΔE_boson = E_boson_new - E_boson`,
 and any extra information `passthrough` that might be useful in `accept_local`.
 
-By default this function will call 
-`propose_local(mc, field, mc.stack.greens, i, slice)`.
+By default this function will call `propose_local(mc, field, i, slice)`.
 
 See also [`accept_local!`](@ref).
 """
 @inline function propose_local(
-        mc::DQMC, model::Model, field::AbstractField, i::Int, slice::Int
+        mc::DQMC, ::Model, field::AbstractField, i::Int, slice::Int
     )
-    propose_local(mc, field, mc.stack.greens, i, slice)
+    propose_local(mc, field, i, slice)
 end
 
 """
@@ -93,24 +95,25 @@ configuration in `field`. Arguments `detratio`, `ΔE_boson` and `passthrough`
 correspond to output of `propose_local` for that local move.
 
 By default this function will call
-`accept_local!(mc, field, mc.stack.greens, i, slice, detration, ΔE_boson, passthrough)`
+`accept_local!(mc, field, i, slice, detration, ΔE_boson, passthrough)`
 
 See also [`propose_local`](@ref).
 """
 @inline function accept_local!(
-        mc::DQMC, model::Model, field::AbstractField, i::Int, slice::Int, 
+        mc::DQMC, ::Model, field::AbstractField, i::Int, slice::Int, 
         detratio, ΔE_boson, passthrough
     )
-    accept_local!(mc, field, mc.stack.greens, i, slice, detratio, ΔE_boson, passthrough)
+    accept_local!(mc, field, i, slice, detratio, ΔE_boson, passthrough)
 end
 
 """
-    energy_boson(mc::DQMC, m::Model, conf)
+    energy_boson(mc::DQMC, model::Model, conf)
 
 Calculate bosonic part (non-Green's function determinant part) of energy for 
 configuration `conf` for Model `m`.
 
 This is required for global and parallel updates as well as boson energy 
-measurements, but not for local updates.
+measurements, but not for local updates. By default calls 
+`energy_boson(field(mc), conf)`
 """
 energy_boson(mc::DQMC, m::Model, conf) = energy_boson(field(mc), conf)

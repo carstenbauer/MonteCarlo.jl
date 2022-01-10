@@ -8,6 +8,15 @@ type.
 
 Related to this is the `P::Permuted` type, returned by `swapop(::GreensMatrix)`. 
 It represents `P[i, j] = ⟨cᵢ^†(l) cⱼ(k)⟩ = δᵢⱼ δₖₗ - ⟨cⱼ(k) cᵢ^†(l)⟩`.
+
+Note that `GreensMatrix` and `Permuted` allow access over the physical bounds
+of the wrapped matrix. In these cases the matrix is conceptually copied on the 
+diagonal and zeros are isnerted on the offdiagonal blocks. This is done to more
+easily work with flavor symmetric matrices.
+M 0 … 0
+0 ⋱ 0 ⋮
+⋮ 0 ⋱ 0
+0 … 0 M
 """
 struct GreensMatrix{T, M <: AbstractMatrix{T}} <: AbstractMatrix{T}
     k::Int
@@ -33,8 +42,19 @@ end
 
 Base.size(x::GreensMatrix) = size(x.val)
 Base.size(x::Permuted) = size(x.x.val)
-Base.getindex(x::GreensMatrix, i, j) = x.val[i, j]
-Base.getindex(x::Permuted, i, j) = I[x.x.k, x.x.l] * I[i, j] - x.x.val[j, i]
+
+function Base.getindex(M::GreensMatrix{T}, i, j) where {T}
+    N = size(M.val, 1)
+    xsection, x = divrem(i-1, N)
+    ysection, y = divrem(j-1, N)
+    @inbounds return (xsection == ysection) * M.val[x+1, y+1]
+end
+function Base.getindex(M::Permuted, i, j)
+    N = size(M.x.val, 1)
+    xsection, x = divrem(i-1, N)
+    ysection, y = divrem(j-1, N)
+    @inbounds return (xsection == ysection) * (I[M.x.k, M.x.l] * I[x, y] - M.x.val[y+1, x+1])
+end
 
 """
     swapop(G::GreensMatrix)

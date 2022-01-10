@@ -73,13 +73,8 @@ function _load(data, ::Val{:DQMC})
     thermalization_measurements = combined_measurements[:TH]
     measurements = combined_measurements[:ME]
 
-    HET = hoppingeltype(DQMC, model)
-    GET = greenseltype(DQMC, model)
-    HMT = hopping_matrix_type(DQMC, model)
-    GMT = greens_matrix_type(DQMC, model)
-    IMT = interaction_matrix_type(field)
-    stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
-    ut_stack = UnequalTimeStack{GET, GMT}()
+    stack = DQMCStack(field, model)
+    ut_stack = UnequalTimeStack{geltype(stack), gmattype(stack)}()
     
     DQMC(
         CB, 

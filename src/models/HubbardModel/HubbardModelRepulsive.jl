@@ -57,8 +57,6 @@ Base.show(io::IO, m::MIME"text/plain", model::HubbardModelRepulsive) = print(io,
 
 
 # optional optimization
-hopping_matrix_type(::Type{DQMC}, ::HubbardModelRepulsive) = BlockDiagonal{Float64, 2, Matrix{Float64}}
-greens_matrix_type( ::Type{DQMC}, ::HubbardModelRepulsive) = BlockDiagonal{Float64, 2, Matrix{Float64}}
 choose_field(::HubbardModelRepulsive) = MagneticHirschField
 
 
@@ -88,10 +86,12 @@ function hopping_matrix(mc::DQMC, model::HubbardModelRepulsive)
         end
     end
 
-    return BlockDiagonal(T, copy(T))
+    if max(nflavors(field(mc)), nflavors(model)) == 1
+        return T
+    else
+        return BlockDiagonal(T, copy(T))
+    end
 end
-
-greens(mc::DQMC, model::HubbardModelRepulsive) = greens(mc)
 
 function save_model(
         file::JLDFile,

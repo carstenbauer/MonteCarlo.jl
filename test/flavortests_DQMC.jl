@@ -70,7 +70,7 @@ end
     # DQMC mandatory
     m = DummyModel(SquareLattice(2))
     # @test_throws MethodError rand(DQMC, m, 4)
-    @test_throws MethodError MonteCarlo.hopping_matrix(dqmc, m)
+    # @test_throws MethodError MonteCarlo.hopping_matrix(dqmc, m)
     # @test_throws MethodError MonteCarlo.interaction_matrix_exp!(dqmc, m, zeros(2,2), zeros(2,2), 1, 1.0)
     # @test_throws MethodError MonteCarlo.propose_local(dqmc, m, 1, 1, zeros(2,2))
     # @test_throws MethodError MonteCarlo.accept_local!(dqmc, m, 1, 1, zeros(2,2), 1.0, 1.0, nothing)
@@ -79,8 +79,8 @@ end
     MonteCarlo.lattice(m::DummyModel) = m.lattice
 
     # DQMC optional
-    @test MonteCarlo.greenseltype(DQMC, m) == ComplexF64
-    @test MonteCarlo.interaction_matrix_type(DQMC, m) == Matrix{ComplexF64}
+    # @test MonteCarlo.greenseltype(DQMC, m) == ComplexF64
+    # @test MonteCarlo.interaction_matrix_type(DQMC, m) == Matrix{ComplexF64}
     @test parameters(m) == NamedTuple()
 
     # constructors

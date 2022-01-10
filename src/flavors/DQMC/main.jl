@@ -1,3 +1,6 @@
+# Optimized math and matrix types
+include("linalg/main.jl")
+
 # Statistics for the DQMC simulation runtime. This has nothin to do with 
 # measurements/observables.
 include("statistics.jl")
@@ -9,8 +12,6 @@ include("abstract.jl")
 # general simulation. 
 include("parameters.jl")
 
-
-abstract type AbstractField end
 
 # There are a bunch of functions that require the DQMC type, but logically fit 
 # with one of its constituents. For example `initialize_stack` requires 
