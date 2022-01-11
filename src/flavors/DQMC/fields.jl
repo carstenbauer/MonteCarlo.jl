@@ -20,8 +20,8 @@ function FieldCache(field, model)
 
     if flv == 1
         # full greens matrix is flavor symmetric
-        R   = zero(T)
-        invRΔ = zero(T)
+        R   = zero(GET)
+        invRΔ = zero(GET)
         IG  = VT(undef, N)
         IGR = VT(undef, N)
         G   = VT(undef, N)
@@ -54,6 +54,8 @@ end
 
 
 ################################################################################
+### math for propose_local
+################################################################################
 
 # everything should be derivable from Δ and G
 
@@ -62,24 +64,52 @@ function calculate_detratio!(cache::StandardFieldCache, G, i)
     calculate_detratio!(cache, cache.Δ, G, i)
 end
 
-function calculate_detratio!(cache::StandardFieldCache, Δ::Float64, G::Matrix{Float64}, i)
+# TODO Not sure if optimizing this is worth anything
+function calculate_detratio!(cache::StandardFieldCache, Δ::Number, G::Union{FMat64, CMat64}, i)
     @inbounds cache.R = 1.0 + Δ * (1.0 - G[i, i])
     cache.detratio = cache.R * cache.R
 end
 
-function calculate_detratio!(cache::StandardFieldCache, Δ::Vector{Float64}, G::BlockDiagonal{Float64}, i)
+
+function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{Float64}, i)
     # Unrolled R = I + Δ * (I - G)
     @inbounds for b in eachindex(G.blocks)
         cache.R[b] = 1.0 + Δ[b] * (1.0 - G.blocks[b][i, i])
     end
-
     # determinant of Diagonal
     cache.detratio = prod(cache.R)
-    # @info cache.detratio
-    cache.detratio
+end
+# function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{ComplexF64}, i)
+#     # Unrolled R = I + Δ * (I - G)
+#     @inbounds for b in eachindex(G.blocks)
+#         cache.R.re[b] = 1.0 + Δ[b] * (1.0 - G.blocks[b].re[i, i])
+#     end
+#     @inbounds for b in eachindex(G.blocks)
+#         cache.R.im[b] = - Δ[b] * G.blocks.im[b][i, i]
+#     end
+#     # determinant of Diagonal (don't think this is worth optimizing)
+#     cache.detratio = prod(cache.R)
+# end
+function calculate_detratio!(cache::StandardFieldCache, Δ::CVec64, G::BlockDiagonal{ComplexF64}, i)
+    # Unrolled R = I + Δ * (I - G)
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.re[b] = 1.0 + Δ.re[b] * (1.0 - G.blocks[b].re[i, i])
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.re[b] += Δ.im[b] * G.blocks[b].im[i, i]
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.im[b] = Δ.im[b] * (1.0 - G.blocks[b].re[i, i])
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.im[b] -= Δ.re[b] * G.blocks[b].im[i, i]
+    end
+    # determinant of Diagonal
+    cache.detratio = prod(cache.R)
 end
 
-function calculate_detratio!(cache::StandardFieldCache, Δ::Vector{Float64}, G::Matrix{Float64}, i)
+
+function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::FMat64, i)
     # TODO this is not nice
     N = div(size(G, 1), 2)
     
@@ -95,12 +125,16 @@ function calculate_detratio!(cache::StandardFieldCache, Δ::Vector{Float64}, G::
 end
 
 
+################################################################################
+### Math for accept_local
+################################################################################
+
 
 function update_greens!(cache::StandardFieldCache, G, i)
     update_greens!(cache::StandardFieldCache, cache.Δ, G, i)
 end
 
-function update_greens!(cache::StandardFieldCache, Δ::Float64, G::Matrix{Float64}, i)
+function update_greens!(cache::StandardFieldCache, Δ::Float64, G::FMat64, i)
     # calculate Δ R⁻¹
     cache.invRΔ = Δ / cache.R
     
@@ -122,8 +156,51 @@ function update_greens!(cache::StandardFieldCache, Δ::Float64, G::Matrix{Float6
 
     nothing
 end
+function update_greens!(cache::StandardFieldCache, Δ::ComplexF64, G::CMat64, i)
+    # calculate Δ R⁻¹
+    cache.invRΔ = Δ / cache.R
+    
+    # calculate (I - G)[:, i] * (Δ R⁻¹)
+    @inbounds for j in eachindex(cache.IG)
+        cache.IG.re[j] = - G.re[j, i]
+    end
+    @inbounds for j in eachindex(cache.IG)
+        cache.IG.im[j] = - G.im[j, i]
+    end
+    cache.IG.re[i] += 1.0
 
-function update_greens!(cache::StandardFieldCache, Δ::Vector{Float64}, G::Matrix{Float64}, i)
+    # copy G
+    @inbounds for j in eachindex(cache.G)
+        cache.G.re[j] = real(cache.invRΔ) * G.re[i, j]
+    end
+    @inbounds for j in eachindex(cache.G)
+        cache.G.re[j] -= imag(cache.invRΔ) * G.im[i, j]
+    end
+    @inbounds for j in eachindex(cache.G)
+        cache.G.im[j] = real(cache.invRΔ) * G.im[i, j]
+    end
+    @inbounds for j in eachindex(cache.G)
+        cache.G.im[j] += imag(cache.invRΔ) * G.re[i, j]
+    end
+
+    # update greens function
+    @turbo for k in eachindex(cache.IG), l in eachindex(cache.G)
+        G.re[k, l] -= cache.IG.re[k] * cache.G.re[l]
+    end
+    @turbo for k in eachindex(cache.IG), l in eachindex(cache.G)
+        G.re[k, l] += cache.IG.im[k] * cache.G.im[l]
+    end
+    @turbo for k in eachindex(cache.IG), l in eachindex(cache.G)
+        G.im[k, l] -= cache.IG.im[k] * cache.G.re[l]
+    end
+    @turbo for k in eachindex(cache.IG), l in eachindex(cache.G)
+        G.im[k, l] -= cache.IG.re[k] * cache.G.im[l]
+    end
+
+    nothing
+end
+
+function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::FMat64, i)
     # TODO this is not nice
     N = div(size(G, 1), 2)
 
@@ -172,7 +249,7 @@ function update_greens!(cache::StandardFieldCache, Δ::Vector{Float64}, G::Matri
     nothing
 end
 
-function update_greens!(cache::StandardFieldCache, Δ::Vector{Float64}, G::BlockDiagonal{Float64}, i)
+function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{Float64}, i)
     # TODO this is not nice
     N = size(G.blocks[1], 1)
 
@@ -209,10 +286,71 @@ function update_greens!(cache::StandardFieldCache, Δ::Vector{Float64}, G::Block
 
     nothing
 end
+function update_greens!(cache::StandardFieldCache, Δ::CVec64, G::BlockDiagonal{ComplexF64}, i)
+    # TODO this is not nice
+    N = size(G.blocks[1], 1)
+
+    # invert R inplace
+    # Reminder: 1/c = c* / (cc*) (complex conjugate)
+    @inbounds begin
+        f1 = 1.0 / (cache.R.re[1] * cache.R.re[1] + cache.R.im[1] * cache.R.im[1])
+        f2 = 1.0 / (cache.R.re[2] * cache.R.re[2] + cache.R.im[2] * cache.R.im[2])
+        cache.invRΔ.re[1] = f1 * (Δ.re[1] * cache.R.re[1] + Δ.im[1] * cache.R.im[1])
+        cache.invRΔ.re[2] = f2 * (Δ.re[2] * cache.R.re[2] + Δ.im[2] * cache.R.im[2])
+        cache.invRΔ.im[1] = f1 * (Δ.im[1] * cache.R.re[1] - Δ.re[1] * cache.R.im[1])
+        cache.invRΔ.im[2] = f2 * (Δ.im[2] * cache.R.re[2] - Δ.re[2] * cache.R.im[2])
+    end
+    
+    # copy (I - G)[:, i]
+    @inbounds for b in eachindex(G.blocks), fn in (:re, :im)
+        trg = getproperty(cache.IG, fn); src = getproperty(G.blocks[b], fn)
+        for j in 1:N
+            trg[j, b] = - src[j, i]
+        end
+    end
+    @inbounds cache.IG.re[i, 1] += 1.0
+    @inbounds cache.IG.re[i, 2] += 1.0
+
+    # copy G (necessary to avoid overwriten? probably also helps with cache misses)
+    @inbounds for b in eachindex(G.blocks)
+        for j in 1:N
+            cache.G.re[j, b] = cache.invRΔ.re[b] * G.blocks[b].re[i, j]
+        end
+        for j in 1:N
+            cache.G.re[j, b] -= cache.invRΔ.im[b] * G.blocks[b].im[i, j]
+        end
+        for j in 1:N
+            cache.G.im[j, b] = cache.invRΔ.re[b] * G.blocks[b].im[i, j]
+        end
+        for j in 1:N
+            cache.G.im[j, b] += cache.invRΔ.im[b] * G.blocks[b].re[i, j]
+        end
+    end
+
+    # update greens function
+    @inbounds for b in eachindex(G.blocks)
+        @turbo for k in 1:N, l in 1:N
+            G.blocks[b].re[k, l] -= cache.IG.re[k, b] * cache.G.re[l, b]
+        end
+        @turbo for k in 1:N, l in 1:N
+            G.blocks[b].re[k, l] += cache.IG.im[k, b] * cache.G.im[l, b]
+        end
+        @turbo for k in 1:N, l in 1:N
+            G.blocks[b].im[k, l] -= cache.IG.im[k, b] * cache.G.re[l, b]
+        end
+        @turbo for k in 1:N, l in 1:N
+            G.blocks[b].im[k, l] -= cache.IG.re[k, b] * cache.G.im[l, b]
+        end
+    end
+
+    nothing
+end
 
 
 ################################################################################
 
+
+maybe_to_float(c::ComplexF64) = abs(imag(c)) < 10eps(real(c)) ? real(c) : c
 
 conf(f::AbstractField) = f.conf
 conf!(f::AbstractField, c) = conf(f) .= c
@@ -257,11 +395,11 @@ decompress(::AbstractHirschField, c) = Int8(2c .- 1)
 decompress!(f::AbstractHirschField, c) = f.conf .= Int8.(2c .- 1)
 
 interaction_eltype(::AbstractHirschField{T}) where {T} = T
-interaction_matrix_type(::AbstractHirschField{Float64}, ::Model) = Diagonal{Float64, Vector{Float64}}
+interaction_matrix_type(::AbstractHirschField{Float64}, ::Model) = Diagonal{Float64, FVec64}
 interaction_matrix_type(::AbstractHirschField{ComplexF64}, ::Model) = Diagonal{ComplexF64, CVec64}
 function init_interaction_matrix(f::AbstractHirschField{Float64}, m::Model)
     flv = max(nflavors(f), nflavors(m))
-    Diagonal(Vector{Float64}(undef, flv * size(f.conf, 1)))
+    Diagonal(FVec64(undef, flv * size(f.conf, 1)))
 end
 function init_interaction_matrix(f::AbstractHirschField{ComplexF64}, m::Model)
     flv = max(nflavors(f), nflavors(m))
@@ -294,7 +432,7 @@ end
 
 function DensityHirschField(param::DQMCParameters, model::Model, U::Number = model.U)
     DensityHirschField(
-        acosh(exp(0.5 * U * param.delta_tau)),
+        maybe_to_float(acosh(exp(0.5 * param.delta_tau * ComplexF64(U)))),
         Matrix{Int8}(undef, length(lattice(model)), param.slices),
         Matrix{Int8}(undef, length(lattice(model)), param.slices)
     )
@@ -303,6 +441,7 @@ end
 nflavors(::DensityHirschField) = 1
 
 @inline function interaction_matrix_exp!(f::DensityHirschField, result::Diagonal, slice, power)
+    # TODO this will index out of bound with 2 flavors
     @inbounds for i in eachindex(result.diag)
         result.diag[i] = exp(power * f.α * f.conf[i, slice])
     end
@@ -313,7 +452,6 @@ function propose_local(mc, f::DensityHirschField, i, slice)
     @inbounds ΔE_boson = -2.0 * f.α * f.conf[i, slice]
     mc.stack.field_cache.Δ = exp(ΔE_boson) - 1
     detratio = calculate_detratio!(mc.stack.field_cache, mc.stack.greens, i)
-
     return detratio, ΔE_boson, nothing
 end
 
@@ -371,7 +509,7 @@ end
 
 function MagneticHirschField(param::DQMCParameters, model::Model, U::Number = model.U)
     MagneticHirschField(
-        acosh(exp(-0.5 * U * param.delta_tau)),
+        maybe_to_float(acosh(exp(-0.5 * param.delta_tau * ComplexF64(U)))),
         Matrix{Int8}(undef, length(lattice(model)), param.slices),
         Matrix{Int8}(undef, length(lattice(model)), param.slices)
     )
@@ -448,11 +586,11 @@ function decompress!(f::AbstractGHQField, c)
 end
 
 interaction_eltype(::AbstractGHQField{T}) where {T} = T
-interaction_matrix_type(::AbstractGHQField{Float64}, ::Model) = Diagonal{Float64, Vector{Float64}}
+interaction_matrix_type(::AbstractGHQField{Float64}, ::Model) = Diagonal{Float64, FVec64}
 interaction_matrix_type(::AbstractGHQField{ComplexF64}, ::Model) = Diagonal{ComplexF64, CVec64}
 function init_interaction_matrix(f::AbstractGHQField{Float64}, m::Model)
     flv = max(nflavors(f), nflavors(m))
-    Diagonal(Vector{Float64}(undef, flv * size(f.conf, 1)))
+    Diagonal(FVec64(undef, flv * size(f.conf, 1)))
 end
 function init_interaction_matrix(f::AbstractGHQField{ComplexF64}, m::Model)
     flv = max(nflavors(f), nflavors(m))
@@ -475,8 +613,8 @@ with α = sqrt(Δτ U) and x ∈ {-2, -1, 1, 2}
 """
 struct MagneticGHQField{T} <: AbstractGHQField{T}
     α::T
-    γ::Vector{Float64}
-    η::Vector{Float64}
+    γ::FVec64
+    η::FVec64
     choices::Matrix{Int8}
 
     temp_conf::Matrix{Int8}
@@ -484,8 +622,7 @@ struct MagneticGHQField{T} <: AbstractGHQField{T}
 end
 
 function MagneticGHQField(param::DQMCParameters, model::Model, U::Number = model.U)
-    _α = sqrt(-0.5 * param.delta_tau * ComplexF64(U))
-    α = abs(imag(_α)) < 1e-12 ? real(_α) : _α
+    α = maybe_to_float(sqrt(-0.5 * param.delta_tau * ComplexF64(U)))
     s6 = sqrt(6)
     gammas = Float64[1 - s6/3, 1 + s6/3, 1 + s6/3, 1 - s6/3]
     etas = Float64[-sqrt(6 + 2s6), -sqrt(6 - 2s6), sqrt(6 - 2s6), sqrt(6 + 2s6)]
@@ -504,7 +641,7 @@ energy_boson(mc, ::MagneticGHQField, conf=nothing) = 0.0
 
 # TODO: Maybe worth adding a complex method?
 @inline @bm function interaction_matrix_exp!(
-        f::MagneticGHQField{Float64}, result::Diagonal, slice, power
+        f::MagneticGHQField, result::Diagonal, slice, power
     )
     N = size(f.conf, 1)
     @inbounds for i in 1:N
