@@ -141,6 +141,7 @@ function vldiv22!(cache::StandardFieldCache, R::Number, Δ::Number)
     cache.invRΔ = Δ / R
     nothing
 end
+
 function vldiv22!(cache::StandardFieldCache, R::FMat64, Δ::FVec64)
     @inbounds begin
         inv_div = 1.0 / cache.detratio
@@ -151,6 +152,7 @@ function vldiv22!(cache::StandardFieldCache, R::FMat64, Δ::FVec64)
     end
     nothing
 end
+
 function vldiv22!(cache::StandardFieldCache, R::FVec64, Δ::FVec64)
     @inbounds begin
         cache.invRΔ[1] = Δ[1] / R[1]
@@ -158,6 +160,7 @@ function vldiv22!(cache::StandardFieldCache, R::FVec64, Δ::FVec64)
     end
     nothing
 end
+
 function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::CVec64)
     @inbounds begin
         # Reminder: 1/c = c* / (cc*) (complex conjugate)
@@ -190,6 +193,8 @@ function update_greens!(cache::StandardFieldCache, G, i, N)
 end
 
 
+################################################################################
+### Field Implementations
 ################################################################################
 
 
@@ -240,21 +245,18 @@ decompress!(f::AbstractHirschField, c) = f.conf .= Int8.(2c .- 1)
 interaction_eltype(::AbstractHirschField{T}) where {T} = T
 interaction_matrix_type(::AbstractHirschField{Float64}, ::Model) = Diagonal{Float64, FVec64}
 interaction_matrix_type(::AbstractHirschField{ComplexF64}, ::Model) = Diagonal{ComplexF64, CVec64}
-function init_interaction_matrix(f::AbstractHirschField{Float64}, m::Model)
+function init_interaction_matrix(f::AbstractHirschField{T}, m::Model) where {T}
     flv = max(nflavors(f), nflavors(m))
-    Diagonal(FVec64(undef, flv * size(f.conf, 1)))
-end
-function init_interaction_matrix(f::AbstractHirschField{ComplexF64}, m::Model)
-    flv = max(nflavors(f), nflavors(m))
-    Diagonal(CVec64(undef, flv * size(f.conf, 1)))
+    VT = vector_type(T)
+    Diagonal(VT(undef, flv * size(f.conf, 1)))
 end
 
 function accept_local!(mc, f::AbstractHirschField, i, slice, args...)
     update_greens!(mc.stack.field_cache, mc.stack.greens, i, size(f.conf, 1))
-    # update conf
     @inbounds f.conf[i, slice] *= -1
     nothing
 end
+
 
 ########################################
 # Density Channel
@@ -305,28 +307,6 @@ function propose_local(mc, f::DensityHirschField, i, slice)
 end
 
 @inline energy_boson(f::DensityHirschField, conf = f.conf) = f.α * sum(conf)
-
-@bm function propose_global_from_conf(mc::DQMC, ::Model, f::DensityHirschField)
-    # I don't think we need this...
-    @assert mc.stack.current_slice == 1
-    @assert mc.stack.direction == 1
-
-    # This should be just after calculating greens, so mc.s.Dl is from the UDT
-    # decomposed G
-    copyto!(mc.stack.tempvf, mc.stack.Dl)
-
-    # -1?
-    inv_det(mc, current_slice(mc)-1, f)
-
-    # This helps with stability
-    detratio = 1.0
-    for i in eachindex(mc.stack.tempvf)
-        detratio *= mc.stack.tempvf[i] * mc.stack.Dr[i]
-    end
-    ΔE_Boson = energy_boson(f, conf(f)) - energy_boson(f, temp_conf(f))
-
-    return detratio^2, ΔE_Boson, nothing
-end
 
 
 ########################################
@@ -507,7 +487,6 @@ end
         mc, f::MagneticGHQField, i, slice, detratio, ΔE_boson, x_new
     )
     update_greens!(mc.stack.field_cache, mc.stack.greens, i, size(f.conf, 1))
-    # update conf
     @inbounds f.conf[i, slice] = x_new
     return nothing
 end
