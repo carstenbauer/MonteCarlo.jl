@@ -366,6 +366,12 @@ function init_interaction_matrix(f::AbstractHirschField{ComplexF64}, m::Model)
     Diagonal(CVec64(undef, flv * size(f.conf, 1)))
 end
 
+function accept_local!(mc, f::AbstractHirschField, i, slice, args...)
+    update_greens!(mc.stack.field_cache, mc.stack.greens, i, size(f.conf, 1))
+    # update conf
+    @inbounds f.conf[i, slice] *= -1
+    nothing
+end
 
 ########################################
 # Density Channel
@@ -413,13 +419,6 @@ function propose_local(mc, f::DensityHirschField, i, slice)
     mc.stack.field_cache.Δ = exp(ΔE_boson) - 1
     detratio = calculate_detratio!(mc.stack.field_cache, mc.stack.greens, i)
     return detratio, ΔE_boson, nothing
-end
-
-function accept_local!(mc, f::DensityHirschField, i, slice, args...)
-    update_greens!(mc.stack.field_cache, mc.stack.greens, i, size(f.conf, 1))
-    # update conf
-    @inbounds f.conf[i, slice] *= -1
-    nothing
 end
 
 @inline energy_boson(f::DensityHirschField, conf = f.conf) = f.α * sum(conf)
@@ -498,13 +497,6 @@ function propose_local(mc, f::MagneticHirschField, i, slice)
     # There is no bosonic part (exp(-ΔE_Boson)) to the partition function.
     # Therefore pass 0.0
     return detratio, 0.0, nothing
-end
-
-function accept_local!(mc, f::MagneticHirschField, i, slice, args...)
-    update_greens!(mc.stack.field_cache, mc.stack.greens, i, size(f.conf, 1))
-    # update conf
-    @inbounds f.conf[i, slice] *= -1
-    nothing
 end
 
 @inline energy_boson(f::MagneticHirschField, conf = f.conf) = 0.0
