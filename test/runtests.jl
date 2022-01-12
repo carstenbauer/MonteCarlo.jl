@@ -102,6 +102,11 @@ end
     end
     # 27.297888 seconds (55.24 M allocations: 3.149 GiB, 2.60% gc time, 2.67% compilation time)
 
+    println("Fields")
+    @time @testset "Fields" begin
+        include("fields.jl")
+    end
+
     println("Scheduler")
     @time @testset "Scheduler & (DQMC) Updates" begin
         include("updates.jl")
@@ -125,11 +130,6 @@ end
         include("ED/ED_tests.jl")
     end
     # 71.714791 seconds (52.37 M allocations: 14.521 GiB, 1.82% gc time, 4.57% compilation time)
-
-    println("Gauß-Hermite Quadrature")
-    @time @testset "Gauß-Hermite Quadrature" begin
-        include("GaußHermiteModel.jl")
-    end
 
     println("File IO")
     @time @testset "File IO" begin

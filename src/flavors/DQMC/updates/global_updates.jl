@@ -155,8 +155,8 @@ end
     end
     ΔE_Boson = energy_boson(field, conf(field)) - energy_boson(field, temp_conf(field))
     
-    if max(nflavors(m), nflavors(field)) > 1
-        detratio = detratio^max(nflavors(m), nflavors(field))
+    if max(nflavors(m), nflavors(field)) == 1
+        detratio = detratio * detratio
     end
 
     return detratio, ΔE_Boson, nothing

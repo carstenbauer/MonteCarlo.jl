@@ -239,7 +239,7 @@ Base.rand(f::AbstractHirschField) = rand((Int8(-1), Int8(1)), size(f.conf))
 Random.rand!(f::AbstractHirschField) = rand!(f.conf, (Int8(-1), Int8(1)))
 compress(f::AbstractHirschField) = BitArray(f.conf .== 1)
 compressed_conf_type(::AbstractHirschField) = BitArray
-decompress(::AbstractHirschField, c) = Int8(2c .- 1)
+decompress(::AbstractHirschField, c) = Int8.(2c .- 1)
 decompress!(f::AbstractHirschField, c) = f.conf .= Int8.(2c .- 1)
 
 interaction_eltype(::AbstractHirschField{T}) where {T} = T
@@ -387,18 +387,21 @@ function compress(f::AbstractGHQField)
     # converts (1, 2, 3, 4) -> (00, 01, 10, 11)
     BitArray((div(v-1, 2), (v-1) % 2)[step] for v in f.conf for step in (1, 2))
 end
-function decompress(::AbstractGHQField, c)
+function decompress(f::AbstractGHQField, c)
     # converts (00, 01, 10, 11) -> (1, 2, 3, 4)
-    map(1:2:length(c)) do i
+    conf = similar(f.conf)
+    for i in eachindex(conf)
         #  1    +    2 * bit1    +    bit2
-        Int8(1) + Int8(2) * c[i] + Int8(c[i+1])
+        conf[i] = Int8(1) + Int8(2) * c[2i-1] + Int8(c[2i])
     end
+    conf
 end
 function decompress!(f::AbstractGHQField, c)
     for i in eachindex(f.conf)
         #  1    +    2 * bit1    +    bit2
         Int8(1) + Int8(2) * c[i] + Int8(c[i+1])
     end
+    f.conf
 end
 
 interaction_eltype(::AbstractGHQField{T}) where {T} = T
@@ -452,7 +455,7 @@ function MagneticGHQField(param::DQMCParameters, model::Model, U::Number = model
 end
 
 nflavors(::MagneticGHQField) = 2
-energy_boson(mc, ::MagneticGHQField, conf=nothing) = 0.0
+energy_boson(::MagneticGHQField, conf=nothing) = 0.0
 
 
 # TODO: Maybe worth adding a complex method?
