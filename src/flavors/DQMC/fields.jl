@@ -31,10 +31,9 @@ function FieldCache(field, model)
             # only blocks on diagonals matter
             R   = VT(undef, flv)
             invRΔ = VT(undef, flv)
-            # fast iteration on first index
-            IG  = MT(undef, N, flv)
-            IGR = MT(undef, N, flv)
-            G   = MT(undef, N, flv)
+            IG  = ntuple(_ -> VT(undef, N), flv)
+            IGR = ntuple(_ -> VT(undef, N), flv)
+            G   = ntuple(_ -> VT(undef, N), flv)
         else
             # all matter
             R   = MT(undef, flv, flv)
@@ -129,6 +128,90 @@ end
 ### Math for accept_local
 ################################################################################
 
+"""
+    vsubkron!(G, L, R)
+
+Calculates `G[i, j] = G[i, j] - (∑ₘ L[i, m] R[j, m])` where `m` can be omitted,
+meaning L and R can be Vectors. Used for local updates.
+"""
+function vsubkron!(G::Matrix{Float64}, L::Vector{Float64}, R::Vector{Float64})
+    @turbo for k in eachindex(L), l in eachindex(R)
+        G[k, l] -= L[k] * R[l]
+    end  
+end
+function vsubkron!(G::Matrix{Float64}, L::Matrix{Float64}, R::Matrix{Float64})
+    @turbo for k in axes(L, 1), l in axes(R, 1), m in axes(L, 2)
+        G[k, l] -= L[k, m] * R[l, m]
+    end  
+end
+function vsubkron!(G::CMat64, L::CVec64, R::CVec64)
+    @turbo for k in eachindex(L), l in eachindex(R)
+        G.re[k, l] -= L.re[k] * R.re[l]
+    end
+    @turbo for k in eachindex(L), l in eachindex(R)
+        G.re[k, l] += L.im[k] * R.im[l]
+    end
+    @turbo for k in eachindex(L), l in eachindex(R)
+        G.im[k, l] -= L.im[k] * R.re[l]
+    end
+    @turbo for k in eachindex(L), l in eachindex(R)
+        G.im[k, l] -= L.re[k] * R.im[l]
+    end
+end
+function vsubkron!(G::BlockDiagonal, L::Tuple, R::Tuple)
+    # TODO Vector{Vector} for L and R?
+    @inbounds for b in eachindex(G.blocks)
+        vsubkron!(G.blocks[b], L[b], R[b])
+    end
+end
+
+"""
+    vsub!(trg, ::UniformScaling, src, slices)
+
+Calculates `trg[i, j] = I[i, slices[j]] - src[i, slices[j]]` where 
+`j = eachindex(slices)` and `slices` is a tuple of indices. 
+
+`slices` can also be an integer when only one slice is relevant. In this case 
+`trg` is assumed to be a Vector.
+"""
+function vsub!(trg::FVec64, ::UniformScaling, src::FMat64, i::Int)
+    @turbo for j in eachindex(trg)
+        trg[j] = - src[j, i]
+    end
+    @inbounds trg[i] += 1.0
+    nothing
+end
+function vsub!(trg::CVec64, ::UniformScaling, src::CMat64, i::Int)
+    @turbo for j in eachindex(trg.re)
+        trg.re[j] = - src.re[j, i]
+    end
+    @inbounds trg.re[i] += 1.0
+    @turbo for j in eachindex(trg.im)
+        trg.im[j] = - src.im[j, i]
+    end
+    nothing
+end
+function vsub!(trg::FMat64, ::UniformScaling, src::FMat64, slices::NTuple{N, Int}) where {N}
+    @inbounds for (k, i) in enumerate(slices)
+        @turbo for j in axis(trg, 1)
+            trg[j, k] = - G[j, i]
+        end
+        trg[i, k] += 1.0
+    end
+    nothing
+end
+function vsub!(trg::Tuple, ::UniformScaling, src::BlockDiagonal, i::Int)
+    @inbounds for b in eachindex(trg)
+        vsub!(trg[b], I, src.blocks[b], i)
+    end
+    nothing
+end
+
+
+
+# vldiv!(invRΔ, R, Δ)
+# vmul!(cache.G, invRΔ, G, slices)
+
 
 function update_greens!(cache::StandardFieldCache, G, i)
     update_greens!(cache::StandardFieldCache, cache.Δ, G, i)
@@ -138,21 +221,16 @@ function update_greens!(cache::StandardFieldCache, Δ::Float64, G::FMat64, i)
     # calculate Δ R⁻¹
     cache.invRΔ = Δ / cache.R
     
-    # calculate (I - G)[:, i] * (Δ R⁻¹)
-    @inbounds for j in eachindex(cache.IG)
-        cache.IGR[j] = - cache.invRΔ * G[j, i]
-    end
-    cache.IGR[i] += cache.invRΔ
+    # calculate (I - G)[:, i]
+    vsub!(cache.IG, I, G, i)
 
-    # copy G (necessary to avoid overwriten? probably also helps with cache misses)
+    # calculate (Δ R⁻¹) * G[i, :]
     @inbounds for j in eachindex(cache.G)
-        cache.G[j] = G[i, j]
+        cache.G[j] = cache.invRΔ * G[i, j]
     end
 
     # update greens function
-    @turbo for k in eachindex(cache.IG), l in eachindex(cache.G)
-        G[k, l] -= cache.IGR[k] * cache.G[l]
-    end
+    vsubkron!(G, cache.IG, cache.G)
 
     nothing
 end
@@ -160,16 +238,10 @@ function update_greens!(cache::StandardFieldCache, Δ::ComplexF64, G::CMat64, i)
     # calculate Δ R⁻¹
     cache.invRΔ = Δ / cache.R
     
-    # calculate (I - G)[:, i] * (Δ R⁻¹)
-    @inbounds for j in eachindex(cache.IG)
-        cache.IG.re[j] = - G.re[j, i]
-    end
-    @inbounds for j in eachindex(cache.IG)
-        cache.IG.im[j] = - G.im[j, i]
-    end
-    cache.IG.re[i] += 1.0
+    # calculate (I - G)[:, i]
+    vsub!(cache.IG, I, G, i)
 
-    # copy G
+    # calculate (Δ R⁻¹) G[i, :]
     @inbounds for j in eachindex(cache.G)
         cache.G.re[j] = real(cache.invRΔ) * G.re[i, j]
     end
@@ -184,18 +256,7 @@ function update_greens!(cache::StandardFieldCache, Δ::ComplexF64, G::CMat64, i)
     end
 
     # update greens function
-    @turbo for k in eachindex(cache.IG), l in eachindex(cache.G)
-        G.re[k, l] -= cache.IG.re[k] * cache.G.re[l]
-    end
-    @turbo for k in eachindex(cache.IG), l in eachindex(cache.G)
-        G.re[k, l] += cache.IG.im[k] * cache.G.im[l]
-    end
-    @turbo for k in eachindex(cache.IG), l in eachindex(cache.G)
-        G.im[k, l] -= cache.IG.im[k] * cache.G.re[l]
-    end
-    @turbo for k in eachindex(cache.IG), l in eachindex(cache.G)
-        G.im[k, l] -= cache.IG.re[k] * cache.G.im[l]
-    end
+    vsubkron!(G, cache.IG, cache.G)
 
     nothing
 end
@@ -220,31 +281,22 @@ function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::FMat64, i)
     # TODO: merge with inversion of R
     vmul!(cache.invRΔ, cache.R, Diagonal(Δ))
 
-    # copy (I - G)[:, i]
-    @inbounds for j in eachindex(cache.IG)
-        cache.IG[j, 1] = - G[j, i]
-    end
-    @inbounds for j in eachindex(cache.IG)
-        cache.IG[j, 2] = - G[j, i+N]
-    end
-    @inbounds cache.IG[i, 1] += 1.0
-    @inbounds cache.IG[i+N, 2] += 1.0
+    # copy (I - G)[:, i:N:2N]
+    vsub!(cache.IG, I, G, (i, i+N))
 
     # calculate (I - G)[:, i] (R⁻¹ Δ)
     vmul!(cache.IGR, cache.IG, cache.invRΔ)
 
     # copy G (necessary to avoid overwriten? probably also helps with cache misses)
-    @inbounds for j in eachindex(cache.G)
+    @inbounds for j in axes(cache.G, 1)
         cache.G[j, 1] = G[i, j]
     end
-    @inbounds for j in eachindex(cache.G)
+    @inbounds for j in axes(cache.G, 1)
         cache.G[j, 2] = G[i+N, j]
     end
 
     # update greens function
-    @turbo for k in eachindex(cache.IG), l in eachindex(cache.G), m in 1:2
-        G[k, l] -= cache.IGR[k, m] * cache.G[l, m]
-    end
+    vsubkron!(G, cache.IGR, cache.G)
 
     nothing
 end
@@ -262,27 +314,17 @@ function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{
     end
     
     # copy (I - G)[:, i]
-    @inbounds for b in eachindex(G.blocks)
-        for j in 1:N
-            cache.IG[j, b] = - G.blocks[b][j, i]
-        end
-    end
-    @inbounds cache.IG[i, 1] += 1.0
-    @inbounds cache.IG[i, 2] += 1.0
+    vsub!(cache.IG, I, G, i)
 
     # copy G (necessary to avoid overwriten? probably also helps with cache misses)
     @inbounds for b in eachindex(G.blocks)
         for j in 1:N
-            cache.G[j, b] = cache.invRΔ[b] * G.blocks[b][i, j]
+            cache.G[b][j] = cache.invRΔ[b] * G.blocks[b][i, j]
         end
     end
 
     # update greens function
-    @inbounds for b in eachindex(G.blocks)
-        @turbo for k in 1:N, l in 1:N
-            G.blocks[b][k, l] -= cache.IG[k, b] * cache.G[l, b]
-        end
-    end
+    vsubkron!(G, cache.IG, cache.G)
 
     nothing
 end
@@ -302,46 +344,26 @@ function update_greens!(cache::StandardFieldCache, Δ::CVec64, G::BlockDiagonal{
     end
     
     # copy (I - G)[:, i]
-    @inbounds for b in eachindex(G.blocks), fn in (:re, :im)
-        trg = getproperty(cache.IG, fn); src = getproperty(G.blocks[b], fn)
-        for j in 1:N
-            trg[j, b] = - src[j, i]
-        end
-    end
-    @inbounds cache.IG.re[i, 1] += 1.0
-    @inbounds cache.IG.re[i, 2] += 1.0
+    vsub!(cache.IG, I, G, i)
 
     # copy G (necessary to avoid overwriten? probably also helps with cache misses)
     @inbounds for b in eachindex(G.blocks)
         for j in 1:N
-            cache.G.re[j, b] = cache.invRΔ.re[b] * G.blocks[b].re[i, j]
+            cache.G[b].re[j] = cache.invRΔ.re[b] * G.blocks[b].re[i, j]
         end
         for j in 1:N
-            cache.G.re[j, b] -= cache.invRΔ.im[b] * G.blocks[b].im[i, j]
+            cache.G[b].re[j] -= cache.invRΔ.im[b] * G.blocks[b].im[i, j]
         end
         for j in 1:N
-            cache.G.im[j, b] = cache.invRΔ.re[b] * G.blocks[b].im[i, j]
+            cache.G[b].im[j] = cache.invRΔ.re[b] * G.blocks[b].im[i, j]
         end
         for j in 1:N
-            cache.G.im[j, b] += cache.invRΔ.im[b] * G.blocks[b].re[i, j]
+            cache.G[b].im[j] += cache.invRΔ.im[b] * G.blocks[b].re[i, j]
         end
     end
 
     # update greens function
-    @inbounds for b in eachindex(G.blocks)
-        @turbo for k in 1:N, l in 1:N
-            G.blocks[b].re[k, l] -= cache.IG.re[k, b] * cache.G.re[l, b]
-        end
-        @turbo for k in 1:N, l in 1:N
-            G.blocks[b].re[k, l] += cache.IG.im[k, b] * cache.G.im[l, b]
-        end
-        @turbo for k in 1:N, l in 1:N
-            G.blocks[b].im[k, l] -= cache.IG.im[k, b] * cache.G.re[l, b]
-        end
-        @turbo for k in 1:N, l in 1:N
-            G.blocks[b].im[k, l] -= cache.IG.re[k, b] * cache.G.im[l, b]
-        end
-    end
+    vsubkron!(G, cache.IG, cache.G)
 
     nothing
 end
@@ -651,11 +673,11 @@ energy_boson(mc, ::MagneticGHQField, conf=nothing) = 0.0
         result.diag[i+N] = exp(-power * f.α * f.η[f.conf[i, slice]])
     end
 
-    nothing
+    return nothing
 end
 
 
-@inline @bm function MonteCarlo.propose_local(mc, f::MagneticGHQField, i, slice)
+@inline @bm function propose_local(mc, f::MagneticGHQField, i, slice)
     x_old = f.conf[i, slice]
     x_new = @inbounds f.choices[x_old, rand(1:3)]
 
@@ -667,13 +689,14 @@ end
     return detratio * f.γ[x_new] / f.γ[x_old], 0.0, x_new
 end
 
-@inline @bm function MonteCarlo.accept_local!(
+@inline @bm function accept_local!(
         mc, f::MagneticGHQField, i, slice, detratio, ΔE_boson, x_new
     )
     update_greens!(mc.stack.field_cache, mc.stack.greens, i)
 
     # update conf
     @inbounds f.conf[i, slice] = x_new
+    return nothing
 end
 
 
