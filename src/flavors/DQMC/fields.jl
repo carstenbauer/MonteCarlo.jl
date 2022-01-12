@@ -253,7 +253,46 @@ function vmul!(trg::NTuple, M::Union{FVec64, CVec64}, src::BlockDiagonal, i::Int
 end
 
 # vldiv!(invRΔ, R, Δ)
+"""
+    vldiv22!(cache, R, Δ)
 
+Computes `cache.invRΔ = R⁻¹ Δ` where `cache.invRΔ`, `R` and `Δ` are a Number, 
+a 2 component Vector representing a 2x2 Diagonal matrix or a 2x2 Matrix.
+"""
+function vldiv22!(cache::StandardFieldCache, R::Number, Δ::Number)
+    cache.invRΔ = Δ / R
+    nothing
+end
+function vldiv22!(cache::StandardFieldCache, R::FMat64, Δ::FVec64)
+    @inbounds begin
+        inv_div = 1.0 / cache.detratio
+        cache.invRΔ[1, 1] =   R[2, 2] * Δ[2] * inv_div
+        cache.invRΔ[1, 2] = - R[1, 2] * Δ[2] * inv_div
+        cache.invRΔ[2, 1] = - R[2, 1] * Δ[1] * inv_div
+        cache.invRΔ[2, 2] =   R[1, 1] * Δ[1] * inv_div
+    end
+    nothing
+end
+
+function vldiv22!(cache::StandardFieldCache, R::FVec64, Δ::FVec64)
+    @inbounds begin
+        cache.invRΔ[1] = Δ[1] / R[1]
+        cache.invRΔ[2] = Δ[2] / R[2]
+    end
+    nothing
+end
+function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::CVec64)
+    @inbounds begin
+        # Reminder: 1/c = c* / (cc*) (complex conjugate)
+        f1 = 1.0 / (R.re[1] * R.re[1] + R.im[1] * R.im[1])
+        f2 = 1.0 / (R.re[2] * R.re[2] + R.im[2] * R.im[2])
+        cache.invRΔ.re[1] = f1 * (Δ.re[1] * R.re[1] + Δ.im[1] * R.im[1])
+        cache.invRΔ.re[2] = f2 * (Δ.re[2] * R.re[2] + Δ.im[2] * R.im[2])
+        cache.invRΔ.im[1] = f1 * (Δ.im[1] * R.re[1] - Δ.re[1] * R.im[1])
+        cache.invRΔ.im[2] = f2 * (Δ.im[2] * R.re[2] - Δ.re[2] * R.im[2])
+    end
+    nothing
+end
 
 function update_greens!(cache::StandardFieldCache, G, i)
     update_greens!(cache::StandardFieldCache, cache.Δ, G, i)
@@ -261,7 +300,7 @@ end
 
 function update_greens!(cache::StandardFieldCache, Δ::Float64, G::FMat64, i)
     # calculate Δ R⁻¹
-    cache.invRΔ = Δ / cache.R
+    vldiv22!(cache, cache.R, Δ)
     
     # calculate (I - G)[:, i]
     vsub!(cache.IG, I, G, i)
@@ -276,7 +315,7 @@ function update_greens!(cache::StandardFieldCache, Δ::Float64, G::FMat64, i)
 end
 function update_greens!(cache::StandardFieldCache, Δ::ComplexF64, G::CMat64, i)
     # calculate Δ R⁻¹
-    cache.invRΔ = Δ / cache.R
+    vldiv22!(cache, cache.R, Δ)
     
     # calculate (I - G)[:, i]
     vsub!(cache.IG, I, G, i)
@@ -294,24 +333,11 @@ function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::FMat64, i)
     # TODO this is not nice
     N = div(size(G, 1), 2)
 
-    # invert R inplace
-    # using M^-1 = [a b; c d]^-1 = 1/det(M) [d -b; -c a]
-    # TODO merge this with R⁻¹ * Δ
-    @inbounds begin
-        inv_div = 1.0 / cache.detratio
-        cache.R[1, 2] = - cache.R[1, 2] * inv_div
-        cache.R[2, 1] = - cache.R[2, 1] * inv_div
-        x = cache.R[1, 1]
-        cache.R[1, 1] = cache.R[2, 2] * inv_div
-        cache.R[2, 2] = x * inv_div
-    end
-    
     # compute R⁻¹ Δ
-    # TODO: merge with inversion of R
-    vmul!(cache.invRΔ, cache.R, Diagonal(Δ))
+    vldiv22!(cache, cache.R, Δ)
 
     # copy (I - G)[:, i:N:2N]
-    vsub!(cache.IG, I, G, (i, i+N))
+    vsub!(cache.IG, I, G, (i, i+N)) # TODO
 
     # calculate (R⁻¹ Δ) * G[i:N:end, :]
     vmul!(cache.G, cache.invRΔ, G, (i, i+N))
@@ -323,17 +349,9 @@ function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::FMat64, i)
 end
 
 function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{Float64}, i)
-    # TODO this is not nice
-    N = size(G.blocks[1], 1)
+    # calculate R⁻¹ * Δ
+    vldiv22!(cache, cache.R, Δ)
 
-    # invert R inplace
-    # using M^-1 = [a b; c d]^-1 = 1/det(M) [d -b; -c a]
-    # TODO merge this with R⁻¹ * Δ
-    @inbounds begin
-        cache.invRΔ[1] = Δ[1] / cache.R[1]
-        cache.invRΔ[2] = Δ[2] / cache.R[2]
-    end
-    
     # copy (I - G)[:, i]
     vsub!(cache.IG, I, G, i)
 
@@ -346,20 +364,9 @@ function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{
     nothing
 end
 function update_greens!(cache::StandardFieldCache, Δ::CVec64, G::BlockDiagonal{ComplexF64}, i)
-    # TODO this is not nice
-    N = size(G.blocks[1], 1)
+    # calculate R⁻¹ * Δ
+    vldiv22!(cache, cache.R, Δ)
 
-    # invert R inplace
-    # Reminder: 1/c = c* / (cc*) (complex conjugate)
-    @inbounds begin
-        f1 = 1.0 / (cache.R.re[1] * cache.R.re[1] + cache.R.im[1] * cache.R.im[1])
-        f2 = 1.0 / (cache.R.re[2] * cache.R.re[2] + cache.R.im[2] * cache.R.im[2])
-        cache.invRΔ.re[1] = f1 * (Δ.re[1] * cache.R.re[1] + Δ.im[1] * cache.R.im[1])
-        cache.invRΔ.re[2] = f2 * (Δ.re[2] * cache.R.re[2] + Δ.im[2] * cache.R.im[2])
-        cache.invRΔ.im[1] = f1 * (Δ.im[1] * cache.R.re[1] - Δ.re[1] * cache.R.im[1])
-        cache.invRΔ.im[2] = f2 * (Δ.im[2] * cache.R.re[2] - Δ.re[2] * cache.R.im[2])
-    end
-    
     # copy (I - G)[:, i]
     vsub!(cache.IG, I, G, i)
 
