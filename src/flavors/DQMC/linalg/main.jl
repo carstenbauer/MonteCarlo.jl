@@ -12,6 +12,9 @@ include("UDT.jl")
 # 2. Add wrappers for specific matrix shapes
 include("blockdiagonal.jl")
 
+# This is not as generic...
+include("updates.jl")
+
 # There is some additional glue code here
 
 # Not sure if this should be here
@@ -26,5 +29,3 @@ vector_type(::Type{Float64}) = FVec64
 vector_type(::Type{ComplexF64}) = CVec64
 matrix_type(::Type{Float64}) = FMat64
 matrix_type(::Type{ComplexF64}) = CMat64
-
-
