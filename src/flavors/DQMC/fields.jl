@@ -166,22 +166,19 @@ function vsubkron!(G::BlockDiagonal, L::Tuple, R::Tuple)
 end
 
 """
-    vsub!(trg, ::UniformScaling, src, slices)
+    vsub!(trg, ::UniformScaling, src, i, N)
 
-Calculates `trg[i, j] = I[i, slices[j]] - src[i, slices[j]]` where 
-`j = eachindex(slices)` and `slices` is a tuple of indices. 
-
-`slices` can also be an integer when only one slice is relevant. In this case 
-`trg` is assumed to be a Vector.
+Calculates `trg[m, n] = I[m, (i:N:end)[n]] - src[m, (i:N:end)[n]]` where 
+`n = eachindex(i:N:end)`. 
 """
-function vsub!(trg::FVec64, ::UniformScaling, src::FMat64, i::Int)
+function vsub!(trg::FVec64, ::UniformScaling, src::FMat64, i::Int, N::Int)
     @turbo for j in eachindex(trg)
         trg[j] = - src[j, i]
     end
     @inbounds trg[i] += 1.0
     nothing
 end
-function vsub!(trg::CVec64, ::UniformScaling, src::CMat64, i::Int)
+function vsub!(trg::CVec64, ::UniformScaling, src::CMat64, i::Int, N::Int)
     @turbo for j in eachindex(trg.re)
         trg.re[j] = - src.re[j, i]
     end
@@ -191,63 +188,61 @@ function vsub!(trg::CVec64, ::UniformScaling, src::CMat64, i::Int)
     end
     nothing
 end
-function vsub!(trg::FMat64, ::UniformScaling, src::FMat64, slices::NTuple)
-    @inbounds for (k, i) in enumerate(slices)
+function vsub!(trg::FMat64, ::UniformScaling, src::FMat64, i::Int, N::Int)
+    @inbounds for (k, l) in enumerate(i:N:size(src, 2))
         @turbo for j in axis(trg, 1)
-            trg[j, k] = - G[j, i]
+            trg[j, k] = - src[j, l]
         end
-        trg[i, k] += 1.0
+        trg[l, k] += 1.0
     end
     nothing
 end
-function vsub!(trg::Tuple, ::UniformScaling, src::BlockDiagonal, i::Int)
+function vsub!(trg::Tuple, ::UniformScaling, src::BlockDiagonal, i::Int, N::Int)
     @inbounds for b in eachindex(trg)
-        vsub!(trg[b], I, src.blocks[b], i)
+        vsub!(trg[b], I, src.blocks[b], i, N)
     end
     nothing
 end
 
 """
-    vmul!(trg, M, src, slices)
+    vmul!(trg, M, src, i, N)
 
-Calculates `trg[i, j] = ∑ₖ M[j, k] * src[slices[k], i]` where 
-`j, k = eachindex(slices)` and `slices` is a tuple of indices. 
-
-`slices` can also be an integer when only one slice is relevant. In this case 
-`trg` is assumed to be a Vector and `M` is assumed to be a Number.
+Calculates `trg[m, n] = ∑ₖ M[n, k] * src[(i:N:end)[k], m]` where 
+`n, k = eachindex(i:N:end)`. 
 """
-function vmul!(trg::FVec64, M::Float64, src::FMat64, i::Int)
+function vmul!(trg::FVec64, M::Float64, src::FMat64, i::Int, N::Int)
     @turbo for j in eachindex(trg)
         trg[j] = M * src[i, j]
     end
     nothing
 end
-function vmuladd!(trg::FVec64, M::Float64, src::FMat64, i::Int)
+function vmuladd!(trg::FVec64, M::Float64, src::FMat64, i::Int, N::Int)
     @turbo for j in eachindex(trg)
         trg[j] += M * src[i, j]
     end
     nothing
 end
-function vmul!(trg::CVec64, M::ComplexF64, src::CMat64, i::Int)
-    vmul!(trg.re, real(M), src.re, i)
-    vmuladd!(trg.re, -imag(M), src.im, i)
-    vmul!(trg.im, real(M), src.im, i)
-    vmuladd!(trg.im, imag(M), src.re, i)
+function vmul!(trg::CVec64, M::ComplexF64, src::CMat64, i::Int, N::Int)
+    vmul!(trg.re, real(M), src.re, i, N)
+    vmuladd!(trg.re, -imag(M), src.im, i, N)
+    vmul!(trg.im, real(M), src.im, i, N)
+    vmuladd!(trg.im, imag(M), src.re, i, N)
     nothing
 end
-function vmul!(trg::FMat64, M::FMat64, src::FMat64, slices::NTuple)
-    @inbounds for i in axes(trg, 1), j in eachindex(slices)
+function vmul!(trg::FMat64, M::FMat64, src::FMat64, i::Int, N::Int)
+    r = i:N:size(src, 1)
+    @inbounds for i in axes(trg, 1), j in eachindex(r)
         tij = 0.0
-        for (k, l) in enumerate(slices)
+        for (k, l) in enumerate(r)
             tij += M[j, k] * src[l, i]
         end
         trg[i, j] = tij
     end
     nothing
 end
-function vmul!(trg::NTuple, M::Union{FVec64, CVec64}, src::BlockDiagonal, i::Int)
+function vmul!(trg::NTuple, M::Union{FVec64, CVec64}, src::BlockDiagonal, i::Int, N::Int)
     @inbounds for b in eachindex(trg)
-        vmul!(trg[b], M[b], src.blocks[b], i)
+        vmul!(trg[b], M[b], src.blocks[b], i, N)
     end
     nothing
 end
@@ -273,7 +268,6 @@ function vldiv22!(cache::StandardFieldCache, R::FMat64, Δ::FVec64)
     end
     nothing
 end
-
 function vldiv22!(cache::StandardFieldCache, R::FVec64, Δ::FVec64)
     @inbounds begin
         cache.invRΔ[1] = Δ[1] / R[1]
@@ -299,14 +293,16 @@ function update_greens!(cache::StandardFieldCache, G, i)
 end
 
 function update_greens!(cache::StandardFieldCache, Δ::Float64, G::FMat64, i)
+    N = size(G, 1)
+
     # calculate Δ R⁻¹
     vldiv22!(cache, cache.R, Δ)
     
     # calculate (I - G)[:, i]
-    vsub!(cache.IG, I, G, i)
+    vsub!(cache.IG, I, G, i, N)
 
     # calculate (Δ R⁻¹) * G[i, :]
-    vmul!(cache.G, cache.invRΔ, G, i)
+    vmul!(cache.G, cache.invRΔ, G, i, N)
 
     # update greens function
     vsubkron!(G, cache.IG, cache.G)
@@ -314,14 +310,16 @@ function update_greens!(cache::StandardFieldCache, Δ::Float64, G::FMat64, i)
     nothing
 end
 function update_greens!(cache::StandardFieldCache, Δ::ComplexF64, G::CMat64, i)
+    N = size(G, 1)
+
     # calculate Δ R⁻¹
     vldiv22!(cache, cache.R, Δ)
     
     # calculate (I - G)[:, i]
-    vsub!(cache.IG, I, G, i)
+    vsub!(cache.IG, I, G, i, N)
 
     # calculate (Δ R⁻¹) G[i, :]
-    vmul!(cache.G, cache.invRΔ, G, i)
+    vmul!(cache.G, cache.invRΔ, G, i, N)
 
     # update greens function
     vsubkron!(G, cache.IG, cache.G)
@@ -330,17 +328,16 @@ function update_greens!(cache::StandardFieldCache, Δ::ComplexF64, G::CMat64, i)
 end
 
 function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::FMat64, i)
-    # TODO this is not nice
     N = div(size(G, 1), 2)
 
     # compute R⁻¹ Δ
     vldiv22!(cache, cache.R, Δ)
 
     # copy (I - G)[:, i:N:2N]
-    vsub!(cache.IG, I, G, (i, i+N)) # TODO
+    vsub!(cache.IG, I, G, i, N) # TODO
 
     # calculate (R⁻¹ Δ) * G[i:N:end, :]
-    vmul!(cache.G, cache.invRΔ, G, (i, i+N))
+    vmul!(cache.G, cache.invRΔ, G, i, N)
 
     # update greens function
     vsubkron!(G, cache.IG, cache.G)
@@ -349,14 +346,16 @@ function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::FMat64, i)
 end
 
 function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{Float64}, i)
+    N = size(G.blocks[1], 1)
+
     # calculate R⁻¹ * Δ
     vldiv22!(cache, cache.R, Δ)
 
     # copy (I - G)[:, i]
-    vsub!(cache.IG, I, G, i)
+    vsub!(cache.IG, I, G, i, N)
 
     # copy G (necessary to avoid overwriten? probably also helps with cache misses)
-    vmul!(cache.G, cache.invRΔ, G, i)
+    vmul!(cache.G, cache.invRΔ, G, i, N)
 
     # update greens function
     vsubkron!(G, cache.IG, cache.G)
@@ -364,14 +363,16 @@ function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{
     nothing
 end
 function update_greens!(cache::StandardFieldCache, Δ::CVec64, G::BlockDiagonal{ComplexF64}, i)
+    N = size(G.blocks[1], 1)
+
     # calculate R⁻¹ * Δ
     vldiv22!(cache, cache.R, Δ)
 
     # copy (I - G)[:, i]
-    vsub!(cache.IG, I, G, i)
+    vsub!(cache.IG, I, G, i, N)
 
     # copy G (necessary to avoid overwriten? probably also helps with cache misses)
-    vmul!(cache.G, cache.invRΔ, G, i)
+    vmul!(cache.G, cache.invRΔ, G, i, N)
 
     # update greens function
     vsubkron!(G, cache.IG, cache.G)
