@@ -288,93 +288,19 @@ function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::CVec64)
     nothing
 end
 
-function update_greens!(cache::StandardFieldCache, G, i)
-    update_greens!(cache::StandardFieldCache, cache.Δ, G, i)
-end
 
-function update_greens!(cache::StandardFieldCache, Δ::Float64, G::FMat64, i)
-    N = size(G, 1)
-
+function update_greens!(cache::StandardFieldCache, G, i, N)
     # calculate Δ R⁻¹
-    vldiv22!(cache, cache.R, Δ)
+    vldiv22!(cache, cache.R, cache.Δ)
     
-    # calculate (I - G)[:, i]
+    # calculate (I - G)[:, i:N:end]
     vsub!(cache.IG, I, G, i, N)
 
-    # calculate (Δ R⁻¹) * G[i, :]
+    # calculate {Δ R⁻¹} * G[i:N:end, :]
     vmul!(cache.G, cache.invRΔ, G, i, N)
 
-    # update greens function
-    vsubkron!(G, cache.IG, cache.G)
-
-    nothing
-end
-function update_greens!(cache::StandardFieldCache, Δ::ComplexF64, G::CMat64, i)
-    N = size(G, 1)
-
-    # calculate Δ R⁻¹
-    vldiv22!(cache, cache.R, Δ)
-    
-    # calculate (I - G)[:, i]
-    vsub!(cache.IG, I, G, i, N)
-
-    # calculate (Δ R⁻¹) G[i, :]
-    vmul!(cache.G, cache.invRΔ, G, i, N)
-
-    # update greens function
-    vsubkron!(G, cache.IG, cache.G)
-
-    nothing
-end
-
-function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::FMat64, i)
-    N = div(size(G, 1), 2)
-
-    # compute R⁻¹ Δ
-    vldiv22!(cache, cache.R, Δ)
-
-    # copy (I - G)[:, i:N:2N]
-    vsub!(cache.IG, I, G, i, N) # TODO
-
-    # calculate (R⁻¹ Δ) * G[i:N:end, :]
-    vmul!(cache.G, cache.invRΔ, G, i, N)
-
-    # update greens function
-    vsubkron!(G, cache.IG, cache.G)
-
-    nothing
-end
-
-function update_greens!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{Float64}, i)
-    N = size(G.blocks[1], 1)
-
-    # calculate R⁻¹ * Δ
-    vldiv22!(cache, cache.R, Δ)
-
-    # copy (I - G)[:, i]
-    vsub!(cache.IG, I, G, i, N)
-
-    # copy G (necessary to avoid overwriten? probably also helps with cache misses)
-    vmul!(cache.G, cache.invRΔ, G, i, N)
-
-    # update greens function
-    vsubkron!(G, cache.IG, cache.G)
-
-    nothing
-end
-function update_greens!(cache::StandardFieldCache, Δ::CVec64, G::BlockDiagonal{ComplexF64}, i)
-    N = size(G.blocks[1], 1)
-
-    # calculate R⁻¹ * Δ
-    vldiv22!(cache, cache.R, Δ)
-
-    # copy (I - G)[:, i]
-    vsub!(cache.IG, I, G, i, N)
-
-    # copy G (necessary to avoid overwriten? probably also helps with cache misses)
-    vmul!(cache.G, cache.invRΔ, G, i, N)
-
-    # update greens function
+    # update greens function 
+    # G[m, n] -= {(I - G)[m, i:N:end]} {{Δ R⁻¹} * G[i:N:end, n]}
     vsubkron!(G, cache.IG, cache.G)
 
     nothing
@@ -490,7 +416,8 @@ function propose_local(mc, f::DensityHirschField, i, slice)
 end
 
 function accept_local!(mc, f::DensityHirschField, i, slice, args...)
-    update_greens!(mc.stack.field_cache, mc.stack.greens, i)
+    update_greens!(mc.stack.field_cache, mc.stack.greens, i, size(f.conf, 1))
+    # update conf
     @inbounds f.conf[i, slice] *= -1
     nothing
 end
@@ -574,9 +501,9 @@ function propose_local(mc, f::MagneticHirschField, i, slice)
 end
 
 function accept_local!(mc, f::MagneticHirschField, i, slice, args...)
-    update_greens!(mc.stack.field_cache, mc.stack.greens, i)
+    update_greens!(mc.stack.field_cache, mc.stack.greens, i, size(f.conf, 1))
+    # update conf
     @inbounds f.conf[i, slice] *= -1
-
     nothing
 end
 
@@ -704,8 +631,7 @@ end
 @inline @bm function accept_local!(
         mc, f::MagneticGHQField, i, slice, detratio, ΔE_boson, x_new
     )
-    update_greens!(mc.stack.field_cache, mc.stack.greens, i)
-
+    update_greens!(mc.stack.field_cache, mc.stack.greens, i, size(f.conf, 1))
     # update conf
     @inbounds f.conf[i, slice] = x_new
     return nothing
