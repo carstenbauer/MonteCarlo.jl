@@ -66,7 +66,7 @@ end
 
 function vsub!(trg::FMat64, ::UniformScaling, src::FMat64, i::Int, N::Int)
     @inbounds for (k, l) in enumerate(i:N:size(src, 2))
-        @turbo for j in axis(trg, 1)
+        @turbo for j in axes(trg, 1)
             trg[j, k] = - src[j, l]
         end
         trg[l, k] += 1.0

@@ -3,7 +3,6 @@ mutable struct StandardFieldCache{T1, T2, T3, T4} <: AbstractFieldCache
     R::T2
     invRΔ::T2
     IG::T3
-    IGR::T3
     G::T3
     detratio::T4
 end
@@ -23,7 +22,6 @@ function FieldCache(field, model)
         R   = zero(GET)
         invRΔ = zero(GET)
         IG  = VT(undef, N)
-        IGR = VT(undef, N)
         G   = VT(undef, N)
 
     else
@@ -32,7 +30,6 @@ function FieldCache(field, model)
             R   = VT(undef, flv)
             invRΔ = VT(undef, flv)
             IG  = ntuple(_ -> VT(undef, N), flv)
-            IGR = ntuple(_ -> VT(undef, N), flv)
             G   = ntuple(_ -> VT(undef, N), flv)
         else
             # all matter
@@ -40,7 +37,6 @@ function FieldCache(field, model)
             invRΔ = MT(undef, flv, flv)
             # fast iteration on first index
             IG  = MT(undef, N*flv, flv)
-            IGR = MT(undef, N*flv, flv)
             G   = MT(undef, N*flv, flv)
         end
         
@@ -48,7 +44,7 @@ function FieldCache(field, model)
 
     detratio = zero(GET)
 
-    return StandardFieldCache(Δ, R, invRΔ, IG, IGR, G, detratio)
+    return StandardFieldCache(Δ, R, invRΔ, IG, G, detratio)
 end
 
 
@@ -145,10 +141,10 @@ end
 function vldiv22!(cache::StandardFieldCache, R::FMat64, Δ::FVec64)
     @inbounds begin
         inv_div = 1.0 / cache.detratio
-        cache.invRΔ[1, 1] =   R[2, 2] * Δ[2] * inv_div
+        cache.invRΔ[1, 1] =   R[2, 2] * Δ[1] * inv_div
         cache.invRΔ[1, 2] = - R[1, 2] * Δ[2] * inv_div
         cache.invRΔ[2, 1] = - R[2, 1] * Δ[1] * inv_div
-        cache.invRΔ[2, 2] =   R[1, 1] * Δ[1] * inv_div
+        cache.invRΔ[2, 2] =   R[1, 1] * Δ[2] * inv_div
     end
     nothing
 end

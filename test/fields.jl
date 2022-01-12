@@ -101,6 +101,124 @@ end
     end
 end
 
+using StructArrays, LinearAlgebra
+using MonteCarlo, Test
+
+@testset "Linear Algebra" begin
+    i = 3; N = 4; C = ComplexF64; SA = StructArray
+
+    G = rand(N, N)
+    cache = MonteCarlo.StandardFieldCache(rand(), rand(), rand(), rand(N), rand(N), rand())
+    cache.R = 1 + cache.Δ * (1 - G[i, i])
+    cache.detratio = cache.R * cache.R
+
+    invRΔ = cache.Δ / cache.R
+    MonteCarlo.vldiv22!(cache, cache.R, cache.Δ)
+    @test invRΔ ≈ cache.invRΔ rtol = 1e-14
+
+    IG = (I - Matrix(G))[:, i:N:end]
+    MonteCarlo.vsub!(cache.IG, I, G, i, N)
+    # @test cache.IG ≈ IG rtol = 1e-14
+
+    g = invRΔ * Matrix(G)[i:N:end, :]
+    MonteCarlo.vmul!(cache.G, cache.invRΔ, G, i, N)
+    # @test g ≈ cache.G rtol = 1e-14
+
+    Q = Matrix(G) - IG * g
+    MonteCarlo.vsubkron!(G, cache.IG, cache.G)
+    @test G ≈ Q rtol = 1e-14
+
+
+    G = SA(rand(ComplexF64, N, N))
+    cache = MonteCarlo.StandardFieldCache(rand(C), rand(C), rand(C), SA(rand(C, N)), SA(rand(C, N)), rand(C))
+    cache.R = 1 + cache.Δ * (1 - G[i, i])
+    cache.detratio = cache.R * cache.R
+
+    invRΔ = cache.Δ / cache.R
+    MonteCarlo.vldiv22!(cache, cache.R, cache.Δ)
+    @test invRΔ ≈ cache.invRΔ rtol = 1e-14
+
+    IG = (I - Matrix(G))[:, i:N:end]
+    MonteCarlo.vsub!(cache.IG, I, G, i, N)
+    # @test cache.IG ≈ IG rtol = 1e-14
+
+    g = invRΔ * Matrix(G)[i:N:end, :]
+    MonteCarlo.vmul!(cache.G, cache.invRΔ, G, i, N)
+    # @test g ≈ cache.G rtol = 1e-14
+
+    Q = Matrix(G) - IG * g
+    MonteCarlo.vsubkron!(G, cache.IG, cache.G)
+    @test G ≈ Q rtol = 1e-14
+
+
+    G = rand(2N, 2N)
+    cache = MonteCarlo.StandardFieldCache(rand(2), rand(2, 2), rand(2, 2), rand(2N, 2), rand(2N, 2), rand())
+    cache.R .= I + Diagonal(cache.Δ) * (I - G[i:N:end, i:N:end])
+    cache.detratio = det(cache.R)
+
+    invRΔ = inv(cache.R) * Diagonal(cache.Δ)
+    MonteCarlo.vldiv22!(cache, cache.R, cache.Δ)
+    @test invRΔ ≈ cache.invRΔ rtol = 1e-14
+
+    IG = (I - Matrix(G))[:, i:N:end]
+    MonteCarlo.vsub!(cache.IG, I, G, i, N)
+    # @test cache.IG ≈ IG rtol = 1e-14
+
+    g = invRΔ * Matrix(G)[i:N:end, :]
+    MonteCarlo.vmul!(cache.G, cache.invRΔ, G, i, N)
+    # @test g ≈ cache.G rtol = 1e-14
+
+    Q = Matrix(G) - IG * g
+    MonteCarlo.vsubkron!(G, cache.IG, cache.G)
+    @test G ≈ Q rtol = 1e-14
+
+
+    G = MonteCarlo.BlockDiagonal(rand(N, N), rand(N, N))
+    cache = MonteCarlo.StandardFieldCache(rand(2), rand(2), rand(2), (rand(N), rand(N)), (rand(N), rand(N)), rand())
+    cache.R[1] = 1 + cache.Δ[1] * (1 - G[i, i])
+    cache.R[2] = 1 + cache.Δ[2] * (1 - G[i+N, i+N])
+    cache.detratio = cache.R[1] * cache.R[2]
+
+    invRΔ = cache.Δ ./ cache.R
+    MonteCarlo.vldiv22!(cache, cache.R, cache.Δ)
+    @test invRΔ ≈ cache.invRΔ rtol = 1e-14
+
+    IG = (I - Matrix(G))[:, i:N:end]
+    MonteCarlo.vsub!(cache.IG, I, G, i, N)
+    # @test cache.IG ≈ IG rtol = 1e-14
+
+    g = Diagonal(invRΔ) * Matrix(G)[i:N:end, :]
+    MonteCarlo.vmul!(cache.G, cache.invRΔ, G, i, N)
+    # @test g ≈ cache.G rtol = 1e-14
+
+    Q = Matrix(G) - IG * g
+    MonteCarlo.vsubkron!(G, cache.IG, cache.G)
+    @test G ≈ Q rtol = 1e-14
+
+
+    G = MonteCarlo.BlockDiagonal(SA(rand(ComplexF64, N, N)), SA(rand(ComplexF64, N, N)))
+    cache = MonteCarlo.StandardFieldCache(SA(rand(C, 2)), SA(rand(C, 2)), SA(rand(C, 2)), (SA(rand(C, N)), SA(rand(C, N))), (SA(rand(C, N)), SA(rand(C, N))), rand(C))
+    cache.R[1] = 1 + cache.Δ[1] * (1 - G[i, i])
+    cache.R[2] = 1 + cache.Δ[2] * (1 - G[i+N, i+N])
+    cache.detratio = cache.R[1] * cache.R[2]
+
+    invRΔ = cache.Δ ./ cache.R
+    MonteCarlo.vldiv22!(cache, cache.R, cache.Δ)
+    @test invRΔ ≈ cache.invRΔ rtol = 1e-14
+
+    IG = (I - Matrix(G))[:, i:N:end]
+    MonteCarlo.vsub!(cache.IG, I, G, i, N)
+    # @test cache.IG ≈ IG rtol = 1e-14
+
+    g = Diagonal(invRΔ) * Matrix(G)[i:N:end, :]
+    MonteCarlo.vmul!(cache.G, cache.invRΔ, G, i, N)
+    # @test g ≈ cache.G rtol = 1e-14
+
+    Q = Matrix(G) - IG * g
+    MonteCarlo.vsubkron!(G, cache.IG, cache.G)
+    @test G ≈ Q rtol = 1e-14
+end
+
 @testset "Sign Problem in field - model Combinations" begin
     models = (HubbardModelAttractive(8, 1), HubbardModelRepulsive(8, 1))
     fields = (MagneticHirschField, DensityHirschField, MagneticGHQField)
