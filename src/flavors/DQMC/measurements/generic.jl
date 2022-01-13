@@ -364,7 +364,8 @@ end
 
 # Lattice irrelevant
 @bm function measure!(::Nothing, measurement, mc::DQMC, model, sweep, packed_greens)
-    push!(measurement.observable, measurement.kernel(mc, model, packed_greens))
+    flv = Val(max(nflavors(field(mc)), nflavors(model)))
+    push!(measurement.observable, measurement.kernel(mc, model, packed_greens, flv))
     nothing
 end
 
@@ -375,53 +376,37 @@ end
 ################################################################################
 
 
-# @bm function apply!(
-#         temp::StructArray{ComplexF64}, iter::AbstractLatticeIterator, measurement, mc::DQMC, model, 
-#         G::GreensMatrix{ComplexF64, CMat64}
-#     )
-#     # TODO temp needs to be CVec64
-#     # TODO apply!() needs to be passed a temp array
-#     # TODO BlockDiagonal too ree
-#     # TODO factor for im^2?
-
-#     # wait wtf this doesn't even work :<
-#     # cause we have some form of G[i, j] * G[k, l] in the kernel which needs to be
-#     # split but how are we gonna do this
-#     apply!(temp.re, iter, measurement, mc, model, GreensMatrix(G.k, G.l, G.val.re))
-#     apply!(temp.re, iter, measurement, mc, model, GreensMatrix(G.k, G.l, G.val.im))
-#     apply!(temp.re, iter, measurement, mc, model, GreensMatrix(G.k, G.l, G.val.re))
-#     apply!(temp.re, iter, measurement, mc, model, GreensMatrix(G.k, G.l, G.val.re))
-#     nothing
-# end
-
-
 # Call kernel for each site (linear index)
 @bm function apply!(temp::Array, iter::DirectLatticeIterator, measurement, mc::DQMC, model, packed_greens)
+    flv = Val(max(nflavors(field(mc)), nflavors(model)))
     for i in iter
-        temp[i] += measurement.kernel(mc, model, i, packed_greens)
+        temp[i] += measurement.kernel(mc, model, i, packed_greens, flv)
     end
     nothing
 end
 
 # Call kernel for each pair (src, trg) (Nsties² total)
 @bm function apply!(temp::Array, iter::EachSitePair, measurement, mc::DQMC, model, packed_greens)
+    flv = Val(max(nflavors(field(mc)), nflavors(model)))
     for (i, j) in iter
-        temp[i, j] += measurement.kernel(mc, model, (i, j), packed_greens)
+        temp[i, j] += measurement.kernel(mc, model, (i, j), packed_greens, flv)
     end
     nothing
 end
 
 # Call kernel for each pair (site, site) (i.e. on-site) 
 @bm function apply!(temp::Array, iter::_OnSite, measurement, mc::DQMC, model, packed_greens)
+    flv = Val(max(nflavors(field(mc)), nflavors(model)))
     for (i, j) in iter
-        temp[i] += measurement.kernel(mc, model, (i, j), packed_greens)
+        temp[i] += measurement.kernel(mc, model, (i, j), packed_greens, flv)
     end
     nothing
 end
 
 @bm function apply!(temp::Array, iter::DeferredLatticeIterator, measurement, mc::DQMC, model, packed_greens)
+    flv = Val(max(nflavors(field(mc)), nflavors(model)))
     @inbounds for idxs in iter
-        temp[first(idxs)] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
+        temp[first(idxs)] += measurement.kernel(mc, model, idxs[2:end], packed_greens, flv)
     end
     nothing
 end
@@ -429,14 +414,16 @@ end
 
 # Sums
 @bm function apply!(temp::Array, iter::_Sum{<: DirectLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
+    flv = Val(max(nflavors(field(mc)), nflavors(model)))
     @inbounds for idxs in iter
-        temp[1] += measurement.kernel(mc, model, idxs, packed_greens)
+        temp[1] += measurement.kernel(mc, model, idxs, packed_greens, flv)
     end
     nothing
 end
 @bm function apply!(temp::Array, iter::_Sum{<: DeferredLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
+    flv = Val(max(nflavors(field(mc)), nflavors(model)))
     @inbounds for idxs in iter
-        temp[1] += measurement.kernel(mc, model, idxs[2:end], packed_greens)
+        temp[1] += measurement.kernel(mc, model, idxs[2:end], packed_greens, flv)
     end
     nothing
 end

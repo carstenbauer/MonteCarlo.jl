@@ -125,16 +125,3 @@ function _load(data, ::Val{:HubbardModelRepulsive})
     )
 end
 to_tag(::Type{<: HubbardModelRepulsive}) = Val(:HubbardModelRepulsive)
-
-
-
-################################################################################
-### Measurement kernels
-################################################################################
-
-
-
-function intE_kernel(mc, model::HubbardModelRepulsive, G::GreensMatrix)
-    # up-down zero
-    - model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
-end

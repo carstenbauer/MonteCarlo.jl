@@ -59,5 +59,17 @@ function greens_matrix_type(f::AbstractGHQField{T}, m::HubbardModel) where {T}
     end
 end
 
+function intE_kernel(mc, model::HubbardModel, G::GreensMatrix, ::Val{1})
+    # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... 
+    # = U [G↑↑ G↓↓ - G↓↑ G↑↓ - 0.5 G↑↑ - 0.5 G↓↓ + G↑↓ + 0.25]
+    # = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
+    # with up-up = down-down and up-down = 0
+    - model.U * sum((diag(G.val) .- 0.5).^2)
+end
+# Technically this only applies to BlockDiagonal
+function intE_kernel(mc, model::HubbardModel, G::GreensMatrix, ::Val{2})
+    - model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
+end
+
 include("HubbardModelAttractive.jl")
 include("HubbardModelRepulsive.jl")
