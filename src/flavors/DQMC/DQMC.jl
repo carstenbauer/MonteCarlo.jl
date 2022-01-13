@@ -97,7 +97,7 @@ import Base.show
 Base.summary(mc::DQMC) = "DQMC simulation of $(summary(mc.model))"
 function Base.show(io::IO, mc::DQMC)
     print(io, "Determinant quantum Monte Carlo simulation\n")
-    print(io, "Model: ", mc.model, "\n")
+    print(io, "Model: ", summary(mc.model), "\n")
     print(io, "Beta: ", mc.parameters.beta, " (T ≈ $(round(1/mc.parameters.beta, sigdigits=3)))\n")
     N_th_meas = length(mc.thermalization_measurements)
     N_me_meas = length(mc.measurements)

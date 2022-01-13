@@ -27,7 +27,7 @@ MonteCarlo.name(::GoodUpdate) = "GoodUpdate"
 MonteCarlo.update(::GoodUpdate, args...) = 1.0
 
 @testset "Scheduler" begin
-    model = HubbardModelAttractive(2,2)
+    model = HubbardModel(2,2)
 
     # These do not advance sweeps and should therefore error
     @test_throws ErrorException SimpleScheduler()
@@ -105,7 +105,7 @@ end
     @test scheduler.minimum_sampling_rate == 0.01
     @test scheduler.adaptive_rate == 9.0
 
-    model = HubbardModelAttractive(2,2)
+    model = HubbardModel(2,2)
     mc = DQMC(model, beta=1.0, scheduler = scheduler)
 
     # Checks without adaptive corrections
@@ -181,7 +181,7 @@ using MonteCarlo: field, conf, temp_conf, current_slice, nslices
         @test G1 ≈ G2
     end
 
-    models = (HubbardModelAttractive(2,2,mu=0.5), HubbardModelRepulsive(2,2))
+    models = (HubbardModel(2,2,mu=0.5), HubbardModel(2,2, U = -1.0))
     for model in models
         @testset "$(typeof(model))" begin
             mc1 = DQMC(model, beta=2.0)
@@ -238,7 +238,7 @@ using MonteCarlo: field, conf, temp_conf, current_slice, nslices
     end
 
     function setup()
-        model = HubbardModelAttractive(8,2)
+        model = HubbardModel(8,2)
         mc = DQMC(model, beta=1.0)
         MonteCarlo.init!(mc)
         MonteCarlo.reverse_build_stack(mc, mc.stack)
@@ -301,7 +301,7 @@ using MonteCarlo: field, conf, temp_conf, current_slice, nslices
     spatial = [-1, +1, +1, +1, +1, -1, +1, -1, -1]
     _conf = [spatial[i] for i in 1:9, slice in 1:10]
 
-    model = HubbardModelAttractive(3, 2)
+    model = HubbardModel(3, 2)
     mc = DQMC(model, beta=1.0)
     MonteCarlo.init!(mc)
     mc.field.conf .= _conf
@@ -311,7 +311,7 @@ using MonteCarlo: field, conf, temp_conf, current_slice, nslices
     @test mc.field.conf == [[+1, +1, -1, +1, +1, +1, -1, +1, -1][i] for i in 1:9, slice in 1:10]
     @test mc.field.temp_conf == _conf
 
-    model = HubbardModelAttractive(3, 2)
+    model = HubbardModel(3, 2)
     mc = DQMC(model, beta=1.0)
     MonteCarlo.init!(mc)
     mc.field.conf .= _conf
@@ -321,7 +321,7 @@ using MonteCarlo: field, conf, temp_conf, current_slice, nslices
     @test mc.field.conf == [[-1, -1, +1, -1, -1, -1, +1, -1, +1][i] for i in 1:9, slice in 1:10]
     @test mc.field.temp_conf == _conf
 
-    model = HubbardModelAttractive(3, 2)
+    model = HubbardModel(3, 2)
     mc = DQMC(model, beta=1.0)
     MonteCarlo.init!(mc)
     mc.field.conf .= _conf
@@ -378,7 +378,7 @@ end
     @test MonteCarlo.name(Adaptive()) == "Adaptive"
 
     # Idk if I want to keep these methods...
-    model = HubbardModelAttractive(2,2) 
+    model = HubbardModel(2,2) 
     mc = DQMC(model, beta=1.0)
     for T in (LocalSweep, GlobalFlip, GlobalShuffle, NoUpdate, ReplicaPull)
         @test T(mc, model) == T()

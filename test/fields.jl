@@ -4,37 +4,37 @@ using MonteCarlo: FVec64, FMat64, CVec64, CMat64
 @testset "Field Cache & Interaction Matrix" begin
     T2 = NTuple{2}
     
-    mc = DQMC(HubbardModelAttractive(8, 1), field = DensityHirschField, beta = 1.0)
+    mc = DQMC(HubbardModel(8, 1, U = 1.0), field = DensityHirschField, beta = 1.0)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{Float64, Float64, FVec64, Float64}
     @test MonteCarlo.interaction_eltype(mc.field) == Float64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{Float64, FVec64}
     @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
 
-    mc = DQMC(HubbardModelRepulsive(8, 1), field = DensityHirschField, beta = 1.0)
+    mc = DQMC(HubbardModel(8, 1, U = -1.0), field = DensityHirschField, beta = 1.0)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{ComplexF64, ComplexF64, CVec64, ComplexF64}
     @test MonteCarlo.interaction_eltype(mc.field) == ComplexF64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{ComplexF64, CVec64}
     @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
     
-    mc = DQMC(HubbardModelAttractive(8, 1), field = MagneticHirschField, beta = 1.0)
+    mc = DQMC(HubbardModel(8, 1, U = 1.0), field = MagneticHirschField, beta = 1.0)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{CVec64, CVec64, T2{CVec64}, ComplexF64}
     @test MonteCarlo.interaction_eltype(mc.field) == ComplexF64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{ComplexF64, CVec64}
     @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
 
-    mc = DQMC(HubbardModelRepulsive(8, 1), field = MagneticHirschField, beta = 1.0)
+    mc = DQMC(HubbardModel(8, 1, U = -1.0), field = MagneticHirschField, beta = 1.0)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{FVec64, FVec64, T2{FVec64}, Float64}
     @test MonteCarlo.interaction_eltype(mc.field) == Float64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{Float64, FVec64}
     @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
     
-    mc = DQMC(HubbardModelAttractive(8, 1), field = MagneticGHQField, beta = 1.0)
+    mc = DQMC(HubbardModel(8, 1, U = 1.0), field = MagneticGHQField, beta = 1.0)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{CVec64, CVec64, T2{CVec64}, ComplexF64}
     @test MonteCarlo.interaction_eltype(mc.field) == ComplexF64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{ComplexF64, CVec64}
     @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
 
-    mc = DQMC(HubbardModelRepulsive(8, 1), field = MagneticGHQField, beta = 1.0)
+    mc = DQMC(HubbardModel(8, 1, U = -1.0), field = MagneticGHQField, beta = 1.0)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{FVec64, FVec64, T2{FVec64}, Float64}
     @test MonteCarlo.interaction_eltype(mc.field) == Float64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{Float64, FVec64}
@@ -43,10 +43,10 @@ end
 
 @testset "Lookup tables" begin
     param = MonteCarlo.DQMCParameters(beta = 1.0)
-    model = HubbardModelRepulsive(2, 2)
+    model = HubbardModel()
     field = MagneticGHQField(param, model)
 
-    @test field.α == sqrt(-0.5 * 0.1 * model.U)
+    @test field.α == sqrt(-0.5 * 0.1 * ComplexF64(model.U))
     
     # See ALF Documentation for the formulas of η and γ
     @test field.γ[1] ≈ Float64(BigFloat(1) - sqrt(BigFloat(6)) / BigFloat(3))  rtol=1e-15 
@@ -69,7 +69,7 @@ end
     fields = (MagneticHirschField, DensityHirschField, MagneticGHQField)
 
     for field_type in fields
-        mc = DQMC(HubbardModelRepulsive(2, 2), beta = 1.0, field = field_type)
+        mc = DQMC(HubbardModel(2, 2), beta = 1.0, field = field_type)
         f = mc.field
 
         @test MonteCarlo.maybe_to_float(ComplexF64(1, 0)) === 1.0
@@ -220,7 +220,7 @@ using MonteCarlo, Test
 end
 
 @testset "Sign Problem in field - model Combinations" begin
-    models = (HubbardModelAttractive(8, 1), HubbardModelRepulsive(8, 1))
+    models = (HubbardModel(8, 1, U = 1.0), HubbardModel(8, 1, U = -1.0))
     fields = (MagneticHirschField, DensityHirschField, MagneticGHQField)
 
     for m in models, field in fields

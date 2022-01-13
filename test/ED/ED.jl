@@ -65,11 +65,11 @@ Base.eltype(::State) = State
 
 
 
-function HamiltonMatrix(model::T) where {T <: HubbardModel}
+function HamiltonMatrix(model::Model)
     lattice = model.l
     t = model.t
     U = - model.U
-    mu = T <: HubbardModelAttractive ? model.mu : 0.0
+    mu = model.mu
 
     H = zeros(Float64, 4^length(lattice), 4^length(lattice))
 

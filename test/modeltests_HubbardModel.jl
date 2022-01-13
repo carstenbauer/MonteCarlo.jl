@@ -1,31 +1,23 @@
 @testset "Hubbard Model" begin
-
-    # Type hierarchy
-    @test HubbardModelAttractive <: HubbardModel
-    @test HubbardModelRepulsive <: HubbardModel
+    @test HubbardModel <: Model
 
     # constructors
-    @test HubbardModel(1, 1, U = -1.0) isa HubbardModelRepulsive
-    @test HubbardModel(1, 1, U =  1.0) isa HubbardModelAttractive
-
-    for T in (HubbardModelAttractive, HubbardModelRepulsive)
-        m = T(8, 1)
-        @test length(m.l) == 8
-        @test typeof(m) == T{Chain}
+    m = HubbardModel(8, 1)
+    @test length(m.l) == 8
+    @test typeof(m) == HubbardModel{Chain}
         
-        l = SquareLattice(5)
-        m = T(l = l);
-        @test length(m.l) == 25
-        @test typeof(m) == T{SquareLattice}
+    l = SquareLattice(5)
+    m = HubbardModel(l = l);
+    @test length(m.l) == 25
+    @test typeof(m) == HubbardModel{SquareLattice}
 
-        m = T(l, t = 0.5);
-        @test length(m.l) == 25
-        @test m.t == 0.5
-        @test typeof(m) == T{SquareLattice}
+    m = HubbardModel(l, t = 0.5);
+    @test length(m.l) == 25
+    @test m.t == 0.5
+    @test typeof(m) == HubbardModel{SquareLattice}
         
-        d = Dict(:l => l, :U => T == HubbardModelAttractive ? 0.5 : -0.5)
-        m = T(d)
-        @test typeof(m) == T{SquareLattice}
-        @test m.U == (T == HubbardModelAttractive ? 0.5 : -0.5)
-    end
+    d = Dict(:l => l, :U => HubbardModel == HubbardModelAttractive ? 0.5 : -0.5)
+    m = HubbardModel(d)
+    @test typeof(m) == HubbardModel{SquareLattice}
+    @test m.U == (HubbardModel == HubbardModelAttractive ? 0.5 : -0.5)
 end

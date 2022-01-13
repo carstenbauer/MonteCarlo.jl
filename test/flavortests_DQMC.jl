@@ -50,7 +50,7 @@ end
 
 
 @testset "DQMC utilities" begin
-    m = HubbardModelAttractive(8, 1);
+    m = HubbardModel(8, 1);
 
     # Getters
     dqmc = DQMC(m; beta=5.0)
@@ -65,7 +65,7 @@ end
 
     io = IOBuffer()
     show(io, dqmc)
-    @test String(take!(io)) == "Determinant quantum Monte Carlo simulation\nModel: attractive Hubbard model, 8 sites\nBeta: 5.0 (T ≈ 0.2)\nMeasurements: 0 (0 + 0)"
+    @test String(take!(io)) == "Determinant quantum Monte Carlo simulation\nModel: attractive Hubbard model\nBeta: 5.0 (T ≈ 0.2)\nMeasurements: 0 (0 + 0)"
 
     # DQMC mandatory
     m = DummyModel(SquareLattice(2))
@@ -167,7 +167,7 @@ end
 
 
 @testset "GreensMatrix" begin
-    m = HubbardModelAttractive(2, 2, mu=0.5)
+    m = HubbardModel(2, 2, mu=0.5)
     mc = DQMC(m, beta=1.0, safe_mult=10, thermalization=1, sweeps=1)
     MonteCarlo.initialize_stack(mc, mc.ut_stack)
 
@@ -260,7 +260,7 @@ end
     @label BREAK_TWICE
     @test check_chunks
 
-    m = HubbardModelAttractive(8, 1);
+    m = HubbardModel(8, 1);
 
     # constructors
     dqmc = DQMC(m; beta=5.0)
@@ -283,7 +283,7 @@ end
     sq = MonteCarlo.SquareLattice(4);
     @test MonteCarlo.build_checkerboard(sq) == ([1.0 3.0 5.0 7.0 9.0 11.0 13.0 15.0 1.0 2.0 4.0 6.0 9.0 10.0 12.0 14.0 2.0 3.0 4.0 5.0 8.0 10.0 11.0 16.0 6.0 7.0 8.0 12.0 13.0 14.0 15.0 16.0; 2.0 4.0 6.0 8.0 10.0 12.0 14.0 16.0 5.0 3.0 8.0 7.0 13.0 11.0 16.0 15.0 6.0 7.0 1.0 9.0 12.0 14.0 15.0 13.0 10.0 11.0 5.0 9.0 1.0 2.0 3.0 4.0; 1.0 5.0 9.0 13.0 17.0 21.0 25.0 29.0 2.0 3.0 8.0 11.0 18.0 19.0 24.0 27.0 4.0 6.0 7.0 10.0 16.0 20.0 22.0 31.0 12.0 14.0 15.0 23.0 26.0 28.0 30.0 32.0], UnitRange[1:8, 9:16, 17:24, 25:32], 4)
 
-    m = HubbardModelAttractive(8, 2, mu=0.5)
+    m = HubbardModel(8, 2, mu=0.5)
     mc1 = DQMC(m, beta=5.0)
     mc2 = DQMC(m, beta=5.0, checkerboard=false)
     mc2.field.conf .= deepcopy(mc1.field.conf)
@@ -329,7 +329,7 @@ end
     end
 
     # check reverse_build_stack
-    m = HubbardModelAttractive(8, 1);
+    m = HubbardModel(8, 1);
     mc1 = DQMC(m; beta=5.0)
     MonteCarlo.init!(mc1)
     MonteCarlo.build_stack(mc1, mc1.stack)
@@ -338,7 +338,7 @@ end
         MonteCarlo.propagate(mc1)
     end
 
-    m = HubbardModelAttractive(8, 1);
+    m = HubbardModel(8, 1);
     mc2 = DQMC(m; beta=5.0)
     mc2.field.conf .= mc1.field.conf
     MonteCarlo.init!(mc2)
@@ -363,7 +363,7 @@ end
 
 @testset "Unequal Time Stack" begin
     @testset "range index search" begin
-        m = HubbardModelAttractive(2, 2)
+        m = HubbardModel(2, 2)
         mc = DQMC(m, beta = 2.3, safe_mult = 10, delta_tau = 0.1)
         
         @test MonteCarlo._find_range_with_value(mc, -81273) == 0
@@ -376,7 +376,7 @@ end
         @test MonteCarlo._find_range_with_value(mc, 1239874) == length(mc.stack.ranges)+1
     end
 
-    m = HubbardModelAttractive(6, 1);
+    m = HubbardModel(6, 1);
     dqmc = DQMC(m; beta=15.0, safe_mult=5)
     MonteCarlo.initialize_stack(dqmc, dqmc.ut_stack)
     MonteCarlo.build_stack(dqmc, dqmc.stack)
@@ -534,8 +534,8 @@ end
     # These are theoretically the same but their implementation differs on
     # some level. To make sure both are correct it makes sense to check both here.
     models = (
-        HubbardModelRepulsive(7, 2, U = 0.0, t = 1.0),
-        HubbardModelAttractive(8, 2, U = 0.0, mu = 1.0, t = 1.0)
+        HubbardModel(7, 2, U = 0.0, t = 1.0),
+        HubbardModel(8, 2, U = 0.0, mu = 1.0, t = 1.0)
     )
 
     @info "Exact Greens comparison"

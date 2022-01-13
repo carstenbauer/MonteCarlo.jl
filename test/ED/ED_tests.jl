@@ -54,7 +54,7 @@ include("ED.jl")
     @test _sign == -1.0 &&  s == up
 
     # check Greens consistency
-    model = HubbardModelAttractive(2, 2, U = rand(), mu = rand(), t = rand()
+    model = HubbardModel(2, 2, U = rand(), mu = rand(), t = rand()
     )
     H = HamiltonMatrix(model)
     for substate1 in 1:2, substate2 in 1:2
@@ -103,8 +103,7 @@ end
     # These are theoretically the same but their implementation differs on
     # some level. To make sure both are correct it makes sense to check both here.
     models = (
-        HubbardModelRepulsive(2, 2, U = 0.0, t = 1.0),
-        HubbardModelAttractive(2, 2, U = 0.0, mu = 1.0, t = 1.0)
+        HubbardModel(2, 2, U = 0.0, t = 1.0),
     )
     #fields = (MagneticHirschField, DensityHirschField, MagneticGHQField)
 
@@ -403,8 +402,8 @@ end
 
 @testset "Repulsive/Attractive Hubbard Model (ED)" begin
     models = (
-        HubbardModelRepulsive(2, 2, U = -1.0, t = 1.0),
-        HubbardModelAttractive(2, 2, U = 1.0, mu = 1.0, t = 1.0)
+        HubbardModel(2, 2, U = -1.0, t = 1.0),
+        HubbardModel(2, 2, U = 1.0, mu = 1.0, t = 1.0)
     )
     # fields = (MagneticHirschField, DensityHirschField, MagneticGHQField)
 
