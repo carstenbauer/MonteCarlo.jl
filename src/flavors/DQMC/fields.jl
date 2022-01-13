@@ -196,9 +196,6 @@ end
 
 maybe_to_float(c::ComplexF64) = abs(imag(c)) < 10eps(real(c)) ? real(c) : c
 
-conf(f::AbstractField) = f.conf
-conf!(f::AbstractField, c) = conf(f) .= c
-temp_conf(f::AbstractField) = f.temp_conf
 Base.length(f::AbstractField) = length(conf(f))
 
 function save_field(file, field::AbstractField, entryname="field")
@@ -241,11 +238,6 @@ decompress!(f::AbstractHirschField, c) = f.conf .= Int8.(2c .- 1)
 interaction_eltype(::AbstractHirschField{T}) where {T} = T
 interaction_matrix_type(::AbstractHirschField{Float64}, ::Model) = Diagonal{Float64, FVec64}
 interaction_matrix_type(::AbstractHirschField{ComplexF64}, ::Model) = Diagonal{ComplexF64, CVec64}
-function init_interaction_matrix(f::AbstractHirschField{T}, m::Model) where {T}
-    flv = max(nflavors(f), nflavors(m))
-    VT = vector_type(T)
-    Diagonal(VT(undef, flv * size(f.conf, 1)))
-end
 
 function accept_local!(mc, f::AbstractHirschField, i, slice, args...)
     update_greens!(mc.stack.field_cache, mc.stack.greens, i, size(f.conf, 1))
@@ -403,15 +395,6 @@ end
 interaction_eltype(::AbstractGHQField{T}) where {T} = T
 interaction_matrix_type(::AbstractGHQField{Float64}, ::Model) = Diagonal{Float64, FVec64}
 interaction_matrix_type(::AbstractGHQField{ComplexF64}, ::Model) = Diagonal{ComplexF64, CVec64}
-function init_interaction_matrix(f::AbstractGHQField{Float64}, m::Model)
-    flv = max(nflavors(f), nflavors(m))
-    Diagonal(FVec64(undef, flv * size(f.conf, 1)))
-end
-function init_interaction_matrix(f::AbstractGHQField{ComplexF64}, m::Model)
-    flv = max(nflavors(f), nflavors(m))
-    Diagonal(CVec64(undef, flv * size(f.conf, 1)))
-end
-
 
 """
     MagneticGHQField

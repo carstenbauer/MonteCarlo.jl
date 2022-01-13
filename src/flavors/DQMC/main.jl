@@ -125,8 +125,7 @@ include("DQMC.jl")
 
 # Contains mandatory and optional method definitions expected to exist for a 
 # given model.
-include("DQMC_mandatory.jl")
-include("DQMC_optional.jl")
+include("DQMC_interface.jl")
 
 # saving and loading of DQMC
 include("FileIO.jl")

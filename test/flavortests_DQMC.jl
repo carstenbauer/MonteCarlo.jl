@@ -69,18 +69,49 @@ end
 
     # DQMC mandatory
     m = DummyModel(SquareLattice(2))
-    # @test_throws MethodError rand(DQMC, m, 4)
-    # @test_throws MethodError MonteCarlo.hopping_matrix(dqmc, m)
-    # @test_throws MethodError MonteCarlo.interaction_matrix_exp!(dqmc, m, zeros(2,2), zeros(2,2), 1, 1.0)
-    # @test_throws MethodError MonteCarlo.propose_local(dqmc, m, 1, 1, zeros(2,2))
-    # @test_throws MethodError MonteCarlo.accept_local!(dqmc, m, 1, 1, zeros(2,2), 1.0, 1.0, nothing)
+    f = DummyField()
+    @test_throws MethodError MonteCarlo.hopping_matrix(dqmc, m)
+    @test_throws MethodError rand(f)
+    @test_throws MethodError rand!(f)
+    @test_throws MethodError MonteCarlo.nflavors(m)
+    @test_throws MethodError MonteCarlo.nflavors(f)
+    @test_throws MethodError MonteCarlo.compress(f)
+    @test_throws MethodError MonteCarlo.compressed_conf_type(f)
+    @test_throws MethodError MonteCarlo.decompress(f, Int8[])
+    @test_throws MethodError MonteCarlo.decompress!(f, Int8[])
+    @test_throws MethodError MonteCarlo.interaction_matrix_exp!(dqmc, m, f, zeros(2,2), 1, 1.0)
+    @test_throws MethodError MonteCarlo.interaction_matrix_exp!(f, zeros(2,2), 1, 1.0)
+    @test_throws MethodError MonteCarlo.propose_local(dqmc, m, f, 1, 1)
+    @test_throws MethodError MonteCarlo.propose_local(dqmc, f, 1, 1)
+    @test_throws MethodError MonteCarlo.accept_local!(dqmc, m, f, 1, 1, 1.0, 1.0, nothing)
+    @test_throws MethodError MonteCarlo.accept_local!(dqmc, f, 1, 1, 1.0, 1.0, nothing)
+    
 
-    MonteCarlo.nflavors(::DummyModel) = 2
+    MonteCarlo.nflavors(::DummyModel) = 1
     MonteCarlo.lattice(m::DummyModel) = m.lattice
+    MonteCarlo.nflavors(::DummyField) = 2
 
     # DQMC optional
-    # @test MonteCarlo.greenseltype(DQMC, m) == ComplexF64
-    # @test MonteCarlo.interaction_matrix_type(DQMC, m) == Matrix{ComplexF64}
+    @test MonteCarlo.hopping_eltype(m) == Float64
+    @test MonteCarlo.interaction_eltype(f) == Float64
+    @test MonteCarlo.greens_eltype(f, m) == Float64
+
+    @test MonteCarlo.hopping_matrix_type(f, m) == Matrix{Float64}
+    @test MonteCarlo.interaction_matrix_type(f, m) == Matrix{Float64}
+    @test MonteCarlo.greens_matrix_type(f, m) == Matrix{Float64}
+
+    M = MonteCarlo.init_interaction_matrix(f, m)
+    @test M isa Matrix{Float64}
+    @test size(M) == (8, 8)
+
+    @test_throws MethodError MonteCarlo.energy_boson(dqmc, m)
+    @test_throws MethodError MonteCarlo.energy_boson(f)
+
+    # These have default field values
+    @test_throws ErrorException MonteCarlo.conf(f)
+    @test_throws ErrorException MonteCarlo.conf!(f, Int8[])
+    @test_throws ErrorException MonteCarlo.temp_conf(f)
+
     @test parameters(m) == NamedTuple()
 
     # constructors
