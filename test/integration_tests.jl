@@ -111,7 +111,7 @@ end
 
 @time @testset "DQMC: repulsive HubbardModel Simulation" begin
     Random.seed!(123)
-    m = HubbardModel(2, 2, U = 1.0);
+    m = HubbardModel(2, 2, U = -1.0);
     mc = DQMC(m, beta=2.0, sweeps=1000, thermalization=1000, measure_rate=1);
     mc[:G]    = greens_measurement(mc, m)
     mc[:CDC]  = charge_density_correlation(mc, m)
