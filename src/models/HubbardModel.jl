@@ -1,28 +1,25 @@
-# """
-#     HubbardModel(lattice; params...)
-#     HubbardModel(L, dims; params...)
-#     HubbardModel(params::Dict)
-#     HubbardModel(params::NamedTuple)
-#     HubbardModel(; params...)
+"""
+    HubbardModel(lattice; params...)
+    HubbardModel(L, dims; params...)
+    HubbardModel(params::Dict)
+    HubbardModel(params::NamedTuple)
+    HubbardModel(; params...)
 
-# Defines an attractive (negative `U`) Hubbard model on a given (or derived) 
-# `lattice`. If a linear system size `L` and dimensionality `dims` is given, the
-# `lattice` will be a Cubic lattice of fitting size.
+Defines an Hubbard model on a given (or derived) `lattice`. If a linear system 
+size `L` and dimensionality `dims` is given, the`lattice` will be a Cubic 
+lattice of fitting size.
 
-# Additional parameters (keyword arguments) include:
-# * `l::AbstractLattice = lattice`: The lattice the model uses. The keyword 
-# argument takes precedence over the argument `lattice`.
-# * `U::Float64 = 1.0 > 0.0` is the absolute value of the Hubbard Interaction.
-# * `t::Float64 = 1.0` is the hopping strength.
-# * `mu::Float64` is the chemical potential.
+Additional parameters (keyword arguments) include:
+* `l::AbstractLattice = lattice`: The lattice the model uses. The keyword 
+argument takes precedence over the argument `lattice` as well as `dims` and `L`.
+* `U::Float64 = 1.0` is the value of the Hubbard Interaction. A positive `U` 
+leads to an attractive Hubbard model, a negative to a repulsive.
+* `t::Float64 = 1.0` is the hopping strength.
+* `mu::Float64` is the chemical potential. In the repulsive model `mu != 0` 
+leads to a sign problem.
 
-# Internally, a discrete Hubbard Stratonovich transformation (Hirsch 
-# transformation) is used in the spin/magnetic channel to enable DQMC. The 
-# resulting Hubbard Stratonovich fiels is real.
-# Furthermore, we use spin up/down symmetry to speed up the simulation. As a 
-# result the greens matrix is of size (N, N) with N the number of sites, and the
-# element G[i, j] corresponds to the up-up and down-down element. 
-# """
+The model will select an appropriate Hirsch field based on `U`.
+"""
 struct HubbardModel{LT <: AbstractLattice} <: Model
     t::Float64
     mu::Float64
@@ -44,16 +41,8 @@ HubbardModel(params::NamedTuple) = HubbardModel(; params...)
 HubbardModel(lattice::AbstractLattice; kwargs...) = HubbardModel(l = lattice; kwargs...)
 HubbardModel(L, dims; kwargs...) = HubbardModel(dims = dims, L = L; kwargs...)
 
-function HubbardModelAttractive(args...; kwargs...)
-    @warn "HubbardModelAttractive is deprecated for HubbardModel!"
-    Base.show_backtrace(stderr, Base.backtrace())
-    println()
-    HubbardModel(args...; kwargs...)
-end
+HubbardModelAttractive(args...; kwargs...) = HubbardModel(args...; kwargs...)
 function HubbardModelRepulsive(args...; kwargs...)
-    @warn "HubbardModelRepulsive is deprecated for HubbardModel!"
-    Base.show_backtrace(stderr, Base.backtrace())
-    println()
     d = Dict(kwargs)
     d[:U] = - get(d, :U, 1.0)
     HubbardModel(args...; d...)
@@ -180,8 +169,3 @@ end
 function intE_kernel(mc, model::HubbardModel, G::GreensMatrix, ::Val{2})
     - model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
 end
-
-
-
-# include("HubbardModelAttractive.jl")
-# include("HubbardModelRepulsive.jl")

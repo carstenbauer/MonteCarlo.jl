@@ -102,9 +102,7 @@ export ReplicaExchange, ReplicaPull, connect, disconnect
 # export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")
-include("models/HubbardModel/HubbardModel.jl")
-# include("models/GaußHermite/GaußHermiteRepulsive.jl")
-# include("models/GaußHermite/GaußHermiteAttractive.jl")
+include("models/HubbardModel.jl")
 export IsingEnergyMeasurement, IsingMagnetizationMeasurement
 
 include("FileIO.jl")
