@@ -12,6 +12,7 @@ struct DummyModel <: MonteCarlo.Model
     lattice
 end
 DummyModel() = DummyModel(SquareLattice(2))
+struct DummyField <: MonteCarlo.AbstractField end
 
 # check elementwise, not matrix norm
 function check(A::Array, B::Array, atol, rtol=atol)
