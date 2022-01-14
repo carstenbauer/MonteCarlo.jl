@@ -183,6 +183,15 @@ See also: [`resume!`](@ref)
     reverse_build_stack(mc, mc.stack)
     propagate(mc)
 
+    # Check assumptions for global updates
+    copyto!(mc.stack.tmp2, mc.stack.greens)
+    udt_AVX_pivot!(mc.stack.tmp1, mc.stack.tempvf, mc.stack.tmp2, mc.stack.pivot, mc.stack.tempv)
+    ud = det(Matrix(mc.stack.tmp1))
+    td = det(Matrix(mc.stack.tmp2))
+    if !(0.9999999 <= abs(td) <= 1.0000001) || !(0.9999999 <= abs(ud) <= 1.0000001)
+        @error("Assumptions for global updates broken! ($td, $ud should be 1)")
+    end
+
     min_sweeps = round(Int, 1 / min_update_rate)
 
     _time = time() # for step estimations

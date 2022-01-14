@@ -16,6 +16,10 @@
 #   These functions now assume the conf that matters to be field.conf, so we
 #   need to update that instead of a temp_conf
 
+# TODO WARNING
+# Global updates assume that U and T only ever contribute a complex phase. I did
+# not verify this thoroughly. Furthermore it assumes that the probability 
+# always simplifies to ||p||.
 
 
 @bm function calculate_inv_greens_udt(Ul, Dl, Tl, Ur, Dr, Tr, G, pivot, temp)
@@ -187,9 +191,7 @@ end
 function global_update(mc::DQMC, model::Model, field::AbstractField)
     detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, field)
 
-    p = exp(- ΔE_boson) * detratio
-    @assert imag(p) == 0.0 "p = $p should always be real because ΔE_boson = $ΔE_boson and detratio = $detratio should always be real..."
-    # @info p
+    p = abs(exp(- ΔE_boson) * detratio)
 
     # Gibbs/Heat bath
     # p = p / (1.0 + p)
@@ -231,10 +233,16 @@ struct GlobalFlip <: AbstractGlobalUpdate end
 GlobalFlip(mc, model) = GlobalFlip()
 name(::GlobalFlip) = "GlobalFlip"
 
-@bm function propose_conf!(::GlobalFlip, mc, model, field)
+@bm function propose_conf!(::GlobalFlip, mc, model, field::AbstractHirschField)
     c = conf(field); tc = temp_conf(field)
     copyto!(tc, c)
     c .*= -1
+    return nothing
+end
+@bm function propose_conf!(::GlobalFlip, mc, model, field::AbstractGHQField)
+    c = conf(field); tc = temp_conf(field)
+    copyto!(tc, c)
+    c .= Int8(5) .- c
     return nothing
 end
 
@@ -251,7 +259,7 @@ GlobalShuffle(mc, model) = GlobalShuffle()
 name(::GlobalShuffle) = "GlobalShuffle"
 
 
-@bm function propose_conf!(::GlobalShuffle, mc, model, field)
+@bm function propose_conf!(::GlobalShuffle, mc, model, field::AbstractField)
     copyto!(temp_conf(field), conf(field))
     shuffle!(conf(field))
     return nothing
@@ -280,7 +288,7 @@ end
 name(::SpatialShuffle) = "SpatialShuffle"
 
 
-@bm function propose_conf!(u::SpatialShuffle, mc, model, field)
+@bm function propose_conf!(u::SpatialShuffle, mc, model, field::AbstractHirschField)
     c = conf(field); tc = temp_conf(field)
     copyto!(tc, c)
     shuffle!(u.indices)
@@ -313,7 +321,7 @@ end
 name(::TemporalShuffle) = "TemporalShuffle"
 
 
-@bm function propose_conf!(u::TemporalShuffle, mc, model, field)
+@bm function propose_conf!(u::TemporalShuffle, mc, model, field::AbstractHirschField)
     c = conf(field); tc = temp_conf(field)
     copyto!(tc, c)
     shuffle!(u.indices)
@@ -336,7 +344,7 @@ Denoise(mc, model) = Denoise()
 name(::Denoise) = "Denoise"
 
 
-@bm function propose_conf!(::Denoise, mc, model, field)
+@bm function propose_conf!(::Denoise, mc, model, field::AbstractHirschField)
     c = conf(field); tc = temp_conf(field)
     copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))
@@ -362,7 +370,7 @@ DenoiseFlip(mc, model) = DenoiseFlip()
 name(::DenoiseFlip) = "DenoiseFlip"
 
 
-@bm function propose_conf!(::DenoiseFlip, mc, model, field)
+@bm function propose_conf!(::DenoiseFlip, mc, model, field::AbstractHirschField)
     c = conf(field); tc = temp_conf(field)
     copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))
@@ -387,7 +395,7 @@ StaggeredDenoise(mc, model) = StaggeredDenoise()
 name(::StaggeredDenoise) = "StaggeredDenoise"
 
 
-@bm function propose_conf!(::StaggeredDenoise, mc, model, field)
+@bm function propose_conf!(::StaggeredDenoise, mc, model, field::AbstractHirschField)
     c = conf(field); tc = temp_conf(field)
     copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))

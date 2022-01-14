@@ -446,9 +446,9 @@ end
         D::AbstractArray{Float64, 1}, 
         input::CMat64,
         pivot::AbstractArray{Int64, 1} = Vector(UnitRange(1:size(input, 1))),
-        temp::AbstractArray{C, 1} = Vector{C}(undef, length(D)),
+        temp::AbstractArray{ComplexF64, 1} = Vector{ComplexF64}(undef, length(D)),
         apply_pivot::Val = Val(true)
-    ) where {C <: Complex}
+    )
     # Assumptions:
     # - all matrices same size
     # - input can be changed (input becomes T)
