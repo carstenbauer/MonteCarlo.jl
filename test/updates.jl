@@ -182,10 +182,11 @@ using MonteCarlo: field, conf, temp_conf, current_slice, nslices
     end
 
     models = (HubbardModel(2,2,mu=0.5), HubbardModel(2,2, U = -1.0))
-    for model in models
-        @testset "$(typeof(model))" begin
-            mc1 = DQMC(model, beta=2.0)
-            mc2 = DQMC(model, beta=2.0)
+    fields = (DensityHirschField, MagneticHirschField, MagneticGHQField)
+    for model in models, field_type in fields
+        @testset "$(nameof(typeof(model))) $(nameof(field_type))" begin
+            mc1 = DQMC(model, beta=2.0, field = field_type)
+            mc2 = DQMC(model, beta=2.0, field = field_type)
             
             # Verify probabilities and greens in global updates
             # This is the backbone check for all global and parallel updates
@@ -203,7 +204,7 @@ using MonteCarlo: field, conf, temp_conf, current_slice, nslices
                 copyto!(temp_conf(field(mc1)), conf(field(mc1))) # necessary for boson_energy
                 shuffle!(conf(field(mc1)))
                 detratio, ΔE_boson, passthrough = MonteCarlo.propose_global_from_conf(mc1, model, field(mc1))
-                global_p = exp(- ΔE_boson) * detratio
+                global_p = abs(exp(- ΔE_boson) * detratio)
                 MonteCarlo.accept_global!(mc1, model, field(mc1), passthrough)
 
                 # global update through successive local updates
@@ -211,6 +212,10 @@ using MonteCarlo: field, conf, temp_conf, current_slice, nslices
                 for t in 1:nslices(mc2)
                     for i in 1:length(lattice(mc2))
                         if mc2.field.conf[i, current_slice(mc2)] != mc1.field.conf[i, current_slice(mc2)]
+                            if field_type == MagneticGHQField
+                                # Hack to get a specific new value for the field
+                                mc2.field.choices .= mc1.field.conf[i, current_slice(mc2)]
+                            end
                             detratio, ΔE_boson, passthrough = MonteCarlo.propose_local(
                                 mc2, model, field(mc2), i, current_slice(mc2)
                             )

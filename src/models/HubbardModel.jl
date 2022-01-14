@@ -166,6 +166,14 @@ function intE_kernel(mc, model::HubbardModel, G::GreensMatrix, ::Val{1})
     - model.U * sum((diag(G.val) .- 0.5).^2)
 end
 # Technically this only applies to BlockDiagonal
-function intE_kernel(mc, model::HubbardModel, G::GreensMatrix, ::Val{2})
+function intE_kernel(mc, model::HubbardModel, G::GreensMatrix{Float64}, ::Val{2})
     - model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
+end
+function intE_kernel(mc, model::HubbardModel, G::GreensMatrix{ComplexF64}, ::Val{2})
+    N = length(lattice(model))
+    output = 0.0 + 0.0im
+    for i in 1:N
+        output -= (G.val[i, i] .- 0.5) .* (G.val[N+i, N+i] .- 0.5)
+    end
+    output * model.U
 end

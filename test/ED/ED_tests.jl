@@ -105,10 +105,9 @@ end
     models = (
         HubbardModel(2, 2, U = 0.0, t = 1.0),
     )
-    #fields = (MagneticHirschField, DensityHirschField, MagneticGHQField)
 
     println("Exact Greens comparison (ED)")
-    for model in models, beta in (1.0, 8.9)#, field in fields
+    for model in models, beta in (1.0, 8.9)
         @testset "$(typeof(model))" begin
             dqmc = DQMC(
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
@@ -408,19 +407,19 @@ end
     # fields = (MagneticHirschField, DensityHirschField, MagneticGHQField)
 
     println("Finite U ED Comparison")
-    for model in models#, field in fields
+    for model in models
         @testset "$(typeof(model))" begin
             Random.seed!(123)
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
-                thermalization = 5_000, sweeps = 5_000, print_rate=1000, #field = field,
+                thermalization = 5_000, sweeps = 5_000, print_rate=1000,
                 scheduler = AdaptiveScheduler(
                     (LocalSweep(10), Adaptive(),), (GlobalShuffle(), GlobalFlip())
                 )
             )
             print(
                 "  Running DQMC ($(nameof(typeof(model))) $(nameof(field))) " * 
-                "β=$(dqmc.parameters.beta), 10k + 10k sweeps\n    "
+                "β=$(dqmc.parameters.beta), 5k + 5k sweeps\n    "
             )
 
             dqmc[:G]    = greens_measurement(dqmc, model)
@@ -690,6 +689,73 @@ end
                     end
                     @test check(ED_CCS/N, CCS, atol, rtol)
                 end
+            end
+        end
+    end
+end
+
+
+################################################################################
+### Field checks
+################################################################################
+
+@testset "Repulsive/Attractive Hubbard Model (ED)" begin
+    models = (
+        HubbardModel(2, 2, U = -1.0, t = 1.0),
+        HubbardModel(2, 2, U = 1.0, mu = 1.0, t = 1.0)
+    )
+    fields = (MagneticHirschField, DensityHirschField, MagneticGHQField)
+
+    println("Finite U ED Comparison")
+    for model in models, field in fields
+        if field == MonteCarlo.choose_field(model)
+            continue
+        end
+
+        @testset "$(nameof(typeof(model))) + $(nameof(field))" begin
+            Random.seed!(123)
+            dqmc = DQMC(
+                model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
+                thermalization = 5_000, sweeps = 5_000, print_rate=1000, field = field,
+                scheduler = AdaptiveScheduler(
+                    (LocalSweep(10), Adaptive(),), (GlobalShuffle(), GlobalFlip())
+                )
+            )
+            str = model.U >= 0 ? "attractive" : "repulsive"
+            print(
+                "  Running DQMC ($mod $(nameof(field))) " * 
+                "β=$(dqmc.parameters.beta), 5k + 5k sweeps\n    "
+            )
+
+            dqmc[:G] = greens_measurement(dqmc, model)
+            dqmc[:E] = total_energy(dqmc, model)
+
+            @time run!(dqmc, verbose=!true)
+            
+            # Absolute tolerance from Trotter decompositon
+            atol = 2.5dqmc.parameters.delta_tau^2
+            rtol = 2dqmc.parameters.delta_tau^2
+            N = length(lattice(model))
+        
+            print("    Running ED and checking (tolerance: $atol, $(100rtol)%)\n    ")
+            @time begin
+                H = HamiltonMatrix(model)
+
+                @testset "(total) energy" begin
+                    dqmc_E = mean(dqmc[:E])
+                    ED_E = energy(H, beta = dqmc.parameters.beta)
+                    @test dqmc_E ≈ ED_E atol=atol rtol=rtol
+                end
+            
+                # G_DQMC is smaller because it doesn't differentiate between spin up/down
+                @testset "Greens" begin
+                    G_DQMC = mean(dqmc.measurements[:G])
+                    G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.parameters.beta)
+                    for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
+                        @test check(G_DQMC[i, j], G_ED[i, j], atol, rtol)
+                    end
+                end
+
             end
         end
     end
