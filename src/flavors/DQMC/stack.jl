@@ -3,8 +3,11 @@ mutable struct DQMCStack{
         HoppingElType <: Number, 
         GreensMatType <: AbstractArray{GreensElType},
         HoppingMatType <: AbstractArray{HoppingElType},
-        InteractionMatType <: AbstractArray
+        InteractionMatType <: AbstractArray,
+        FieldCacheType <: AbstractFieldCache
     } <: AbstractDQMCStack
+
+    field_cache::FieldCacheType
 
     u_stack::Vector{GreensMatType}
     d_stack::Vector{Vector{Float64}}
@@ -63,10 +66,12 @@ mutable struct DQMCStack{
     chkr_mu_inv::SparseMatrixCSC{HoppingElType, Int64}
 
 
-    function DQMCStack{GET, HET, GMT, HMT, IMT}() where {
+    function DQMCStack{GET, HET, GMT, HMT, IMT}(field_cache::FCT) where {
             GET<:Number, HET<:Number, 
-            GMT<:AbstractArray{GET}, HMT<:AbstractArray{HET}, IMT<:AbstractArray
+            GMT<:AbstractArray{GET}, HMT<:AbstractArray{HET}, IMT<:AbstractArray,
+            FCT<:AbstractFieldCache
         }
+        @assert isconcretetype(FCT);
         @assert isconcretetype(GET);
         @assert isconcretetype(HET);
         @assert isconcretetype(GMT);
@@ -74,7 +79,9 @@ mutable struct DQMCStack{
         @assert isconcretetype(IMT);
         @assert eltype(GMT) == GET;
         @assert eltype(HMT) == HET;
-        new{GET, HET, GMT, HMT, IMT}()
+        stack = new{GET, HET, GMT, HMT, IMT, FCT}()
+        stack.field_cache = field_cache
+        return stack
     end
 end
 
@@ -90,6 +97,27 @@ heltype(mc::DQMC) = heltype(mc.stack)
 gmattype(mc::DQMC) = gmattype(mc.stack)
 hmattype(mc::DQMC) = hmattype(mc.stack)
 imattype(mc::DQMC) = imattype(mc.stack)
+
+
+# Would be cool to have a function that automatically determines the type but
+# I don't want to spend a lot of time on figuring that one out.
+# function greens_matrix_type(field::AbstractField, model::Model)
+#     IMT = interaction_matrix_type(field, model)
+#     HMT = hopping_matrix_type(field, model)
+#     ...
+# end
+
+function DQMCStack(field::AbstractField, model::Model)
+    # Why do we need eltypes?
+    HET = hopping_eltype(model)
+    GET = greens_eltype(field, model)
+    
+    IMT = interaction_matrix_type(field, model)
+    HMT = hopping_matrix_type(field, model)
+    GMT = greens_matrix_type(field, model)
+
+    DQMCStack{GET, HET, GMT, HMT, IMT}(FieldCache(field, model))
+end
 
 
 
@@ -122,7 +150,7 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
     GreensMatType = gmattype(mc)
     HoppingElType = heltype(mc)
     N = length(lattice(mc))
-    flv = nflavors(mc.model)
+    flv = nflavors(field(mc))
 
     # Generate safe multiplication chunks
     # - every chunk must have ≤ safe_mult elements
@@ -160,17 +188,8 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
     mc.stack.tmp1 = GreensMatType(undef, flv*N, flv*N)
     mc.stack.tmp2 = GreensMatType(undef, flv*N, flv*N)
 
-
-    # mc.stack.ranges = UnitRange[]
-    # for i in 1:mc.stack.n_elements - 1
-    #     push!(
-    #         mc.stack.ranges, 
-    #         1 + (i - 1) * mc.parameters.safe_mult : i * mc.parameters.safe_mult
-    #     )
-    # end
-
     mc.stack.curr_U = GreensMatType(undef, flv*N, flv*N)
-    mc.stack.eV = init_interaction_matrix(mc.model)
+    mc.stack.eV = init_interaction_matrix(field(mc), model(mc))
 
     nothing
 end
@@ -183,7 +202,7 @@ function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerbo
 end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
     N = length(lattice(m))
-    flv = nflavors(m)
+    flv = nflavors(field(mc))
     dtau = mc.parameters.delta_tau
 
     T = hopping_matrix(mc, m)
@@ -244,7 +263,7 @@ rem_eff_zeros!(X::AbstractArray) = map!(e -> abs.(e)<1e-15 ? zero(e) : e,X,X)
 function init_checkerboard_matrices(mc::DQMC, m::Model)
     s = mc.stack
     l = lattice(m)
-    flv = nflavors(m)
+    flv = nflavors(field(mc))
     H = heltype(mc)
     N = length(l)
     dtau = mc.parameters.delta_tau
@@ -514,8 +533,8 @@ Compute the effective equal-time greens function from scratch at a given `slice`
 This does not invalidate the stack, but it does overwrite `mc.stack.greens`.
 """
 @bm function calculate_greens(
-        mc::DQMC, slice::Int, output::AbstractMatrix = mc.stack.greens, 
-        conf::AbstractArray = mc.conf, safe_mult::Int = mc.parameters.safe_mult
+        mc::DQMC, slice, output = mc.stack.greens, 
+        field = field(mc), safe_mult = mc.parameters.safe_mult
     )
     copyto!(mc.stack.curr_U, I)
     copyto!(mc.stack.Ur, I)
@@ -528,13 +547,13 @@ This does not invalidate the stack, but it does overwrite `mc.stack.greens`.
         stop = mc.parameters.slices
         for k in reverse(start:stop)
             if mod(k,safe_mult) == 0
-                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
                 vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dr))
                 udt_AVX_pivot!(mc.stack.curr_U, mc.stack.Dr, mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv)
                 copyto!(mc.stack.tmp2, mc.stack.Tr)
                 vmul!(mc.stack.Tr, mc.stack.tmp1, mc.stack.tmp2)
             else
-                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_daggered_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
             end
         end
         vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dr))
@@ -555,13 +574,13 @@ This does not invalidate the stack, but it does overwrite `mc.stack.greens`.
         stop = slice
         for k in start:stop
             if mod(k,safe_mult) == 0
-                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
                 vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dl))
                 udt_AVX_pivot!(mc.stack.curr_U, mc.stack.Dl, mc.stack.tmp1, mc.stack.pivot, mc.stack.tempv)
                 copyto!(mc.stack.tmp2, mc.stack.Tl)
                 vmul!(mc.stack.Tl, mc.stack.tmp1, mc.stack.tmp2)
             else
-                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, conf)
+                multiply_slice_matrix_left!(mc, mc.model, k, mc.stack.curr_U, field)
             end
         end
         vmul!(mc.stack.tmp1, mc.stack.curr_U, Diagonal(mc.stack.Dl))

@@ -11,7 +11,7 @@ addprocs(2)
     connect(pool, wait = true)
 
     println("Creating model")
-    model = HubbardModelAttractive(4, 2, U = 1.0, mu = mu)
+    model = HubbardModel(4, 2, U = 1.0, mu = mu)
     
     println("Creating scheduler")
     # scheduler = SimpleScheduler(

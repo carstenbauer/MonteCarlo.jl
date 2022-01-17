@@ -54,7 +54,7 @@ include("ED.jl")
     @test _sign == -1.0 &&  s == up
 
     # check Greens consistency
-    model = HubbardModelAttractive(2, 2, U = rand(), mu = rand(), t = rand()
+    model = HubbardModel(2, 2, U = rand(), mu = rand(), t = rand()
     )
     H = HamiltonMatrix(model)
     for substate1 in 1:2, substate2 in 1:2
@@ -103,18 +103,20 @@ end
     # These are theoretically the same but their implementation differs on
     # some level. To make sure both are correct it makes sense to check both here.
     models = (
-        HubbardModelRepulsive(2, 2, U = 0.0, t = 1.0),
-        HubbardModelAttractive(2, 2, U = 0.0, mu = 1.0, t = 1.0)
+        HubbardModel(2, 2, U = 0.0, t = 1.0),
     )
 
     println("Exact Greens comparison (ED)")
-    for model in models, beta in (1.0, 10.0)
+    for model in models, beta in (1.0, 8.9)
         @testset "$(typeof(model))" begin
             dqmc = DQMC(
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
-                thermalization = 1, sweeps = 2, measure_rate=1
+                thermalization = 1, sweeps = 2, measure_rate=1#, field = field
             )
-            print("  Running DQMC ($(typeof(model).name.name)) β=$(dqmc.parameters.beta)\n    ")
+            print(
+                "  Running DQMC ($(nameof(typeof(model))) $(nameof(field))) " * 
+                "β=$(dqmc.parameters.beta)\n    "
+            )
 
             dqmc[:G]    = greens_measurement(dqmc, model)
             dqmc[:E]    = total_energy(dqmc, model)
@@ -132,7 +134,7 @@ end
 
             # Unequal time
             l1s = [0, 3, 5, 7, 3, 0, MonteCarlo.nslices(dqmc), 0]
-            l2s = [1, 7, 5, 2, 1, MonteCarlo.nslices(dqmc), 0, 0]
+            l2s = [1, 7, 5, 2, 2, MonteCarlo.nslices(dqmc), 0, 0]
             for i in eachindex(l1s)
                 dqmc[Symbol(:UTG, i)] = greens_measurement(dqmc, model, GreensAt(l2s[i], l1s[i]))
             end
@@ -399,9 +401,10 @@ end
 
 @testset "Repulsive/Attractive Hubbard Model (ED)" begin
     models = (
-        HubbardModelRepulsive(2, 2, U = 1.0, t = 1.0),
-        HubbardModelAttractive(2, 2, U = 1.0, mu = 1.0, t = 1.0)
+        HubbardModel(2, 2, U = -1.0, t = 1.0),
+        HubbardModel(2, 2, U = 1.0, mu = 1.0, t = 1.0)
     )
+    # fields = (MagneticHirschField, DensityHirschField, MagneticGHQField)
 
     println("Finite U ED Comparison")
     for model in models
@@ -409,14 +412,14 @@ end
             Random.seed!(123)
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
-                thermalization = 10_000, sweeps = 10_000, print_rate=1000,
-                # scheduler = AdaptiveScheduler(
-                #     (LocalSweep(10), Adaptive(),), (GlobalShuffle(), GlobalFlip())
-                # )
+                thermalization = 5_000, sweeps = 5_000, print_rate=1000,
+                scheduler = AdaptiveScheduler(
+                    (LocalSweep(10), Adaptive(),), (GlobalShuffle(), GlobalFlip())
+                )
             )
             print(
-                "  Running DQMC ($(typeof(model).name.name)) " * 
-                "β=$(dqmc.parameters.beta), 10k + 10k sweeps\n    "
+                "  Running DQMC ($(nameof(typeof(model))) $(nameof(field))) " * 
+                "β=$(dqmc.parameters.beta), 5k + 5k sweeps\n    "
             )
 
             dqmc[:G]    = greens_measurement(dqmc, model)
@@ -435,7 +438,7 @@ end
 
             # Unequal time
             l1s = [0, 3, 5, 7, 3, 0]
-            l2s = [1, 7, 5, 2, 1, MonteCarlo.nslices(dqmc)]
+            l2s = [1, 7, 5, 2, 2, MonteCarlo.nslices(dqmc)]
             # l1s = [0, 3, 5, 0]
             # l2s = [1, 7, 5, MonteCarlo.nslices(dqmc)]
             dqmc[:UTG1] = greens_measurement(dqmc, model, GreensAt(l2s[1], l1s[1]))
@@ -478,17 +481,13 @@ end
                 # G_DQMC is smaller because it doesn't differentiate between spin up/down
                 @testset "Greens" begin
                     G_DQMC = mean(dqmc.measurements[:G])
-                    occs = mean(dqmc.measurements[:Occs])                                   # measuring
-                    # occs2 = mean(MonteCarlo.occupations(dqmc.measurements[:Greens]))            # wrapping
-                    # occs3 = mean(MonteCarlo.OccupationMeasurement(dqmc.measurements[:Greens]))  # copying
+                    occs = mean(dqmc.measurements[:Occs])
                     G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.parameters.beta)
                     for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
                         @test check(G_DQMC[i, j], G_ED[i, j], atol, rtol)
                     end
                     for i in 1:size(G_DQMC, 1)
                         @test check(occs[i],  1 - G_ED[i, i], atol, rtol)
-                        # @test isapprox(occs2[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
-                        # @test isapprox(occs3[i], 1 - G_ED[i, i], atol=atol, rtol=rtol)
                     end
                 end
 
@@ -690,6 +689,73 @@ end
                     end
                     @test check(ED_CCS/N, CCS, atol, rtol)
                 end
+            end
+        end
+    end
+end
+
+
+################################################################################
+### Field checks
+################################################################################
+
+@testset "Repulsive/Attractive Hubbard Model (ED)" begin
+    models = (
+        HubbardModel(2, 2, U = -1.0, t = 1.0),
+        HubbardModel(2, 2, U = 1.0, mu = 1.0, t = 1.0)
+    )
+    fields = (MagneticHirschField, DensityHirschField, MagneticGHQField)
+
+    println("Finite U ED Comparison")
+    for model in models, field in fields
+        if field == MonteCarlo.choose_field(model)
+            continue
+        end
+
+        @testset "$(nameof(typeof(model))) + $(nameof(field))" begin
+            Random.seed!(123)
+            dqmc = DQMC(
+                model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
+                thermalization = 5_000, sweeps = 5_000, print_rate=1000, field = field,
+                scheduler = AdaptiveScheduler(
+                    (LocalSweep(10), Adaptive(),), (GlobalShuffle(), GlobalFlip())
+                )
+            )
+            str = model.U >= 0 ? "attractive" : "repulsive"
+            print(
+                "  Running DQMC ($mod $(nameof(field))) " * 
+                "β=$(dqmc.parameters.beta), 5k + 5k sweeps\n    "
+            )
+
+            dqmc[:G] = greens_measurement(dqmc, model)
+            dqmc[:E] = total_energy(dqmc, model)
+
+            @time run!(dqmc, verbose=!true)
+            
+            # Absolute tolerance from Trotter decompositon
+            atol = 2.5dqmc.parameters.delta_tau^2
+            rtol = 2dqmc.parameters.delta_tau^2
+            N = length(lattice(model))
+        
+            print("    Running ED and checking (tolerance: $atol, $(100rtol)%)\n    ")
+            @time begin
+                H = HamiltonMatrix(model)
+
+                @testset "(total) energy" begin
+                    dqmc_E = mean(dqmc[:E])
+                    ED_E = energy(H, beta = dqmc.parameters.beta)
+                    @test dqmc_E ≈ ED_E atol=atol rtol=rtol
+                end
+            
+                # G_DQMC is smaller because it doesn't differentiate between spin up/down
+                @testset "Greens" begin
+                    G_DQMC = mean(dqmc.measurements[:G])
+                    G_ED = calculate_Greens_matrix(H, model.l, beta = dqmc.parameters.beta)
+                    for i in 1:size(G_DQMC, 1), j in 1:size(G_DQMC, 2)
+                        @test check(G_DQMC[i, j], G_ED[i, j], atol, rtol)
+                    end
+                end
+
             end
         end
     end

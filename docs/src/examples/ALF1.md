@@ -1,6 +1,6 @@
 # Crosscheck with ALF
 
-The [ALF project](https://git.physik.uni-wuerzburg.de/ALF) (Algorithms for lattice fermions) is a long running project implementing DQMC in Fortran. They have implemented varies different models, lattices, stabilization methods and measurements. A relatively simple comparison for us will be the "plain vanilla Hubbard model" on a square lattice, which is close to but not exactly the same as our attractive Hubbard model.
+The [ALF project](https://git.physik.uni-wuerzburg.de/ALF) (Algorithms for lattice fermions) is a long running project implementing DQMC in Fortran. They have implemented various different models, lattices, stabilization methods and measurements. A relatively simple comparison for us will be the "plain vanilla Hubbard model" on a square lattice, which is close to but not exactly the same as our repulsive Hubbard model.
 
 
 
@@ -10,7 +10,7 @@ The [ALF project](https://git.physik.uni-wuerzburg.de/ALF) (Algorithms for latti
 
 ### Installation
 
-The ALF project provides a [python interface](https://git.physik.uni-wuerzburg.de/ALF/pyALF) which we used for simplicity. For installation instructions, see the link. At the time of writing pyALF is linked to ALF 2.0.
+The ALF project provides a [python interface](https://git.physik.uni-wuerzburg.de/ALF/pyALF) which we used for simplicity. For installation instructions see the link. At the time of writing pyALF is linked to ALF 2.0. (Specifically commit 82949f66065eff8214c0149c8be2d10d6d0a6822.)
 
 !!! note 
 
@@ -67,11 +67,11 @@ for i, sim in enumerate(sims):
     sim.analysis()
 ```
 
-Let's briefly go over some of the options picked here. The noteworthy option is `Symm`. With it you can switch between a symmetric (True) and antisymmetric (False) Trotter decomposition. In MonteCarlo.jl we use the symmetric version so we should do so here too. Next we have `Ltau`. As mentioned in the comment this controls whether time displaced greens function are calculated, and by extension whether time displaced observables (susceptibilties) are calculated. We want to compare as much as possible so we set `Ltau = 1`. 
+Let's briefly go over some of the options picked here. One noteworthy option is `Symm`. With it you can switch between a symmetric (True) and antisymmetric (False) Trotter decomposition. In MonteCarlo.jl we use the symmetric version so we should do so here too. Next we have `Ltau`. As mentioned in the comment this controls whether time displaced greens function are calculated, and by extension whether time displaced observables (susceptibilties) are calculated. We want to compare as much as possible so we set `Ltau = 1`. 
 
-And finally we have the combination of `NSweep`, `N_skip` and `NBin`. `NSweep` is the number of sweeps in a block, which is usually followed by a measurement. `NBin` sets how many of those blocks are executed and `N_skip` disables measurements for some of blocks at the start. Thus we have the relations `thermalization = NSweep * N_skip`, `sweeps = NSweep * (NBin - N_skip)` and `measure_rate = NSweep`. 
+And finally we have the combination of `NSweep`, `N_skip` and `NBin`. `NSweep` is the number of sweeps in a block, which is usually followed by a measurement. `NBin` sets how many of those blocks are executed and `N_skip` disables measurements for some number of blocks at the start. Thus we have the relations `thermalization = NSweep * N_skip`, `sweeps = NSweep * (NBin - N_skip)` and `measure_rate = NSweep`. 
 
-Regarding the choices for `NSweep`, `N_skip` and `NBin` it is also important to discuss the model ALF implements and how it is implemented. As mentioned before it is not quite the same as the attractive Hubbard model from DQMC. ALF implements
+Regarding the choices for `NSweep`, `N_skip` and `NBin` it is also important to discuss the model ALF implements and how it is implemented. As mentioned before it is not quite the same as the repulsive Hubbard model from DQMC. ALF implements
 
 ```math
 \mathcal{H}=
@@ -82,9 +82,7 @@ Regarding the choices for `NSweep`, `N_skip` and `NBin` it is also important to 
 -  \mu \sum_{{i},\sigma } \hat{c}^{\dagger}_{{i}, \sigma}  \hat{c}^{\phantom\dagger}_{{i},\sigma}. 
 ```
 
-which features a quadratic interaction rather than the $\sim (n_\uparrow - 0.5)(n_\downarrow - 0.5)$ term used in MonteCarlo.jl. If we apply a Hirsch transformation (like in MonteCarlo.jl) to both of these interactions, we end up with the same expression. Thus they would be the same from the simulations point of view. However ALF uses a different, more precise transformation based on Gauß-Hermite quadrature, resulting in different auxiliary field values ($\pm 1$ and $\pm 2$ rather than just $\pm 1$) with different weights.
-
-It is not clear, a priori, whether and which observables will match. We will se in the results that many match close to perfectly but not all. Another consequence of the different transformation is that ALF is slower per sweep, but can reach a target precision at a much larger $\Delta\tau$ and potentially less sweeps. 
+which features a quadratic interaction rather than the $\sim (n_\uparrow - 0.5)(n_\downarrow - 0.5)$ term used in MonteCarlo.jl. If we apply a Hirsch transformation (like in MonteCarlo.jl) to both of these interactions, we end up with the same expression. Thus they would be the same from the simulations point of view. However ALF uses a different, (potentially) more precise transformation based on Gauß-Hermite quadrature. Thus some small differences are to be expected.
 
 For more information on the Hamiltonian and transformation used by ALF see the [ALF documentation](https://git.physik.uni-wuerzburg.de/ALF/ALF/-/blob/master/Documentation/doc.png)
 
@@ -101,49 +99,66 @@ using Revise, MonteCarlo, Printf, LinearAlgebra
 
 mcs = []
 @time for beta in [1.0, 6.0, 12.0]
-    m = HubbardModelAttractive(4, 2, U = 4, mu = 0)
+    m = HubbardModelRepulsive(4, 2, U = 4)
     mc = DQMC(
-        m, beta=beta, thermalization=10_000, sweeps=50_000, 
-        print_rate=10_000, delta_tau = 0.1#, measure_rate=5
+        m, beta=beta, thermalization=5_000, sweeps=15_000, 
+        print_rate=5_000, delta_tau = 0.05#, measure_rate=5
     )
     
     # our default versions
     mc[:G] = greens_measurement(mc, m)
-    mc[:SDCx] = spin_density_correlation(mc, m, :x)
-    mc[:SDCy] = spin_density_correlation(mc, m, :y)
     mc[:SDCz] = spin_density_correlation(mc, m, :z)
-    mc[:CDC] = charge_density_correlation(mc, m)
+    mc[:SDSz] = spin_density_susceptibility(mc, m, :z)
     mc[:T] = noninteracting_energy(mc, m)
     
     # ALF defines our I - G as the measured Greens function
-    mygreens(mc, m, ij, G) = begin i, j = ij; 2 * swapop(G)[i, j] end
-    mc[:Gr] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance, mygreens)
+    function mygreens(mc, m, ij, G)
+        i, j = ij; N = length(lattice(mc))
+        swapop(G)[i, j] + swapop(G)[i+N, j+N]
+    end
+    mc[:Gr] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance(), mygreens)
     
     # The interaction energy needs to be adjusted to ALF's Hamiltonian
-    my_intE(mc, m, G) = m.U * (sum(diag(G.val) - diag(G.val).^2))
-    mc[:V] = MonteCarlo.Measurement(mc, m, Greens, Nothing, my_intE)
+    function my_intE(mc, m, G)
+        E = 0.0; N = length(lattice(mc))
+        Gup, Gdown = G.val.blocks
+        for i in 1:N
+            E += (1 - Gup[i, i]) * (1 - Gdown[i, i])
+        end
+        m.U * E
+    end
+    mc[:V] = MonteCarlo.Measurement(mc, m, Greens, nothing, my_intE)
     
     # ALF includes 0 and β in the time displaced greens function
     myGk(mc, m, ij, Gs) = begin G00, G0l, Gl0, Gll = Gs; i, j = ij; Gl0[i, j] end
     mc[:IGk] = MonteCarlo.Measurement(
-        mc, m, CombinedGreensIterator, EachSitePairByDistance, myGk
+        mc, m, CombinedGreensIterator, EachSitePairByDistance(), myGk
     )
         
     # ALF subtracts the uncorrelated part
-    myDenDen(mc, m, ij, G) = begin i, j = ij; 2 * swapop(G)[i, j] * G[i, j] end
-    mc[:DenDen] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance, myDenDen)
+    function myDenDen(mc, m, ij, G)
+        i, j = ij; N = length(lattice(mc))
+        swapop(G)[i, j] * G[i, j] + swapop(G)[i+N, j+N] * G[i+N, j+N]
+    end
+    mc[:DenDen] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance(), myDenDen)
     
-    myDenDenTau(mc, m, ij, Gs) = begin G00, G0l, Gl0, Gll = Gs; i, j = ij; 2 * swapop(G0l)[i, j] * Gl0[i, j] end
-    mc[:DenDenTau] = MonteCarlo.Measurement(mc, m, CombinedGreensIterator, EachSitePairByDistance, myDenDenTau)
+    function myDenDenTau(mc, m, ij, Gs)
+        i, j = ij; N = length(lattice(mc))
+        G00, G0l, Gl0, Gll = Gs
+        swapop(G0l)[i, j] * Gl0[i, j] + swapop(G0l)[i+N, j+N] * Gl0[i+N, j+N]
+    end
+    mc[:DenDenTau] = MonteCarlo.Measurement(mc, m, CombinedGreensIterator, EachSitePairByDistance(), myDenDenTau)
     
     run!(mc)
     push!(mcs, mc)
 end
 ```
 
-Since MonteCarlo.jl uses a Hirsch transformation the sweeps are relatively cheap and we can easily do 10x more. With the given parameters the simulations will take about 3min.
+We run our simulations with a small $\Delta\tau$ and larger number of sweeps to reduce errors. With the given parameters the simulations will take about 6min.
 
-A lot of the observables we measure have been adjusted to match ALF. First we have the equal time Greens function `:Gr` which measures $\delta(\Delta r) - G(\Delta r) = \sum_r c_r^\dagger c_{r + \Delta r}$. We also have to add a factor 2 here because MonteCarlo.jl only keeps track of one spin. Next we have the interaction energy `:V` which needs adjustments to the different pre-transformation term. We calculate $\langle V \rangle = \frac{U}{2} \sum_i \langle V_i \rangle$ where 
+A lot of the observables we measure have been adjusted to match ALF. First we have the real space equal time Greens function `:Gr` which measures $\delta(\Delta r) - G(\Delta r) = \sum_r c_r^\dagger c_{r + \Delta r}$. The MonteCarlo.jl Greens function is given as $c c^\dagger$, so we need to swap the operators with `swapop`. We also need to explicitly sum the spin up and spin down channels.
+
+Next we have the interaction energy `:V` which needs adjustments to the different pre-transformation term. We calculate $\langle V \rangle = \frac{U}{2} \sum_i \langle V_i \rangle$ where 
 
 ```math
 \langle V_i \rangle = \langle
@@ -186,11 +201,42 @@ so it can be exchanged by Greens function elements
 \end{aligned}
 ```
 
-Next we make use of the symmetries of the model. Specifically $G_{ij}^{\uparrow\uparrow} = G_{ij}^{\downarrow\downarrow}$ and $G_{ij}^{\sigma \sigma^\prime} = 0$ if $\sigma \ne \sigma^\prime$. Thus we get
+Next we make use of the symmetries of the model. Specifically that we do not have mixed spin terms, i.e. $G_{ij}^{\sigma \sigma^\prime} = 0$ if $\sigma \ne \sigma^\prime$. We can also replace $I$ by $1$ in the remaining cases as both spin and site index are equal. We get
 
 ```math
-\langle V_i \rangle = 2 (1 - G_{ii}^{\uparrow \uparrow}) G_{ii}^{\uparrow \uparrow}
+\begin{aligned}
+\langle V_i \rangle = \phantom{-}
+  &(1 - G_{ii}^{\uparrow \uparrow}) (1 - G_{ii}^{\uparrow \uparrow})
++ (1 - G_{ii}^{\uparrow \uparrow}) G_{ii}^{\uparrow \uparrow}
+- (1 - G_{ii}^{\uparrow \uparrow}) (1 - G_{ii}^{\downarrow \downarrow}) \\
+- &(1 - G_{ii}^{\downarrow \downarrow}) (1 - G_{ii}^{\uparrow \uparrow})
++ (1 - G_{ii}^{\downarrow \downarrow}) (1 - G_{ii}^{\downarrow \downarrow})
++ (1 - G_{ii}^{\downarrow \downarrow}) G_{ii}^{\downarrow \downarrow}
+\end{aligned}
 ```
+
+which we simplify further by using $x = 1 - (1 - x)$.
+
+```math
+\begin{aligned}
+\langle V_i \rangle &= 
+(1 - G_{ii}^{\uparrow \uparrow}) + (1 - G_{ii}^{\downarrow \downarrow}) 
+- 2 (1 - G_{ii}^{\uparrow \uparrow}) (1 - G_{ii}^{\downarrow \downarrow}) \\
+&= G_{ii}^{\uparrow \uparrow} + G_{ii}^{\downarrow \downarrow}
+- 2 G_{ii}^{\uparrow \uparrow} G_{ii}^{\downarrow \downarrow}
+\end{aligned}
+```
+
+This is however not what ALF implements as the potential energy. Instead of the above, ALF uses
+
+```math
+\begin{aligned}
+\frac{1}{2} \langle V_i \rangle &= (1 - G_{ii}^{\uparrow \uparrow}) (1 - G_{ii}^{\downarrow \downarrow}) \\
+&= 1 - G_{ii}^{\uparrow \uparrow} - G_{ii}^{\downarrow \downarrow}
++ G_{ii}^{\uparrow \uparrow} G_{ii}^{\downarrow \downarrow}
+\end{aligned}
+```
+
 
 which is implemented above. After that we have the Fourier transformed time displaced Greens function `:IGk` which calculates the Fourier transform of $G^\prime(\Delta r) = \sum_{\tau = \Delta\tau}^{\beta} \Delta\tau \sum_r c_r(\tau) c_{r + \Delta r}^\dagger(0)$. Finally we have the charge density correlation `:DenDen` and susceptibility `:DenDenTau` which implement $\sum_r \langle \langle n_r n_{r - \Delta r} \rangle - \langle n_r \rangle \langle n_{r + \Delta r} \rangle \rangle_{MC}$. We note here that the subtraction happens before taking the Monte Carlo average denoted by $\langle \cdot \rangle_{MC}$.
 
@@ -490,7 +536,7 @@ display(fig)
 ### Time displaced Greens function
 
 
-For the time-displaced Greens function the overlap becomes visible less precise. This is likely a result of the different transformations used. Reducing $\Delta \tau$ in MonteCarlo.jl increases the overlap.
+For the time-displaced Greens function the overlap becomes visibly less precise. This is likely a result of the different transformations used. Reducing $\Delta \tau$ in MonteCarlo.jl decreases the error.
 
 ```
 fig, ax = plot_reciprocal(
@@ -507,17 +553,19 @@ display(fig)
 ### Energies
 
 
-For the kinetic energy and interaction we only get one value per simulation, so we just compare them numerically. In this case all values match with errors. The first group shows kinetic energy and the second interaction.
+For the kinetic energy and interaction we only get one value per simulation so we just compare them numerically. In this case all values match with errors. The first group shows kinetic energy and the second interaction.
 
 | Inv. Temp. | ALF | MonteCarlo.jl | | ALF | MonteCarlo.jl |
 | --- | --- | --- | --- | --- | --- |
-| 1  | -16.855 ± 0.005 | -16.90 ± 0.04 | | 8.775 ± 0.003 | 8.77 ± 0.02 |
-| 6  | -21.107 ± 0.002 | -21.06 ± 0.06 | | 7.72 ± 0.02   | 7.72 ± 0.04 |
-| 12 | -21.109 ± 0.002 | -21.09 ± 0.05 | | 7.538 ± 0.006 | 7.51 ± 0.06 |
+| 1  | -16.855 ± 0.005 | -16.83 ± 0.07 | | 8.775 ± 0.003 | 8.75 ± 0.03 |
+| 6  | -21.107 ± 0.002 | -21.00 ± 0.08 | | 7.72  ± 0.02  | 7.64 ± 0.09 |
+| 12 | -21.109 ± 0.002 | -21.12 ± 0.09 | | 7.538 ± 0.006 | 7.54 ± 0.05 |
 
 
 ### Charge Density Correlations
 
+
+Like the equal time Greens function the charge density matches close to exactly.
 
 ```julia
 fig, ax = plot_by_distance(CDCs, dCDCs, :DenDen, ylabel = "Charge Density Correlation ∑ᵣ ⟨n(r) n(r + Δr)⟩")
@@ -531,7 +579,7 @@ display(fig)
 ### Charge Density Susceptibility
 
 
-Even though this is based on the time displaced Greens function the results do actually match pretty closely.
+The charge susceptibility shows some larger errors but still matches fairly well. The errors we see here are generally smaller than what we saw in the integrated Greens function.
 
 ```julia
 fig, ax = plot_reciprocal(
@@ -548,7 +596,7 @@ display(fig)
 ### Spin Density Correlation
 
 
-Spin Density correlations (and susceptibilities) are the observables that do not match at all between MonteCarlo.jl and ALF. 
+Like the other equal time correlations spin density also fits almost exactly.
 
 ```julia
 fig, ax = plot_by_distance(SDCzs, dSDCzs, :SDCz, ylabel = "Spin Density Correlation ∑ᵣ ⟨s_z(r) s_z(r + Δr)⟩")
@@ -557,3 +605,21 @@ display(fig)
 ```
 
 ![](assets/ALF/spin_density_correlation.png)
+
+
+### Spin Density Susceptibility
+
+
+Like the other susceptibilities, this shows some larger deviations than its equal time variant but no qualitative difference from ALF.
+
+```julia
+lbl = L"Spin Density Susceptibility $\sum_{r, r^\prime} \int_0^\beta s_z(\tau, r) s_z(0, r^\prime) e^{i \Delta k (r^\prime - r)} d\tau$"
+fig, ax = plot_reciprocal(
+    SDSzs, dSDSzs, :SDSz, legend_pos = :lt,
+    ylabel = lbl
+)
+Makie.save("spin_density_susceptibility.png", fig)
+display(fig)
+```
+
+![](assets/ALF/spin_density_susceptibility.png)

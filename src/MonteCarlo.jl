@@ -60,10 +60,6 @@ const JLDFile = Union{FileWrapper{<: _JLDFile}, _JLDFile}
 
 include("helpers.jl")
 export enable_benchmarks, disable_benchmarks, print_timer, reset_timer!
-include("linalg/general.jl")
-include("linalg/UDT.jl")
-include("linalg/complex.jl") # TODO
-include("linalg/blockdiagonal.jl")
 include("flavors/abstract.jl")
 include("models/abstract.jl")
 include("lattices/abstract.jl")
@@ -107,7 +103,7 @@ export ReplicaExchange, ReplicaPull, connect, disconnect
 # export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")
-include("models/HubbardModel/HubbardModel.jl")
+include("models/HubbardModel.jl")
 include("models/DummyModel.jl")
 export IsingEnergyMeasurement, IsingMagnetizationMeasurement
 
@@ -117,9 +113,12 @@ export save, load, resume!
 
 export reset!
 export run!, resume!, replay!
-export Model, IsingModel, HubbardModel, HubbardModelAttractive, HubbardModelRepulsive
+export Model, IsingModel
+# export RepulsiveGHQHubbardModel, AttractiveGHQHubbardModel
+export HubbardModel, HubbardModelAttractive, HubbardModelRepulsive
 export MonteCarloFlavor, MC, DQMC
 export greens, greens!, lattice, model, parameters
+export DensityHirschField, MagneticHirschField, MagneticGHQField
 
 # For extending
 export AbstractMeasurement, Model

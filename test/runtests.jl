@@ -12,6 +12,7 @@ struct DummyModel <: MonteCarlo.Model
     lattice
 end
 DummyModel() = DummyModel(SquareLattice(2))
+struct DummyField <: MonteCarlo.AbstractField end
 
 # check elementwise, not matrix norm
 function check(A::Array, B::Array, atol, rtol=atol)
@@ -101,6 +102,11 @@ end
         include("flavortests_DQMC.jl")
     end
     # 27.297888 seconds (55.24 M allocations: 3.149 GiB, 2.60% gc time, 2.67% compilation time)
+
+    println("Fields")
+    @time @testset "Fields" begin
+        include("fields.jl")
+    end
 
     println("Scheduler")
     @time @testset "Scheduler & (DQMC) Updates" begin

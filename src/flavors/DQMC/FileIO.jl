@@ -20,7 +20,8 @@ function save_mc(file::JLDFile, mc::DQMC, entryname::String="DQMC")
     write(file, entryname * "/CB", mc isa DQMC_CBTrue)
     save_parameters(file, mc.parameters, entryname * "/Parameters")
     save_analysis(file, mc.analysis, entryname * "/Analysis")
-    write(file, entryname * "/conf", mc.conf)
+    # write(file, entryname * "/conf", mc.conf)
+    save_field(file, mc.field, entryname * "/field")
     _save(file, mc.recorder, entryname * "/configs")
     write(file, entryname * "/last_sweep", mc.last_sweep)
     save_measurements(file, mc, entryname * "/Measurements")
@@ -46,10 +47,16 @@ function _load(data, ::Val{:DQMC})
     @assert CB <: Checkerboard
     parameters = _load(data["Parameters"], Val(:DQMCParameters))
     analysis = _load(data["Analysis"], Val(:DQMCAnalysis))
-    conf = data["conf"]
     recorder = _load(data["configs"], to_tag(data["configs"]))
     last_sweep = data["last_sweep"]
     model = _load_model(data["Model"], to_tag(data["Model"]))
+    if haskey(data, "field")
+        field = load_field(data["field"], Val(:Field), parameters, model)
+    else
+        conf = data["conf"]
+        field = choose_field(model)(parameters, model)
+        conf!(field, conf)
+    end
     scheduler = if haskey(data, "Scheduler")
         _load(data["Scheduler"], to_tag(data["Scheduler"]))
     else
@@ -66,17 +73,12 @@ function _load(data, ::Val{:DQMC})
     thermalization_measurements = combined_measurements[:TH]
     measurements = combined_measurements[:ME]
 
-    HET = hoppingeltype(DQMC, model)
-    GET = greenseltype(DQMC, model)
-    HMT = hopping_matrix_type(DQMC, model)
-    GMT = greens_matrix_type(DQMC, model)
-    IMT = interaction_matrix_type(DQMC, model)
-    stack = DQMCStack{GET, HET, GMT, HMT, IMT}()
-    ut_stack = UnequalTimeStack{GET, GMT}()
+    stack = DQMCStack(field, model)
+    ut_stack = UnequalTimeStack{geltype(stack), gmattype(stack)}()
     
     DQMC(
         CB, 
-        model, conf, deepcopy(conf), last_sweep, 
+        model, field, last_sweep, 
         stack, ut_stack, scheduler,
         parameters, analysis, 
         recorder, thermalization_measurements, measurements

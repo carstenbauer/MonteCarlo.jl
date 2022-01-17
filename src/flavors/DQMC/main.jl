@@ -1,3 +1,6 @@
+# Optimized math and matrix types
+include("linalg/main.jl")
+
 # Statistics for the DQMC simulation runtime. This has nothin to do with 
 # measurements/observables.
 include("statistics.jl")
@@ -15,14 +18,13 @@ include("parameters.jl")
 # a ::DQMC to figure out how large a bunch of matrices need to be, but 
 # logically fits in `stack.jl`.
 mutable struct DQMC{
-        M <: Model, CB <: Checkerboard, ConfType <: Any, RT <: AbstractRecorder, 
+        M <: Model, CB <: Checkerboard, FT <: AbstractField, RT <: AbstractRecorder, 
         Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack,
         US <: AbstractUpdateScheduler
     } <: MonteCarloFlavor
 
     model::M
-    conf::ConfType
-    temp_conf::ConfType
+    field::FT
     last_sweep::Int
 
     stack::Stack
@@ -36,35 +38,35 @@ mutable struct DQMC{
     measurements::Dict{Symbol, AbstractMeasurement}
     lattice_iterator_cache::LatticeIteratorCache
 
-    function DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(args...) where {
-            M <: Model, CB <: Checkerboard, ConfType <: Any, 
+    function DQMC{M, CB, FT, RT, Stack, UTStack, US}(args...) where {
+            M <: Model, CB <: Checkerboard, FT <: AbstractField, 
             RT <: AbstractRecorder, 
             Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack,
             US <: AbstractUpdateScheduler
         }
         
         @assert isconcretetype(M)
-        @assert isconcretetype(ConfType)
+        @assert isconcretetype(FT)
         @assert isconcretetype(Stack)
         @assert isconcretetype(UTStack)
         @assert isconcretetype(RT)
         @assert isconcretetype(US)
         
-        new{M, CB, ConfType, RT, Stack, UTStack, US}(args..., LatticeIteratorCache())
+        new{M, CB, FT, RT, Stack, UTStack, US}(args..., LatticeIteratorCache())
     end
 end
 
 # Simplified constructor
 function DQMC(
-        CB, model::M, conf::ConfType, temp_conf::ConfType, last_sweep,
+        CB, model::M, field::FT, last_sweep,
         stack::Stack, ut_stack::UTStack, scheduler::US,
         parameters, analysis,
         recorder::RT,
         thermalization_measurements, measurements
-    ) where {M, ConfType, RT, Stack, UTStack, US}
+    ) where {M, FT, RT, Stack, UTStack, US}
 
-    DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(
-        model, conf, temp_conf, last_sweep, stack, ut_stack, 
+    DQMC{M, CB, FT, RT, Stack, UTStack, US}(
+        model, field, last_sweep, stack, ut_stack, 
         scheduler, parameters, analysis, recorder,
         thermalization_measurements, measurements
     )
@@ -74,22 +76,25 @@ end
 # copy constructor
 function DQMC(
         mc::DQMC{x, CBT};
-        CB = CBT, model::M = mc.model, conf::ConfType = mc.conf, 
-        temp_conf::ConfType = mc.conf, last_sweep = mc.last_sweep,
+        CB = CBT, model::M = mc.model, field::FT = mc.field, 
+        last_sweep = mc.last_sweep,
         stack::Stack = mc.stack, ut_stack::UTStack = mc.ut_stack, 
         scheduler::US = mc.scheduler, parameters = mc.parameters, 
         analysis = mc.analysis, recorder::RT = mc.recorder,
         thermalization_measurements = mc.thermalization_measurements, 
         measurements = mc.measurements
-    ) where {x, CBT, M, ConfType, RT, Stack, UTStack, US}
+    ) where {x, CBT, M, FT, RT, Stack, UTStack, US}
 
-    DQMC{M, CB, ConfType, RT, Stack, UTStack, US}(
-        model, conf, temp_conf, last_sweep, stack, ut_stack, 
+    DQMC{M, CB, FT, RT, Stack, UTStack, US}(
+        model, field, last_sweep, stack, ut_stack, 
         scheduler, parameters, analysis, recorder,
         thermalization_measurements, measurements
     )
 end
 
+
+# Contains different auxiliary field types 
+include("fields.jl")
 
 # Contains `DQMCStack`, `propagate` and related functions. The stack keeps track
 # of all the matrices that go into calculating the path integral. `propagate` 
@@ -120,8 +125,7 @@ include("DQMC.jl")
 
 # Contains mandatory and optional method definitions expected to exist for a 
 # given model.
-include("DQMC_mandatory.jl")
-include("DQMC_optional.jl")
+include("DQMC_interface.jl")
 
 # saving and loading of DQMC
 include("FileIO.jl")

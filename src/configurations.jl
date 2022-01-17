@@ -113,6 +113,7 @@ function Base.push!(cr::BufferedConfigRecorder, mc, model, sweep)
     if (sweep % cr.rate == 0)
         _push!(cr, compress(mc, model, conf(mc)))
     end
+    nothing
 end
 function _push!(cr::BufferedConfigRecorder, data)
     if cr.idx == -1

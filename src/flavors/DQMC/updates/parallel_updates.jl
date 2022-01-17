@@ -98,8 +98,7 @@ end
 
 
 abstract type AbstractParallelUpdate <: AbstractGlobalUpdate end
-init!(mc, ::AbstractParallelUpdate) = generate_communication_functions(mc.conf)
-
+init!(mc, ::AbstractParallelUpdate) = generate_communication_functions(conf(field(mc)))
 
 """
     ReplicaExchange([mc, model], target[, timeout = 600.0])
@@ -118,7 +117,8 @@ ReplicaExchange(target) = ReplicaExchange(target, 600.0)
 ReplicaExchange(mc, model, target, timeout=600.0) = ReplicaExchange(target, timeout)
 name(::ReplicaExchange) = "ReplicaExchange"
 
-@bm function update(u::ReplicaExchange, mc, model)
+@bm function update(u::ReplicaExchange, mc, model, field)
+    tc = temp_conf(field)
     # Need to sync at the start here because else th weights might be based on different confs
     # barrier
     if !wait_for_remote(u.target, timeout = u.timeout)
@@ -127,10 +127,10 @@ name(::ReplicaExchange) = "ReplicaExchange"
 
     # swap conf
     conf = pull_conf_from_remote(u.target)
-    mc.temp_conf .= conf
+    tc .= conf
 
     # compute weight
-    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, mc.temp_conf)
+    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, tc)
     local_weight = exp(- ΔE_boson) * detratio
     local_prob = rand()
     
@@ -147,7 +147,7 @@ name(::ReplicaExchange) = "ReplicaExchange"
     # processes. 
     w = local_weight * remote_weight
     if ifelse(myid() < u.target, local_prob, remote_prob) < w
-        accept_global!(mc, model, mc.temp_conf, passthrough)
+        accept_global!(mc, model, tc, passthrough)
         return 1
     end
 
@@ -176,13 +176,14 @@ ReplicaPull(mc::MonteCarloFlavor, model::Model) = ReplicaPull(1)
 name(::ReplicaPull) = "ReplicaPull"
 Base.:(==)(a::ReplicaPull, b::ReplicaPull) = a.cycle_idx == b.cycle_idx
 
-@bm function update(u::ReplicaPull, mc, model)
+@bm function update(u::ReplicaPull, mc, model, field)
+    tc = temp_conf(field)
     # cycle first to make sure the idx is in bounds
     @sync if !isempty(connected_ids)
         idx = mod1(u.cycle_idx, length(connected_ids))
         conf = pull_conf_from_remote(connected_ids[idx])
-        mc.temp_conf .= conf
-        return global_update(mc, model, mc.temp_conf)
+        tc .= conf
+        return global_update(mc, model, tc)
     end
     return 0
 end
