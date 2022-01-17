@@ -18,9 +18,21 @@ function vmul!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}) where {T <: Real}
         C[m,n] = A[m,n] * B.diag[n]
     end
 end
+function vmul!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}, range) where {T <: Real}
+    @views d = B.diag[range]
+    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+        C[m,n] = A[m,n] * d[n]
+    end
+end
 function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}) where {T <: Real}
     @turbo for m in 1:size(C, 1), n in 1:size(C, 2)
         C[m,n] = A.diag[m] * B[m,n]
+    end
+end
+function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}, range) where {T <: Real}
+    @views d = A.diag[range]
+    @turbo for m in 1:size(C, 1), n in 1:size(C, 2)
+        C[m,n] = d[m] * B[m,n]
     end
 end
 function vmul!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}) where {T <: Real}
@@ -165,56 +177,6 @@ function rdivp!(A::Matrix, T, O, pivot)
             @turbo for i in 1:N
                 x = O[i, j]
                 for k in 1:j-1
-                    x -= A[i, k] * T[k, j]
-                end
-                A[i, j] = x / T[j, j]
-            end
-        end
-    end
-    A
-end
-
-
-
-
-################################################################################
-### Fallbacks for complex matrices
-################################################################################
-
-
-
-vmul!(C, A, B) = mul!(C, A, B)
-rvmul!(A, B) = rmul!(A, B)
-lvmul!(A, B) = lmul!(A, B)
-rvadd!(A, B) = A .+= B
-vsub!(A, B, C) = A .= B .- C
-function vsub!(A, B, ::UniformScaling)
-    T1 = one(eltype(A))
-    T0 = zero(eltype(A))
-    @inbounds for i in axes(A, 1), j in axes(A, 2)
-        A[i, j] = B[i, j] - ifelse(i==j, T1, T0)
-    end
-    A
-end
-
-function rdivp!(A::Matrix{<: Complex}, T::Matrix{<: Complex}, O::Matrix{<: Complex}, pivot)
-    # assume Diagonal is ±1!
-    @inbounds begin
-        N = size(A, 1)
-
-        # Apply pivot
-        for (j, p) in enumerate(pivot)
-            for i in 1:N
-                O[i, j] = A[i, p]
-            end
-        end
-
-        # do the rdiv
-        # @turbo will segfault on `k in 1:0`, so pull out first loop 
-        for j in 1:N
-            for i in 1:N
-                x = O[i, j]
-                @simd for k in 1:j-1
                     x -= A[i, k] * T[k, j]
                 end
                 A[i, j] = x / T[j, j]

@@ -47,6 +47,7 @@ abstract type AbstractLocalUpdate <: AbstractUpdate end
 
 init!(mc, update::AbstractUpdate) = nothing
 is_full_sweep(update::AbstractUpdate) = true
+requires_temp_conf(update::AbstractUpdate) = false
 
 
 
@@ -89,8 +90,9 @@ AcceptanceStatistics(update) = AcceptanceStatistics(0.0, 0, update)
 AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
 AcceptanceStatistics(proxy::Adaptive) = proxy
 name(w::AcceptanceStatistics) = name(w.update)
-function update(w::AcceptanceStatistics, mc, m)
-    accepted = update(w.update, mc, m)
+requires_temp_conf(update::AcceptanceStatistics) = requires_temp_conf(update.update)
+function update(w::AcceptanceStatistics, mc, m, field)
+    accepted = update(w.update, mc, m, field)
     w.total += 1
     w.accepted += accepted
     return accepted
@@ -113,7 +115,7 @@ is_full_sweep(update::AcceptanceStatistics) = is_full_sweep(update.update)
 
 
 updates(s::AbstractUpdateScheduler) = s.sequence
-
+requires_temp_conf(s::AbstractUpdateScheduler) = any(requires_temp_conf, updates(s))
 function init_scheduler!(mc, scheduler::AbstractUpdateScheduler)
     for update in updates(scheduler)
         init!(mc, update)
@@ -175,10 +177,10 @@ mutable struct SimpleScheduler{ST} <: AbstractUpdateScheduler
     end
 end
 
-function update(s::SimpleScheduler, mc::DQMC, model)
+function update(s::SimpleScheduler, mc::DQMC, model, field = field(mc))
     while true
         s.idx = mod1(s.idx + 1, length(s.sequence))
-        update(s.sequence[s.idx], mc, model)
+        update(s.sequence[s.idx], mc, model, field)
         is_full_sweep(s.sequence[s.idx]) && break
     end
     mc.last_sweep += 1
@@ -334,7 +336,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
     end
 end
 
-function update(s::AdaptiveScheduler, mc::DQMC, model)
+function update(s::AdaptiveScheduler, mc::DQMC, model, field = field(mc))
     while true
         s.idx = mod1(s.idx + 1, length(s.sequence))
         
@@ -356,7 +358,7 @@ function update(s::AdaptiveScheduler, mc::DQMC, model)
 
             # Apply the update and adjust sampling rate
             updater = s.adaptive_pool[idx]
-            update(updater, mc, model)
+            update(updater, mc, model, field)
             if !(updater isa AcceptanceStatistics{NoUpdate}) && updater.total > s.grace_period
                 s.sampling_rates[idx] = (
                     s.adaptive_rate * s.sampling_rates[idx] + 
@@ -373,7 +375,7 @@ function update(s::AdaptiveScheduler, mc::DQMC, model)
         else
             # Some sort of non-adaptive update, just perform it.
             updater = s.sequence[s.idx]
-            update(updater, mc, model)
+            update(updater, mc, model, field)
         end
 
         is_full_sweep(updater) && break

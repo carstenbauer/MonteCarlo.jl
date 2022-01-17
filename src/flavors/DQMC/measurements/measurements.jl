@@ -47,24 +47,12 @@ end
 ################################################################################
 
 
-
-function checkflavors(model, N=2)
-    if nflavors(model) != N
-        @warn(
-            "$N flavors are required, but $(nflavors(model)) have been found"
-        )
-    end
-    nothing
-end
-
-
-
 # This has lattice_iteratorator = Nothing, because it straight up copies G
 function greens_measurement(
         mc::DQMC, model::Model, greens_iterator = Greens(); 
         capacity = _default_capacity(mc), eltype = geltype(mc),
         obs = let
-            N = length(lattice(model)) * nflavors(model)
+            N = length(lattice(model)) * nflavors(field(mc))
             LogBinner(zeros(eltype, (N, N)), capacity=capacity)
         end, kwargs...
     )
@@ -90,7 +78,6 @@ function charge_density(
         mc::DQMC, model::Model, greens_iterator; 
         wrapper = nothing, lattice_iterator = EachSitePairByDistance(), kwargs...
     )
-    checkflavors(model)
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     Measurement(mc, model, greens_iterator, li, cdc_kernel; kwargs...)
 end
@@ -114,7 +101,6 @@ function magnetization(
         mc::DQMC, model::Model, dir::Symbol; 
         wrapper = nothing, lattice_iterator = EachSite(), kwargs...
     )
-    checkflavors(model)
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     if dir == :x; 
         return Measurement(mc, model, Greens(), li, mx_kernel; kwargs...)
@@ -133,7 +119,6 @@ function spin_density(
         dqmc, model, dir::Symbol, greens_iterator; 
         wrapper = nothing, lattice_iterator = EachSitePairByDistance(), kwargs...
     )
-    checkflavors(model)
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     dir in (:x, :y, :z) || throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
     if     dir == :x
@@ -244,7 +229,7 @@ Returns the unprocessed Greens function `greens(mc) = {⟨cᵢcⱼ^†⟩}`.
 * Lattice Iterators: `nothing` (zero index)
 * Greens Iterators: `Greens` or `GreensAt`
 """
-greens_kernel(mc, model, G::GreensMatrix) = G.val
+greens_kernel(mc, model, G::GreensMatrix, flv) = G.val
 
 
 """
@@ -255,7 +240,7 @@ Returns the per index occupation `⟨nᵢ⟩`.
 * Lattice Iterators: `EachSiteAndFlavor`, `EachSite`
 * Greens Iterators: `Greens` or `GreensAt`
 """
-occupation_kernel(mc, model, i::Integer, G::GreensMatrix) = 1 - G[i, i]
+occupation_kernel(mc, model, i::Integer, G::GreensMatrix, flv) = 1 - G[i, i]
 
 
 """
@@ -268,7 +253,7 @@ Returns the per-site-pair charge density `⟨nᵢ(τ) nⱼ(0)⟩ - ⟨nᵢ(τ)�
 * Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
 * Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
 """
-function cdc_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
+function cdc_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     i, j = ij
     N = length(lattice(mc))
     # ⟨n↑n↑⟩
@@ -285,7 +270,7 @@ function cdc_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     swapop(G)[i+N, j+N] * G[i+N, j+N]
 end
 
-function cdc_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
+function cdc_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(mc))
@@ -312,7 +297,7 @@ Returns the per-site x-magnetization `⟨cᵢ↑^† cᵢ↓ + cᵢ↓^† cᵢ�
 * Lattice Iterators: `EachSite`
 * Greens Iterators: `Greens` or `GreensAt`
 """
-function mx_kernel(mc, model, i, G::GreensMatrix)
+function mx_kernel(mc, model, i, G::GreensMatrix, flv)
     N = length(lattice(model))
     -G[i+N, i] - G[i, i+N]
 end
@@ -326,7 +311,7 @@ imaginary prefactor.
 * Lattice Iterators: `EachSite`
 * Greens Iterators: `Greens` or `GreensAt`
 """
-function my_kernel(mc, model, i, G::GreensMatrix)
+function my_kernel(mc, model, i, G::GreensMatrix, flv)
     N = length(lattice(model))
     G[i+N, i] - G[i, i+N]
 end
@@ -339,7 +324,7 @@ Returns the per-site z-magnetization `⟨nᵢ↑ - nᵢ↓⟩`.
 * Lattice Iterators: `EachSite`
 * Greens Iterators: `Greens` or `GreensAt`
 """
-function mz_kernel(mc, model, i, G::GreensMatrix)
+function mz_kernel(mc, model, i, G::GreensMatrix, flv)
     N = length(lattice(model))
     G[i+N, i+N] - G[i, i]
 end
@@ -355,7 +340,7 @@ where `τ = 0` for the first signature.
 * Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
 * Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
 """
-function sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
+function sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     i, j = ij
     N = length(lattice(model))
     G[i+N, i] * G[j+N, j] + G[i+N, i] * G[j, j+N] + 
@@ -363,7 +348,7 @@ function sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     swapop(G)[i, j+N] * G[i+N, j] + swapop(G)[i, j] * G[i+N, j+N] +
     swapop(G)[i+N, j+N] * G[i, j] + swapop(G)[i+N, j] * G[i, j+N]
 end
-function sdc_x_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
+function sdc_x_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
@@ -383,7 +368,7 @@ where `τ = 0` for the first signature.
 * Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
 * Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
 """
-function sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
+function sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     i, j = ij
     N = length(lattice(model))
     - G[i+N, i] * G[j+N, j] + G[i+N, i] * G[j, j+N] + 
@@ -391,7 +376,7 @@ function sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     - swapop(G)[i, j+N] * G[i+N, j] + swapop(G)[i, j] * G[i+N, j+N] +
       swapop(G)[i+N, j+N] * G[i, j] - swapop(G)[i+N, j] * G[i, j+N]
 end
-function sdc_y_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
+function sdc_y_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
@@ -411,7 +396,7 @@ where `τ = 0` for the first signature.
 * Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
 * Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
 """
-function sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
+function sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     i, j = ij
     N = length(lattice(model))
     swapop(G)[i, i]     * swapop(G)[j, j] - 
@@ -421,7 +406,7 @@ function sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix)
     swapop(G)[i, j] * G[i, j]     - swapop(G)[i, j+N] * G[i, j+N] -
     swapop(G)[i+N, j] * G[i+N, j] + swapop(G)[i+N, j+N] * G[i+N, j+N]
 end
-function sdc_z_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4})
+function sdc_z_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
@@ -446,10 +431,10 @@ leaves the execution of the sum for after the simulation.
 * Lattice Iterators: `EachLocalQuadByDistance` or `EachLocalQuadBySyncedDistance`
 * Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
 """
-function pc_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix)
-    pc_kernel(mc, model, sites, (G, G, G, G))
+function pc_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix, flv)
+    pc_kernel(mc, model, sites, (G, G, G, G), flv)
 end
-function pc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
+function pc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
@@ -472,10 +457,10 @@ leaves the execution of the sum for after the simulation.
 * Lattice Iterators: `EachLocalQuadByDistance` or `EachLocalQuadBySyncedDistance`
 * Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
 """
-function pc_alt_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix)
-    pc_alt_kernel(mc, model, sites, (G, G, G, G))
+function pc_alt_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix, flv)
+    pc_alt_kernel(mc, model, sites, (G, G, G, G), flv)
 end
-function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
+function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
@@ -486,18 +471,18 @@ function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
     G0l[src2, trg1+N] * G0l[trg2+N, src1]
 end
 
-function pc_combined_kernel(mc, model, sites::NTuple{4}, G)
+function pc_combined_kernel(mc, model, sites::NTuple{4}, G, flv)
     # Δ^† Δ + Δ Δ^†
     # same as in https://arxiv.org/pdf/1912.08848.pdf
-    pc_kernel(mc, model, sites, G) + pc_alt_kernel(mc, model, sites, G)
+    pc_kernel(mc, model, sites, G, flv) + pc_alt_kernel(mc, model, sites, G, flv)
 end
 
 
-function pc_ref_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix)
+function pc_ref_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix, flv)
     # Δ^† Δ + Δ Δ^† but ↑ and ↓ are swapped
-    pc_ref_kernel(mc, model, sites, (G, G, G, G))
+    pc_ref_kernel(mc, model, sites, (G, G, G, G), flv)
 end
-function pc_ref_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
+function pc_ref_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
@@ -509,7 +494,7 @@ end
 
 
 
-function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4})
+function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
     # Computes
     # ⟨j_{t2-s2}(s2, l) j_{t1-s1}(s1, 0)⟩
     # where t2-s2 (t1-s1) is usually a NN vector/jump, and
@@ -543,23 +528,22 @@ end
 
 
 
-@inline function nonintE_kernel(mc, model, G::GreensMatrix)
+@inline function nonintE_kernel(mc, model, G::GreensMatrix, flv)
     # <T> = \sum Tji * (Iij - Gij) = - \sum Tji * (Gij - Iij)
     T = mc.stack.hopping_matrix
-    nonintE(T, G.val)
+    nonintE(T, G.val, flv)
 end
 
 # TODO should this be moved/work differently?
-nonintE(T::AbstractArray, G::GreensMatrix) = nonintE(T, G.val)
-function nonintE(T::AbstractArray, G::AbstractArray)
+nonintE(T::AbstractArray, G::GreensMatrix, flv) = nonintE(T, G.val, flv)
+function nonintE(T::AbstractArray, G::AbstractArray, flv)
     output = zero(eltype(G))
     for i in axes(G, 1), j in axes(G, 2)
         output += T[j, i] * (I[i, j] - G[i, j])
     end
-    # 2 because we're using spin up/down symmetry
-    2.0 * output
+    output
 end
-function nonintE(T::BlockDiagonal{X, N}, G::BlockDiagonal{X, N}) where {X, N}
+function nonintE(T::BlockDiagonal{X, N}, G::BlockDiagonal{X, N}, flv) where {X, N}
     output = zero(eltype(G))
     @inbounds n = size(T.blocks[1], 1)
     @inbounds for i in 1:N
@@ -573,6 +557,101 @@ function nonintE(T::BlockDiagonal{X, N}, G::BlockDiagonal{X, N}) where {X, N}
 end
 
 
-function totalE_kernel(mc, model, G::GreensMatrix)
-    nonintE_kernel(mc, model, G) + intE_kernel(mc, model, G)
+function totalE_kernel(mc, model, G::GreensMatrix, flv)
+    nonintE_kernel(mc, model, G, flv) + intE_kernel(mc, model, G, flv)
+end
+
+
+################################################################################
+### flv == 1 versions
+################################################################################
+
+
+function cdc_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, ::Val{1})
+    # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
+    i, j = ij
+    4 * swapop(G)[i, i] * swapop(G)[j, j] + 2 * swapop(G)[i, j] * G[i, j]
+end
+function cdc_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
+    i, j = ij
+    G00, G0l, Gl0, Gll = pg
+    # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
+    4 * swapop(Gll)[i, i] * swapop(G00)[j, j] + 2 * swapop(G0l)[i, j] * Gl0[i, j]
+end
+
+mx_kernel(mc, model, i, G::GreensMatrix, ::Val{1}) = 0.0
+my_kernel(mc, model, i, G::GreensMatrix, ::Val{1}) = 0.0
+mz_kernel(mc, model, i, G::GreensMatrix, ::Val{1}) = 0.0
+
+function sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, ::Val{1})
+    i, j = ij
+    2 * swapop(G)[i, j] * G[i, j]
+end
+function sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, ::Val{1})
+    i, j = ij
+    2 * swapop(G)[i, j] * G[i, j]
+end
+function sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, ::Val{1})
+    i, j = ij
+    2 * swapop(G)[i, j] * G[i, j]
+end
+
+function sdc_x_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
+    i, j = ij
+    2 * swapop(pg[2])[i, j] * pg[3][i, j]
+end
+function sdc_y_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
+    i, j = ij
+    2 * swapop(pg[2])[i, j] * pg[3][i, j]
+end
+function sdc_z_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
+    i, j = ij
+    2 * swapop(pg[2])[i, j] * pg[3][i, j]
+end
+
+function pc_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix, ::Val{1})
+    src1, trg1, src2, trg2 = sites
+    G[src1, src2] * G[trg1, trg2]
+end
+function pc_kernel(mc, model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
+    src1, trg1, src2, trg2 = sites
+    pg[3][src1, src2] * pg[3][trg1, trg2]
+end
+function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, ::Val{1})
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    swapop(G0l)[trg1, trg2] * swapop(G0l)[src1, src2]
+end
+function pc_ref_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, ::Val{1})
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    Gl0[src1, src2] * Gl0[trg1, trg2] +
+    (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2, src1])
+end
+
+function cc_kernel(mc, model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
+    src1, trg1, src2, trg2 = sites
+    G00, G0l, Gl0, Gll = pg
+    T = mc.stack.hopping_matrix
+
+    # up-up counts, down-down counts, mixed only on 11s or 22s
+    s1 = src1; t1 = trg1
+    s2 = src2; t2 = trg2
+    output = (
+        4.0 *(T[s2, t2] * (I[t2, s2] - Gll[t2, s2]) - T[t2, s2] * (I[t2, s2] - Gll[s2, t2])) * 
+        (T[t1, s1] * (I[s1, t1] - G00[s1, t1]) - T[s1, t1] * (I[s1, t1] - G00[t1, s1])) +
+        - 2.0 * T[t2, s2] * T[t1, s1] * swapop(G0l)[t2, s1] * Gl0[s2, t1] +
+        + 2.0 * T[t2, s2] * T[s1, t1] * swapop(G0l)[t2, t1] * Gl0[s2, s1] +
+        + 2.0 * T[s2, t2] * T[t1, s1] * swapop(G0l)[s2, s1] * Gl0[t2, t1] +
+        - 2.0 * T[s2, t2] * T[s1, t1] * swapop(G0l)[s2, t1] * Gl0[t2, s1] 
+    )
+
+    output
+end
+
+@inline function nonintE_kernel(mc, model, G::GreensMatrix, flv::Val{1})
+    # <T> = \sum Tji * (Iij - Gij) = - \sum Tji * (Gij - Iij)
+    T = mc.stack.hopping_matrix
+    # 2 because we're using spin up/down symmetry
+    2.0 * nonintE(T, G.val, flv)
 end

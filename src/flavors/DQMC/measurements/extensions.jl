@@ -165,7 +165,7 @@ function dia_K_x(mc, G, idxs)
     N = length(lattice(mc))
     
     Kx = ComplexF64(0)
-    f = 1.0 + (model(mc) isa HubbardModelAttractive)
+    f = 1.0 + (model(mc).U > 0)
     for shift in 0:N:size(G, 1)-1
         for i in idxs
             for (src, trg) in dir2srctrg[i]

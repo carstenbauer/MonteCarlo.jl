@@ -25,13 +25,14 @@ MPIReplicaExchange(target) = MPIReplicaExchange(target)
 MPIReplicaExchange(mc, model, target) = MPIReplicaExchange(target)
 name(::MPIReplicaExchange) = "MPIReplicaExchange"
 
-@bm function update(u::MPIReplicaExchange, mc, model)
+@bm function update(u::MPIReplicaExchange, mc, model, field)
+    c = conf(field); tc = temp_conf(field)
     # swap conf
-    MPI.Isend(conf(mc), u.target, 0, MPI.COMM_WORLD)
-    MPI.Recv!(mc.temp_conf, u.target, 0, MPI.COMM_WORLD)
+    MPI.Isend(c,  u.target, 0, MPI.COMM_WORLD)
+    MPI.Recv!(tc, u.target, 0, MPI.COMM_WORLD)
 
     # compute weight
-    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, mc.temp_conf)
+    detratio, ΔE_boson, passthrough = propose_global_from_conf(mc, model, tc)
     local_weight = exp(- ΔE_boson) * detratio
     local_prob = rand()
     
@@ -45,7 +46,7 @@ name(::MPIReplicaExchange) = "MPIReplicaExchange"
     # processes. 
     w = local_weight * remote_weight
     if ifelse(myid() < u.target, local_prob, remote_prob) < w
-        accept_global!(mc, model, mc.temp_conf, passthrough)
+        accept_global!(mc, model, tc, passthrough)
         MPI.Wait!(req)
         return 1
     else

@@ -65,11 +65,11 @@ Base.eltype(::State) = State
 
 
 
-function HamiltonMatrix(model::T) where {T <: HubbardModel}
+function HamiltonMatrix(model::Model)
     lattice = model.l
     t = model.t
-    U = T <: HubbardModelAttractive ? -abs(model.U) : abs(model.U)
-    mu = T <: HubbardModelAttractive ? model.mu : 0.0
+    U = - model.U
+    mu = model.mu
 
     H = zeros(Float64, 4^length(lattice), 4^length(lattice))
 
@@ -143,7 +143,7 @@ end
 
 
 
-function Greens(site1, site2, substate1, substate2)
+function MonteCarlo.Greens(site1, site2, substate1, substate2)
     s -> begin
         _sign1, state = create(s, site1, substate1)
         # _sign1 == 0. && return 0.0, VOID

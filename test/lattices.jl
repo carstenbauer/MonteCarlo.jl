@@ -35,14 +35,14 @@ using MonteCarlo: directed_norm
 
 @testset "Lattice Iterators" begin
     # Set up a few test models/DQMCs    
-    m = HubbardModelAttractive(3, 3)
+    m = HubbardModel(3, 3)
     dqmc1 = DQMC(m, beta=1.0)
     
-    m = HubbardModelRepulsive(10, 1)
+    m = HubbardModel(10, 1, U = -1.0)
     dqmc2 = DQMC(m, beta=1.0)
 
     l = TriangularLattice(0, Lx=2, Ly=6)
-    m = HubbardModelAttractive(l)
+    m = HubbardModel(l)
     dqmc3 = DQMC(m, beta=1.0)
 
     dqmcs = (dqmc1, dqmc2, dqmc3)
@@ -68,7 +68,7 @@ using MonteCarlo: directed_norm
         for dqmc in dqmcs
             iter = EachSiteAndFlavor()(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
-            Nflavors = MonteCarlo.nflavors(dqmc.model)
+            Nflavors = MonteCarlo.nflavors(MonteCarlo.field(dqmc))
             @test collect(iter) == 1:Nsites*Nflavors
             @test length(iter) == Nsites*Nflavors
             @test eltype(iter) == Int64

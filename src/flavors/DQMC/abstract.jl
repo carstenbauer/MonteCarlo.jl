@@ -7,7 +7,16 @@ struct CheckerboardFalse <: Checkerboard end
 abstract type AbstractUpdateScheduler end
 init!(s::AbstractUpdateScheduler, mc, model) = s
 
+abstract type AbstractField end
+abstract type AbstractFieldCache end
 
+
+################################################################################
+### Checkerboard
+################################################################################
+
+
+# TODO Rework this into a matrix wrapper
 
 """
     build_checkerboard(l::Lattice) -> checkerboard, groups, n_groups
