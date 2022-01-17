@@ -14,18 +14,15 @@ function Base.getproperty(obj::DummyModel, field::Symbol)
     if hasfield(DummyModel, field)
         return getfield(obj, field)
     else
-        return getfield(obj, data)[string(field)]
+        @info keys(getfield(obj, :data))
+        return getfield(obj, :data)[string(field)]
     end
 end
 
 
-
-hopping_matrix_type(::Type{DQMC}, ::DummyModel) = Matrix{Float64}
-greens_matrix_type( ::Type{DQMC}, ::DummyModel) = Matrix{Float64}
-interaction_matrix_type(::Type{DQMC}, ::DummyModel) = Diagonal{Float64, Vector{Float64}}
-greenseltype(::Type{DQMC}, m::DummyModel) = Float64
-hoppingeltype(::Type{DQMC}, m::DummyModel) = Float64
-
+choose_field(::DummyModel) = DensityHirschField
+nflavors(::DummyModel) = 1
+lattice(m::DummyModel) = m.l
 
 
 function save_model(file::JLDFile, m::DummyModel, entryname::String="Model")
@@ -36,11 +33,25 @@ end
 function _load_model(data, ::Val)
     tag = to_tag(data)
     @warn "Failed to load $tag, creating DummyModel"
-    DummyModel(_load_to_dict(data))
+    dict = _load_to_dict(data)
+    @info dict
+    if haskey(dict, "data")
+        x = pop!(dict, "data")
+        push!(dict, x...)
+    end
+    DummyModel(dict)
 end
 
 _load_to_dict(file::FileWrapper) = _load_to_dict(file.file)
-_load_to_dict(data) = data
+function _load_to_dict(data)
+    if parentmodule(typeof(data)) == JLD2.ReconstructedTypes
+        Dict(map(fieldnames(typeof(data))) do f
+            string(f) => _load_to_dict(getfield(data, f))
+        end)
+    else
+        data
+    end
+end
 function _load_to_dict(data::Union{JLD.JldFile, JLD2.JLDFile, JLD2.Group})
     output = Dict{String, Any}()
     for key in keys(data)
