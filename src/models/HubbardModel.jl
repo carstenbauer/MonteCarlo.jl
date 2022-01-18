@@ -152,7 +152,7 @@ function _load_model(data, ::Val{:HubbardModel})
     l = _load(data["l"], to_tag(data["l"]))
     HubbardModel(data["t"], data["mu"], data["U"], l)
 end
-_load_model(data, ::Val{:HubbardModelAttractive}) = _load(data, Val(:HubbardModel))
+_load_model(data, ::Val{:HubbardModelAttractive}) = _load_model(data, Val(:HubbardModel))
 function _load_model(data, ::Val{:HubbardModelRepulsive})
     l = _load(data["l"], to_tag(data["l"]))
     HubbardModel(data["t"], 0.0, -data["U"], l)

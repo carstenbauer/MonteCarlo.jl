@@ -281,16 +281,7 @@ function save_model(file::JLDFile, model, entryname::String)
     nothing
 end
 
-"""
-    _load(data, ::Type{...})
-
-Loads `data` where `data` is either a `JLD2.JLDFile`, `JLD2.Group` or a `Dict`.
-
-The default `_load` will check that `data["VERSION"] == 0` and simply return 
-`data["data"]`. You may implement `_load(data, ::Type{<: MyType})` to add
-specialized loading behavior.
-"""
-function _load(data, ::Val{:Generic}) where T
+function _load_model(data, ::Val{:Generic}) where T
     data["VERSION"] == 0 || throw(ErrorException(
         "Version $(data["VERSION"]) incompatabile with default _load for $T."
     ))
