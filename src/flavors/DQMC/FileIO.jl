@@ -54,7 +54,7 @@ function _load(data, ::Val{:DQMC})
         field = load_field(data["field"], Val(:Field), parameters, model)
     else
         conf = data["conf"]
-        field = choose_field(model)(parameters, model)
+        field = field_hint(model, to_tag(data["Model"]))(parameters, model)
         conf!(field, conf)
     end
     scheduler = if haskey(data, "Scheduler")

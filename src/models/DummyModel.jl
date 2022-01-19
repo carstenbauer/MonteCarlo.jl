@@ -14,7 +14,6 @@ function Base.getproperty(obj::DummyModel, field::Symbol)
     if hasfield(DummyModel, field)
         return getfield(obj, field)
     else
-        @info keys(getfield(obj, :data))
         return getfield(obj, :data)[string(field)]
     end
 end
@@ -34,7 +33,6 @@ function _load_model(data, ::Val)
     tag = to_tag(data)
     @warn "Failed to load $tag, creating DummyModel"
     dict = _load_to_dict(data)
-    @info dict
     if haskey(dict, "data")
         x = pop!(dict, "data")
         push!(dict, x...)

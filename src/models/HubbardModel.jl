@@ -148,6 +148,7 @@ function save_model(file::JLDFile, m::HubbardModel, entryname::String = "Model")
     nothing
 end
 
+# compat
 function _load_model(data, ::Val{:HubbardModel})
     l = _load(data["l"], to_tag(data["l"]))
     HubbardModel(data["t"], data["mu"], data["U"], l)
@@ -157,6 +158,11 @@ function _load_model(data, ::Val{:HubbardModelRepulsive})
     l = _load(data["l"], to_tag(data["l"]))
     HubbardModel(data["t"], 0.0, -data["U"], l)
 end
+_load_model(data, ::Val{:AttractiveGHQHubbardModel}) = _load_model(data, Val(:HubbardModelAttractive))
+_load_model(data, ::Val{:RepulsiveGHQHubbardModel}) = _load_model(data, Val(:HubbardModelRepulsive))
+field_hint(m, ::Val) = choose_field(m)
+field_hint(m, ::Val{:AttractiveGHQHubbardModel}) = MagneticGHQField
+field_hint(m, ::Val{:RepulsiveGHQHubbardModel}) = MagneticGHQField
 
 function intE_kernel(mc, model::HubbardModel, G::GreensMatrix, ::Val{1})
     # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... 
