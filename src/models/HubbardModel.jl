@@ -27,6 +27,10 @@ struct HubbardModel{LT <: AbstractLattice} <: Model
     l::LT
 end
 
+@inline function HubbardModel(t::Real, mu::Real, U::Real, l::AbstractLattice)
+    HubbardModel(Float64(t), Float64(mu), Float64(U), l)
+end
+
 function HubbardModel(; 
         dims = 2, L = 2, l = choose_lattice(HubbardModel, dims, L), 
         U = 1.0, mu = 0.0, t = 1.0
