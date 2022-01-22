@@ -281,12 +281,7 @@ function save_model(file::JLDFile, model, entryname::String)
     nothing
 end
 
-function _load_model(data, ::Val{:Generic}) where T
-    data["VERSION"] == 0 || throw(ErrorException(
-        "Version $(data["VERSION"]) incompatabile with default _load for $T."
-    ))
-    data["data"]
-end
+_load(data, ::Val{:Generic}) = data["data"]
 
 
 #     save_lattice(filename, lattice, entryname)
