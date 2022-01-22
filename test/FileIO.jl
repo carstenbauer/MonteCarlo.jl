@@ -181,38 +181,40 @@
     end
 end
 
-function test_mc(mc, x)
-    # Check if loaded/replayed mc matches original
-    for f in fieldnames(typeof(mc.p))
-        @test getfield(mc.p, f) == getfield(x.p, f)
-    end
-    @test mc.conf == x.conf
-    @test mc.model.L == x.model.L
-    @test mc.model.dims == x.model.dims
-    for f in fieldnames(typeof(mc.model.l))
-        @test getfield(mc.model.l, f) == getfield(x.model.l, f)
-    end
-    # @test mc.model.neighs == x.model.neighs
-    @test mc.model.energy[] == x.model.energy[]
-    for (k, v) in mc.thermalization_measurements
-        for f in fieldnames(typeof(v))
-            r = getfield(v, f) == getfield(x.thermalization_measurements[k], f)
-            r != true && @info "Check failed for $k -> $f"
-            @test r
-        end
-    end
-    for (k, v) in mc.measurements
-        for f in fieldnames(typeof(v))
-            r = getfield(v, f) == getfield(x.measurements[k], f)
-            r != true && @info "Check failed for $k -> $f"
-            @test r
-        end
-    end
-    nothing
-end
 
 
 @time @testset "MC" begin
+
+    function test_mc(mc, x)
+        # Check if loaded/replayed mc matches original
+        for f in fieldnames(typeof(mc.p))
+            @test getfield(mc.p, f) == getfield(x.p, f)
+        end
+        @test mc.conf == x.conf
+        @test mc.model.L == x.model.L
+        @test mc.model.dims == x.model.dims
+        for f in fieldnames(typeof(mc.model.l))
+            @test getfield(mc.model.l, f) == getfield(x.model.l, f)
+        end
+        # @test mc.model.neighs == x.model.neighs
+        @test mc.model.energy[] == x.model.energy[]
+        for (k, v) in mc.thermalization_measurements
+            for f in fieldnames(typeof(v))
+                r = getfield(v, f) == getfield(x.thermalization_measurements[k], f)
+                r != true && @info "Check failed for $k -> $f"
+                @test r
+            end
+        end
+        for (k, v) in mc.measurements
+            for f in fieldnames(typeof(v))
+                r = getfield(v, f) == getfield(x.measurements[k], f)
+                r != true && @info "Check failed for $k -> $f"
+                @test r
+            end
+        end
+        nothing
+    end
+
     model = IsingModel(dims=2, L=2)
     mc = MC(
         model, beta = 0.66, thermalization = 33, sweeps = 123, 
@@ -279,72 +281,6 @@ end
     rm("resumable_testfile.jld")
 end
 
-
-function test_dqmc(mc, x)
-    for f in fieldnames(typeof(mc.parameters))
-        @test getfield(mc.parameters, f) == getfield(x.parameters, f)
-    end
-    @test mc.field.conf == x.field.conf
-    @test mc.model.mu == x.model.mu
-    @test mc.model.t == x.model.t
-    @test mc.model.U == x.model.U
-    for f in fieldnames(typeof(mc.model.l))
-        @test getfield(mc.model.l, f) == getfield(x.model.l, f)
-    end
-    @test MonteCarlo.nflavors(mc.field) == MonteCarlo.nflavors(x.field)
-    @test mc.scheduler == x.scheduler
-    for (k, v) in mc.thermalization_measurements
-        for f in fieldnames(typeof(v))
-            r = if getfield(v, f) isa LightObservable
-                # TODO
-                # implement == for LightObservable in MonteCarloObservable
-                getfield(v, f).B == getfield(x.measurements[k], f).B
-            else
-                getfield(v, f) == getfield(x.measurements[k], f)
-            end
-            r != true && @info "Check failed for $k -> $f"
-            @test r
-        end
-    end
-    for (k, v) in mc.measurements
-        for f in fieldnames(typeof(v))
-            v isa MonteCarlo.DQMCMeasurement && f == :temp && continue
-            v isa MonteCarlo.DQMCMeasurement && f == :kernel && continue
-            r = if getfield(v, f) isa LightObservable
-                # TODO
-                # implement == for LightObservable in MonteCarloObservable
-                # TODO: implement ≈ for LightObservable, LogBinner, etc
-                r = true
-                a = getfield(v, f)
-                b = getfield(x.measurements[k], f)
-                for i in eachindex(getfield(v, f).B.compressors)
-                    r = r && (a.B.compressors[i].value ≈ b.B.compressors[i].value)
-                    r = r && (a.B.compressors[i].switch ≈ b.B.compressors[i].switch)
-                end
-                r = r && (a.B.x_sum ≈ b.B.x_sum)
-                r = r && (a.B.x2_sum ≈ b.B.x2_sum)
-                r = r && (a.B.count ≈ b.B.count)
-            elseif getfield(v, f) isa LogBinner
-                r = true
-                a = getfield(v, f)
-                b = getfield(x.measurements[k], f)
-                for i in eachindex(a.compressors)
-                    r = r && (a.compressors[i].value ≈ b.compressors[i].value)
-                    r = r && (a.compressors[i].switch ≈ b.compressors[i].switch)
-                end
-                r = r && (a.x_sum ≈ b.x_sum)
-                r = r && (a.x2_sum ≈ b.x2_sum)
-                r = r && (a.count ≈ b.count)
-            else
-                getfield(v, f) == getfield(x.measurements[k], f)
-            end
-            r != true && @info "Check failed for $k -> $f"
-            @test r
-        end
-    end
-    nothing
-end
-
 for file in readdir()
     if endswith(file, "jld") || endswith(file, "jld2") || endswith(file, ".confs")
         rm(file)
@@ -352,7 +288,74 @@ for file in readdir()
 end
 
 
+
 @time @testset "DQMC" begin
+
+    function test_dqmc(mc, x)
+        for f in fieldnames(typeof(mc.parameters))
+            @test getfield(mc.parameters, f) == getfield(x.parameters, f)
+        end
+        @test mc.field.conf == x.field.conf
+        @test mc.model.mu == x.model.mu
+        @test mc.model.t == x.model.t
+        @test mc.model.U == x.model.U
+        for f in fieldnames(typeof(mc.model.l))
+            @test getfield(mc.model.l, f) == getfield(x.model.l, f)
+        end
+        @test MonteCarlo.nflavors(mc.field) == MonteCarlo.nflavors(x.field)
+        @test mc.scheduler == x.scheduler
+        for (k, v) in mc.thermalization_measurements
+            for f in fieldnames(typeof(v))
+                r = if getfield(v, f) isa LightObservable
+                    # TODO
+                    # implement == for LightObservable in MonteCarloObservable
+                    getfield(v, f).B == getfield(x.measurements[k], f).B
+                else
+                    getfield(v, f) == getfield(x.measurements[k], f)
+                end
+                r != true && @info "Check failed for $k -> $f"
+                @test r
+            end
+        end
+        for (k, v) in mc.measurements
+            for f in fieldnames(typeof(v))
+                v isa MonteCarlo.DQMCMeasurement && f == :temp && continue
+                v isa MonteCarlo.DQMCMeasurement && f == :kernel && continue
+                r = if getfield(v, f) isa LightObservable
+                    # TODO
+                    # implement == for LightObservable in MonteCarloObservable
+                    # TODO: implement ≈ for LightObservable, LogBinner, etc
+                    r = true
+                    a = getfield(v, f)
+                    b = getfield(x.measurements[k], f)
+                    for i in eachindex(getfield(v, f).B.compressors)
+                        r = r && (a.B.compressors[i].value ≈ b.B.compressors[i].value)
+                        r = r && (a.B.compressors[i].switch ≈ b.B.compressors[i].switch)
+                    end
+                    r = r && (a.B.x_sum ≈ b.B.x_sum)
+                    r = r && (a.B.x2_sum ≈ b.B.x2_sum)
+                    r = r && (a.B.count ≈ b.B.count)
+                elseif getfield(v, f) isa LogBinner
+                    r = true
+                    a = getfield(v, f)
+                    b = getfield(x.measurements[k], f)
+                    for i in eachindex(a.compressors)
+                        r = r && (a.compressors[i].value ≈ b.compressors[i].value)
+                        r = r && (a.compressors[i].switch ≈ b.compressors[i].switch)
+                    end
+                    r = r && (a.x_sum ≈ b.x_sum)
+                    r = r && (a.x2_sum ≈ b.x2_sum)
+                    r = r && (a.count ≈ b.count)
+                else
+                    getfield(v, f) == getfield(x.measurements[k], f)
+                end
+                r != true && @info "Check failed for $k -> $f"
+                @test r
+            end
+        end
+        nothing
+    end
+
     isfile("testfile.confs") && rm("testfile.confs")
     model = HubbardModel(4, 2, t = 1.7, U = 2.5)
     mc = DQMC(
@@ -432,4 +435,47 @@ end
     @test matches
     rm("resumable_testfile.jld2")
     isfile("testfile.confs") && rm("testfile.confs")
+end
+
+
+function is_file_content_equal(file1, file2)
+    data1 = open(readavailable, file1, "r")
+    data2 = open(readavailable, file2, "r")
+    if length(data1) != length(data2)
+        return false
+    end
+    return all((a == b for (a, b) in zip(data1, data2)))
+end
+
+@testset "DummyModel" begin
+    cp("assets/dummy_in.jld2", "dummy_in.jld2", force = true)
+    mc = MonteCarlo.load("dummy_in.jld2")
+    @test mc.model isa MonteCarlo.DummyModel
+    @test mc.model.data["x"] == 7
+    @test mc.model.data["y"] == "foo"
+
+    MonteCarlo.save("dummy_in.jld2", mc, overwrite=true)
+    @test isfile("dummy_in.jld2")
+    @test is_file_content_equal("dummy_in.jld2", "assets/dummy_in.jld2")
+
+    #=
+    # Generated with
+    struct TestModel <: MonteCarlo.Model
+        l::AbstractLattice
+        U::Float64
+        x::Int64
+        y::String
+    end
+
+    Base.rand(::Type{DQMC}, ::TestModel, n::Int64) = Base.rand(4, n)
+    MonteCarlo.choose_field(::TestModel) = DensityHirschField
+    MonteCarlo.lattice(m::TestModel) = m.l
+    MonteCarlo.nflavors(::TestModel) = 1
+    MonteCarlo.hopping_matrix(::DQMC, ::TestModel) = ones(4, 4)
+
+    mc = DQMC(TestModel(SquareLattice(2), 1.0, 7, "foo"), beta=1.0, recorder=Discarder())
+    MonteCarlo.save("assets/dummy_in.jld2", mc, overwrite=true)
+    =#
+
+    rm("dummy_in.jld2")
 end

@@ -470,8 +470,7 @@ function _load(data, ::Val{:MC})
     conf = data["conf"]
     configs = _load(data["configs"], to_tag(data["configs"]))
     last_sweep = data["last_sweep"]
-    model = _load(data["Model"], to_tag(data["Model"]))
-
+    model = _load_model(data["Model"], to_tag(data["Model"]))
     measurements = _load(data["Measurements"], Val(:Measurements))
     
     MC(

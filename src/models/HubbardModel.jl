@@ -27,6 +27,10 @@ struct HubbardModel{LT <: AbstractLattice} <: Model
     l::LT
 end
 
+@inline function HubbardModel(t::Real, mu::Real, U::Real, l::AbstractLattice)
+    HubbardModel(Float64(t), Float64(mu), Float64(U), l)
+end
+
 function HubbardModel(; 
         dims = 2, L = 2, l = choose_lattice(HubbardModel, dims, L), 
         U = 1.0, mu = 0.0, t = 1.0
@@ -148,15 +152,21 @@ function save_model(file::JLDFile, m::HubbardModel, entryname::String = "Model")
     nothing
 end
 
-function _load(data, ::Val{:HubbardModel})
+# compat
+function _load_model(data, ::Val{:HubbardModel})
     l = _load(data["l"], to_tag(data["l"]))
     HubbardModel(data["t"], data["mu"], data["U"], l)
 end
-_load(data, ::Val{:HubbardModelAttractive}) = _load(data, Val(:HubbardModel))
-function _load(data, ::Val{:HubbardModelRepulsive})
+_load_model(data, ::Val{:HubbardModelAttractive}) = _load_model(data, Val(:HubbardModel))
+function _load_model(data, ::Val{:HubbardModelRepulsive})
     l = _load(data["l"], to_tag(data["l"]))
     HubbardModel(data["t"], 0.0, -data["U"], l)
 end
+_load_model(data, ::Val{:AttractiveGHQHubbardModel}) = _load_model(data, Val(:HubbardModelAttractive))
+_load_model(data, ::Val{:RepulsiveGHQHubbardModel}) = _load_model(data, Val(:HubbardModelRepulsive))
+field_hint(m, ::Val) = choose_field(m)
+field_hint(m, ::Val{:AttractiveGHQHubbardModel}) = MagneticGHQField
+field_hint(m, ::Val{:RepulsiveGHQHubbardModel}) = MagneticGHQField
 
 function intE_kernel(mc, model::HubbardModel, G::GreensMatrix, ::Val{1})
     # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... 

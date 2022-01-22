@@ -65,10 +65,19 @@ function save(
         backend.jldopen(filename, mode, compress=compress; kwargs...), filename
     )
 
-    write(file, "VERSION", 1)
-    save_mc(file, mc, "MC")
-    save_rng(file)
-    close(file.file)
+    try
+        write(file, "VERSION", 1)
+        save_mc(file, mc, "MC")
+        save_rng(file)
+    catch e
+        if overwrite && !isempty(temp_filename) && isfile(temp_filename)
+            rm(filename)
+            mv(temp_filename, filename)
+        end
+        @error exception = e
+    finally
+        close(file.file)
+    end
 
     if overwrite && !isempty(temp_filename) && isfile(temp_filename)
         rm(temp_filename)
@@ -272,21 +281,7 @@ function save_model(file::JLDFile, model, entryname::String)
     nothing
 end
 
-"""
-    _load(data, ::Type{...})
-
-Loads `data` where `data` is either a `JLD2.JLDFile`, `JLD2.Group` or a `Dict`.
-
-The default `_load` will check that `data["VERSION"] == 0` and simply return 
-`data["data"]`. You may implement `_load(data, ::Type{<: MyType})` to add
-specialized loading behavior.
-"""
-function _load(data, ::Val{:Generic}) where T
-    data["VERSION"] == 0 || throw(ErrorException(
-        "Version $(data["VERSION"]) incompatabile with default _load for $T."
-    ))
-    data["data"]
-end
+_load(data, ::Val{:Generic}) = data["data"]
 
 
 #     save_lattice(filename, lattice, entryname)

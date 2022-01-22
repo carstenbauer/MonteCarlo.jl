@@ -49,12 +49,12 @@ function _load(data, ::Val{:DQMC})
     analysis = _load(data["Analysis"], Val(:DQMCAnalysis))
     recorder = _load(data["configs"], to_tag(data["configs"]))
     last_sweep = data["last_sweep"]
-    model = _load(data["Model"], to_tag(data["Model"]))
+    model = _load_model(data["Model"], to_tag(data["Model"]))
     if haskey(data, "field")
         field = load_field(data["field"], Val(:Field), parameters, model)
     else
         conf = data["conf"]
-        field = choose_field(model)(parameters, model)
+        field = field_hint(model, to_tag(data["Model"]))(parameters, model)
         conf!(field, conf)
     end
     scheduler = if haskey(data, "Scheduler")
