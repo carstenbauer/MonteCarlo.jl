@@ -165,8 +165,13 @@ function dia_K_x(mc, G, idxs)
     N = length(lattice(mc))
     
     Kx = ComplexF64(0)
-    f = 1.0 + (model(mc).U > 0)
-    for shift in 0:N:size(G, 1)-1
+    flv = max(nflavors(field(mc)), nflavors(model(mc))) 
+    if     flv == 1; f = 2.0
+    elseif flv == 2; f = 1.0
+    else error("The diamagnetic contribution to the superfluid density has no implementation for $flv flavors")
+    end
+    
+    for shift in 0 : N : flv*N - 1
         for i in idxs
             for (src, trg) in dir2srctrg[i]
                 # c_j^† c_i = δ_ij - G[i, j], but δ always 0 cause no onsite
