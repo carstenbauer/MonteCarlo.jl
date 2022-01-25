@@ -118,7 +118,7 @@ export Model, IsingModel
 export HubbardModel, HubbardModelAttractive, HubbardModelRepulsive
 export MonteCarloFlavor, MC, DQMC
 export greens, greens!, lattice, model, parameters
-export DensityHirschField, MagneticHirschField, MagneticGHQField
+export DensityHirschField, MagneticHirschField, DensityGHQField, MagneticGHQField
 
 # For extending
 export AbstractMeasurement, Model
