@@ -114,7 +114,7 @@ end
                 thermalization = 1, sweeps = 2, measure_rate=1#, field = field
             )
             print(
-                "  Running DQMC ($(nameof(typeof(model))) $(nameof(field))) " * 
+                "  Running DQMC ($(nameof(typeof(model)))) " * 
                 "β=$(dqmc.parameters.beta)\n    "
             )
 
@@ -391,6 +391,7 @@ end
 
         end
     end
+    println()
 end
 
 
@@ -418,7 +419,7 @@ end
                 )
             )
             print(
-                "  Running DQMC ($(nameof(typeof(model))) $(nameof(field))) " * 
+                "  Running DQMC ($(nameof(typeof(model)))) " * 
                 "β=$(dqmc.parameters.beta), 5k + 5k sweeps\n    "
             )
 
@@ -692,6 +693,7 @@ end
             end
         end
     end
+    println()
 end
 
 
@@ -704,9 +706,9 @@ end
         HubbardModel(2, 2, U = -1.0, t = 1.0),
         HubbardModel(2, 2, U = 1.0, mu = 1.0, t = 1.0)
     )
-    fields = (MagneticHirschField, DensityHirschField, MagneticGHQField)
+    fields = (MagneticHirschField, DensityHirschField, MagneticGHQField, DensityGHQField)
 
-    println("Finite U ED Comparison")
+    println("Greens and Energy vs ED with various fields")
     for model in models, field in fields
         if field == MonteCarlo.choose_field(model)
             continue
@@ -723,7 +725,7 @@ end
             )
             str = model.U >= 0 ? "attractive" : "repulsive"
             print(
-                "  Running DQMC ($mod $(nameof(field))) " * 
+                "  Running DQMC ($str $(nameof(field))) " * 
                 "β=$(dqmc.parameters.beta), 5k + 5k sweeps\n    "
             )
 
@@ -737,8 +739,9 @@ end
             rtol = 2dqmc.parameters.delta_tau^2
             N = length(lattice(model))
         
-            print("    Running ED and checking (tolerance: $atol, $(100rtol)%)\n    ")
-            @time begin
+            # print("    Running ED and checking (tolerance: $atol, $(100rtol)%)\n    ")
+            # @time 
+            begin
                 H = HamiltonMatrix(model)
 
                 @testset "(total) energy" begin
