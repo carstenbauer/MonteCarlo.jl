@@ -200,6 +200,8 @@ to_bigfloat(x::Complex) = Complex(BigFloat(real(x)), BigFloat(imag(x)))
 function taylor_exp(M::AbstractMatrix{T}; step_precision = 1, max_iter = 10_000) where T
     # if the next step adds less than step_precision (in unit of output float 
     # epsilons) we stop
+    old = precision(BigFloat)
+    setprecision(BigFloat, 128)
     A = to_bigfloat.(M)
     temp = A
     output = I + A
@@ -207,8 +209,10 @@ function taylor_exp(M::AbstractMatrix{T}; step_precision = 1, max_iter = 10_000)
         temp = temp * A ./ n
         output += temp
         if all(abs.(temp) ./ eps.(abs.(output)) .< step_precision) # abs for Complex
+            setprecision(BigFloat, old)
             return T.(output)
         end
     end
+    setprecision(BigFloat, old)
     error("Failed to generate sufficiently accurate matrix exponential.")
 end
