@@ -168,6 +168,7 @@ end
 @testset "Measured Greens function" begin
     m = HubbardModel(8, 2, mu=0.5)
     mc = DQMC(m, beta=5.0, safe_mult=1)
+    MonteCarlo.init!(mc)
     MonteCarlo.build_stack(mc, mc.stack)
     MonteCarlo.propagate(mc)
 
