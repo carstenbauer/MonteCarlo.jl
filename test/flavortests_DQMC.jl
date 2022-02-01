@@ -169,6 +169,7 @@ end
 @testset "GreensMatrix" begin
     m = HubbardModel(2, 2, mu=0.5)
     mc = DQMC(m, beta=1.0, safe_mult=10, thermalization=1, sweeps=1)
+    MonteCarlo.init!(mc)
     MonteCarlo.initialize_stack(mc, mc.ut_stack)
 
     G = greens(mc)
@@ -287,6 +288,8 @@ end
     mc1 = DQMC(m, beta=5.0)
     mc2 = DQMC(m, beta=5.0, checkerboard=false)
     mc2.field.conf .= deepcopy(mc1.field.conf)
+    MonteCarlo.initialize_stack(mc1, mc1.stack)
+    MonteCarlo.initialize_stack(mc2, mc2.stack)
     MonteCarlo.init_hopping_matrices(mc1, m)
     MonteCarlo.init_hopping_matrices(mc2, m)
     MonteCarlo.build_stack(mc1, mc1.stack)
@@ -302,6 +305,8 @@ end
 
     # initial greens test
     mc = DQMC(m, beta=5.0, safe_mult=1)
+    MonteCarlo.init_hopping_matrices(mc, m)
+    MonteCarlo.initialize_stack(mc, mc.stack)
     MonteCarlo.build_stack(mc, mc.stack)
     MonteCarlo.propagate(mc)
     # With this we effectively test calculate_greens without wrap_greens
@@ -321,6 +326,7 @@ end
 
     # Check greens reconstruction used in replay
     mc = DQMC(m, beta=5.0, safe_mult=5)
+    MonteCarlo.init!(mc)
     # Make sure this works with any values
     for k in shuffle(0:MonteCarlo.nslices(mc))
         G1, _ = calculate_greens_and_logdet(mc, k)
@@ -365,6 +371,7 @@ end
     @testset "range index search" begin
         m = HubbardModel(2, 2)
         mc = DQMC(m, beta = 2.3, safe_mult = 10, delta_tau = 0.1)
+        MonteCarlo.init!(mc)
         
         @test MonteCarlo._find_range_with_value(mc, -81273) == 0
         @test MonteCarlo._find_range_with_value(mc, 0) == 0
@@ -378,6 +385,7 @@ end
 
     m = HubbardModel(6, 1);
     dqmc = DQMC(m; beta=15.0, safe_mult=5)
+    MonteCarlo.init!(dqmc)
     MonteCarlo.initialize_stack(dqmc, dqmc.ut_stack)
     MonteCarlo.build_stack(dqmc, dqmc.stack)
 

@@ -120,6 +120,7 @@ end
 
 # unoptimized - these (should) only run during initialization anyway
 Base.exp(C::CMat64) = StructArray(exp(Matrix(C)))
+fallback_exp(C::CMat64) = StructArray(fallback_exp(Matrix(C)))
 Base.:(*)(C1::CMat64, C2::CMat64) = StructArray(Matrix(C1) * Matrix(C2))
 
 # tested
