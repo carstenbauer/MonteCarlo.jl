@@ -20,7 +20,7 @@ leads to a sign problem.
 
 The model will select an appropriate Hirsch field based on `U`.
 """
-struct HubbardModel{LT <: AbstractLattice} <: Model
+mutable struct HubbardModel{LT <: AbstractLattice} <: Model
     t::Float64
     mu::Float64
     U::Float64

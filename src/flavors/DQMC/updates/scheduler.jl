@@ -52,12 +52,19 @@ requires_temp_conf(update::AbstractUpdate) = false
 
 
 """
+AbstractSpecialUpdate <: AbstractUpdate
+
+An `AbstractSpecialUpdate` is one that doesn't update the configuration. In a way 
+"""
+abstract type AbstractSpecialUpdate <: AbstractUpdate end
+
+"""
     NoUpdate([mc, model])
 
 An update that does nothing. Used internally to keep the adaptive scheduler 
 running if all (other) adaptive updates are discarded.
 """
-struct NoUpdate <: AbstractUpdate end
+struct NoUpdate <: AbstractSpecialUpdate end
 NoUpdate(mc, model) = NoUpdate()
 function update(u::NoUpdate, args...)
     # we count this as "denied" global update
@@ -74,7 +81,7 @@ is_full_sweep(update::NoUpdate) = false
 
 A placeholder for adaptive updates in the `AdaptiveScheduler`.
 """
-struct Adaptive <: AbstractUpdate end
+struct Adaptive <: AbstractSpecialUpdate end
 name(::Adaptive) = "Adaptive"
 
 

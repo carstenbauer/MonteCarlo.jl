@@ -190,7 +190,7 @@ GreensAt(k::Integer, l::Integer) = GreensAt(k, l)
 Base.:(==)(a::GreensAt, b::GreensAt) = (a.k == b.k) && (a.l == b.l)
 
 
-requires(::AbstractMeasurement) = (Nothing, Nothing)
+requires(::AbstractMeasurement) = (nothing, nothing)
 requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
 
 
