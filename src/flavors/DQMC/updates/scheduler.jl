@@ -48,6 +48,7 @@ abstract type AbstractLocalUpdate <: AbstractUpdate end
 init!(mc, update::AbstractUpdate) = nothing
 is_full_sweep(update::AbstractUpdate) = true
 requires_temp_conf(update::AbstractUpdate) = false
+should_be_unique(update::AbstractUpdate) = false
 
 
 
@@ -130,7 +131,12 @@ function init_scheduler!(mc, scheduler::AbstractUpdateScheduler)
     nothing
 end
 
-
+function make_unique(updates::Union{Tuple, Vector})
+    cache = Dict()
+    map(updates) do update
+        should_be_unique(update) ? get!(cache, typeof(update), update) : update
+    end
+end
 
 
 ################################################################################
@@ -172,7 +178,7 @@ mutable struct SimpleScheduler{ST} <: AbstractUpdateScheduler
 
     function SimpleScheduler(updates...)
         # Without local sweeps we don't have a sweep increment
-        updates = map(AcceptanceStatistics, Tuple(vcat(updates...)))
+        updates = map(AcceptanceStatistics, Tuple(vcat(make_unique(updates)...)))
         if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, updates)
             error("The scheduler requires local updates, but none were passed.")
         end
@@ -305,7 +311,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
             minimum_sampling_rate = 0.01, grace_period = 99, adaptive_rate = 9.0
         )
         # Without local updates we have no sweep increment
-        sequence = map(AcceptanceStatistics, vcat(sequence...))
+        sequence = map(AcceptanceStatistics, vcat(make_unqiue(sequence)...))
         if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, sequence)
             error("The scheduler requires local updates, but none were passed.")
         end
@@ -321,7 +327,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
         @debug("Minimum number of samples for discard: $grace_period + $i_min")
 
         if !any(x -> x isa NoUpdate, pool)
-            pool = tuple(vcat(pool...)..., NoUpdate())
+            pool = tuple(vcat(make_unique(pool)...)..., NoUpdate())
         end
 
         # Wrap in AcceptanceStatistics

@@ -50,6 +50,7 @@ function init!(mc, u::ChemicalPotentialTuning)
     nothing
 end
 
+should_be_unique(::ChemicalPotentialTuning) = true
 is_full_sweep(::ChemicalPotentialTuning) = false
 name(::ChemicalPotentialTuning) = "ChemicalPotentialTuning"
 
