@@ -100,6 +100,7 @@ export Adaptive, NoUpdate, LocalSweep
 export GlobalFlip, GlobalShuffle, SpatialShuffle, TemporalShuffle, 
         Denoise, DenoiseFlip, StaggeredDenoise
 export ReplicaExchange, ReplicaPull, connect, disconnect
+export ChemicalPotentialTuning
 # export mask, uniform_fourier, structure_factor, SymmetryWrapped, swave, eswave
 
 include("models/Ising/IsingModel.jl")
