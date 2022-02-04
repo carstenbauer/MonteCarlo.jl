@@ -178,7 +178,7 @@ mutable struct SimpleScheduler{ST} <: AbstractUpdateScheduler
 
     function SimpleScheduler(updates...)
         # Without local sweeps we don't have a sweep increment
-        updates = map(AcceptanceStatistics, Tuple(vcat(make_unique(updates)...)))
+        updates = map(AcceptanceStatistics, Tuple(make_unique(vcat(updates...))))
         if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, updates)
             error("The scheduler requires local updates, but none were passed.")
         end
@@ -311,7 +311,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
             minimum_sampling_rate = 0.01, grace_period = 99, adaptive_rate = 9.0
         )
         # Without local updates we have no sweep increment
-        sequence = map(AcceptanceStatistics, vcat(make_unqiue(sequence)...))
+        sequence = map(AcceptanceStatistics, make_unique(vcat(sequence...)))
         if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, sequence)
             error("The scheduler requires local updates, but none were passed.")
         end
@@ -327,7 +327,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
         @debug("Minimum number of samples for discard: $grace_period + $i_min")
 
         if !any(x -> x isa NoUpdate, pool)
-            pool = tuple(vcat(make_unique(pool)...)..., NoUpdate())
+            pool = tuple(make_unique(vcat(pool...))..., NoUpdate())
         end
 
         # Wrap in AcceptanceStatistics
