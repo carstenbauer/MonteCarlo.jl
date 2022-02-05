@@ -154,8 +154,9 @@ function Base.:(*)(B1::BlockDiagonal{T1, N}, B2::BlockDiagonal{T2, N}) where {T1
     BlockDiagonal(map(*, B1.blocks, B2.blocks)...)
 end
 
-function Base.exp(B::BlockDiagonal)
-    BlockDiagonal(map(block -> exp(block), B.blocks))
+Base.exp(B::BlockDiagonal) = BlockDiagonal(map(block -> exp(block), B.blocks))
+function fallback_exp(B::BlockDiagonal)
+    BlockDiagonal(map(block -> fallback_exp(block), B.blocks))
 end
 
 # This takes super long to compile...? 

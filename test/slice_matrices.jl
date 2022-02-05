@@ -36,6 +36,7 @@ end
 @testset "Slice Matrices" begin
     m = HubbardModel(8, 1)
     dqmc = DQMC(m, beta=5.0)
+    MonteCarlo.init!(dqmc)
     eT = dqmc.stack.hopping_matrix_exp
     eV = similar(dqmc.stack.eV)
     A = similar(eT)
@@ -85,6 +86,7 @@ end
 
     # Checkerboard
     dqmc = DQMC(m, beta=5.0, checkerboard=true)
+    MonteCarlo.init!(dqmc)
 
     for slice in rand(1:50, 2)
         MonteCarlo.interaction_matrix_exp!(dqmc, m, dqmc.field, eV, slice, 1.)

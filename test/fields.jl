@@ -5,36 +5,42 @@ using MonteCarlo: FVec64, FMat64, CVec64, CMat64
     T2 = NTuple{2}
     
     mc = DQMC(HubbardModel(8, 1, U = 1.0), field = DensityHirschField, beta = 1.0)
+    MonteCarlo.init!(mc)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{Float64, Float64, FVec64, Float64}
     @test MonteCarlo.interaction_eltype(mc.field) == Float64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{Float64, FVec64}
     @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
 
     mc = DQMC(HubbardModel(8, 1, U = -1.0), field = DensityHirschField, beta = 1.0)
+    MonteCarlo.init!(mc)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{ComplexF64, ComplexF64, CVec64, ComplexF64}
     @test MonteCarlo.interaction_eltype(mc.field) == ComplexF64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{ComplexF64, CVec64}
     @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
     
     mc = DQMC(HubbardModel(8, 1, U = 1.0), field = MagneticHirschField, beta = 1.0)
+    MonteCarlo.init!(mc)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{CVec64, CVec64, T2{CVec64}, ComplexF64}
     @test MonteCarlo.interaction_eltype(mc.field) == ComplexF64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{ComplexF64, CVec64}
     @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
 
     mc = DQMC(HubbardModel(8, 1, U = -1.0), field = MagneticHirschField, beta = 1.0)
+    MonteCarlo.init!(mc)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{FVec64, FVec64, T2{FVec64}, Float64}
     @test MonteCarlo.interaction_eltype(mc.field) == Float64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{Float64, FVec64}
     @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
     
     mc = DQMC(HubbardModel(8, 1, U = 1.0), field = MagneticGHQField, beta = 1.0)
+    MonteCarlo.init!(mc)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{CVec64, CVec64, T2{CVec64}, ComplexF64}
     @test MonteCarlo.interaction_eltype(mc.field) == ComplexF64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{ComplexF64, CVec64}
     @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
 
     mc = DQMC(HubbardModel(8, 1, U = -1.0), field = MagneticGHQField, beta = 1.0)
+    MonteCarlo.init!(mc)
     @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{FVec64, FVec64, T2{FVec64}, Float64}
     @test MonteCarlo.interaction_eltype(mc.field) == Float64
     @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{Float64, FVec64}

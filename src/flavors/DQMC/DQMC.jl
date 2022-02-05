@@ -61,7 +61,7 @@ function DQMC(model::M;
         parameters, analysis, recorder, thermalization_measurements, measurements
     )
     
-    init!(mc)
+    #init!(mc)
     return mc
 end
 

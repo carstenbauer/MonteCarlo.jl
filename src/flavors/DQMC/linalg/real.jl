@@ -185,3 +185,34 @@ function rdivp!(A::Matrix, T, O, pivot)
     end
     A
 end
+
+function fallback_exp(A)
+    try
+        exp(A)
+    catch e
+        @error "LAPACK failed to calculate matrix exponentials... Using Taylor expansion" exception = e
+        taylor_exp(A)
+    end
+end
+
+to_bigfloat(x::Float64) = BigFloat(x)
+to_bigfloat(x::Complex) = Complex(BigFloat(real(x)), BigFloat(imag(x)))
+function taylor_exp(M::AbstractMatrix{T}; step_precision = 1, max_iter = 10_000) where T
+    # if the next step adds less than step_precision (in unit of output float 
+    # epsilons) we stop
+    old = precision(BigFloat)
+    setprecision(BigFloat, 128)
+    A = to_bigfloat.(M)
+    temp = A
+    output = I + A
+    for n in 2:max_iter
+        temp = temp * A ./ n
+        output += temp
+        if all(abs.(temp) ./ eps.(abs.(output)) .< step_precision) # abs for Complex
+            setprecision(BigFloat, old)
+            return T.(output)
+        end
+    end
+    setprecision(BigFloat, old)
+    error("Failed to generate sufficiently accurate matrix exponential.")
+end

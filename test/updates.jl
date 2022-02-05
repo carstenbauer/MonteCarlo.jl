@@ -52,6 +52,7 @@ MonteCarlo.update(::GoodUpdate, args...) = 1.0
         @test scheduler.idx == 0
 
         mc = DQMC(model, beta=1.0, scheduler = scheduler)
+        MonteCarlo.init!(mc)
         MonteCarlo.reverse_build_stack(mc, mc.stack)
         MonteCarlo.propagate(mc)
 
@@ -80,6 +81,7 @@ MonteCarlo.update(::GoodUpdate, args...) = 1.0
     )
     for scheduler in schedulers
         mc = DQMC(model, beta=1.0, scheduler = scheduler)
+        MonteCarlo.init!(mc)
         MonteCarlo.reverse_build_stack(mc, mc.stack)
         MonteCarlo.propagate(mc)
 
