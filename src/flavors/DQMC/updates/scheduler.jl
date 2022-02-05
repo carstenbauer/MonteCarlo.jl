@@ -99,6 +99,7 @@ AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
 AcceptanceStatistics(proxy::Adaptive) = proxy
 name(w::AcceptanceStatistics) = name(w.update)
 requires_temp_conf(update::AcceptanceStatistics) = requires_temp_conf(update.update)
+should_be_unique(update::AcceptanceStatistics) = should_be_unique(update.update)
 function update(w::AcceptanceStatistics, mc, m, field)
     accepted = update(w.update, mc, m, field)
     w.total += 1
@@ -178,7 +179,7 @@ mutable struct SimpleScheduler{ST} <: AbstractUpdateScheduler
 
     function SimpleScheduler(updates...)
         # Without local sweeps we don't have a sweep increment
-        updates = map(AcceptanceStatistics, Tuple(make_unique(vcat(updates...))))
+        updates = make_unique(AcceptanceStatistics.(Tuple(vcat(updates...))))
         if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, updates)
             error("The scheduler requires local updates, but none were passed.")
         end
@@ -242,7 +243,7 @@ function save_scheduler(file::JLDFile, s::SimpleScheduler, entryname::String="/S
     nothing
 end
 function _load(data, ::Val{:SimpleScheduler})
-    SimpleScheduler(data["sequence"], data["idx"])
+    SimpleScheduler(make_unique(data["sequence"]), data["idx"])
 end
 
 to_tag(::Type{<: SimpleScheduler}) = Val(:SimpleScheduler)
@@ -311,7 +312,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
             minimum_sampling_rate = 0.01, grace_period = 99, adaptive_rate = 9.0
         )
         # Without local updates we have no sweep increment
-        sequence = map(AcceptanceStatistics, make_unique(vcat(sequence...)))
+        sequence = make_unique(AcceptanceStatistics.(vcat(sequence...)))
         if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, sequence)
             error("The scheduler requires local updates, but none were passed.")
         end
@@ -327,11 +328,11 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
         @debug("Minimum number of samples for discard: $grace_period + $i_min")
 
         if !any(x -> x isa NoUpdate, pool)
-            pool = tuple(make_unique(vcat(pool...))..., NoUpdate())
+            pool = tuple(vcat(pool...)..., NoUpdate())
         end
 
         # Wrap in AcceptanceStatistics
-        adaptive_pool = map(AcceptanceStatistics, pool)
+        adaptive_pool = make_unique(AcceptanceStatistics.(pool))
 
         adaptive_pool = Tuple(adaptive_pool)
         sequence = Tuple(sequence)
@@ -460,7 +461,7 @@ function save_scheduler(file::JLDFile, s::AdaptiveScheduler, entryname::String="
     nothing
 end
 function _load(data, ::Val{:AdaptiveScheduler})
-    s = AdaptiveScheduler(data["sequence"], data["pool"])
+    s = AdaptiveScheduler(make_unique(data["sequence"]), make_unique(data["pool"]))
     s.sampling_rates = data["sampling_rates"]
     s.minimum_sampling_rate = data["minimum_sampling_rate"]
     s.grace_period = data["grace_period"]
