@@ -51,6 +51,7 @@ function init!(mc, u::ChemicalPotentialTuning)
 end
 
 should_be_unique(::ChemicalPotentialTuning) = true
+generate_key(u::ChemicalPotentialTuning) = hash((u.target_occupation, u.mus, u.Ns, u.idx))
 is_full_sweep(::ChemicalPotentialTuning) = false
 name(::ChemicalPotentialTuning) = "ChemicalPotentialTuning"
 
@@ -78,7 +79,7 @@ function update(u::ChemicalPotentialTuning, mc, model, field)
 
         window = div(u.idx, 2, RoundUp) : u.idx
         win_mean_mu = window_mean(u.mus, window)
-        win_var_mu = window_var(u.mus, window, win_mean_mu)
+        # win_var_mu = window_var(u.mus, window, win_mean_mu)
         win_mean_N = window_mean(u.Ns, window)
         win_var_N = window_var(u.Ns, window, win_mean_N)
 
@@ -87,8 +88,8 @@ function update(u::ChemicalPotentialTuning, mc, model, field)
         # κ_max = sqrt(win_var_N / win_var_mu)
         κ = mc.parameters.beta * win_var_N
         # bounded_κ = clamp(κ, κ_min, κ_max)
-        bounded_κ = max(κ * sqrt(u.idx), 1 / u.idx)
-        # bounded_κ = max(κ, 1 / u.idx)
+        # bounded_κ = max(κ * sqrt(u.idx), 1 / u.idx)
+        bounded_κ = max(κ, 1 / u.idx)
 
         new_mu = win_mean_mu + (u.target_occupation - win_mean_N) / bounded_κ
         push!(u.mus, new_mu)

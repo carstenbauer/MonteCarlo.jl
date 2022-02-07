@@ -45,10 +45,16 @@ is accepted (as does the `global_update` returned above).
 abstract type AbstractUpdate end
 abstract type AbstractLocalUpdate <: AbstractUpdate end
 
+# This initialization happens just before starting a simulation
 init!(mc, update::AbstractUpdate) = nothing
+# If this returns true the sweep counter will be incremented
 is_full_sweep(update::AbstractUpdate) = true
+# If this is true the temp_conf in field will be initialized
 requires_temp_conf(update::AbstractUpdate) = false
+# If this returns true updates with the same key will be combined into a single instance
 should_be_unique(update::AbstractUpdate) = false
+# And this returns that key
+generate_key(u::AbstractUpdate) = hash(u)
 
 
 
@@ -100,6 +106,7 @@ AcceptanceStatistics(proxy::Adaptive) = proxy
 name(w::AcceptanceStatistics) = name(w.update)
 requires_temp_conf(update::AcceptanceStatistics) = requires_temp_conf(update.update)
 should_be_unique(update::AcceptanceStatistics) = should_be_unique(update.update)
+generate_key(u::AcceptanceStatistics) = hash((u.accepted, u.total), generate_key(u.update))
 function update(w::AcceptanceStatistics, mc, m, field)
     accepted = update(w.update, mc, m, field)
     w.total += 1
@@ -135,7 +142,7 @@ end
 function make_unique(updates::Union{Tuple, Vector})
     cache = Dict()
     map(updates) do update
-        should_be_unique(update) ? get!(cache, typeof(update), update) : update
+        should_be_unique(update) ? get!(cache, generate_key(update), update) : update
     end
 end
 
