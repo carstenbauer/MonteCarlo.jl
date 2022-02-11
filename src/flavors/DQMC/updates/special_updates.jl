@@ -75,7 +75,7 @@ function update(u::ChemicalPotentialTuning, mc, model, field)
 
     if mc.last_sweep < mc.parameters.thermalization
 
-        push!(u.Ns, diagmean(greens!(mc)))
+        push!(u.Ns, real(diagmean(greens!(mc))))
 
         window = div(u.idx, 2, RoundUp) : u.idx
         win_mean_mu = window_mean(u.mus, window)
