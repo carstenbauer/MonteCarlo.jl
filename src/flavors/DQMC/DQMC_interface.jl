@@ -183,7 +183,7 @@ By default this uses the matrix type from `interaction_matrix_type` and uses
 `max(nflavors(field), nflavors(model)) * length(lattice(model))` as the size.
 """
 function init_interaction_matrix(f::AbstractField, m::Model)
-    flv = max(nflavors(f), nflavors(m))
+    flv = nflavors(f, m)
     N = length(lattice(m))
     FullT = interaction_matrix_type(f, m)
 
@@ -215,3 +215,27 @@ energy_boson(f::AbstractField, c = nothing) = throw(MethodError(energy_boson, (f
 conf(f::AbstractField) = f.conf
 conf!(f::AbstractField, c) = conf(f) .= c
 temp_conf(f::AbstractField) = f.temp_conf
+
+
+################################################################################
+### Convenience
+################################################################################
+
+
+# These methods are just to simplify things. NOne of these should be implemented
+# when extending DQMC.
+
+nflavors(mc::DQMC) = nflavors(field(mc), model(mc))
+nflavors(f::AbstractField, m::Model) = max(nflavors(f), nflavors(m))
+
+function pad_to_nflavors(mc::DQMC, mat)
+    N = length(lattice(mc))
+    flv = nflavors(mc)
+    if size(mat, 1) == N * flv
+        return mat
+    elseif size(mat, 1) == N
+        return BlockDiagonal(ntuple(_ -> mat, flv))
+    else
+        error("Failed to expand size $(size(mat)) matrix to size ($N * $flv, $N * $flv) ")
+    end
+end

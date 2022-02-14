@@ -201,14 +201,8 @@ function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerbo
     nothing
 end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
-    N = length(lattice(m))
-    flv = nflavors(field(mc))
     dtau = mc.parameters.delta_tau
-
-    T = hopping_matrix(mc, m)
-    size(T) == (flv*N, flv*N) || error(
-        "Hopping matrix should have size $((flv*N, flv*N)) but has size $(size(T))."
-    )
+    T = pad_to_nflavors(mc, hopping_matrix(mc, m))
 
     if !is_approximately_hermitian(T)
         @error(
@@ -242,7 +236,7 @@ rem_eff_zeros!(X::AbstractArray) = map!(e -> abs.(e)<1e-15 ? zero(e) : e,X,X)
 function init_checkerboard_matrices(mc::DQMC, m::Model)
     s = mc.stack
     l = lattice(m)
-    flv = nflavors(field(mc))
+    flv = nflavors(mc)
     H = heltype(mc)
     N = length(l)
     dtau = mc.parameters.delta_tau
@@ -252,7 +246,7 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
     n_grps = s.n_groups
     cb = s.checkerboard
 
-    T = reshape(hopping_matrix(mc, m), (N, flv, N, flv))
+    T = reshape(pad_to_nflavors(mc, hopping_matrix(mc, m)), (N, flv, N, flv))
 
     s.chkr_hop_half = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
     s.chkr_hop_half_inv = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)

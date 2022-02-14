@@ -133,11 +133,7 @@ function hopping_matrix(mc::DQMC, m::HubbardModel)
         end
     end
 
-    if max(nflavors(field(mc)), nflavors(m)) == 1
-        return T
-    else
-        return BlockDiagonal(T, copy(T))
-    end
+    return T
 end
 
 function save_model(file::JLDFile, m::HubbardModel, entryname::String = "Model")
