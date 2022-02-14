@@ -10,6 +10,7 @@ makedocs(
             "Introduction" => "DQMC/Introduction.md",
             "Model" => "DQMC/model.md",
             "Lattices" => "DQMC/lattice.md",
+            "Fields" => "DQMC/fields.md",
             "DQMC" => "DQMC/dqmc.md",
             "Configuration Recorder" => "DQMC/recorder.md",
             "Update Scheduler" => "DQMC/scheduler.md",
