@@ -31,14 +31,13 @@ A custom model needs to implement these methods to function
 
 - `lattice(model)` needs to return a MonteCarlo compatible lattice
 - `nflavors(model)` needs to return the number of unique fermion flavors of the hopping matrix. For example, in a two spin model this would return 2 if the hopping matrix is different between spin up and down, or 1 if one sector is a copy of the other. Internally this is used together with `nflavors(field)` to optimize spin/flavor symmetric systems.
-- `hopping_matrix(dqmc, model)` needs to generate the hopping matrix, which includes all quadratic terms. (I.e. also the chemical potential.) The hopping matrix should only include as many flavors as necessary. If the hopping matrix contains two copies of the same matrix, one for spin up and one for spin down for example, then it should only return one of these. Expanding it to an appropriate size is handled internally.
+- `hopping_matrix(model)` needs to generate the hopping matrix, which includes all quadratic terms. (I.e. also the chemical potential.) The hopping matrix should only include as many flavors as necessary. If the hopping matrix contains two copies of the same matrix, one for spin up and one for spin down for example, then it should only return one of these. Expanding it to an appropriate size is handled internally.
 
 #### (Semi-) Optional Methods
 
 These methods aren't strictly necessary to implement, but may boost performance when implemented. It is recommended to provide these if the defaults do not apply.
 
-- `hopping_eltype(model) = Float64` returns the element type of the hopping matrix.
-- `hopping_matrix_type(field, model) = Matrix{hopping_eltype(model)}` return the matrix type of the hopping matrix.
+
 - `save_model(file::JLDFile, model, entryname)` should write model information to the given file. It should also save the lattice via `save_lattice` and save a unqiue `tag`. If this is not implemented JLD2 will be asked to save the type as is, which makes it hard to load data when the model type is edited.
 - `_load_model(data, ::Val{Symbol(tag)})` loads a model from `data`, which typically is a JLDFile. Note that saved tag is used to dispatch to the correct method.
 - `intE_kernel(mc, model, G, ::Val{flv})` should be implemented to enable measurements of the energy from the interactive term as well as the total energy. 
@@ -46,8 +45,10 @@ These methods aren't strictly necessary to implement, but may boost performance 
 
 #### Optional Methods
 
-- `greens_eltype(field, model) = generalized_eltype(interaction_eltype(field), hopping_eltype(model))`
-- `greens_matrix_type(field, model) = Matrix{greens_eltype(field, model)}`
+- `hopping_eltype(model) = eltype(hopping_matrix(model))` returns the element type of the hopping matrix.
+- `hopping_matrix_type(field, model) = typeof(pad_to_nflavors(field, model, hopping_matrix(model)))` return the matrix type of the hopping matrix.
+- `greens_eltype(field, model) = generalized_eltype(interaction_eltype(field), hopping_eltype(model))` returns the element type of the greens function. This must be compatible with element types of the hopping matrix and the interaction matrix.
+- `greens_matrix_type(field, model) = Matrix{greens_eltype(field, model)}` returns the full type of the greens function. This must be compatible with both the type of the hopping matrix and the interaction matrix.
 * `parameters(m::Model)` should collect the parameters from the model and lattice in a NamedTuple.
 
 Also note that you may need to update the measurement kernels. More information about that on the measurement page.

@@ -21,7 +21,8 @@ end
 
 choose_field(::DummyModel) = DensityHirschField
 nflavors(::DummyModel) = 1
-lattice(m::DummyModel) = m.l
+lattice(m::DummyModel) = get(m.data, "l", Chain(1))
+hopping_matrix(m::DummyModel) = fill(1.0, length(lattice(m)), length(lattice(m)))
 
 
 function save_model(file::JLDFile, m::DummyModel, entryname::String="Model")

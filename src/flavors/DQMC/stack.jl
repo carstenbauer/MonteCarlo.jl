@@ -202,7 +202,7 @@ function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerbo
 end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
     dtau = mc.parameters.delta_tau
-    T = pad_to_nflavors(mc, hopping_matrix(mc, m))
+    T = pad_to_nflavors(mc, hopping_matrix(m))
 
     if !is_approximately_hermitian(T)
         @error(
@@ -246,7 +246,7 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
     n_grps = s.n_groups
     cb = s.checkerboard
 
-    T = reshape(pad_to_nflavors(mc, hopping_matrix(mc, m)), (N, flv, N, flv))
+    T = reshape(pad_to_nflavors(mc, hopping_matrix(m)), (N, flv, N, flv))
 
     s.chkr_hop_half = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
     s.chkr_hop_half_inv = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
