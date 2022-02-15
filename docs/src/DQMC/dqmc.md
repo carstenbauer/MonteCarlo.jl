@@ -23,6 +23,7 @@ Beyond this there are a couple of keyword arguments which are more involved and 
 * `thermalization_measurements = Dict{Symbol, AbstractMeasurement}()`: Same as the above, but the measurements run during the thermalization stage. Might be useful to judge convergence or the number of necessary sweeps.
 * `recorder = ConfigRecorder`: A recorder for the configurations generated during the simulation.
 * `recording_rate = measure_rate`: The rate at which configurations are recorded.
+* `field::Type = choose_field(model)`: The type of the field used by the simulation
 
 Running a simulation also comes with a bunch of options via keyword arguments - most dealing with saving the simulation. The options for `run(dqmc)` include:
 
@@ -31,5 +32,7 @@ Running a simulation also comes with a bunch of options via keyword arguments - 
 * `safe_before::TimeType = now() + Year(100)`: Sets a time stamp before which the simulation will cancel itself and save.
 * `safe_every::TimePeriod = Hour(10000)`: Sets a time period interval for regular saves.
 * `grace_period::TimePeriod = Minute(5)`: Sets a buffer time period for saving. By default saves at least 5 minutes before the requested time.
-* `resumable_filename = "resumable_$(datestring).jld2`: Sets the name the savefile generated from safe_before and safe_every.
+* `resumable_filename = "resumable_$datestring.jld2`: Sets the name the savefile generated from safe_before and safe_every.
 * `overwrite = true`: Enables or disables overwriting of existing files. 
+* `min_update_rate = 0.001`: Sets a minimum update acceptance rate under which a simulation is considered "failed". This will only trigger after `1 / min_update_rate` sweeps and only if all updates fall below this rate.
+* `fail_filename = "failed_$datestring.jld2"`: Sets the filename of a failed simulation.
