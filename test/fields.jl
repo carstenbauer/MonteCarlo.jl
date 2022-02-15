@@ -7,7 +7,7 @@ using MonteCarlo: FVec64, FMat64, CVec64, CMat64, BlockDiagonal
 
     for U in (+1.0, -1.0)
         for (i, field) in enumerate(fields)
-            
+
             @testset "U = $U field = $field" begin
                 mc = DQMC(HubbardModel(U = U), field = field, beta = 1.0)
                 MonteCarlo.init!(mc)
@@ -34,10 +34,14 @@ using MonteCarlo: FVec64, FMat64, CVec64, CMat64, BlockDiagonal
                 # 1 flavor for Density, 2 for Magnetic in interaction/total
                 @test MonteCarlo.nflavors(mc.field) == 2 - (i % 2)
                 @test MonteCarlo.nflavors(mc.field, mc.model) == 2 - (i % 2)
+                
+                x = rand(4, 4)
 
                 if i % 2 == 1
                     @test MonteCarlo.hopping_matrix_type(mc.field, mc.model) == FMat64
                     @test mc.stack.hopping_matrix isa FMat64
+
+                    @test MonteCarlo.pad_to_nflavors(mc.field, mc.model, x) == x
 
                     @test MonteCarlo.greens_matrix_type(mc.field, mc.model) == mT
                     @test mc.stack.greens isa mT
@@ -47,6 +51,8 @@ using MonteCarlo: FVec64, FMat64, CVec64, CMat64, BlockDiagonal
                 else
                     @test MonteCarlo.hopping_matrix_type(mc.field, mc.model) == BlockDiagonal{Float64, 2, FMat64}
                     @test mc.stack.hopping_matrix isa BlockDiagonal{Float64, 2, FMat64}
+
+                    @test MonteCarlo.pad_to_nflavors(mc.field, mc.model, x) == BlockDiagonal(x, x)
 
                     @test MonteCarlo.greens_matrix_type(mc.field, mc.model) == BlockDiagonal{T, 2, mT}
                     @test mc.stack.greens isa BlockDiagonal{T, 2, mT}
