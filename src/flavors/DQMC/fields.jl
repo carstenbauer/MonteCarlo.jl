@@ -89,7 +89,7 @@ function calculate_detratio!(cache::StandardFieldCache, Δ::Float64, G::BlockDia
         cache.R.re[b] = 1.0 + Δ * (1.0 - G.blocks[b].re[i, i])
     end
     @inbounds for b in eachindex(G.blocks)
-        cache.R.im[b] = - Δ * G.blocks.im[b][i, i]
+        cache.R.im[b] = - Δ * G.blocks[b].im[i, i]
     end
     # determinant of Diagonal (don't think this is worth optimizing)
     cache.detratio = prod(cache.R)
@@ -101,7 +101,7 @@ function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiag
         cache.R.re[b] = 1.0 + Δ[b] * (1.0 - G.blocks[b].re[i, i])
     end
     @inbounds for b in eachindex(G.blocks)
-        cache.R.im[b] = - Δ[b] * G.blocks.im[b][i, i]
+        cache.R.im[b] = - Δ[b] * G.blocks[b].im[i, i]
     end
     # determinant of Diagonal (don't think this is worth optimizing)
     cache.detratio = prod(cache.R)
