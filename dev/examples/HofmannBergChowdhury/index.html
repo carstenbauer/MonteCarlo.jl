@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Topological Flat Band Model · MonteCarlo.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="MonteCarlo.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">MonteCarlo.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Introduction</a></li><li><span class="tocitem">DQMC</span><ul><li><a class="tocitem" href="../../DQMC/Introduction/">Introduction</a></li><li><a class="tocitem" href="../../DQMC/model/">Model</a></li><li><a class="tocitem" href="../../DQMC/lattice/">Lattices</a></li><li><a class="tocitem" href="../../DQMC/dqmc/">DQMC</a></li><li><a class="tocitem" href="../../DQMC/recorder/">Configuration Recorder</a></li><li><a class="tocitem" href="../../DQMC/scheduler/">Update Scheduler</a></li><li><a class="tocitem" href="../../DQMC/measurements/">Measurements</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../triangular_Hubbard/">Triangular Attractive Hubbard</a></li><li><a class="tocitem" href="../ALF1/">Crosscheck with ALF</a></li><li class="is-active"><a class="tocitem" href>Topological Flat Band Model</a><ul class="internal"><li><a class="tocitem" href="#Introduction-1"><span>Introduction</span></a></li><li class="toplevel"><a class="tocitem" href="#Implementation-1"><span>Implementation</span></a></li><li><a class="tocitem" href="#The-Lattice-1"><span>The Lattice</span></a></li><li><a class="tocitem" href="#Hopping-and-Interaction-Matrix-1"><span>Hopping and Interaction Matrix</span></a></li><li><a class="tocitem" href="#Local-Updates-1"><span>Local Updates</span></a></li><li><a class="tocitem" href="#Utilities-and-other-functionality-1"><span>Utilities and other functionality</span></a></li><li class="toplevel"><a class="tocitem" href="#Simulation-Setup-1"><span>Simulation Setup</span></a></li><li><a class="tocitem" href="#Measurements-1"><span>Measurements</span></a></li><li><a class="tocitem" href="#Running-the-simulations-1"><span>Running the simulations</span></a></li><li class="toplevel"><a class="tocitem" href="#Results-1"><span>Results</span></a></li><li><a class="tocitem" href="#Z-Spin-Susceptibility-2"><span>Z-Spin Susceptibility</span></a></li><li><a class="tocitem" href="#Reciprocal-Charge-Susceptibility-2"><span>Reciprocal Charge Susceptibility</span></a></li><li><a class="tocitem" href="#Reciprocal-Pairing-Susceptibility-1"><span>Reciprocal Pairing Susceptibility</span></a></li><li><a class="tocitem" href="#Superfluid-Stiffness-2"><span>Superfluid Stiffness</span></a></li></ul></li></ul></li><li><span class="tocitem">Legacy</span><ul><li><a class="tocitem" href="../../legacy/">Introduction</a></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Manual</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/manual/gettingstarted/">Getting started</a></li><li><a class="tocitem" href="../../legacy/manual/showcase/">Showcase</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Physical models</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/models/ising/">Ising model</a></li><li><a class="tocitem" href="../../legacy/models/hubbardattractive/">Attractive Hubbard model</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-4" type="checkbox"/><label class="tocitem" for="menuitem-4-4"><span class="docs-label">Monte Carlo flavors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/flavors/mc/">MC</a></li><li><a class="tocitem" href="../../legacy/flavors/dqmc/">DQMC</a></li></ul></li><li><a class="tocitem" href="../../legacy/lattices/">Lattices</a></li><li><a class="tocitem" href="../../legacy/customize/">Customize</a></li><li><input class="collapse-toggle" id="menuitem-4-7" type="checkbox"/><label class="tocitem" for="menuitem-4-7"><span class="docs-label">Interfaces</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/interfaces/MC/">MC</a></li><li><a class="tocitem" href="../../legacy/interfaces/DQMC/">DQMC</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-8" type="checkbox"/><label class="tocitem" for="menuitem-4-8"><span class="docs-label">General exports</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/methods/general/">General</a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Topological Flat Band Model</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Topological Flat Band Model</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/carstenbauer/MonteCarlo.jl/blob/master/docs/src/examples/HofmannBergChowdhury.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Topological-Flat-Band-Model-1"><a class="docs-heading-anchor" href="#Topological-Flat-Band-Model-1">Topological Flat Band Model</a><a class="docs-heading-anchor-permalink" href="#Topological-Flat-Band-Model-1" title="Permalink"></a></h1><p>This will be a rather extensive example and crosscheck with the 2020 paper <a href="https://journals.aps.org/prb/abstract/10.1103/PhysRevB.102.201112">&quot;Superconductivity, pseudogap, and phase separation in topological flat bands:&#39;a quantum Monte Carlo study&quot;</a> (<a href="https://arxiv.org/pdf/1912.08848.pdf">arxiv</a>) by Hofmann, Berg and Chowdhury. </p><h2 id="Introduction-1"><a class="docs-heading-anchor" href="#Introduction-1">Introduction</a><a class="docs-heading-anchor-permalink" href="#Introduction-1" title="Permalink"></a></h2><p>The paper investigates an attractive square lattice Hubbard model with complex hoppings up to the 5th order. It generates a flat and a dispersive band, where the flatness of the former can increased with the right ratio of hoppings. At partial filling of the flat band superconductivity is observed. The model reads</p><div>\[\begin{aligned}
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Topological Flat Band Model · MonteCarlo.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="MonteCarlo.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">MonteCarlo.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Introduction</a></li><li><span class="tocitem">DQMC</span><ul><li><a class="tocitem" href="../../DQMC/Introduction/">Introduction</a></li><li><a class="tocitem" href="../../DQMC/model/">Model</a></li><li><a class="tocitem" href="../../DQMC/lattice/">Lattices</a></li><li><a class="tocitem" href="../../DQMC/fields/">Fields</a></li><li><a class="tocitem" href="../../DQMC/dqmc/">DQMC</a></li><li><a class="tocitem" href="../../DQMC/recorder/">Configuration Recorder</a></li><li><a class="tocitem" href="../../DQMC/scheduler/">Update Scheduler</a></li><li><a class="tocitem" href="../../DQMC/measurements/">Measurements</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li><a class="tocitem" href="../triangular_Hubbard/">Triangular Attractive Hubbard</a></li><li><a class="tocitem" href="../ALF1/">Crosscheck with ALF</a></li><li class="is-active"><a class="tocitem" href>Topological Flat Band Model</a><ul class="internal"><li><a class="tocitem" href="#Introduction-1"><span>Introduction</span></a></li><li class="toplevel"><a class="tocitem" href="#Implementation-1"><span>Implementation</span></a></li><li><a class="tocitem" href="#The-Lattice-1"><span>The Lattice</span></a></li><li><a class="tocitem" href="#Hopping-and-Interaction-Matrix-1"><span>Hopping and Interaction Matrix</span></a></li><li class="toplevel"><a class="tocitem" href="#Simulation-Setup-1"><span>Simulation Setup</span></a></li><li><a class="tocitem" href="#Measurements-1"><span>Measurements</span></a></li><li><a class="tocitem" href="#Running-the-simulations-1"><span>Running the simulations</span></a></li><li class="toplevel"><a class="tocitem" href="#Results-1"><span>Results</span></a></li><li><a class="tocitem" href="#Z-Spin-Susceptibility-2"><span>Z-Spin Susceptibility</span></a></li><li><a class="tocitem" href="#Reciprocal-Charge-Susceptibility-2"><span>Reciprocal Charge Susceptibility</span></a></li><li><a class="tocitem" href="#Reciprocal-Pairing-Susceptibility-1"><span>Reciprocal Pairing Susceptibility</span></a></li><li><a class="tocitem" href="#Superfluid-Stiffness-2"><span>Superfluid Stiffness</span></a></li></ul></li></ul></li><li><span class="tocitem">Legacy</span><ul><li><a class="tocitem" href="../../legacy/">Introduction</a></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Manual</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/manual/gettingstarted/">Getting started</a></li><li><a class="tocitem" href="../../legacy/manual/showcase/">Showcase</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Physical models</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/models/ising/">Ising model</a></li><li><a class="tocitem" href="../../legacy/models/hubbardattractive/">Attractive Hubbard model</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-4" type="checkbox"/><label class="tocitem" for="menuitem-4-4"><span class="docs-label">Monte Carlo flavors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/flavors/mc/">MC</a></li><li><a class="tocitem" href="../../legacy/flavors/dqmc/">DQMC</a></li></ul></li><li><a class="tocitem" href="../../legacy/lattices/">Lattices</a></li><li><a class="tocitem" href="../../legacy/customize/">Customize</a></li><li><input class="collapse-toggle" id="menuitem-4-7" type="checkbox"/><label class="tocitem" for="menuitem-4-7"><span class="docs-label">Interfaces</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/interfaces/MC/">MC</a></li><li><a class="tocitem" href="../../legacy/interfaces/DQMC/">DQMC</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-8" type="checkbox"/><label class="tocitem" for="menuitem-4-8"><span class="docs-label">General exports</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/methods/general/">General</a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Topological Flat Band Model</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Topological Flat Band Model</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/carstenbauer/MonteCarlo.jl/blob/master/docs/src/examples/HofmannBergChowdhury.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Topological-Flat-Band-Model-1"><a class="docs-heading-anchor" href="#Topological-Flat-Band-Model-1">Topological Flat Band Model</a><a class="docs-heading-anchor-permalink" href="#Topological-Flat-Band-Model-1" title="Permalink"></a></h1><p>This will be a rather extensive example and crosscheck with the 2020 paper <a href="https://journals.aps.org/prb/abstract/10.1103/PhysRevB.102.201112">&quot;Superconductivity, pseudogap, and phase separation in topological flat bands:&#39;a quantum Monte Carlo study&quot;</a> (<a href="https://arxiv.org/pdf/1912.08848.pdf">arxiv</a>) by Hofmann, Berg and Chowdhury. </p><h2 id="Introduction-1"><a class="docs-heading-anchor" href="#Introduction-1">Introduction</a><a class="docs-heading-anchor-permalink" href="#Introduction-1" title="Permalink"></a></h2><p>The paper investigates an attractive square lattice Hubbard model with complex hoppings up to the 5th order. It generates a flat and a dispersive band, where the flatness of the former can increased with the right ratio of hoppings. At partial filling of the flat band superconductivity is observed. The model reads</p><div>\[\begin{aligned}
 	H_{kin} &amp;= \left[
         -t_1 \sum_{\langle i, j \rangle_1, \sigma} e^{i\phi_{ij}^\sigma} c_{i, \sigma}^\dagger c_{j, \sigma}
         -t_2 \sum_{\langle i, j \rangle_2, \sigma} s_{\langle i, j \rangle_2} c_{i, \sigma}^\dagger c_{j, \sigma}
@@ -110,7 +110,7 @@ text!(ax, &quot;A&quot;, position = Point2f(-0.2, 0), align = (:right, :center))
 text!(ax, &quot;B&quot;, position = Point2f(-0.2, 1), align = (:right, :center))
 
 Makie.save(&quot;HBC_lattice.png&quot;, fig)
-fig</code></pre><p><img src="../assets/HBC/HBC_lattice.png" alt/></p><p>In the plot we indicate the first group of nearest neighbors with black arrows and the second, i.e. the reversals with light gray ones. Next nearest neighbors are indicated with full (group 3) or dashed lines (group 4) like in the paper. The fifth nearest neighbors (group 5) are drawn in red like in the reference.</p><h2 id="Hopping-and-Interaction-Matrix-1"><a class="docs-heading-anchor" href="#Hopping-and-Interaction-Matrix-1">Hopping and Interaction Matrix</a><a class="docs-heading-anchor-permalink" href="#Hopping-and-Interaction-Matrix-1" title="Permalink"></a></h2><p>Now that we have the lattice we can generate a fitting hopping matrix. But before we do this, let us briefly discuss some optimizations. </p><p><a href="https://github.com/JuliaSIMD/LoopVectorization.jl">LoopVectorization.jl</a> is a great tool when pushing for peak single threaded/single core linear algebra performance. The linear algebra needed for DQMC is reimplemented in MonteCarlo.jl using it for both <code>Float64</code> and <code>ComplexF64</code>. The latter uses <code>MonteCarlo.CMat64</code> and <code>MonteCarlo.CVec64</code> as concrete array types which are based on <a href="https://github.com/JuliaArrays/StructArrays.jl">StructArrays.jl</a> under the hood. They should be used in this model. Furthermore we can make use of <code>MonteCarlo.BlockDiagonal</code> as we have no terms with differing spin indices. Thus we set</p><pre><code class="language-julia">MonteCarlo.@with_kw_noshow struct HBCModel{LT&lt;:AbstractLattice} &lt;: HubbardModel
+fig</code></pre><p><img src="../assets/HBC/HBC_lattice.png" alt/></p><p>In the plot we indicate the first group of nearest neighbors with black arrows and the second, i.e. the reversals with light gray ones. Next nearest neighbors are indicated with full (group 3) or dashed lines (group 4) like in the paper. The fifth nearest neighbors (group 5) are drawn in red like in the reference.</p><h2 id="Hopping-and-Interaction-Matrix-1"><a class="docs-heading-anchor" href="#Hopping-and-Interaction-Matrix-1">Hopping and Interaction Matrix</a><a class="docs-heading-anchor-permalink" href="#Hopping-and-Interaction-Matrix-1" title="Permalink"></a></h2><p>Now that we have the lattice we can generate a fitting hopping matrix. But before we do this, let us briefly discuss some optimizations. </p><p><a href="https://github.com/JuliaSIMD/LoopVectorization.jl">LoopVectorization.jl</a> is a great tool when pushing for peak single threaded/single core linear algebra performance. The linear algebra needed for DQMC is reimplemented in MonteCarlo.jl using it for both <code>Float64</code> and <code>ComplexF64</code>. The latter uses <code>MonteCarlo.CMat64</code> and <code>MonteCarlo.CVec64</code> as concrete array types which are based on <a href="https://github.com/JuliaArrays/StructArrays.jl">StructArrays.jl</a> under the hood. They should be used in this model. Furthermore we can make use of <code>MonteCarlo.BlockDiagonal</code> as we have no terms with differing spin indices. Thus we set</p><pre><code class="language-julia">MonteCarlo.@with_kw_noshow struct HBCModel{LT&lt;:AbstractLattice} &lt;: Model
     # parameters with defaults based on paper
     mu::Float64 = 0.0
     U::Float64 = 1.0
@@ -121,14 +121,6 @@ fig</code></pre><p><img src="../assets/HBC/HBC_lattice.png" alt/></p><p>In the p
 
     # lattice
     l::LT
-
-    # two fermion flavors (up, down)
-    flv::Int = 2
-    
-    # temp storage to avoid allocations in propose_local and accept_local
-    IG::CMat64  = StructArray(Matrix{ComplexF64}(undef, length(l), 2))
-    IGR::CMat64 = StructArray(Matrix{ComplexF64}(undef, length(l), 2))
-    R::Diagonal{ComplexF64, CVec64} = Diagonal(StructArray(Vector{ComplexF64}(undef, 2)))
 end
 
 MonteCarlo.hoppingeltype(::Type{DQMC}, ::HBCModel) = ComplexF64
@@ -177,197 +169,11 @@ MonteCarlo.greens_matrix_type( ::Type{DQMC}, ::HBCModel) = BlockDiagonal{Complex
     end
 
     return BlockDiagonal(StructArray(tup), StructArray(tdown))
-end</code></pre><p>We note that the hermitian conjugates of a hopping <span>$c_j^\dagger c_i$</span> can also be understood as reversing the bond direction. Since we include both directions in our lattice definitions, second and fifth nearest neighbor hermitian conjugates are taken care of. First nearest neighbors get a phase shift from complex conjugation, which is included by swapping <code>t1p</code> and <code>t1m</code> between group one and two.</p><p>The interaction matrix can almost be copied from the repulsive Hubbard model. The only difference is that the spin up and spin down blocks get the same sign. </p><pre><code class="language-julia">@inline @bm function MonteCarlo.interaction_matrix_exp!(mc::DQMC, m::HBCModel,
-            result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
-    dtau = mc.parameters.delta_tau
-    lambda = acosh(exp(0.5 * m.U * dtau))
-    N = length(lattice(m))
-    
-    # spin up block
-    @inbounds for i in 1:N
-        result.diag[i] = exp(sign(power) * lambda * conf[i, slice])
-    end
-
-    # spin down block
-    @inbounds for i in 1:N
-        result.diag[N+i] = exp(sign(power) * lambda * conf[i, slice])
-    end
-    nothing
-end</code></pre><p>In this case we do not need to set the type for the interaction matrix explicitly like we did for the hopping and greens matrices, because the (abstract) <code>HubbardModel</code> already uses <code>Diagonal</code> interaction matrices.</p><h2 id="Local-Updates-1"><a class="docs-heading-anchor" href="#Local-Updates-1">Local Updates</a><a class="docs-heading-anchor-permalink" href="#Local-Updates-1" title="Permalink"></a></h2><p>Our next task is to implement <code>propose_local!</code> and <code>accept_local!</code>. Since those only rely on specific indices, columns or rows for a large part of their calculation we have to dig into the optimized matrix types a bit. <code>propose_local</code> aims to calculate the determinant ratio <span>$R$</span> and bosonic energy difference <span>$\Delta E_{Boson} = V(C_{new}) - V(c_{old})$</span> where <span>$C$</span> is the auxiliary field configuration. The determinant ratio is defined as</p><div>\[R = \prod_\sigma \left[
-        1 + \left( \exp(\Delta E_{Boson}) - 1 \right) 
-        \left( 1 - G_{ii}^{\sigma, \sigma}(\tau, \tau) \right)
-    \right]\]</div><p>where <span>$i$</span> and <span>$\tau$</span> are the lattice index and time slice index of the proposed change in the auxiliary field. This formula already assumes that the greens matrix <span>$G$</span> is zero for all differing spin indices (i.e. spin up-down or down-up). Therefore it is just a product of two terms. With this <code>propose_local</code> is implemented as</p><pre><code class="language-julia">@inline @bm function MonteCarlo.propose_local(
-        mc::DQMC, model::HBModel, i::Int, slice::Int, conf::HubbardConf
-    )
-    N = length(model.l)
-    G = mc.stack.greens
-    Δτ = mc.parameters.delta_tau
-    R = model.R
-
-    α = acosh(exp(0.5Δτ * model.U))
-    ΔE_boson = -2.0α * conf[i, slice]
-    Δ = exp(ΔE_boson) - 1.0
-
-    # Unrolled R = I + Δ * (I - G)
-    # up-up term
-    R.diag.re[1] = 1.0 + Δ * (1.0 - G.blocks[1].re[i, i])
-    R.diag.im[1] = - Δ * G.blocks[1].im[i, i]
-    # down-down term
-    R.diag.re[2] = 1.0 + Δ * (1.0 - G.blocks[2].re[i, i])
-    R.diag.im[2] = - Δ * G.blocks[2].im[i, i]
-
-    # Calculate &quot;determinant&quot;
-    detratio = ComplexF64(
-        R.diag.re[1] * R.diag.re[2] - R.diag.im[1] * R.diag.im[2],
-        R.diag.re[1] * R.diag.im[2] + R.diag.im[1] * R.diag.re[2]
-    )
-    
-    return detratio, ΔE_boson, Δ
-end</code></pre><p>Note that the fields of our special matrix types are directly indexed here. A <code>BlockDiagonal</code> matrix contains all of its data in <code>B.blocks</code>. We define the first (upper left) block as spin up and the second (lower right) as spin down. Sitting at each block is a complex matrix represented by <code>CMat64</code>. It contains two real valued matrices at <code>x.re</code> and <code>x.im</code> representing the real and imaginary parts respectively.</p><p>For <code>accept_local</code>  we need to update the auxiliary field and the currently active greens function. To avoid recalculating <span>$\Delta$</span> it is returned in <code>propose_local</code> and will be passed to <code>accept_local</code>. The updated greens function is given by</p><div>\[G_{jk}^{\sigma \sigma^\prime} = 
-    G_{jk}^{\sigma \sigma^\prime} -
-    \left(I - G^{\sigma \sigma^\prime}(\tau, \tau) \right)_{ji}
-    R_{\sigma, \sigma^\prime}^{-1} 
-    \Delta_{ii}^{\sigma \sigma^\prime}(\tau)
-    G_{ik}^{\sigma \sigma^\prime}(\tau, \tau)\]</div><p>where <span>$i$</span> is again the site index of the proposed flip. Let&#39;s go through some observations/simplifications. First we note that for <span>$\sigma \ne \sigma^\prime$</span> the greens function is and remains zero. The inversion of <span>$R$</span> is an inversion of a diagonal matrix and thus simplifies to calculating the inverse of each element. Finally, <span>$\Delta$</span> has the same value for spin up and spin down so it is simply a number.</p><p>Using these observations and applying optimizations relevant to our matrix types <code>accept_local</code> can be implemented as</p><pre><code class="language-julia">@inline @bm function MonteCarlo.accept_local!(
-        mc::DQMC, model::HBModel, i::Int, slice::Int, conf::HubbardConf, 
-        detratio, ΔE_boson, Δ)
-
-    @bm &quot;accept_local (init)&quot; begin
-        N = length(model.l)
-        G = mc.stack.greens
-        IG = model.IG
-        IGR = model.IGR
-        R = model.R
-    end
-    
-    # compute R⁻¹ Δ, using that R is Diagonal, Δ is Number
-    # using Δ / (a + ib) = Δ / (a^2 + b^2) * (a - ib)
-    @bm &quot;accept_local (inversion)&quot; begin
-        f = Δ / (R.diag.re[1]^2 + R.diag.im[1]^2)
-        R.diag.re[1] = +f * R.diag.re[1]
-        R.diag.im[1] = -f * R.diag.im[1]
-        f = Δ / (R.diag.re[2]^2 + R.diag.im[2]^2)
-        R.diag.re[2] = +f * R.diag.re[2]
-        R.diag.im[2] = -f * R.diag.im[2]
-    end
-
-    # Compute (I - G) R^-1 Δ
-    # Note IG is reduced to non-zero entries. Full IG would be
-    # (I-G)[:, i]        0
-    #     0         (I-G)[:, i+N]
-    # our IG is [(I-G)[:, i]  (I-G)[:, i+N]]
-    @bm &quot;accept_local (IG, R)&quot; begin
-        # Calculate IG = I - G (relevant entries only)
-        @turbo for m in axes(IG, 1)
-            IG.re[m, 1] = -G.blocks[1].re[m, i]
-        end
-        @turbo for m in axes(IG, 1)
-            IG.re[m, 2] = -G.blocks[2].re[m, i]
-        end
-        @turbo for m in axes(IG, 1)
-            IG.im[m, 1] = -G.blocks[1].im[m, i]
-        end
-        @turbo for m in axes(IG, 1)
-            IG.im[m, 2] = -G.blocks[2].im[m, i]
-        end
-        IG.re[i, 1] += 1.0
-        IG.re[i, 2] += 1.0
-        
-        # Calculate IGR = IG * R where R = R⁻¹ Δ from the 
-        # previous calculation (relevant entries only)
-        # spin up-up block 
-        @turbo for m in axes(IG, 1)
-            IGR.re[m, 1] = IG.re[m, 1] * R.diag.re[1]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.re[m, 1] -= IG.im[m, 1] * R.diag.im[1]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.im[m, 1] = IG.re[m, 1] * R.diag.im[1]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.im[m, 1] += IG.im[m, 1] * R.diag.re[1]
-        end
-        
-        # spin down-down block
-        @turbo for m in axes(IG, 1)
-            IGR.re[m, 2] = IG.re[m, 2] * R.diag.re[2]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.re[m, 2] -= IG.im[m, 2] * R.diag.im[2]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.im[m, 2] = IG.re[m, 2] * R.diag.im[2]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.im[m, 2] += IG.im[m, 2] * R.diag.re[2]
-        end
-    end
-
-    # Update G according to G = G - (I - G)[:, i:N:end] * R⁻¹ * Δ * G[i:N:end, :]
-    # We already have IG = (I - G)[:, i:N:end] * R⁻¹ * Δ
-    @bm &quot;accept_local (finalize computation)&quot; begin
-        # get blocks to write less
-        G1 = G.blocks[1]
-        G2 = G.blocks[2]
-        temp1 = mc.stack.greens_temp.blocks[1]
-        temp2 = mc.stack.greens_temp.blocks[2]
-
-        # compute temp = IG[:, i:N:end] * G[i:N:end, :]
-        # spin up-up block
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            temp1.re[m, n] = IGR.re[m, 1] * G1.re[i, n]
-        end
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            temp1.re[m, n] -= IGR.im[m, 1] * G1.im[i, n]
-        end
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            temp1.im[m, n] = IGR.im[m, 1] * G1.re[i, n]
-        end
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            temp1.im[m, n] += IGR.re[m, 1] * G1.im[i, n]
-        end
-        
-        # spin down-down block
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            temp2.re[m, n] = IGR.re[m, 2] * G2.re[i, n]
-        end
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            temp2.re[m, n] -= IGR.im[m, 2] * G2.im[i, n]
-        end
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            temp2.im[m, n] = IGR.im[m, 2] * G2.re[i, n]
-        end
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            temp2.im[m, n] += IGR.re[m, 2] * G2.im[i, n]
-        end
-
-        # Calculate G = G - temp
-        # spin up-up block
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            G1.re[m, n] = G1.re[m, n] - temp1.re[m, n]
-        end
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            G1.im[m, n] = G1.im[m, n] - temp1.im[m, n]
-        end
-        
-        # spin down-down block
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            G2.re[m, n] = G2.re[m, n] - temp2.re[m, n]
-        end
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            G2.im[m, n] = G2.im[m, n] - temp2.im[m, n]
-        end
-
-        # Update configuration
-        conf[i, slice] *= -1
-    end
-
-    nothing
-end</code></pre><h2 id="Utilities-and-other-functionality-1"><a class="docs-heading-anchor" href="#Utilities-and-other-functionality-1">Utilities and other functionality</a><a class="docs-heading-anchor-permalink" href="#Utilities-and-other-functionality-1" title="Permalink"></a></h2><p>Now that we have the lattice, the hopping and interaction matrix as well as <code>propose_local</code> and <code>accept_local!</code> we&#39;re done implementing the model. There are a couple of things one might want to add. For example, adding <code>energy_boson()</code> would enable global updates and boson energy measurements. Adding <code>save_model</code> and <code>_load</code> should help with reducing file size and help future proof things, but isn&#39;t strictly necessary. And adding <code>intE_kernel</code> would allow the interactive and total energy to be measured. Beyond that one might add some constructors and convenience function like <code>parameters</code>. </p><p>The full code including these convenience functions can be found <a href="../HBC_model.jl">here</a></p><h1 id="Simulation-Setup-1"><a class="docs-heading-anchor" href="#Simulation-Setup-1">Simulation Setup</a><a class="docs-heading-anchor-permalink" href="#Simulation-Setup-1" title="Permalink"></a></h1><p>To keep the runtime of this crosscheck reasonable we used the smallest linear system size the paper considers, <code>L = 8</code>. We also set <code>U = 1</code> and the fifth nearest neighbor hopping <code>t5 = 0</code>. This corresponds to a flatness ratio <span>$F = 0.2$</span>. To be comparable to the paper we will need to tune the chemical potential <span>$\mu$</span> to hit half filling. This can be done through trial and error on a smaller lattice. The optimal <span>$\mu$</span>, after running the main simulation with a small set of different values, seems to be <span>$\mu \approx -2.206$</span>. Thus the basic setup for our simulation becomes</p><pre><code class="language-julia">uc = LatticePhysics.getUnitcellSquare(17)
+end</code></pre><p>We note that the hermitian conjugates of a hopping <span>$c_j^\dagger c_i$</span> can also be understood as reversing the bond direction. Since we include both directions in our lattice definitions, second and fifth nearest neighbor hermitian conjugates are taken care of. First nearest neighbors get a phase shift from complex conjugation, which is included by swapping <code>t1p</code> and <code>t1m</code> between group one and two.</p><p>To finish off the mandatory model interface we need to provide two more methods. The first is <code>lattice(model)</code> which simply return the lattice of the model. The other is <code>nflavors(model)</code> which returns the number of &quot;active&quot; flavors of the hopping matrix. This model has two flavors total, spin up and spin down, and both of these have an active effect on the hopping matrix, i.e. the values for spin up and spin down are different. Thus this method should return 2. </p><pre><code class="language-julia">MonteCarlo.lattice(m::HBCModel) = m.l
+MonteCarlo.nflavors(::HBCModel) = 2</code></pre><p>There are a few more methods we can implement for convenience. The most important of these is <code>choose_field(model)</code>, which sets a default field for our model. The best choice here should be <code>DensityHirschField</code> or <code>DensityGHQField</code> as the model uses an attractive interaction. Beyond this we could implement <code>intE_kernel</code> to enable energy measurements, <code>parameters(model)</code>, <code>save_model</code>, <code>_load_model</code> and printing.</p><p>The full code including these convenience functions can be found <a href="../HBC_model.jl">here</a></p><h1 id="Simulation-Setup-1"><a class="docs-heading-anchor" href="#Simulation-Setup-1">Simulation Setup</a><a class="docs-heading-anchor-permalink" href="#Simulation-Setup-1" title="Permalink"></a></h1><p>To keep the runtime of this crosscheck reasonable we used the smallest linear system size the paper considers, <code>L = 8</code>. We also set <code>U = 1</code> and the fifth nearest neighbor hopping <code>t5 = 0</code>. This corresponds to a flatness ratio <span>$F = 0.2$</span>. To be comparable to the paper we will need to tune the chemical potential <span>$\mu$</span> to hit half filling. This can be done through trial and error on a smaller lattice. The optimal <span>$\mu$</span>, after running the main simulation with a small set of different values, seems to be <span>$\mu \approx -2.206$</span>. Thus the basic setup for our simulation becomes</p><pre><code class="language-julia">uc = LatticePhysics.getUnitcellSquare(17)
 lpl = getLatticePeriodic(uc, 8)
 l = LatPhysLattice(lpl)
-m = HBModel(l, t5 = 0.0, mu = -2.206) # other defaults match F = 0.2 setup
+m = HBCModel(l, t5 = 0.0, mu = -2.206) # other defaults match F = 0.2 setup
 mc = DQMC(
     m, beta = beta, thermalization = 1000, sweeps = 5000, 
     measure_rate = 5, print_rate = 100, recorder = Discarder()
@@ -423,4 +229,4 @@ end</code></pre><p>For the Fourier transformed current-current correlation <span
     end
     
     Λxx
-end</code></pre><p>To compute the superfluid stiffness we now just calculate <span>$D_S = \frac{1}{4} [ -K_x - \Lambda_{xx}(q = 0)]$</span> (eq. 4).</p><p><img src="../assets/HBC/DS.png" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ALF1/">« Crosscheck with ALF</a><a class="docs-footer-nextpage" href="../../legacy/">Introduction »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 6 February 2022 01:33">Sunday 6 February 2022</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><p>To compute the superfluid stiffness we now just calculate <span>$D_S = \frac{1}{4} [ -K_x - \Lambda_{xx}(q = 0)]$</span> (eq. 4).</p><p><img src="../assets/HBC/DS.png" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../ALF1/">« Crosscheck with ALF</a><a class="docs-footer-nextpage" href="../../legacy/">Introduction »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Sunday 20 February 2022 14:38">Sunday 20 February 2022</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>

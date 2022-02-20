@@ -31,7 +31,7 @@ begin
     @time for beta in betas, mu in mus
         counter += 1
         print("\r[", lpad("$counter", 2), "/$N]")
-        m = HubbardModelAttractive(l = lattice, t = 1.0, U = 4.0, mu = mu)
+        m = HubbardModel(l = lattice, t = 1.0, U = 4.0, mu = mu)
         dqmc = DQMC(
             m, beta = beta, delta_tau = 0.125, safe_mult = 8, 
             thermalization = 1000, sweeps = 1000, measure_rate = 1,
