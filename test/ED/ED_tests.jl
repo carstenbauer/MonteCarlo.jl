@@ -159,7 +159,7 @@ end
             N = length(lattice(model))
 
             # Direct calculation simialr to what DQMC should be doing
-            T = Matrix(MonteCarlo.hopping_matrix(dqmc, model))
+            T = Matrix(dqmc.stack.hopping_matrix)
             # Doing an eigenvalue decomposition makes this pretty stable
             vals, U = eigen(exp(-T))
             D = Diagonal(vals)^(dqmc.parameters.beta)

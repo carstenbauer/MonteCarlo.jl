@@ -70,7 +70,7 @@ end
     # DQMC mandatory
     m = DummyModel(SquareLattice(2))
     f = DummyField()
-    @test_throws MethodError MonteCarlo.hopping_matrix(dqmc, m)
+    @test_throws MethodError MonteCarlo.hopping_matrix(m)
     @test_throws MethodError rand(f)
     @test_throws MethodError rand!(f)
     @test_throws MethodError MonteCarlo.nflavors(m)
@@ -92,13 +92,14 @@ end
     MonteCarlo.nflavors(::DummyField) = 2
 
     # DQMC optional
-    @test MonteCarlo.hopping_eltype(m) == Float64
+    # method errors come from hopping_matrix(model)
+    @test_throws MethodError MonteCarlo.hopping_eltype(m)
     @test MonteCarlo.interaction_eltype(f) == Float64
-    @test MonteCarlo.greens_eltype(f, m) == Float64
+    @test_throws MethodError MonteCarlo.greens_eltype(f, m) == Float64
 
-    @test MonteCarlo.hopping_matrix_type(f, m) == Matrix{Float64}
+    @test_throws MethodError MonteCarlo.hopping_matrix_type(f, m)
     @test MonteCarlo.interaction_matrix_type(f, m) == Matrix{Float64}
-    @test MonteCarlo.greens_matrix_type(f, m) == Matrix{Float64}
+    @test_throws MethodError MonteCarlo.greens_matrix_type(f, m) == Matrix{Float64}
 
     M = MonteCarlo.init_interaction_matrix(f, m)
     @test M isa Matrix{Float64}
@@ -565,7 +566,7 @@ end
             N = length(lattice(model))
 
             # Direct calculation similar to what DQMC should be doing
-            T = Matrix(MonteCarlo.hopping_matrix(dqmc, model))
+            T = Matrix(dqmc.stack.hopping_matrix)
             # Doing an eigenvalue decomposition makes this pretty stable
             vals, U = eigen(exp(-T))
             D = Diagonal(vals)^(dqmc.parameters.beta)
