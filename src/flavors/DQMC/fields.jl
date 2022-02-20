@@ -9,7 +9,7 @@ end
 
 function FieldCache(field, model)
     N = size(field.conf, 1)
-    flv = max(nflavors(field), nflavors(model))
+    flv = nflavors(field, model)
     T = interaction_eltype(field)
     GET = greens_eltype(field, model)
     VT = vector_type(GET)

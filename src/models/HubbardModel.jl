@@ -86,7 +86,7 @@ nflavors(::HubbardModel) = 1
 
 hopping_eltype(model::HubbardModel) = typeof(model.t)
 function hopping_matrix_type(field::AbstractField, model::HubbardModel)
-    flv = max(nflavors(field), nflavors(model))
+    flv = nflavors(field, model)
     T = hopping_eltype(model)
     MT = matrix_type(T)
     if flv == 1
@@ -96,24 +96,9 @@ function hopping_matrix_type(field::AbstractField, model::HubbardModel)
     end
 end
 
-function greens_matrix_type(f::AbstractHirschField{T}, m::HubbardModel) where {T}
-    if max(nflavors(f), nflavors(m)) == 1
-        return matrix_type(T)
-    else
-        return BlockDiagonal{T, 2, matrix_type(T)}
-    end
-end
-function greens_matrix_type(f::AbstractGHQField{T}, m::HubbardModel) where {T}
-    if max(nflavors(f), nflavors(m)) == 1
-        return matrix_type(T)
-    else
-        return BlockDiagonal{T, 2, matrix_type(T)}
-    end
-end
-
 
 """
-    hopping_matrix(mc, model)
+    hopping_matrix(model)
 
 Calculates the hopping matrix \$T_{i, j}\$ where \$i, j\$ are
 site indices.
@@ -121,7 +106,7 @@ site indices.
 This isn't a performance critical method as it is only used once before the
 actual simulation.
 """
-function hopping_matrix(mc::DQMC, m::HubbardModel)
+function hopping_matrix(m::HubbardModel)
     N = length(m.l)
     T = diagm(0 => fill(-m.mu, N))
 
@@ -133,11 +118,7 @@ function hopping_matrix(mc::DQMC, m::HubbardModel)
         end
     end
 
-    if max(nflavors(field(mc)), nflavors(m)) == 1
-        return T
-    else
-        return BlockDiagonal(T, copy(T))
-    end
+    return T
 end
 
 function save_model(file::JLDFile, m::HubbardModel, entryname::String = "Model")
