@@ -320,9 +320,9 @@ end
 nflavors(::DensityHirschField) = 1
 
 @inline function interaction_matrix_exp!(f::DensityHirschField, result::Diagonal, slice, power)
-    # TODO this will index out of bound with 2 flavors
+    N = size(f.conf, 1)
     @inbounds for i in eachindex(result.diag)
-        result.diag[i] = exp(power * f.α * f.conf[i, slice])
+        result.diag[i] = exp(power * f.α * f.conf[mod1(i, N), slice])
     end
     nothing
 end
@@ -558,8 +558,9 @@ energy_boson(f::DensityGHQField, conf = f.conf) = f.α * sum(conf)
 
 # TODO: Maybe worth adding a complex method?
 @inline @bm function interaction_matrix_exp!(f::DensityGHQField, result::Diagonal, slice, power)
+    N = size(f.conf, 1)
     @inbounds for i in eachindex(result.diag)
-        result.diag[i] = exp(+power * f.α * f.η[f.conf[i, slice]])
+        result.diag[i] = exp(+power * f.α * f.η[f.conf[mod1(i, N), slice]])
     end
     return nothing
 end

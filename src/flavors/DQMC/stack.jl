@@ -150,7 +150,7 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
     GreensMatType = gmattype(mc)
     HoppingElType = heltype(mc)
     N = length(lattice(mc))
-    flv = nflavors(field(mc))
+    flv = nflavors(mc)
 
     # Generate safe multiplication chunks
     # - every chunk must have ≤ safe_mult elements
