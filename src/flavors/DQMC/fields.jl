@@ -189,10 +189,28 @@ function vldiv22!(cache::StandardFieldCache, R::FMat64, Δ::FVec64)
     nothing
 end
 
+function vldiv22!(cache::StandardFieldCache, R::FMat64, Δ::Float64)
+    @inbounds begin
+        inv_div = 1.0 / cache.detratio
+        cache.invRΔ[1, 1] =   R[2, 2] * Δ * inv_div
+        cache.invRΔ[1, 2] = - R[1, 2] * Δ * inv_div
+        cache.invRΔ[2, 1] = - R[2, 1] * Δ * inv_div
+        cache.invRΔ[2, 2] =   R[1, 1] * Δ * inv_div
+    end
+    nothing
+end
+
 function vldiv22!(cache::StandardFieldCache, R::FVec64, Δ::FVec64)
     @inbounds begin
         cache.invRΔ[1] = Δ[1] / R[1]
         cache.invRΔ[2] = Δ[2] / R[2]
+    end
+    nothing
+end
+function vldiv22!(cache::StandardFieldCache, R::FVec64, Δ::Float64)
+    @inbounds begin
+        cache.invRΔ[1] = Δ / R[1]
+        cache.invRΔ[2] = Δ / R[2]
     end
     nothing
 end
@@ -206,6 +224,31 @@ function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::CVec64)
         cache.invRΔ.re[2] = f2 * (Δ.re[2] * R.re[2] + Δ.im[2] * R.im[2])
         cache.invRΔ.im[1] = f1 * (Δ.im[1] * R.re[1] - Δ.re[1] * R.im[1])
         cache.invRΔ.im[2] = f2 * (Δ.im[2] * R.re[2] - Δ.re[2] * R.im[2])
+    end
+    nothing
+end
+
+function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::ComplexF64)
+    @inbounds begin
+        # Reminder: 1/c = c* / (cc*) (complex conjugate)
+        f1 = 1.0 / (R.re[1] * R.re[1] + R.im[1] * R.im[1])
+        f2 = 1.0 / (R.re[2] * R.re[2] + R.im[2] * R.im[2])
+        cache.invRΔ.re[1] = f1 * (real(Δ) * R.re[1] + imag(Δ) * R.im[1])
+        cache.invRΔ.re[2] = f2 * (real(Δ) * R.re[2] + imag(Δ) * R.im[2])
+        cache.invRΔ.im[1] = f1 * (imag(Δ) * R.re[1] - real(Δ) * R.im[1])
+        cache.invRΔ.im[2] = f2 * (imag(Δ) * R.re[2] - real(Δ) * R.im[2])
+    end
+    nothing
+end
+function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::Float64)
+    @inbounds begin
+        # Reminder: 1/c = c* / (cc*) (complex conjugate)
+        f1 = 1.0 / (R.re[1] * R.re[1] + R.im[1] * R.im[1])
+        f2 = 1.0 / (R.re[2] * R.re[2] + R.im[2] * R.im[2])
+        cache.invRΔ.re[1] = f1 * Δ * R.re[1]
+        cache.invRΔ.re[2] = f2 * Δ * R.re[2]
+        cache.invRΔ.im[1] = - f1 * Δ * R.im[1]
+        cache.invRΔ.im[2] = - f2 * Δ * R.im[2]
     end
     nothing
 end
