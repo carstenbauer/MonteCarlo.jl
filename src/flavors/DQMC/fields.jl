@@ -65,6 +65,14 @@ function calculate_detratio!(cache::StandardFieldCache, Δ::Number, G::Union{FMa
     cache.detratio = cache.R * cache.R
 end
 
+function calculate_detratio!(cache::StandardFieldCache, Δ::Number, G::BlockDiagonal{Float64}, i)
+    # Unrolled R = I + Δ * (I - G)
+    @inbounds for b in eachindex(G.blocks)
+        cache.R[b] = 1.0 + Δ * (1.0 - G.blocks[b][i, i])
+    end
+    # determinant of Diagonal
+    cache.detratio = prod(cache.R)
+end
 
 function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{Float64}, i)
     # Unrolled R = I + Δ * (I - G)
@@ -74,17 +82,49 @@ function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiag
     # determinant of Diagonal
     cache.detratio = prod(cache.R)
 end
-# function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{ComplexF64}, i)
-#     # Unrolled R = I + Δ * (I - G)
-#     @inbounds for b in eachindex(G.blocks)
-#         cache.R.re[b] = 1.0 + Δ[b] * (1.0 - G.blocks[b].re[i, i])
-#     end
-#     @inbounds for b in eachindex(G.blocks)
-#         cache.R.im[b] = - Δ[b] * G.blocks.im[b][i, i]
-#     end
-#     # determinant of Diagonal (don't think this is worth optimizing)
-#     cache.detratio = prod(cache.R)
-# end
+
+function calculate_detratio!(cache::StandardFieldCache, Δ::Float64, G::BlockDiagonal{ComplexF64}, i)
+    # Unrolled R = I + Δ * (I - G)
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.re[b] = 1.0 + Δ * (1.0 - G.blocks[b].re[i, i])
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.im[b] = - Δ * G.blocks.im[b][i, i]
+    end
+    # determinant of Diagonal (don't think this is worth optimizing)
+    cache.detratio = prod(cache.R)
+end
+
+function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{ComplexF64}, i)
+    # Unrolled R = I + Δ * (I - G)
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.re[b] = 1.0 + Δ[b] * (1.0 - G.blocks[b].re[i, i])
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.im[b] = - Δ[b] * G.blocks.im[b][i, i]
+    end
+    # determinant of Diagonal (don't think this is worth optimizing)
+    cache.detratio = prod(cache.R)
+end
+
+function calculate_detratio!(cache::StandardFieldCache, Δ::ComplexF64, G::BlockDiagonal{ComplexF64}, i)
+    # Unrolled R = I + Δ * (I - G)
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.re[b] = 1.0 + real(Δ) * (1.0 - G.blocks[b].re[i, i])
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.re[b] += imag(Δ) * G.blocks[b].im[i, i]
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.im[b] = imag(Δ) * (1.0 - G.blocks[b].re[i, i])
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.im[b] -= real(Δ) * G.blocks[b].im[i, i]
+    end
+    # determinant of Diagonal
+    cache.detratio = prod(cache.R)
+end
+
 function calculate_detratio!(cache::StandardFieldCache, Δ::CVec64, G::BlockDiagonal{ComplexF64}, i)
     # Unrolled R = I + Δ * (I - G)
     @inbounds for b in eachindex(G.blocks)
