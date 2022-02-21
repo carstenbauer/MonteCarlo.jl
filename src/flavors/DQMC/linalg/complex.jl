@@ -22,6 +22,11 @@ function vmuladd!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}, factor::T = T(1)) 
         C[m,n] += factor * A[m,n] * B.diag[n]
     end
 end
+function vmuladd!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}, factor::T = T(1)) where {T <: Real}
+    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+        C[m,n] += factor * A.diag[m] * B[m,n]
+    end
+end
 function vmuladd!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}, factor::T = T(1)) where {T <: Real}
     B = X.parent
     @turbo for m in 1:size(A, 1), n in 1:size(B, 2)
