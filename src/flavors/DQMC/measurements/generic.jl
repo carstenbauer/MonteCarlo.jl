@@ -147,7 +147,7 @@ _simple_buffer(mc, t::Type, T) = _simple_buffer(mc, t(), T)
 _simple_buffer(mc, ::Type{Nothing}, T) = nothing
 _simple_buffer(mc, ::Nothing, T) = nothing
 _simple_buffer(mc, ::EachSite, T) = zeros(T, length(lattice(mc)))
-_simple_buffer(mc, ::EachSiteAndFlavor, T) = zeros(T, nflavors(field(mc)) * length(lattice(mc)))
+_simple_buffer(mc, ::EachSiteAndFlavor, T) = zeros(T, nflavors(mc) * length(lattice(mc)))
 _simple_buffer(mc, ::EachSitePair, T) = zeros(T, length(lattice(mc)), length(lattice(mc)))
 
 
@@ -364,7 +364,7 @@ end
 
 # Lattice irrelevant
 @bm function measure!(::Nothing, measurement, mc::DQMC, model, sweep, packed_greens)
-    flv = Val(max(nflavors(field(mc)), nflavors(model)))
+    flv = Val(nflavors(mc))
     push!(measurement.observable, measurement.kernel(mc, model, packed_greens, flv))
     nothing
 end
@@ -378,7 +378,7 @@ end
 
 # Call kernel for each site (linear index)
 @bm function apply!(temp::Array, iter::DirectLatticeIterator, measurement, mc::DQMC, model, packed_greens)
-    flv = Val(max(nflavors(field(mc)), nflavors(model)))
+    flv = Val(nflavors(mc))
     for i in iter
         temp[i] += measurement.kernel(mc, model, i, packed_greens, flv)
     end
@@ -387,7 +387,7 @@ end
 
 # Call kernel for each pair (src, trg) (Nsties² total)
 @bm function apply!(temp::Array, iter::EachSitePair, measurement, mc::DQMC, model, packed_greens)
-    flv = Val(max(nflavors(field(mc)), nflavors(model)))
+    flv = Val(nflavors(mc))
     for (i, j) in iter
         temp[i, j] += measurement.kernel(mc, model, (i, j), packed_greens, flv)
     end
@@ -396,7 +396,7 @@ end
 
 # Call kernel for each pair (site, site) (i.e. on-site) 
 @bm function apply!(temp::Array, iter::_OnSite, measurement, mc::DQMC, model, packed_greens)
-    flv = Val(max(nflavors(field(mc)), nflavors(model)))
+    flv = Val(nflavors(mc))
     for (i, j) in iter
         temp[i] += measurement.kernel(mc, model, (i, j), packed_greens, flv)
     end
@@ -404,7 +404,7 @@ end
 end
 
 @bm function apply!(temp::Array, iter::DeferredLatticeIterator, measurement, mc::DQMC, model, packed_greens)
-    flv = Val(max(nflavors(field(mc)), nflavors(model)))
+    flv = Val(nflavors(mc))
     @inbounds for idxs in iter
         temp[first(idxs)] += measurement.kernel(mc, model, idxs[2:end], packed_greens, flv)
     end
@@ -414,14 +414,14 @@ end
 
 # Sums
 @bm function apply!(temp::Array, iter::_Sum{<: DirectLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
-    flv = Val(max(nflavors(field(mc)), nflavors(model)))
+    flv = Val(nflavors(mc))
     @inbounds for idxs in iter
         temp[1] += measurement.kernel(mc, model, idxs, packed_greens, flv)
     end
     nothing
 end
 @bm function apply!(temp::Array, iter::_Sum{<: DeferredLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
-    flv = Val(max(nflavors(field(mc)), nflavors(model)))
+    flv = Val(nflavors(mc))
     @inbounds for idxs in iter
         temp[1] += measurement.kernel(mc, model, idxs[2:end], packed_greens, flv)
     end
