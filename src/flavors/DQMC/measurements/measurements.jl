@@ -52,7 +52,7 @@ function greens_measurement(
         mc::DQMC, model::Model, greens_iterator = Greens(); 
         capacity = _default_capacity(mc), eltype = geltype(mc),
         obs = let
-            N = length(lattice(model)) * nflavors(field(mc))
+            N = length(lattice(model)) * nflavors(mc)
             LogBinner(zeros(eltype, (N, N)), capacity=capacity)
         end, kwargs...
     )

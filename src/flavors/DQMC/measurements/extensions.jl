@@ -188,9 +188,8 @@ function dia_K_x(mc, G, idxs)
 end
 
 # uses directions with filter > 0
-function para_ccc(mc, ccs, ind_dir)
+function para_ccc(mc, ccs, ind_dir, dq = [0.0, 0.0])
     #dq = [2pi / size(lattice(mc))[2], 0.0]
-    dq = [0.0, 0.0]
     dirs = directions(lattice(mc))
     Λxx = ComplexF64(0)
 
