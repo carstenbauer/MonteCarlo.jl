@@ -1,50 +1,70 @@
 # these are just shorthads
-using MonteCarlo: FVec64, FMat64, CVec64, CMat64
+using MonteCarlo: FVec64, FMat64, CVec64, CMat64, BlockDiagonal
 
-@testset "Field Cache & Interaction Matrix" begin
+@testset "Typing (Field Cache, hopping, interaction & greens matrix" begin
     T2 = NTuple{2}
-    
-    mc = DQMC(HubbardModel(8, 1, U = 1.0), field = DensityHirschField, beta = 1.0)
-    MonteCarlo.init!(mc)
-    @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{Float64, Float64, FVec64, Float64}
-    @test MonteCarlo.interaction_eltype(mc.field) == Float64
-    @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{Float64, FVec64}
-    @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
+    fields = (DensityHirschField, MagneticHirschField, DensityGHQField, MagneticGHQField)
 
-    mc = DQMC(HubbardModel(8, 1, U = -1.0), field = DensityHirschField, beta = 1.0)
-    MonteCarlo.init!(mc)
-    @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{ComplexF64, ComplexF64, CVec64, ComplexF64}
-    @test MonteCarlo.interaction_eltype(mc.field) == ComplexF64
-    @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{ComplexF64, CVec64}
-    @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
-    
-    mc = DQMC(HubbardModel(8, 1, U = 1.0), field = MagneticHirschField, beta = 1.0)
-    MonteCarlo.init!(mc)
-    @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{CVec64, CVec64, T2{CVec64}, ComplexF64}
-    @test MonteCarlo.interaction_eltype(mc.field) == ComplexF64
-    @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{ComplexF64, CVec64}
-    @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
+    for U in (+1.0, -1.0)
+        for (i, field) in enumerate(fields)
 
-    mc = DQMC(HubbardModel(8, 1, U = -1.0), field = MagneticHirschField, beta = 1.0)
-    MonteCarlo.init!(mc)
-    @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{FVec64, FVec64, T2{FVec64}, Float64}
-    @test MonteCarlo.interaction_eltype(mc.field) == Float64
-    @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{Float64, FVec64}
-    @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
-    
-    mc = DQMC(HubbardModel(8, 1, U = 1.0), field = MagneticGHQField, beta = 1.0)
-    MonteCarlo.init!(mc)
-    @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{CVec64, CVec64, T2{CVec64}, ComplexF64}
-    @test MonteCarlo.interaction_eltype(mc.field) == ComplexF64
-    @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{ComplexF64, CVec64}
-    @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
+            @testset "U = $U field = $field" begin
+                mc = DQMC(HubbardModel(U = U), field = field, beta = 1.0)
+                MonteCarlo.init!(mc)
 
-    mc = DQMC(HubbardModel(8, 1, U = -1.0), field = MagneticGHQField, beta = 1.0)
-    MonteCarlo.init!(mc)
-    @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{FVec64, FVec64, T2{FVec64}, Float64}
-    @test MonteCarlo.interaction_eltype(mc.field) == Float64
-    @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{Float64, FVec64}
-    @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa typeof(mc.stack.eV)
+                # missmatch between U and Density/Magnetic results in complex interaction
+                if (i + (U == +1.0)) % 2 == 0 # (U == 1 && Density) || (U == -1 && Magnetic)
+                    T = Float64; VT = FVec64; mT = FMat64
+                else
+                    T = ComplexF64; VT = CVec64; mT = CMat64
+                end
+                @test MonteCarlo.interaction_eltype(mc.field) == T
+                @test MonteCarlo.interaction_matrix_type(mc.field, mc.model) == Diagonal{T, VT}
+                @test MonteCarlo.init_interaction_matrix(mc.field, mc.model) isa Diagonal{T, VT}
+                @test mc.stack.eV isa Diagonal{T, VT}
+
+                # hopping are always real and 1 flavor. They should get dublicated 
+                # if interaction requires two flavors (magnetic)
+                @test MonteCarlo.nflavors(mc.model) == 1
+                @test MonteCarlo.hopping_eltype(mc.model) == Float64
+                
+                # Greens matrix takes eltype from interaction because that might be complex
+                @test MonteCarlo.greens_eltype(mc.field, mc.model) == T
+
+                # 1 flavor for Density, 2 for Magnetic in interaction/total
+                @test MonteCarlo.nflavors(mc.field) == 2 - (i % 2)
+                @test MonteCarlo.nflavors(mc.field, mc.model) == 2 - (i % 2)
+                
+                x = rand(4, 4)
+
+                if i % 2 == 1
+                    @test MonteCarlo.hopping_matrix_type(mc.field, mc.model) == FMat64
+                    @test mc.stack.hopping_matrix isa FMat64
+
+                    @test MonteCarlo.pad_to_nflavors(mc.field, mc.model, x) == x
+
+                    @test MonteCarlo.greens_matrix_type(mc.field, mc.model) == mT
+                    @test mc.stack.greens isa mT
+
+                    # single flavor -> single value of greens eltype
+                    @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{T, T, VT, T}
+                else
+                    @test MonteCarlo.hopping_matrix_type(mc.field, mc.model) == BlockDiagonal{Float64, 2, FMat64}
+                    @test mc.stack.hopping_matrix isa BlockDiagonal{Float64, 2, FMat64}
+
+                    @test MonteCarlo.pad_to_nflavors(mc.field, mc.model, x) == BlockDiagonal(x, x)
+
+                    @test MonteCarlo.greens_matrix_type(mc.field, mc.model) == BlockDiagonal{T, 2, mT}
+                    @test mc.stack.greens isa BlockDiagonal{T, 2, mT}
+
+                    # two flavor -> matrix types of greens eltypes
+                    @test mc.stack.field_cache isa MonteCarlo.StandardFieldCache{VT, VT, T2{VT}, T}
+                end
+            end
+
+        end
+    end
+
 end
 
 @testset "Lookup tables" begin

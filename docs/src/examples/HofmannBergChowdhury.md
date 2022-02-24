@@ -167,7 +167,7 @@ Now that we have the lattice we can generate a fitting hopping matrix. But befor
 [LoopVectorization.jl](https://github.com/JuliaSIMD/LoopVectorization.jl) is a great tool when pushing for peak single threaded/single core linear algebra performance. The linear algebra needed for DQMC is reimplemented in MonteCarlo.jl using it for both `Float64` and `ComplexF64`. The latter uses `MonteCarlo.CMat64` and `MonteCarlo.CVec64` as concrete array types which are based on [StructArrays.jl](https://github.com/JuliaArrays/StructArrays.jl) under the hood. They should be used in this model. Furthermore we can make use of `MonteCarlo.BlockDiagonal` as we have no terms with differing spin indices. Thus we set
 
 ```julia
-MonteCarlo.@with_kw_noshow struct HBCModel{LT<:AbstractLattice} <: HubbardModel
+MonteCarlo.@with_kw_noshow struct HBCModel{LT<:AbstractLattice} <: Model
     # parameters with defaults based on paper
     mu::Float64 = 0.0
     U::Float64 = 1.0
@@ -178,14 +178,6 @@ MonteCarlo.@with_kw_noshow struct HBCModel{LT<:AbstractLattice} <: HubbardModel
 
     # lattice
     l::LT
-
-    # two fermion flavors (up, down)
-    flv::Int = 2
-    
-    # temp storage to avoid allocations in propose_local and accept_local
-    IG::CMat64  = StructArray(Matrix{ComplexF64}(undef, length(l), 2))
-    IGR::CMat64 = StructArray(Matrix{ComplexF64}(undef, length(l), 2))
-    R::Diagonal{ComplexF64, CVec64} = Diagonal(StructArray(Vector{ComplexF64}(undef, 2)))
 end
 
 MonteCarlo.hoppingeltype(::Type{DQMC}, ::HBCModel) = ComplexF64
@@ -245,241 +237,16 @@ end
 
 We note that the hermitian conjugates of a hopping $$c_j^\dagger c_i$$ can also be understood as reversing the bond direction. Since we include both directions in our lattice definitions, second and fifth nearest neighbor hermitian conjugates are taken care of. First nearest neighbors get a phase shift from complex conjugation, which is included by swapping `t1p` and `t1m` between group one and two.
 
-The interaction matrix can almost be copied from the repulsive Hubbard model. The only difference is that the spin up and spin down blocks get the same sign. 
+To finish off the mandatory model interface we need to provide two more methods. The first is `lattice(model)` which simply return the lattice of the model. The other is `nflavors(model)` which returns the number of "active" flavors of the hopping matrix. This model has two flavors total, spin up and spin down, and both of these have an active effect on the hopping matrix, i.e. the values for spin up and spin down are different. Thus this method should return 2. 
 
 ```julia
-@inline @bm function MonteCarlo.interaction_matrix_exp!(mc::DQMC, m::HBCModel,
-            result::Diagonal, conf::HubbardConf, slice::Int, power::Float64=1.)
-    dtau = mc.parameters.delta_tau
-    lambda = acosh(exp(0.5 * m.U * dtau))
-    N = length(lattice(m))
-    
-    # spin up block
-    @inbounds for i in 1:N
-        result.diag[i] = exp(sign(power) * lambda * conf[i, slice])
-    end
-
-    # spin down block
-    @inbounds for i in 1:N
-        result.diag[N+i] = exp(sign(power) * lambda * conf[i, slice])
-    end
-    nothing
-end
+MonteCarlo.lattice(m::HBCModel) = m.l
+MonteCarlo.nflavors(::HBCModel) = 2
 ```
 
-In this case we do not need to set the type for the interaction matrix explicitly like we did for the hopping and greens matrices, because the (abstract) `HubbardModel` already uses `Diagonal` interaction matrices.
-
-
-## Local Updates
-
-
-Our next task is to implement `propose_local!` and `accept_local!`. Since those only rely on specific indices, columns or rows for a large part of their calculation we have to dig into the optimized matrix types a bit. `propose_local` aims to calculate the determinant ratio $$R$$ and bosonic energy difference $$\Delta E_{Boson} = V(C_{new}) - V(c_{old})$$ where $$C$$ is the auxiliary field configuration. The determinant ratio is defined as
-
-```math
-R = \prod_\sigma \left[
-        1 + \left( \exp(\Delta E_{Boson}) - 1 \right) 
-        \left( 1 - G_{ii}^{\sigma, \sigma}(\tau, \tau) \right)
-    \right]
-```
-
-where $$i$$ and $$\tau$$ are the lattice index and time slice index of the proposed change in the auxiliary field. This formula already assumes that the greens matrix $$G$$ is zero for all differing spin indices (i.e. spin up-down or down-up). Therefore it is just a product of two terms. With this `propose_local` is implemented as
-
-```julia
-@inline @bm function MonteCarlo.propose_local(
-        mc::DQMC, model::HBModel, i::Int, slice::Int, conf::HubbardConf
-    )
-    N = length(model.l)
-    G = mc.stack.greens
-    Δτ = mc.parameters.delta_tau
-    R = model.R
-
-    α = acosh(exp(0.5Δτ * model.U))
-    ΔE_boson = -2.0α * conf[i, slice]
-    Δ = exp(ΔE_boson) - 1.0
-
-    # Unrolled R = I + Δ * (I - G)
-    # up-up term
-    R.diag.re[1] = 1.0 + Δ * (1.0 - G.blocks[1].re[i, i])
-    R.diag.im[1] = - Δ * G.blocks[1].im[i, i]
-    # down-down term
-    R.diag.re[2] = 1.0 + Δ * (1.0 - G.blocks[2].re[i, i])
-    R.diag.im[2] = - Δ * G.blocks[2].im[i, i]
-
-    # Calculate "determinant"
-    detratio = ComplexF64(
-        R.diag.re[1] * R.diag.re[2] - R.diag.im[1] * R.diag.im[2],
-        R.diag.re[1] * R.diag.im[2] + R.diag.im[1] * R.diag.re[2]
-    )
-    
-    return detratio, ΔE_boson, Δ
-end
-```
-
-Note that the fields of our special matrix types are directly indexed here. A `BlockDiagonal` matrix contains all of its data in `B.blocks`. We define the first (upper left) block as spin up and the second (lower right) as spin down. Sitting at each block is a complex matrix represented by `CMat64`. It contains two real valued matrices at `x.re` and `x.im` representing the real and imaginary parts respectively.
-
-For `accept_local`  we need to update the auxiliary field and the currently active greens function. To avoid recalculating $$\Delta$$ it is returned in `propose_local` and will be passed to `accept_local`. The updated greens function is given by
-
-```math
-G_{jk}^{\sigma \sigma^\prime} = 
-    G_{jk}^{\sigma \sigma^\prime} -
-    \left(I - G^{\sigma \sigma^\prime}(\tau, \tau) \right)_{ji}
-    R_{\sigma, \sigma^\prime}^{-1} 
-    \Delta_{ii}^{\sigma \sigma^\prime}(\tau)
-    G_{ik}^{\sigma \sigma^\prime}(\tau, \tau)
-```
-
-where $$i$$ is again the site index of the proposed flip. Let's go through some observations/simplifications. First we note that for $$\sigma \ne \sigma^\prime$$ the greens function is and remains zero. The inversion of $$R$$ is an inversion of a diagonal matrix and thus simplifies to calculating the inverse of each element. Finally, $$\Delta$$ has the same value for spin up and spin down so it is simply a number.
-
-Using these observations and applying optimizations relevant to our matrix types `accept_local` can be implemented as
-
-```julia
-@inline @bm function MonteCarlo.accept_local!(
-        mc::DQMC, model::HBModel, i::Int, slice::Int, conf::HubbardConf, 
-        detratio, ΔE_boson, Δ)
-
-    @bm "accept_local (init)" begin
-        N = length(model.l)
-        G = mc.stack.greens
-        IG = model.IG
-        IGR = model.IGR
-        R = model.R
-    end
-    
-    # compute R⁻¹ Δ, using that R is Diagonal, Δ is Number
-    # using Δ / (a + ib) = Δ / (a^2 + b^2) * (a - ib)
-    @bm "accept_local (inversion)" begin
-        f = Δ / (R.diag.re[1]^2 + R.diag.im[1]^2)
-        R.diag.re[1] = +f * R.diag.re[1]
-        R.diag.im[1] = -f * R.diag.im[1]
-        f = Δ / (R.diag.re[2]^2 + R.diag.im[2]^2)
-        R.diag.re[2] = +f * R.diag.re[2]
-        R.diag.im[2] = -f * R.diag.im[2]
-    end
-
-    # Compute (I - G) R^-1 Δ
-    # Note IG is reduced to non-zero entries. Full IG would be
-    # (I-G)[:, i]        0
-    #     0         (I-G)[:, i+N]
-    # our IG is [(I-G)[:, i]  (I-G)[:, i+N]]
-    @bm "accept_local (IG, R)" begin
-        # Calculate IG = I - G (relevant entries only)
-        @turbo for m in axes(IG, 1)
-            IG.re[m, 1] = -G.blocks[1].re[m, i]
-        end
-        @turbo for m in axes(IG, 1)
-            IG.re[m, 2] = -G.blocks[2].re[m, i]
-        end
-        @turbo for m in axes(IG, 1)
-            IG.im[m, 1] = -G.blocks[1].im[m, i]
-        end
-        @turbo for m in axes(IG, 1)
-            IG.im[m, 2] = -G.blocks[2].im[m, i]
-        end
-        IG.re[i, 1] += 1.0
-        IG.re[i, 2] += 1.0
-        
-        # Calculate IGR = IG * R where R = R⁻¹ Δ from the 
-        # previous calculation (relevant entries only)
-        # spin up-up block 
-        @turbo for m in axes(IG, 1)
-            IGR.re[m, 1] = IG.re[m, 1] * R.diag.re[1]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.re[m, 1] -= IG.im[m, 1] * R.diag.im[1]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.im[m, 1] = IG.re[m, 1] * R.diag.im[1]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.im[m, 1] += IG.im[m, 1] * R.diag.re[1]
-        end
-        
-        # spin down-down block
-        @turbo for m in axes(IG, 1)
-            IGR.re[m, 2] = IG.re[m, 2] * R.diag.re[2]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.re[m, 2] -= IG.im[m, 2] * R.diag.im[2]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.im[m, 2] = IG.re[m, 2] * R.diag.im[2]
-        end
-        @turbo for m in axes(IG, 1)
-            IGR.im[m, 2] += IG.im[m, 2] * R.diag.re[2]
-        end
-    end
-
-    # Update G according to G = G - (I - G)[:, i:N:end] * R⁻¹ * Δ * G[i:N:end, :]
-    # We already have IG = (I - G)[:, i:N:end] * R⁻¹ * Δ
-    @bm "accept_local (finalize computation)" begin
-        # get blocks to write less
-        G1 = G.blocks[1]
-        G2 = G.blocks[2]
-        temp1 = mc.stack.greens_temp.blocks[1]
-        temp2 = mc.stack.greens_temp.blocks[2]
-
-        # compute temp = IG[:, i:N:end] * G[i:N:end, :]
-        # spin up-up block
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            temp1.re[m, n] = IGR.re[m, 1] * G1.re[i, n]
-        end
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            temp1.re[m, n] -= IGR.im[m, 1] * G1.im[i, n]
-        end
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            temp1.im[m, n] = IGR.im[m, 1] * G1.re[i, n]
-        end
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            temp1.im[m, n] += IGR.re[m, 1] * G1.im[i, n]
-        end
-        
-        # spin down-down block
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            temp2.re[m, n] = IGR.re[m, 2] * G2.re[i, n]
-        end
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            temp2.re[m, n] -= IGR.im[m, 2] * G2.im[i, n]
-        end
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            temp2.im[m, n] = IGR.im[m, 2] * G2.re[i, n]
-        end
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            temp2.im[m, n] += IGR.re[m, 2] * G2.im[i, n]
-        end
-
-        # Calculate G = G - temp
-        # spin up-up block
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            G1.re[m, n] = G1.re[m, n] - temp1.re[m, n]
-        end
-        @turbo for m in axes(G1, 1), n in axes(G1, 2)
-            G1.im[m, n] = G1.im[m, n] - temp1.im[m, n]
-        end
-        
-        # spin down-down block
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            G2.re[m, n] = G2.re[m, n] - temp2.re[m, n]
-        end
-        @turbo for m in axes(G2, 1), n in axes(G2, 2)
-            G2.im[m, n] = G2.im[m, n] - temp2.im[m, n]
-        end
-
-        # Update configuration
-        conf[i, slice] *= -1
-    end
-
-    nothing
-end
-```
-
-
-## Utilities and other functionality
-
-
-Now that we have the lattice, the hopping and interaction matrix as well as `propose_local` and `accept_local!` we're done implementing the model. There are a couple of things one might want to add. For example, adding `energy_boson()` would enable global updates and boson energy measurements. Adding `save_model` and `_load` should help with reducing file size and help future proof things, but isn't strictly necessary. And adding `intE_kernel` would allow the interactive and total energy to be measured. Beyond that one might add some constructors and convenience function like `parameters`. 
+There are a few more methods we can implement for convenience. The most important of these is `choose_field(model)`, which sets a default field for our model. The best choice here should be `DensityHirschField` or `DensityGHQField` as the model uses an attractive interaction. Beyond this we could implement `intE_kernel` to enable energy measurements, `parameters(model)`, `save_model`, `_load_model` and printing.
 
 The full code including these convenience functions can be found [here](HBC_model.jl)
-
 
 
 # Simulation Setup
@@ -492,7 +259,7 @@ To keep the runtime of this crosscheck reasonable we used the smallest linear sy
 uc = LatticePhysics.getUnitcellSquare(17)
 lpl = getLatticePeriodic(uc, 8)
 l = LatPhysLattice(lpl)
-m = HBModel(l, t5 = 0.0, mu = -2.206) # other defaults match F = 0.2 setup
+m = HBCModel(l, t5 = 0.0, mu = -2.206) # other defaults match F = 0.2 setup
 mc = DQMC(
     m, beta = beta, thermalization = 1000, sweeps = 5000, 
     measure_rate = 5, print_rate = 100, recorder = Discarder()

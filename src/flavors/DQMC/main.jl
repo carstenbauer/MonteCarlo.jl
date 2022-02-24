@@ -92,6 +92,9 @@ function DQMC(
     )
 end
 
+# Contains mandatory and optional method definitions expected to exist for a 
+# given model or field. Also sets up some convenience methods.
+include("DQMC_interface.jl")
 
 # Contains different auxiliary field types 
 include("fields.jl")
@@ -122,10 +125,6 @@ include("updates/parallel_updates.jl")
 # initialization of the DQMC type, convenience functions, `run!` and `replay!`, 
 # and local updates.
 include("DQMC.jl")
-
-# Contains mandatory and optional method definitions expected to exist for a 
-# given model.
-include("DQMC_interface.jl")
 
 # saving and loading of DQMC
 include("FileIO.jl")

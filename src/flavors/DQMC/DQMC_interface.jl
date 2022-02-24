@@ -19,7 +19,7 @@ A matrix element is the hopping amplitude for a hopping process: \$j,\\sigma '
 Regarding the order of indices, if `T[i, σ, j, σ']` is your desired 4D hopping 
 array, then `reshape(T, (n_sites * n_flavors, :))` is the hopping matrix.
 """
-hopping_matrix(mc::DQMC, m::Model) = throw(MethodError(hopping_matrix, (mc, m)))
+hopping_matrix(m::Model) = throw(MethodError(hopping_matrix, (m, )))
 
 nflavors(m::Model) = throw(MethodError(nflavors, (m,)))
 
@@ -128,10 +128,27 @@ end
 """
     greens_matrix_type(field, model)
 
-Returns the (matrix) type of the greens and most work matrices. Defaults to 
-`Matrix{greens_eltype(T, m)}`.
+Returns the (matrix) type of the greens and most work matrices. By default 
+attempts to derive the type from the hopping and interaction matrix types.
 """
-greens_matrix_type(f::AbstractField, m::Model) = Matrix{greens_eltype(f, m)}
+function greens_matrix_type(f::AbstractField, m::Model)
+    IT = interaction_matrix_type(f, m)
+    HT = hopping_matrix_type(f, m)
+    T = greens_eltype(f, m)
+
+    if IT <: BlockDiagonal && HT <: BlockDiagonal
+        if IT.parameters[2] == HT.parameters[2] # same number of blocks
+            return BlockDiagonal{T, HT.parameters[2], matrix_type(T)}
+        else
+            return matrix_type(T)
+        end
+    elseif IT <: Diagonal && HT <: BlockDiagonal
+        return BlockDiagonal{T, HT.parameters[2], matrix_type(T)}
+    else
+        return matrix_type(T)
+    end
+end
+
 
 
 ### Model
@@ -140,17 +157,20 @@ greens_matrix_type(f::AbstractField, m::Model) = Matrix{greens_eltype(f, m)}
 """
     hopping_eltype(model)
 
-Returns the type of the elements of the hopping matrix. Defaults to `Float64`.
+Returns the type of the elements of the hopping matrix. Defaults to calling 
+`eltype(hopping_matrix(model))`.
 """
-hopping_eltype(::Model) = Float64
+hopping_eltype(m::Model) = eltype(hopping_matrix(m))
 
 """
     hopping_matrix_type(field, model)
 
-Returns the (matrix) type of the hopping matrix. Defaults to 
-`Matrix{hopping_eltype(model)}`.
+Returns the (matrix) type of the hopping matrix. Defaults to building a full 
+hopping matrix and getting its type.
 """
-hopping_matrix_type(::AbstractField, m::Model) = Matrix{hopping_eltype(m)}
+function hopping_matrix_type(f::AbstractField, m::Model)
+    typeof(pad_to_nflavors(f, m, hopping_matrix(m)))
+end
 
 
 ### Field
@@ -183,7 +203,7 @@ By default this uses the matrix type from `interaction_matrix_type` and uses
 `max(nflavors(field), nflavors(model)) * length(lattice(model))` as the size.
 """
 function init_interaction_matrix(f::AbstractField, m::Model)
-    flv = max(nflavors(f), nflavors(m))
+    flv = nflavors(f, m)
     N = length(lattice(m))
     FullT = interaction_matrix_type(f, m)
 
@@ -215,3 +235,28 @@ energy_boson(f::AbstractField, c = nothing) = throw(MethodError(energy_boson, (f
 conf(f::AbstractField) = f.conf
 conf!(f::AbstractField, c) = conf(f) .= c
 temp_conf(f::AbstractField) = f.temp_conf
+
+
+################################################################################
+### Convenience
+################################################################################
+
+
+# These methods are just to simplify things. NOne of these should be implemented
+# when extending DQMC.
+
+nflavors(mc::DQMC) = nflavors(field(mc), model(mc))
+nflavors(f::AbstractField, m::Model) = max(nflavors(f), nflavors(m))
+
+@inline pad_to_nflavors(mc::DQMC, mat) = pad_to_nflavors(field(mc), model(mc), mat)
+function pad_to_nflavors(f::AbstractField, m::Model, mat)
+    N = length(lattice(m))
+    flv = nflavors(f, m)
+    if size(mat, 1) == N * flv
+        return mat
+    elseif size(mat, 1) == N
+        return BlockDiagonal(ntuple(_ -> mat, flv))
+    else
+        error("Failed to expand size $(size(mat)) matrix to size ($N * $flv, $N * $flv) ")
+    end
+end

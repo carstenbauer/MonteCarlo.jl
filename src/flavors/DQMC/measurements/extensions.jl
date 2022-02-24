@@ -158,14 +158,17 @@ end
 
 
 function dia_K_x(mc, G, idxs)
-    T = Matrix(MonteCarlo.hopping_matrix(mc, mc.model))
+    if !isdefined(mc.stack, :hopping_matrix)
+        MonteCarlo.init_hopping_matrices(mc, mc.model)
+    end
+    T = Matrix(mc.stack.hopping_matrix)
 
     push!(mc.lattice_iterator_cache, MonteCarlo.Dir2SrcTrg(), lattice(mc))
     dir2srctrg = mc.lattice_iterator_cache[MonteCarlo.Dir2SrcTrg()]
     N = length(lattice(mc))
     
     Kx = ComplexF64(0)
-    flv = max(nflavors(field(mc)), nflavors(model(mc))) 
+    flv = nflavors(mc)
     if     flv == 1; f = 2.0
     elseif flv == 2; f = 1.0
     else error("The diamagnetic contribution to the superfluid density has no implementation for $flv flavors")
@@ -185,9 +188,8 @@ function dia_K_x(mc, G, idxs)
 end
 
 # uses directions with filter > 0
-function para_ccc(mc, ccs, ind_dir)
+function para_ccc(mc, ccs, ind_dir, dq = [0.0, 0.0])
     #dq = [2pi / size(lattice(mc))[2], 0.0]
-    dq = [0.0, 0.0]
     dirs = directions(lattice(mc))
     Λxx = ComplexF64(0)
 

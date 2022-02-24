@@ -9,7 +9,7 @@ end
 
 function FieldCache(field, model)
     N = size(field.conf, 1)
-    flv = max(nflavors(field), nflavors(model))
+    flv = nflavors(field, model)
     T = interaction_eltype(field)
     GET = greens_eltype(field, model)
     VT = vector_type(GET)
@@ -65,6 +65,14 @@ function calculate_detratio!(cache::StandardFieldCache, Δ::Number, G::Union{FMa
     cache.detratio = cache.R * cache.R
 end
 
+function calculate_detratio!(cache::StandardFieldCache, Δ::Number, G::BlockDiagonal{Float64}, i)
+    # Unrolled R = I + Δ * (I - G)
+    @inbounds for b in eachindex(G.blocks)
+        cache.R[b] = 1.0 + Δ * (1.0 - G.blocks[b][i, i])
+    end
+    # determinant of Diagonal
+    cache.detratio = prod(cache.R)
+end
 
 function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{Float64}, i)
     # Unrolled R = I + Δ * (I - G)
@@ -74,17 +82,49 @@ function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiag
     # determinant of Diagonal
     cache.detratio = prod(cache.R)
 end
-# function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{ComplexF64}, i)
-#     # Unrolled R = I + Δ * (I - G)
-#     @inbounds for b in eachindex(G.blocks)
-#         cache.R.re[b] = 1.0 + Δ[b] * (1.0 - G.blocks[b].re[i, i])
-#     end
-#     @inbounds for b in eachindex(G.blocks)
-#         cache.R.im[b] = - Δ[b] * G.blocks.im[b][i, i]
-#     end
-#     # determinant of Diagonal (don't think this is worth optimizing)
-#     cache.detratio = prod(cache.R)
-# end
+
+function calculate_detratio!(cache::StandardFieldCache, Δ::Float64, G::BlockDiagonal{ComplexF64}, i)
+    # Unrolled R = I + Δ * (I - G)
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.re[b] = 1.0 + Δ * (1.0 - G.blocks[b].re[i, i])
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.im[b] = - Δ * G.blocks[b].im[i, i]
+    end
+    # determinant of Diagonal (don't think this is worth optimizing)
+    cache.detratio = prod(cache.R)
+end
+
+function calculate_detratio!(cache::StandardFieldCache, Δ::FVec64, G::BlockDiagonal{ComplexF64}, i)
+    # Unrolled R = I + Δ * (I - G)
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.re[b] = 1.0 + Δ[b] * (1.0 - G.blocks[b].re[i, i])
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.im[b] = - Δ[b] * G.blocks[b].im[i, i]
+    end
+    # determinant of Diagonal (don't think this is worth optimizing)
+    cache.detratio = prod(cache.R)
+end
+
+function calculate_detratio!(cache::StandardFieldCache, Δ::ComplexF64, G::BlockDiagonal{ComplexF64}, i)
+    # Unrolled R = I + Δ * (I - G)
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.re[b] = 1.0 + real(Δ) * (1.0 - G.blocks[b].re[i, i])
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.re[b] += imag(Δ) * G.blocks[b].im[i, i]
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.im[b] = imag(Δ) * (1.0 - G.blocks[b].re[i, i])
+    end
+    @inbounds for b in eachindex(G.blocks)
+        cache.R.im[b] -= real(Δ) * G.blocks[b].im[i, i]
+    end
+    # determinant of Diagonal
+    cache.detratio = prod(cache.R)
+end
+
 function calculate_detratio!(cache::StandardFieldCache, Δ::CVec64, G::BlockDiagonal{ComplexF64}, i)
     # Unrolled R = I + Δ * (I - G)
     @inbounds for b in eachindex(G.blocks)
@@ -149,10 +189,28 @@ function vldiv22!(cache::StandardFieldCache, R::FMat64, Δ::FVec64)
     nothing
 end
 
+function vldiv22!(cache::StandardFieldCache, R::FMat64, Δ::Float64)
+    @inbounds begin
+        inv_div = 1.0 / cache.detratio
+        cache.invRΔ[1, 1] =   R[2, 2] * Δ * inv_div
+        cache.invRΔ[1, 2] = - R[1, 2] * Δ * inv_div
+        cache.invRΔ[2, 1] = - R[2, 1] * Δ * inv_div
+        cache.invRΔ[2, 2] =   R[1, 1] * Δ * inv_div
+    end
+    nothing
+end
+
 function vldiv22!(cache::StandardFieldCache, R::FVec64, Δ::FVec64)
     @inbounds begin
         cache.invRΔ[1] = Δ[1] / R[1]
         cache.invRΔ[2] = Δ[2] / R[2]
+    end
+    nothing
+end
+function vldiv22!(cache::StandardFieldCache, R::FVec64, Δ::Float64)
+    @inbounds begin
+        cache.invRΔ[1] = Δ / R[1]
+        cache.invRΔ[2] = Δ / R[2]
     end
     nothing
 end
@@ -166,6 +224,31 @@ function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::CVec64)
         cache.invRΔ.re[2] = f2 * (Δ.re[2] * R.re[2] + Δ.im[2] * R.im[2])
         cache.invRΔ.im[1] = f1 * (Δ.im[1] * R.re[1] - Δ.re[1] * R.im[1])
         cache.invRΔ.im[2] = f2 * (Δ.im[2] * R.re[2] - Δ.re[2] * R.im[2])
+    end
+    nothing
+end
+
+function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::ComplexF64)
+    @inbounds begin
+        # Reminder: 1/c = c* / (cc*) (complex conjugate)
+        f1 = 1.0 / (R.re[1] * R.re[1] + R.im[1] * R.im[1])
+        f2 = 1.0 / (R.re[2] * R.re[2] + R.im[2] * R.im[2])
+        cache.invRΔ.re[1] = f1 * (real(Δ) * R.re[1] + imag(Δ) * R.im[1])
+        cache.invRΔ.re[2] = f2 * (real(Δ) * R.re[2] + imag(Δ) * R.im[2])
+        cache.invRΔ.im[1] = f1 * (imag(Δ) * R.re[1] - real(Δ) * R.im[1])
+        cache.invRΔ.im[2] = f2 * (imag(Δ) * R.re[2] - real(Δ) * R.im[2])
+    end
+    nothing
+end
+function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::Float64)
+    @inbounds begin
+        # Reminder: 1/c = c* / (cc*) (complex conjugate)
+        f1 = 1.0 / (R.re[1] * R.re[1] + R.im[1] * R.im[1])
+        f2 = 1.0 / (R.re[2] * R.re[2] + R.im[2] * R.im[2])
+        cache.invRΔ.re[1] = f1 * Δ * R.re[1]
+        cache.invRΔ.re[2] = f2 * Δ * R.re[2]
+        cache.invRΔ.im[1] = - f1 * Δ * R.im[1]
+        cache.invRΔ.im[2] = - f2 * Δ * R.im[2]
     end
     nothing
 end
@@ -280,9 +363,9 @@ end
 nflavors(::DensityHirschField) = 1
 
 @inline function interaction_matrix_exp!(f::DensityHirschField, result::Diagonal, slice, power)
-    # TODO this will index out of bound with 2 flavors
+    N = size(f.conf, 1)
     @inbounds for i in eachindex(result.diag)
-        result.diag[i] = exp(power * f.α * f.conf[i, slice])
+        result.diag[i] = exp(power * f.α * f.conf[mod1(i, N), slice])
     end
     nothing
 end
@@ -518,8 +601,9 @@ energy_boson(f::DensityGHQField, conf = f.conf) = f.α * sum(conf)
 
 # TODO: Maybe worth adding a complex method?
 @inline @bm function interaction_matrix_exp!(f::DensityGHQField, result::Diagonal, slice, power)
+    N = size(f.conf, 1)
     @inbounds for i in eachindex(result.diag)
-        result.diag[i] = exp(+power * f.α * f.η[f.conf[i, slice]])
+        result.diag[i] = exp(+power * f.α * f.η[f.conf[mod1(i, N), slice]])
     end
     return nothing
 end

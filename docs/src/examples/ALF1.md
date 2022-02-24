@@ -99,7 +99,7 @@ using Revise, MonteCarlo, Printf, LinearAlgebra
 
 mcs = []
 @time for beta in [1.0, 6.0, 12.0]
-    m = HubbardModelRepulsive(4, 2, U = 4)
+    m = HubbardModel(4, 2, U = -4)
     mc = DQMC(
         m, beta=beta, thermalization=5_000, sweeps=15_000, 
         print_rate=5_000, delta_tau = 0.05#, measure_rate=5

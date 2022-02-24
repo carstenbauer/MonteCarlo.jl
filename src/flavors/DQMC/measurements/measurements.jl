@@ -26,7 +26,7 @@ is derived from the hopping matrix and does not include on-site "hoppings".
 """
 function hopping_directions(dqmc::DQMC, model)
     dir2srctrg = dqmc[Dir2SrcTrg()]
-    T = hopping_matrix(dqmc, model)
+    T = hopping_matrix(model)
     valid_directions = Int64[]
     
     for i in 2:length(dir2srctrg)
@@ -52,7 +52,7 @@ function greens_measurement(
         mc::DQMC, model::Model, greens_iterator = Greens(); 
         capacity = _default_capacity(mc), eltype = geltype(mc),
         obs = let
-            N = length(lattice(model)) * nflavors(field(mc))
+            N = length(lattice(model)) * nflavors(mc)
             LogBinner(zeros(eltype, (N, N)), capacity=capacity)
         end, kwargs...
     )
@@ -175,7 +175,7 @@ function current_current_susceptibility(
         greens_iterator = CombinedGreensIterator(dqmc), wrapper = nothing,
         lattice_iterator = EachLocalQuadByDistance(directions), kwargs...
     )
-    @assert is_approximately_hermitian(hopping_matrix(dqmc, model)) "CCS assumes Hermitian matrix"
+    @assert is_approximately_hermitian(hopping_matrix(model)) "CCS assumes Hermitian matrix"
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     Measurement(dqmc, model, greens_iterator, li, cc_kernel; kwargs...)
 end

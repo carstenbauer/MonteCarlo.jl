@@ -179,7 +179,7 @@ Creates an iterator template which iterates through the diagonal of the Greensfu
 """
 struct EachSiteAndFlavor <: DirectLatticeIteratorTemplate end
 function (::EachSiteAndFlavor)(mc::MonteCarloFlavor, model::Model)
-    RangeIterator(1 : length(lattice(mc)) * nflavors(field(mc)))
+    RangeIterator(1 : length(lattice(mc)) * nflavors(mc))
 end
 
 """

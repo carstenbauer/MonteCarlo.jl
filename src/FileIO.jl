@@ -172,17 +172,23 @@ will be attempted. (This is useful to reduce the memory requirements.)
 """
 function load(filename::String, groups::String...; kwargs...)
     if isfile(filename)
-        data = if endswith(filename, "jld2")
-            FileWrapper(JLD2.jldopen(filename, "r"), filename)
-        else 
-            FileWrapper(JLD.load(filename), filename)
-        end
-        output = try 
-            if haskey(data, "MC") && !("MC" in groups)
-                _load(data, "MC", groups...) else _load(data, groups...)
+        output = try
+            data = if endswith(filename, "jld2")
+                FileWrapper(JLD2.jldopen(filename, "r"), filename)
+            else 
+                FileWrapper(JLD.load(filename), filename)
             end
-        finally
-            endswith(filename, "jld2") && close(data.file)
+            output = try 
+                if haskey(data, "MC") && !("MC" in groups)
+                    _load(data, "MC", groups...) else _load(data, groups...)
+                end
+            finally
+                endswith(filename, "jld2") && close(data.file)
+            end
+            output
+        catch e
+            println("Error loading file $filename:")
+            rethrow()
         end
         
         return output
