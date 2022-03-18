@@ -37,10 +37,12 @@ mutable struct ChemicalPotentialTuning <: AbstractUpdate
     mus::Vector{Float64}
     Ns::Vector{Float64}
 
+    max_dmu::Float64
+
     idx::Int
 end
-function ChemicalPotentialTuning(target_occ)
-    ChemicalPotentialTuning(target_occ, Float64[], Float64[], 1)
+function ChemicalPotentialTuning(target_occ; max_dmu = 1.0)
+    ChemicalPotentialTuning(target_occ, Float64[], Float64[], max_dmu, 1)
 end
 
 function init!(mc, u::ChemicalPotentialTuning)
@@ -91,7 +93,7 @@ function update(u::ChemicalPotentialTuning, mc, model, field)
         # bounded_κ = max(κ * sqrt(u.idx), 1 / u.idx)
         bounded_κ = max(κ, 1 / u.idx)
 
-        new_mu = win_mean_mu + (u.target_occupation - win_mean_N) / bounded_κ
+        new_mu = win_mean_mu + min(u.max_dmu, (u.target_occupation - win_mean_N) / bounded_κ)
         push!(u.mus, new_mu)
         model.mu = new_mu
         u.idx += 1
