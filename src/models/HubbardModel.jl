@@ -120,7 +120,7 @@ function hopping_matrix(m::HubbardModel)
             if m.insert_flux
                 x0, y0 = pos[src]
                 x1, y1 = pos[trg]
-                A = -pi * (y1 + y0) * (x1 - x0) / N
+                A = -pi * (y1 + y0) * (x1 - x0) / prod(size(m.l)) #N
                 T[trg, src] += -m.t * cis(A)
             else
                 T[trg, src] += -m.t
@@ -135,7 +135,7 @@ function hopping_matrix(m::HubbardModel)
                 trg == -1 && continue
                 x0, y0 = pos[src]
                 x1, y1 = pos[trg]
-                A = -pi * (y1 + y0) * (x1 - x0) / N
+                A = -pi * (y1 + y0) * (x1 - x0) / prod(size(m.l)) #N
                 T2[trg, src] += -m.t * cis(-A)
             end
         end
