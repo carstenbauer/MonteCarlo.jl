@@ -109,7 +109,7 @@ actual simulation.
 """
 function hopping_matrix(m::HubbardModel)
     N = length(m.l)
-    mu = m.insert_flux || (m.t isa CompelxF64) ? ComplexF64(-m.mu) : -m.mu
+    mu = m.insert_flux || (m.t isa ComplexF64) ? ComplexF64(-m.mu) : -m.mu
     T = diagm(0 => fill(mu, N))
     pos = positions(m.l)
 
