@@ -24,6 +24,7 @@ struct HubbardModel{LT <: AbstractLattice} <: Model
     t::Float64
     mu::Float64
     U::Float64
+    insert_flux::Bool
     l::LT
 end
 
@@ -33,12 +34,12 @@ end
 
 function HubbardModel(; 
         dims = 2, L = 2, l = choose_lattice(HubbardModel, dims, L), 
-        U = 1.0, mu = 0.0, t = 1.0
+        U = 1.0, mu = 0.0, t = 1.0, insert_flux = false
     )
     if (U < 0.0) && (mu != 0.0)
         @warn("A repulsive Hubbard model with chemical potential µ = $mu will have a sign problem!")
     end
-    HubbardModel(t, mu, U, l)
+    HubbardModel(t, mu, U, insert_flux, l)
 end
 HubbardModel(params::Dict{Symbol}) = HubbardModel(; params...)
 HubbardModel(params::NamedTuple) = HubbardModel(; params...)
@@ -84,7 +85,7 @@ choose_field(m::HubbardModel) = m.U < 0.0 ? MagneticHirschField : DensityHirschF
 @inline lattice(m::HubbardModel) = m.l
 nflavors(::HubbardModel) = 1
 
-hopping_eltype(model::HubbardModel) = typeof(model.t)
+hopping_eltype(model::HubbardModel) = model.insert_flux ? ComplexF64 : typeof(model.t)
 function hopping_matrix_type(field::AbstractField, model::HubbardModel)
     flv = nflavors(field, model)
     T = hopping_eltype(model)
@@ -108,18 +109,47 @@ actual simulation.
 """
 function hopping_matrix(m::HubbardModel)
     N = length(m.l)
-    T = diagm(0 => fill(-m.mu, N))
+    mu = m.insert_flux || (m.t isa ComplexF64) ? ComplexF64(-m.mu) : -m.mu
+    T = diagm(0 => fill(mu, N))
+    pos = positions(m.l)
 
     # Nearest neighbor hoppings
     @inbounds @views begin
         for (src, trg) in neighbors(m.l, Val(true))
             trg == -1 && continue
-            T[trg, src] += -m.t
+            if m.insert_flux
+                x0, y0 = pos[src]
+                x1, y1 = pos[trg]
+                A = -pi * (y1 + y0) * (x1 - x0) / prod(size(m.l)) #N
+                T[trg, src] += -m.t * cis(A)
+            else
+                T[trg, src] += -m.t
+            end
         end
     end
 
-    return T
+    if m.insert_flux && (m.U < 0)
+        T2 = diagm(0 => fill(mu, N))
+        @inbounds @views begin
+            for (src, trg) in neighbors(m.l, Val(true))
+                trg == -1 && continue
+                x0, y0 = pos[src]
+                x1, y1 = pos[trg]
+                A = -pi * (y1 + y0) * (x1 - x0) / prod(size(m.l)) #N
+                T2[trg, src] += -m.t * cis(-A)
+            end
+        end
+        return BlockDiagonal(StructArray(T), StructArray(T2))
+    end
+
+    if mu isa ComplexF64
+        return StructArray(T)
+    else
+        return T
+    end
 end
+
+# FileIO
 
 function save_model(file::JLDFile, m::HubbardModel, entryname::String = "Model")
     write(file, entryname * "/VERSION", 1)
@@ -128,6 +158,7 @@ function save_model(file::JLDFile, m::HubbardModel, entryname::String = "Model")
     write(file, entryname * "/mu", m.mu)
     write(file, entryname * "/U", m.U)
     write(file, entryname * "/t", m.t)
+    write(file, entryname * "/insert_flux", m.insert_flux)
     save_lattice(file, m.l, entryname * "/l")
 
     nothing
@@ -136,18 +167,22 @@ end
 # compat
 function _load_model(data, ::Val{:HubbardModel})
     l = _load(data["l"], to_tag(data["l"]))
-    HubbardModel(data["t"], data["mu"], data["U"], l)
+    insert_flux = get(data, "insert_flux", false)
+    HubbardModel(data["t"], data["mu"], data["U"], insert_flux, l)
 end
 _load_model(data, ::Val{:HubbardModelAttractive}) = _load_model(data, Val(:HubbardModel))
 function _load_model(data, ::Val{:HubbardModelRepulsive})
     l = _load(data["l"], to_tag(data["l"]))
-    HubbardModel(data["t"], 0.0, -data["U"], l)
+    insert_flux = get(data, "insert_flux", false)
+    HubbardModel(data["t"], 0.0, -data["U"], insert_flux, l)
 end
 _load_model(data, ::Val{:AttractiveGHQHubbardModel}) = _load_model(data, Val(:HubbardModelAttractive))
 _load_model(data, ::Val{:RepulsiveGHQHubbardModel}) = _load_model(data, Val(:HubbardModelRepulsive))
 field_hint(m, ::Val) = choose_field(m)
 field_hint(m, ::Val{:AttractiveGHQHubbardModel}) = MagneticGHQField
 field_hint(m, ::Val{:RepulsiveGHQHubbardModel}) = MagneticGHQField
+
+# for measurements
 
 function intE_kernel(mc, model::HubbardModel, G::GreensMatrix, ::Val{1})
     # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... 
