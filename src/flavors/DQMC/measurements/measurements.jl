@@ -275,7 +275,7 @@ function cdc_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(mc))
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * (
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
         # ⟨n↑(l)n↑(0)⟩
         swapop(Gll)[i, i] * swapop(G00)[j, j] +
         swapop(G0l)[i, j] * Gl0[i, j] +
@@ -356,7 +356,7 @@ function sdc_x_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * (
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
         Gll[i+N, i] * G00[j+N, j] + Gll[i+N, i] * G00[j, j+N] + 
         Gll[i, i+N] * G00[j+N, j] + Gll[i, i+N] * G00[j, j+N] + 
         swapop(G0l)[i, j+N] * Gl0[i+N, j] + swapop(G0l)[i, j] * Gl0[i+N, j+N] +
@@ -387,7 +387,7 @@ function sdc_y_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * (
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
         - Gll[i+N, i] * G00[j+N, j] + Gll[i+N, i] * G00[j, j+N] + 
           Gll[i, i+N] * G00[j+N, j] - Gll[i, i+N] * G00[j, j+N] + 
         - swapop(G0l)[i, j+N] * Gl0[i+N, j] + swapop(G0l)[i, j] * Gl0[i+N, j+N] +
@@ -420,7 +420,7 @@ function sdc_z_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * (
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
         swapop(Gll)[i, i] * swapop(G00)[j, j] - 
         swapop(Gll)[i, i] * swapop(G00)[j+N, j+N] -
         swapop(Gll)[i+N, i+N] * swapop(G00)[j, j] + 
@@ -454,7 +454,7 @@ function pc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
     # G_{i, j}^{↑, ↑}(τ, 0) G_{i+d, j+d'}^{↓, ↓}(τ, 0) - 
     # G_{i, j+d'}^{↑, ↓}(τ, 0) G_{i+d, j}^{↓, ↑}(τ, 0)
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * (
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
         Gl0[src1, src2] * Gl0[trg1+N, trg2+N] - 
         Gl0[src1, trg2+N] * Gl0[trg1+N, src2]
     )
@@ -484,7 +484,7 @@ function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, fl
     # (I-G)_{j, i}^{↑, ↑}(0, τ) (I-G)_{j+d', i+d}^{↓, ↓}(0, τ) - 
     # (I-G)_{j, i+d}^{↑, ↓}(0, τ) G_{j+d', i}^{↓, ↑}(0, τ)
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * (
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
         swapop(G0l)[trg1+N, trg2+N] * swapop(G0l)[src1, src2] -
         G0l[src2, trg1+N] * G0l[trg2+N, src1]
     )
@@ -506,7 +506,7 @@ function pc_ref_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, fl
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * (
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
         Gl0[src1+N, src2+N] * Gl0[trg1, trg2] - 
         Gl0[src1+N, trg2] * Gl0[trg1, src2+N] +
         (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2+N, src1+N]) -
@@ -546,7 +546,7 @@ function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
     end
 
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * output
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * output
 end
 
 
@@ -600,7 +600,7 @@ function cdc_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
     G00, G0l, Gl0, Gll = pg
     # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
     # TODO - count start and end value with factor 1/2
-    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * (
+    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
         2 * swapop(Gll)[i, i] * swapop(G00)[j, j] + 
         swapop(G0l)[i, j] * Gl0[i, j]
     )
@@ -627,21 +627,21 @@ function sdc_x_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
     i, j = ij
     Gll = pg[4]
     # TODO - count start and end value with factor 1/2
-    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * 
+    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.slices)) * 
         swapop(pg[2])[i, j] * pg[3][i, j]
 end
 function sdc_y_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
     i, j = ij
     Gll = pg[4]
     # TODO - count start and end value with factor 1/2
-    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * 
+    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.slices)) * 
         swapop(pg[2])[i, j] * pg[3][i, j]
 end
 function sdc_z_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
     i, j = ij
     Gll = pg[4]
     # TODO - count start and end value with factor 1/2
-    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * 
+    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.slices)) * 
         swapop(pg[2])[i, j] * pg[3][i, j]
 end
 
@@ -652,21 +652,21 @@ end
 function pc_kernel(mc, model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
     src1, trg1, src2, trg2 = sites
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * 
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * 
     pg[3][src1, src2] * pg[3][trg1, trg2]
 end
 function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, ::Val{1})
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) *
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) *
         swapop(G0l)[trg1, trg2] * swapop(G0l)[src1, src2]
 end
 function pc_ref_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, ::Val{1})
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * (
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
         Gl0[src1, src2] * Gl0[trg1, trg2] +
         (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2, src1])
     )
@@ -690,7 +690,7 @@ function cc_kernel(mc, model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
     )
 
     # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.nslices)) * output
+    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * output
 end
 
 @inline function nonintE_kernel(mc, model, G::GreensMatrix, flv::Val{1})
