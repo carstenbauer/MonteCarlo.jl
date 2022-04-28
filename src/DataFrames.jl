@@ -21,13 +21,17 @@ end
 function DataFrames.DataFrame(
         mcs::Vector{<: MonteCarloFlavor};
         whitelist = [], blacklist = [], replace = identity,
-        getter = build_default_getter(whitelist, blacklist, replace)
+        getter = build_default_getter(whitelist, blacklist, replace),
+        add_columns! = (dict, mc) -> nothing
     )
 
-    df = mcs |> first |> getter |> DataFrames.DataFrame
+    param = mcs |> first |> getter
+    add_columns!(param, first(mcs))
+    df = param |> DataFrames.DataFrame
 
     for i in 2:length(mcs)
         data = mcs[i] |> getter
+        add_columns!(data, mcs[i])
         push!(df, data)
     end
 
