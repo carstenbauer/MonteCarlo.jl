@@ -22,7 +22,7 @@ struct FilteredSrc2IdxTrg{T} <: LICacheKeys
 end
 
 struct LatticeIteratorCache
-    cache::Dict{Any, Any}
+    cache::Dict{LICacheKeys, Any}
 end
 LatticeIteratorCache() = LatticeIteratorCache(Dict{Any, Any}())
 
@@ -33,6 +33,11 @@ end
 
 
 Base.getindex(cache::LatticeIteratorCache, key::LICacheKeys) = cache.cache[key]
+# for type stability
+Base.getindex(cache::LatticeIteratorCache, key::Dir2SrcTrg) = cache.cache[key]::Vector{Vector{Tuple{Int, Int}}}
+Base.getindex(cache::LatticeIteratorCache, key::Src2DirTrg) = cache.cache[key]::Vector{Vector{Tuple{Int, Int}}}
+Base.getindex(cache::LatticeIteratorCache, key::SrcTrg2Dir) = cache.cache[key]::Matrix{Int}
+
 function Base.get!(cache::LatticeIteratorCache, key::LICacheKeys, lattice::AbstractLattice)
     !haskey(cache, key) && push!(cache, key, lattice)
     cache[key]
@@ -271,7 +276,7 @@ function (::EachSitePairByDistance)(cache::LatticeIteratorCache, l::AbstractLatt
 end
 function ndirections(mc, ::EachSitePairByDistance)
     push!(mc.lattice_iterator_cache, Dir2SrcTrg(), lattice(mc))
-    Ndir = length(mc.lattice_iterator_cache[Dir2SrcTrg()])
+    Ndir = length(mc.lattice_iterator_cache[Dir2SrcTrg()])::Int64
     (Ndir, )
 end
 
@@ -345,7 +350,7 @@ function Base.:(==)(l::EachLocalQuadByDistance, r::EachLocalQuadByDistance)
 end
 function ndirections(mc, iter::EachLocalQuadByDistance)
     push!(mc.lattice_iterator_cache, Dir2SrcTrg(), lattice(mc))
-    Ndir = length(mc.lattice_iterator_cache[Dir2SrcTrg()])
+    Ndir = length(mc.lattice_iterator_cache[Dir2SrcTrg()])::Int64
     K = length(iter.directions)
     (Ndir, K, K)
 end
@@ -417,9 +422,9 @@ function Base.iterate(iter::_EachLocalQuadByDistance, state)
     b3 = b2 && (midx2 == length(iter.src_mask))
     b4 = b3 && (midx1 == length(iter.src_mask))
     b4 && return nothing
-    fidx2 = Int64(b1 || (fidx2 + 1))
-    fidx1 = Int64(b2 || (fidx1 + b1))
-    midx2 = Int64(b3 || (midx2 + b2))
+    fidx2 = Int64(!b1) * fidx2 + 1
+    fidx1 = ifelse(b2, 1, fidx1 + Int64(b1))
+    midx2 = ifelse(b3, 1, midx2 + Int(b2))
     midx1 = Int64(midx1 + b3)
 
     src1 = iter.src_mask[midx1]
@@ -474,7 +479,7 @@ function Base.:(==)(l::EachLocalQuadBySyncedDistance, r::EachLocalQuadBySyncedDi
 end
 function ndirections(mc, iter::EachLocalQuadBySyncedDistance)
     push!(mc.lattice_iterator_cache, Dir2SrcTrg(), lattice(mc))
-    Ndir = length(mc.lattice_iterator_cache[Dir2SrcTrg()])
+    Ndir = length(mc.lattice_iterator_cache[Dir2SrcTrg()])::Int64
     K = length(iter.directions)
     (Ndir, K)
 end

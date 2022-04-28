@@ -36,7 +36,7 @@ If `rename = true` the filename will be adjusted if it already exists. If
 will be created. If neither are true an error will be thrown.
 """
 function save(
-        filename, mc::MonteCarloFlavor; 
+        filename::String, mc::MonteCarloFlavor; 
         overwrite = false, rename = true, compress = true, 
         backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
     )
