@@ -167,7 +167,7 @@ function dia_K_x(mc, G, idxs)
     dir2srctrg = mc.lattice_iterator_cache[MonteCarlo.Dir2SrcTrg()]
     N = length(lattice(mc))
     
-    Kx = ComplexF64(0)
+    Kx = zero(promote_type(eltype(T), eltype(G)))
     flv = nflavors(mc)
     if     flv == 1; f = 2.0
     elseif flv == 2; f = 1.0
@@ -184,7 +184,8 @@ function dia_K_x(mc, G, idxs)
             end
         end
     end
-    Kx /= N
+
+    return Kx / N
 end
 
 # uses directions with filter > 0
