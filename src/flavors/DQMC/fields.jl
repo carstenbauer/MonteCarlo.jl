@@ -240,6 +240,7 @@ function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::ComplexF64)
     end
     nothing
 end
+
 function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::Float64)
     @inbounds begin
         # Reminder: 1/c = c* / (cc*) (complex conjugate)
@@ -249,6 +250,19 @@ function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::Float64)
         cache.invRΔ.re[2] = f2 * Δ * R.re[2]
         cache.invRΔ.im[1] = - f1 * Δ * R.im[1]
         cache.invRΔ.im[2] = - f2 * Δ * R.im[2]
+    end
+    nothing
+end
+
+function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::FVec64)
+    @inbounds begin
+        # Reminder: 1/c = c* / (cc*) (complex conjugate)
+        f1 = 1.0 / (R.re[1] * R.re[1] + R.im[1] * R.im[1])
+        f2 = 1.0 / (R.re[2] * R.re[2] + R.im[2] * R.im[2])
+        cache.invRΔ.re[1] = f1 * Δ[1] * R.re[1]
+        cache.invRΔ.re[2] = f2 * Δ[2] * R.re[2]
+        cache.invRΔ.im[1] = - f1 * Δ[1] * R.im[1]
+        cache.invRΔ.im[2] = - f2 * Δ[2] * R.im[2]
     end
     nothing
 end
