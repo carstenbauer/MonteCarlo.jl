@@ -865,7 +865,7 @@ end
 function CombinedGreensIterator(
         mc::DQMC, model::Model; 
         recalculate = 2mc.parameters.safe_mult, max_delta = 1e-7,
-        start = 1, stop = mc.parameters.slices
+        start = 0, stop = mc.parameters.slices
     )
     if recalculate === nothing
         iter = CombinedGreensIterator(typemax(Int64), start, stop)
@@ -877,7 +877,7 @@ function CombinedGreensIterator(
 end
 function CombinedGreensIterator(
         mc; recalculate = 2mc.parameters.safe_mult, max_delta=1e-7,
-        start = 1, stop = mc.parameters.slices
+        start = 0, stop = mc.parameters.slices
     )
     if recalculate === nothing
         iter = CombinedGreensIterator(typemax(Int64), start, stop)
