@@ -706,12 +706,14 @@ end
     end
 
     @bm "compute O" begin
-        for τ in beta:-step:0.5step #0:step:beta-0.5step
+        M = round(Int, beta/step)
+        for i in 0:M
             o = 0.0
+            τ = step * i
             for n in eachindex(vals), m in eachindex(vals)
                 o += exp(-(beta-τ)*vals[n] - τ*vals[m]) * X[n, m]
             end
-            O += step * o / Z
+            O += ifelse(i in (1, M), 0.5step, step) * o / Z
         end
     end
     

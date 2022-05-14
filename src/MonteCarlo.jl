@@ -86,7 +86,7 @@ export neighbors, directions
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/main.jl")
-export Greens, GreensAt, CombinedGreensIterator
+export Greens, GreensAt, CombinedGreensIterator, TimeIntegral
 export GreensMatrix, swapop
 export boson_energy_measurement, greens_measurement, occupation, magnetization
 export charge_density, charge_density_correlation, charge_density_susceptibility

@@ -83,7 +83,7 @@ function charge_density(
 end
 
 charge_density_correlation(mc, m; kwargs...) = charge_density(mc, m, Greens(); kwargs...)
-charge_density_susceptibility(mc, m; kwargs...) = charge_density(mc, m, CombinedGreensIterator(mc); kwargs...)
+charge_density_susceptibility(mc, m; kwargs...) = charge_density(mc, m, TimeIntegral(mc); kwargs...)
 
 
 
@@ -132,7 +132,7 @@ function spin_density(
     end
 end
 spin_density_correlation(args...; kwargs...) = spin_density(args..., Greens(); kwargs...)
-spin_density_susceptibility(mc, args...; kwargs...) = spin_density(mc, args..., CombinedGreensIterator(mc); kwargs...)
+spin_density_susceptibility(mc, args...; kwargs...) = spin_density(mc, args..., TimeIntegral(mc); kwargs...)
 
 
 
@@ -146,7 +146,7 @@ function pairing(
     Measurement(dqmc, model, greens_iterator, li, kernel; kwargs...)
 end
 pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens(); kwargs...)
-pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, CombinedGreensIterator(mc); kwargs...)
+pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, TimeIntegral(mc); kwargs...)
 
 
 
@@ -172,7 +172,7 @@ see larger values than expected.
 function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
         directions = hopping_directions(dqmc, model),
-        greens_iterator = CombinedGreensIterator(dqmc), wrapper = nothing,
+        greens_iterator = TimeIntegral(dqmc), wrapper = nothing,
         lattice_iterator = EachLocalQuadByDistance(directions), kwargs...
     )
     @assert is_approximately_hermitian(hopping_matrix(model)) "CCS assumes Hermitian matrix"
@@ -251,7 +251,7 @@ Returns the per-site-pair charge density `⟨nᵢ(τ) nⱼ(0)⟩ - ⟨nᵢ(τ)�
 `τ = 0` for the first signature.
 
 * Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
-* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+* Greens Iterators: `Greens`, `GreensAt`, `CombinedGreensIterator` or `TimeIntegral`
 """
 function cdc_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     i, j = ij
@@ -274,21 +274,18 @@ function cdc_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(mc))
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
-        # ⟨n↑(l)n↑(0)⟩
-        swapop(Gll)[i, i] * swapop(G00)[j, j] +
-        swapop(G0l)[i, j] * Gl0[i, j] +
-        # ⟨n↑(l)n↓(0)⟩
-        swapop(Gll)[i, i] * swapop(G00)[j+N, j+N] +
-        swapop(G0l)[i, j+N] * Gl0[i, j + N] +
-        # ⟨n↓(l)n↑(0)⟩
-        swapop(Gll)[i+N, i+N] * swapop(G00)[j, j] +
-        swapop(G0l)[i+N, j] * Gl0[i+N, j] +
-        # ⟨n↓(l)n↓(0)⟩
-        swapop(Gll)[i+N, i+N] * swapop(G00)[j+N, j+N] +
-        swapop(G0l)[i+N, j+N] * Gl0[i+N, j+N]
-    )
+    # ⟨n↑(l)n↑(0)⟩
+    swapop(Gll)[i, i] * swapop(G00)[j, j] +
+    swapop(G0l)[i, j] * Gl0[i, j] +
+    # ⟨n↑(l)n↓(0)⟩
+    swapop(Gll)[i, i] * swapop(G00)[j+N, j+N] +
+    swapop(G0l)[i, j+N] * Gl0[i, j + N] +
+    # ⟨n↓(l)n↑(0)⟩
+    swapop(Gll)[i+N, i+N] * swapop(G00)[j, j] +
+    swapop(G0l)[i+N, j] * Gl0[i+N, j] +
+    # ⟨n↓(l)n↓(0)⟩
+    swapop(Gll)[i+N, i+N] * swapop(G00)[j+N, j+N] +
+    swapop(G0l)[i+N, j+N] * Gl0[i+N, j+N]
 end
 
 
@@ -341,7 +338,7 @@ Returns the per-site-pair x-spin density `⟨mxᵢ(τ) mxⱼ(0)⟩ - ⟨mxᵢ(τ
 where `τ = 0` for the first signature.
 
 * Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
-* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+* Greens Iterators: `Greens`, `GreensAt`, `CombinedGreensIterator` or `TimeIntegral`
 """
 function sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     i, j = ij
@@ -355,13 +352,10 @@ function sdc_x_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
-        Gll[i+N, i] * G00[j+N, j] + Gll[i+N, i] * G00[j, j+N] + 
-        Gll[i, i+N] * G00[j+N, j] + Gll[i, i+N] * G00[j, j+N] + 
-        swapop(G0l)[i, j+N] * Gl0[i+N, j] + swapop(G0l)[i, j] * Gl0[i+N, j+N] +
-        swapop(G0l)[i+N, j+N] * Gl0[i, j] + swapop(G0l)[i+N, j] * Gl0[i, j+N]
-    )
+    Gll[i+N, i] * G00[j+N, j] + Gll[i+N, i] * G00[j, j+N] + 
+    Gll[i, i+N] * G00[j+N, j] + Gll[i, i+N] * G00[j, j+N] + 
+    swapop(G0l)[i, j+N] * Gl0[i+N, j] + swapop(G0l)[i, j] * Gl0[i+N, j+N] +
+    swapop(G0l)[i+N, j+N] * Gl0[i, j] + swapop(G0l)[i+N, j] * Gl0[i, j+N]
 end
 
 """
@@ -372,7 +366,7 @@ Returns the per-site-pair x-spin density `⟨myᵢ(τ) myⱼ(0)⟩ - ⟨myᵢ(τ
 where `τ = 0` for the first signature.
 
 * Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
-* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+* Greens Iterators: `Greens`, `GreensAt`, `CombinedGreensIterator` or `TimeIntegral`
 """
 function sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     i, j = ij
@@ -386,13 +380,10 @@ function sdc_y_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
-        - Gll[i+N, i] * G00[j+N, j] + Gll[i+N, i] * G00[j, j+N] + 
-          Gll[i, i+N] * G00[j+N, j] - Gll[i, i+N] * G00[j, j+N] + 
-        - swapop(G0l)[i, j+N] * Gl0[i+N, j] + swapop(G0l)[i, j] * Gl0[i+N, j+N] +
-          swapop(G0l)[i+N, j+N] * Gl0[i, j] - swapop(G0l)[i+N, j] * Gl0[i, j+N]
-    )
+    - Gll[i+N, i] * G00[j+N, j] + Gll[i+N, i] * G00[j, j+N] + 
+      Gll[i, i+N] * G00[j+N, j] - Gll[i, i+N] * G00[j, j+N] + 
+    - swapop(G0l)[i, j+N] * Gl0[i+N, j] + swapop(G0l)[i, j] * Gl0[i+N, j+N] +
+      swapop(G0l)[i+N, j+N] * Gl0[i, j] - swapop(G0l)[i+N, j] * Gl0[i, j+N]
 end
 
 """
@@ -403,7 +394,7 @@ Returns the per-site-pair x-spin density `⟨mzᵢ(τ) mzⱼ(0)⟩ - ⟨mzᵢ(τ
 where `τ = 0` for the first signature.
 
 * Lattice Iterators: `OnSite`, `EachSitePair` or `EachSitePairByDistance`
-* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+* Greens Iterators: `Greens`, `GreensAt`, `CombinedGreensIterator` or `TimeIntegral`
 """
 function sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     i, j = ij
@@ -419,15 +410,12 @@ function sdc_z_kernel(mc, model, ij::NTuple{2}, packed_greens::NTuple{4}, flv)
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
-        swapop(Gll)[i, i] * swapop(G00)[j, j] - 
-        swapop(Gll)[i, i] * swapop(G00)[j+N, j+N] -
-        swapop(Gll)[i+N, i+N] * swapop(G00)[j, j] + 
-        swapop(Gll)[i+N, i+N] * swapop(G00)[j+N, j+N] + 
-        swapop(G0l)[i, j] * Gl0[i, j]     - swapop(G0l)[i, j+N] * Gl0[i, j+N] -
-        swapop(G0l)[i+N, j] * Gl0[i+N, j] + swapop(G0l)[i+N, j+N] * Gl0[i+N, j+N]
-    )
+    swapop(Gll)[i, i] * swapop(G00)[j, j] - 
+    swapop(Gll)[i, i] * swapop(G00)[j+N, j+N] -
+    swapop(Gll)[i+N, i+N] * swapop(G00)[j, j] + 
+    swapop(Gll)[i+N, i+N] * swapop(G00)[j+N, j+N] + 
+    swapop(G0l)[i, j] * Gl0[i, j]     - swapop(G0l)[i, j+N] * Gl0[i, j+N] -
+    swapop(G0l)[i+N, j] * Gl0[i+N, j] + swapop(G0l)[i+N, j+N] * Gl0[i+N, j+N]
 end
 
 
@@ -441,7 +429,7 @@ deferred version of the  pair field operator `Δᵢ = 0.5 ∑ₐ f(a) cᵢ↑ c�
 leaves the execution of the sum for after the simulation. 
 
 * Lattice Iterators: `EachLocalQuadByDistance` or `EachLocalQuadBySyncedDistance`
-* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+* Greens Iterators: `Greens`, `GreensAt`, `CombinedGreensIterator` or `TimeIntegral`
 """
 function pc_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix, flv)
     pc_kernel(mc, model, sites, (G, G, G, G), flv)
@@ -453,11 +441,7 @@ function pc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
     # Δ_v(src1, trg1)(τ) Δ_v^†(src2, trg2)(0)
     # G_{i, j}^{↑, ↑}(τ, 0) G_{i+d, j+d'}^{↓, ↓}(τ, 0) - 
     # G_{i, j+d'}^{↑, ↓}(τ, 0) G_{i+d, j}^{↓, ↑}(τ, 0)
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
-        Gl0[src1, src2] * Gl0[trg1+N, trg2+N] - 
-        Gl0[src1, trg2+N] * Gl0[trg1+N, src2]
-    )
+    Gl0[src1, src2] * Gl0[trg1+N, trg2+N] - Gl0[src1, trg2+N] * Gl0[trg1+N, src2]
 end
 
 
@@ -471,7 +455,7 @@ deferred version of the  pair field operator `Δᵢ = 0.5 ∑ₐ f(a) cᵢ↑ c�
 leaves the execution of the sum for after the simulation. 
 
 * Lattice Iterators: `EachLocalQuadByDistance` or `EachLocalQuadBySyncedDistance`
-* Greens Iterators: `Greens`, `GreensAt` or `CombinedGreensIterator`
+* Greens Iterators: `Greens`, `GreensAt`, `CombinedGreensIterator` or `TimeIntegral`
 """
 function pc_alt_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix, flv)
     pc_alt_kernel(mc, model, sites, (G, G, G, G), flv)
@@ -483,11 +467,8 @@ function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, fl
     # Δ_v^†(src1, trg1)(τ) Δ_v(src2, trg2)(0)
     # (I-G)_{j, i}^{↑, ↑}(0, τ) (I-G)_{j+d', i+d}^{↓, ↓}(0, τ) - 
     # (I-G)_{j, i+d}^{↑, ↓}(0, τ) G_{j+d', i}^{↓, ↑}(0, τ)
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
-        swapop(G0l)[trg1+N, trg2+N] * swapop(G0l)[src1, src2] -
-        G0l[src2, trg1+N] * G0l[trg2+N, src1]
-    )
+    swapop(G0l)[trg1+N, trg2+N] * swapop(G0l)[src1, src2] -
+    G0l[src2, trg1+N] * G0l[trg2+N, src1]
 end
 
 function pc_combined_kernel(mc, model, sites::NTuple{4}, G, flv)
@@ -505,13 +486,10 @@ function pc_ref_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, fl
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(model))
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
-        Gl0[src1+N, src2+N] * Gl0[trg1, trg2] - 
-        Gl0[src1+N, trg2] * Gl0[trg1, src2+N] +
-        (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2+N, src1+N]) -
-        (I[src2, trg1] - G0l[src2+N, trg1]) * (I[trg2, src1] - G0l[trg2, src1+N])
-    )
+    Gl0[src1+N, src2+N] * Gl0[trg1, trg2] - 
+    Gl0[src1+N, trg2] * Gl0[trg1, src2+N] +
+    (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2+N, src1+N]) -
+    (I[src2, trg1] - G0l[src2+N, trg1]) * (I[trg2, src1] - G0l[trg2, src1+N])
 end
 
 
@@ -545,8 +523,7 @@ function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
         )
     end
 
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * output
+    output
 end
 
 
@@ -599,11 +576,7 @@ function cdc_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
     i, j = ij
     G00, G0l, Gl0, Gll = pg
     # spin up and down symmetric, so (i+N, i+N) = (i, i); (i+N, i) drops
-    # TODO - count start and end value with factor 1/2
-    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
-        2 * swapop(Gll)[i, i] * swapop(G00)[j, j] + 
-        swapop(G0l)[i, j] * Gl0[i, j]
-    )
+    4 * swapop(Gll)[i, i] * swapop(G00)[j, j] + 2 * swapop(G0l)[i, j] * Gl0[i, j]
 end
 
 mx_kernel(mc, model, i, G::GreensMatrix, ::Val{1}) = 0.0
@@ -625,24 +598,15 @@ end
 
 function sdc_x_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
     i, j = ij
-    Gll = pg[4]
-    # TODO - count start and end value with factor 1/2
-    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.slices)) * 
-        swapop(pg[2])[i, j] * pg[3][i, j]
+    2 * swapop(pg[2])[i, j] * pg[3][i, j]
 end
 function sdc_y_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
     i, j = ij
-    Gll = pg[4]
-    # TODO - count start and end value with factor 1/2
-    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.slices)) * 
-        swapop(pg[2])[i, j] * pg[3][i, j]
+    2 * swapop(pg[2])[i, j] * pg[3][i, j]
 end
 function sdc_z_kernel(mc, model, ij::NTuple{2}, pg::NTuple{4}, ::Val{1})
     i, j = ij
-    Gll = pg[4]
-    # TODO - count start and end value with factor 1/2
-    (2.0 - (Gll.l == 0 || Gll.l == mc.parameters.slices)) * 
-        swapop(pg[2])[i, j] * pg[3][i, j]
+    2 * swapop(pg[2])[i, j] * pg[3][i, j]
 end
 
 function pc_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix, ::Val{1})
@@ -651,25 +615,18 @@ function pc_kernel(mc, model, sites::NTuple{4}, G::GreensMatrix, ::Val{1})
 end
 function pc_kernel(mc, model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
     src1, trg1, src2, trg2 = sites
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * 
     pg[3][src1, src2] * pg[3][trg1, trg2]
 end
 function pc_alt_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, ::Val{1})
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) *
-        swapop(G0l)[trg1, trg2] * swapop(G0l)[src1, src2]
+    swapop(G0l)[trg1, trg2] * swapop(G0l)[src1, src2]
 end
 function pc_ref_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, ::Val{1})
     src1, trg1, src2, trg2 = sites
 	G00, G0l, Gl0, Gll = packed_greens
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * (
-        Gl0[src1, src2] * Gl0[trg1, trg2] +
-        (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2, src1])
-    )
+    Gl0[src1, src2] * Gl0[trg1, trg2] +
+    (I[trg2, trg1] - G0l[trg2, trg1]) * (I[src2, src1] - G0l[src2, src1])
 end
 
 function cc_kernel(mc, model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
@@ -689,8 +646,7 @@ function cc_kernel(mc, model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
         - 2.0 * T[s2, t2] * T[s1, t1] * swapop(G0l)[s2, t1] * Gl0[t2, s1] 
     )
 
-    # TODO - count start and end value with factor 1/2
-    (1.0 - 0.5 * (Gll.l == 0 || Gll.l == mc.parameters.slices)) * output
+    output
 end
 
 @inline function nonintE_kernel(mc, model, G::GreensMatrix, flv::Val{1})

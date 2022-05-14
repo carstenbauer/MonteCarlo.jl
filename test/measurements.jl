@@ -212,7 +212,7 @@ end
                 @test m.greens_iterator == Greens()
             else
                 m = charge_density_susceptibility(mc, m1)
-                @test m.greens_iterator == CombinedGreensIterator(mc)
+                @test m.greens_iterator == TimeIntegral(mc)
             end
             @test m isa MonteCarlo.DQMCMeasurement
             @test m.lattice_iterator == EachSitePairByDistance()
@@ -227,7 +227,7 @@ end
                     @test m.greens_iterator == Greens()
                 else
                     m = spin_density_susceptibility(mc, m1, dir)
-                    @test m.greens_iterator == CombinedGreensIterator(mc)
+                    @test m.greens_iterator == TimeIntegral(mc)
                 end
                 @test m isa MonteCarlo.DQMCMeasurement
                 @test m.lattice_iterator == EachSitePairByDistance()
@@ -242,7 +242,7 @@ end
                 @test m.greens_iterator == Greens()
             else
                 m = pairing_susceptibility(mc, m1)
-                @test m.greens_iterator == CombinedGreensIterator(mc)
+                @test m.greens_iterator == TimeIntegral(mc)
             end
             @test m isa MonteCarlo.DQMCMeasurement
             @test m.lattice_iterator == EachLocalQuadByDistance(1:5)
@@ -265,7 +265,7 @@ end
         # Current Current susceptibility
         m = current_current_susceptibility(mc, m1, lattice_iterator = EachLocalQuadBySyncedDistance(2:5))
         @test m isa MonteCarlo.DQMCMeasurement
-        @test m.greens_iterator == CombinedGreensIterator(mc)
+        @test m.greens_iterator == TimeIntegral(mc)
         @test m.lattice_iterator == EachLocalQuadBySyncedDistance(2:5)
         @test m.kernel == MonteCarlo.cc_kernel
         @test m.observable isa LogBinner{Matrix{Float64}}

@@ -97,6 +97,35 @@ Returns a default capacity based in the number of sweeps and the measure rate.
 """
 _default_capacity(mc::DQMC) = 2 * ceil(Int, mc.parameters.sweeps / mc.parameters.measure_rate)
 
+# TODO
+# Saving the kernel function as a symbol is kinda risky because the function
+# definition is not guaranteed to be the same
+# though maybe that's a good thing - changing function definitions doesn't
+# break stuff this way
+function _save(file::JLDFile, m::DQMCMeasurement, key::String)
+    write(file, "$key/VERSION", 1)
+    write(file, "$key/tag", "DQMCMeasurement")
+    write(file, "$key/GI", m.greens_iterator)
+    write(file, "$key/LI", m.lattice_iterator)
+    # maybe add module for eval?
+    write(file, "$key/kernel", Symbol(m.kernel))
+    write(file, "$key/obs", m.observable)
+    write(file, "$key/temp", m.temp)
+end
+
+function _load(data, ::Val{:DQMCMeasurement})
+    temp = haskey(data, "temp") ? data["temp"] : data["output"]
+    
+    kernel = try
+        eval(data["kernel"])
+    catch e
+        @warn "Failed to load kernel in module MonteCarlo." exception=e
+        missing_kernel
+    end
+    DQMCMeasurement(data["GI"], data["LI"], kernel, data["obs"], temp)
+end
+
+to_tag(::Type{<: DQMCMeasurement}) = Val(:DQMCMeasurement)
 
 
 ################################################################################
@@ -169,27 +198,6 @@ function _binner_zero_element(mc, model, li::ApplySymmetries{LI, N}, eltype) whe
 end
 
 
-
-
-# Once we change greens iterators to follow the "template -> iter" structure
-# this will be compat only
-# Some type piracy to make things easier
-Base.Nothing(::DQMC, ::Model) = nothing
-
-# To identify the requirement of equal-time Greens functions
-struct Greens <: AbstractGreensIterator end
-Greens(::DQMC, ::Model)= Greens()
-
-struct GreensAt <: AbstractUnequalTimeGreensIterator
-    k::Int
-    l::Int
-end
-GreensAt(l::Integer) = GreensAt(l, l)
-GreensAt(k::Integer, l::Integer) = GreensAt(k, l)
-# GreensAt{k, l}(::DQMC, ::Model) where {k, l} = GreensAt(k, l)
-Base.:(==)(a::GreensAt, b::GreensAt) = (a.k == b.k) && (a.l == b.l)
-
-
 requires(::AbstractMeasurement) = (Nothing, Nothing)
 requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
 
@@ -242,35 +250,59 @@ end
 lattice_iterator(m::DQMCMeasurement, mc, model) = m.lattice_iterator(mc, model)
 
 
-# TODO
-# Saving the kernel function as a symbol is kinda risky because the function
-# definition is not guaranteed to be the same
-# though maybe that's a good thing - changing function definitions doesn't
-# break stuff this way
-function _save(file::JLDFile, m::DQMCMeasurement, key::String)
-    write(file, "$key/VERSION", 1)
-    write(file, "$key/tag", "DQMCMeasurement")
-    write(file, "$key/GI", m.greens_iterator)
-    write(file, "$key/LI", m.lattice_iterator)
-    # maybe add module for eval?
-    write(file, "$key/kernel", Symbol(m.kernel))
-    write(file, "$key/obs", m.observable)
-    write(file, "$key/temp", m.temp)
-end
 
-function _load(data, ::Val{:DQMCMeasurement})
-    temp = haskey(data, "temp") ? data["temp"] : data["output"]
-    
-    kernel = try
-        eval(data["kernel"])
-    catch e
-        @warn "Failed to load kernel in module MonteCarlo." exception=e
-        missing_kernel
+################################################################################
+### Iterators
+################################################################################
+
+
+
+# Once we change greens iterators to follow the "template -> iter" structure
+# this will be compat only
+# Some type piracy to make things easier
+Base.Nothing(::DQMC, ::Model) = nothing
+
+# To identify the requirement of equal-time Greens functions
+struct Greens <: AbstractGreensIterator end
+Greens(::DQMC, ::Model)= Greens()
+
+struct GreensAt <: AbstractUnequalTimeGreensIterator
+    k::Int
+    l::Int
+end
+GreensAt(l::Integer) = GreensAt(l, l)
+GreensAt(k::Integer, l::Integer) = GreensAt(k, l)
+# GreensAt{k, l}(::DQMC, ::Model) where {k, l} = GreensAt(k, l)
+Base.:(==)(a::GreensAt, b::GreensAt) = (a.k == b.k) && (a.l == b.l)
+
+
+struct TimeIntegral <: AbstractUnequalTimeGreensIterator
+    recalculate::Int
+    TimeIntegral(recalculate::Int = -1) =  new(recalculate)
+end
+TimeIntegral(::DQMC, recalculate::Int = -1) = TimeIntegral(recalculate)  
+TimeIntegral(::DQMC, ::Model, recalculate::Int = -1) = TimeIntegral(recalculate)  
+# There is no point differentiating based on recalculate
+Base.:(==)(a::TimeIntegral, b::TimeIntegral) = true
+
+struct _TimeIntegral{T}
+    iter::_CombinedGreensIterator{T}
+end
+function init(mc, ti::TimeIntegral)
+    if ti.recalculate == -1
+        _TimeIntegral(init(mc, CombinedGreensIterator(
+            mc, start = 0, stop = mc.parameters.slices
+        )))
+    else
+        _TimeIntegral(init(mc, CombinedGreensIterator(
+            mc, start = 0, stop = mc.parameters.slices, recalculate = ti.recalculate
+        )))
     end
-    DQMCMeasurement(data["GI"], data["LI"], kernel, data["obs"], temp)
 end
+Base.iterate(iter::_TimeIntegral) = iterate(iter.iter)
+Base.iterate(iter::_TimeIntegral, i) = iterate(iter.iter, i)
+Base.length(iter::_TimeIntegral) = length(iter.iter)
 
-to_tag(::Type{<: DQMCMeasurement}) = Val(:DQMCMeasurement)
 
 
 
@@ -313,7 +345,27 @@ end
     nothing
 end
 
-@bm function apply!(iter::CombinedGreensIterator, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+@bm function apply!(iter::TimeIntegral, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+    for (lattice_iterator, measurement) in combined
+        prepare!(lattice_iterator, model, measurement)
+    end
+
+    G00 = greens!(mc)
+    M = nslices(mc)
+    for (i, (G0l, Gl0, Gll)) in enumerate(init(mc, iter))
+        weight = ifelse(i in (1, M), 0.5, 1.0) * mc.parameters.delta_tau
+        for (lattice_iterator, measurement) in combined
+            measure!(lattice_iterator, measurement, mc, model, sweep, (G00, G0l, Gl0, Gll), weight)
+        end
+    end
+
+    for (lattice_iterator, measurement) in combined
+        finish!(lattice_iterator, model, measurement)
+    end
+    nothing
+end
+
+@bm function apply!(iter::AbstractGreensIterator, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
     for (lattice_iterator, measurement) in combined
         prepare!(lattice_iterator, model, measurement)
     end
@@ -326,24 +378,7 @@ end
     end
 
     for (lattice_iterator, measurement) in combined
-        finish!(lattice_iterator, model, measurement, mc.parameters.delta_tau)
-    end
-    nothing
-end
-
-@bm function apply!(iter::AbstractGreensIterator, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
-    for (lattice_iterator, measurement) in combined
-        prepare!(lattice_iterator, model, measurement)
-    end
-
-    for packed_greens in init(mc, iter)
-        for (lattice_iterator, measurement) in combined
-            measure!(lattice_iterator, measurement, mc, model, sweep, packed_greens)
-        end
-    end
-
-    for (lattice_iterator, measurement) in combined
-        finish!(lattice_iterator, model, measurement, 1.0)
+        finish!(lattice_iterator, model, measurement)
     end
     nothing
 end
@@ -356,9 +391,9 @@ end
 
 
 
-@bm function measure!(lattice_iterator, measurement, mc::DQMC, model, sweep, packed_greens)
+@bm function measure!(lattice_iterator, measurement, mc::DQMC, model, sweep, packed_greens, weight = 1.0)
     # ignore sweep
-    apply!(measurement.temp, lattice_iterator, measurement, mc, model, packed_greens)
+    apply!(measurement.temp, lattice_iterator, measurement, mc, model, packed_greens, weight)
     nothing
 end
 
@@ -377,59 +412,59 @@ end
 
 
 # Call kernel for each site (linear index)
-@bm function apply!(temp::Array, iter::DirectLatticeIterator, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::DirectLatticeIterator, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
     flv = Val(nflavors(mc))
     for i in iter
-        temp[i] += measurement.kernel(mc, model, i, packed_greens, flv)
+        temp[i] += weight * measurement.kernel(mc, model, i, packed_greens, flv)
     end
     nothing
 end
 
 # Call kernel for each pair (src, trg) (Nsties² total)
-@bm function apply!(temp::Array, iter::EachSitePair, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::EachSitePair, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
     flv = Val(nflavors(mc))
     for (i, j) in iter
-        temp[i, j] += measurement.kernel(mc, model, (i, j), packed_greens, flv)
+        temp[i, j] += weight * measurement.kernel(mc, model, (i, j), packed_greens, flv)
     end
     nothing
 end
 
 # Call kernel for each pair (site, site) (i.e. on-site) 
-@bm function apply!(temp::Array, iter::_OnSite, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::_OnSite, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
     flv = Val(nflavors(mc))
     for (i, j) in iter
-        temp[i] += measurement.kernel(mc, model, (i, j), packed_greens, flv)
+        temp[i] += weight * measurement.kernel(mc, model, (i, j), packed_greens, flv)
     end
     nothing
 end
 
-@bm function apply!(temp::Array, iter::DeferredLatticeIterator, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::DeferredLatticeIterator, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
     flv = Val(nflavors(mc))
     @inbounds for idxs in iter
-        temp[first(idxs)] += measurement.kernel(mc, model, idxs[2:end], packed_greens, flv)
+        temp[first(idxs)] += weight * measurement.kernel(mc, model, idxs[2:end], packed_greens, flv)
     end
     nothing
 end
 
 
 # Sums
-@bm function apply!(temp::Array, iter::_Sum{<: DirectLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::_Sum{<: DirectLatticeIterator}, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
     flv = Val(nflavors(mc))
     @inbounds for idxs in iter
-        temp[1] += measurement.kernel(mc, model, idxs, packed_greens, flv)
+        temp[1] += weight * measurement.kernel(mc, model, idxs, packed_greens, flv)
     end
     nothing
 end
-@bm function apply!(temp::Array, iter::_Sum{<: DeferredLatticeIterator}, measurement, mc::DQMC, model, packed_greens)
+@bm function apply!(temp::Array, iter::_Sum{<: DeferredLatticeIterator}, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
     flv = Val(nflavors(mc))
     @inbounds for idxs in iter
-        temp[1] += measurement.kernel(mc, model, idxs[2:end], packed_greens, flv)
+        temp[1] += weight * measurement.kernel(mc, model, idxs[2:end], packed_greens, flv)
     end
     nothing
 end
 
-@inline function apply!(temp::Array, s::LatticeIterationWrapper, m, mc, model, pg)
-    apply!(temp, s.iter, m, mc, model, pg)
+@inline function apply!(temp::Array, s::LatticeIterationWrapper, m, mc, model, pg, weight = 1.0)
+    apply!(temp, s.iter, m, mc, model, pg, weight)
 end
 
 
@@ -446,19 +481,19 @@ end
 @inline prepare!(s::_Sum, args...) = prepare!(s.iter, args...)
 
 @inline finish!(::Nothing, args...) = nothing # handled in measure!
-@inline function finish!(li, model, m, factor=1.0)
-    finalize_temp!(li, model, m, factor)
+@inline function finish!(li, model, m)
+    finalize_temp!(li, model, m)
     commit!(li, m)
 end
 
-@inline function finalize_temp!(::AbstractLatticeIterator, model, m, factor)
-    m.temp .*= factor
+@inline function finalize_temp!(::AbstractLatticeIterator, model, m)
+    nothing
 end
-@inline function finalize_temp!(::DeferredLatticeIterator, model, m, factor)
-    m.temp .*= factor / length(lattice(model))
+@inline function finalize_temp!(::DeferredLatticeIterator, model, m)
+    m.temp ./= length(lattice(model))
 end
-@inline function finalize_temp!(s::LatticeIterationWrapper, model, m , factor)
-    finalize_temp!(s.iter, model, m, factor)
+@inline function finalize_temp!(s::LatticeIterationWrapper, model, m)
+    finalize_temp!(s.iter, model, m)
 end
 
 @inline commit!(::AbstractLatticeIterator, m) = push!(m.observable, m.temp)

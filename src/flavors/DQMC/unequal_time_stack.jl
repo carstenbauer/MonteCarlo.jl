@@ -887,7 +887,6 @@ function CombinedGreensIterator(
         CombinedGreensIterator(recalculate, start, stop)
     end
 end
-init!(it::CombinedGreensIterator) = error("Woops")
 Base.length(it::CombinedGreensIterator) = it.stop - it.start + 1 # both included
 function Base.:(==)(a::CombinedGreensIterator, b::CombinedGreensIterator)
     (a.recalculate == b.recalculate) && (a.start == b.start) && (a.stop == b.stop)
