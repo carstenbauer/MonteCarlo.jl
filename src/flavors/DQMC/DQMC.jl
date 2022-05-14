@@ -115,6 +115,78 @@ function init!(mc::DQMC)
 end
 @deprecate resume_init!(mc::DQMC) init!(mc) false
 
+function initialize_run(mc; 
+        verbose::Bool = true, ignore = tuple(),
+        sweeps::Int = mc.parameters.sweeps,
+        thermalization = mc.parameters.thermalization,
+    )
+
+    # Update number of sweeps
+    if (mc.parameters.thermalization != thermalization) || (mc.parameters.sweeps != sweeps)
+        verbose && println("Rebuilding DQMCParameters with new number of sweeps.")
+        mc.parameters = DQMCParameters(mc.parameters, thermalization = thermalization, sweeps = sweeps)
+    end
+
+    # Generate measurement groups
+    init!(mc)
+    th_groups = generate_groups(
+        mc, mc.model, 
+        [mc.measurements[k] for k in keys(mc.thermalization_measurements) if !(k in ignore)]
+    )
+    groups = generate_groups(
+        mc, mc.model, 
+        [mc.measurements[k] for k in keys(mc.measurements) if !(k in ignore)]
+    )
+
+    # fresh stack
+    verbose && println("Preparing Green's function stack")
+    reverse_build_stack(mc, mc.stack)
+    propagate(mc)
+
+    # Check assumptions for global updates
+    if !all(update isa AbstractLocalUpdate for update in updates(mc.scheduler))
+        try
+            copyto!(mc.stack.tmp2, mc.stack.greens)
+            udt_AVX_pivot!(mc.stack.tmp1, mc.stack.tempvf, mc.stack.tmp2, mc.stack.pivot, mc.stack.tempv)
+            ud = det(Matrix(mc.stack.tmp1))
+            td = det(Matrix(mc.stack.tmp2))
+            if !(0.9999999 <= abs(td) <= 1.0000001) || !(0.9999999 <= abs(ud) <= 1.0000001)
+                @error("Assumptions for global updates broken! ($td, $ud should be 1)")
+            end
+        catch e
+            @warn "Could not verify global update" exception = e
+        end
+    end
+
+    return th_groups, groups
+end
+
+function sweep_once!(mc, th_groups, groups, thermalization, t0 = time())
+    # Perform whatever update is scheduled next
+    update(mc.scheduler, mc, mc.model)
+
+    # Trigger measurements
+    if mc.last_sweep ≤ thermalization
+        if iszero(mc.last_sweep % mc.parameters.measure_rate)
+            for (requirement, group) in th_groups
+                apply!(requirement, group, mc, mc.model, mc.last_sweep)
+            end
+        end
+        if mc.last_sweep == thermalization
+            mc.analysis.th_runtime += time() - t0
+            t0 = time()
+        end
+    else
+        push!(mc.recorder, field(mc), mc.last_sweep)
+        if iszero(mc.last_sweep % mc.parameters.measure_rate)
+            for (requirement, group) in groups
+                apply!(requirement, group, mc, mc.model, mc.last_sweep)
+            end
+        end
+    end
+
+    return t0
+end
 
 """
     run!(mc::DQMC[; kwargs...])
@@ -155,49 +227,16 @@ See also: [`resume!`](@ref)
         fail_filename = "failed_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld2"
     )
 
-    # Update number of sweeps
-    if (mc.parameters.thermalization != thermalization) || (mc.parameters.sweeps != sweeps)
-        verbose && println("Rebuilding DQMCParameters with new number of sweeps.")
-        mc.parameters = DQMCParameters(mc.parameters, thermalization = thermalization, sweeps = sweeps)
-    end
-    total_sweeps = sweeps + thermalization
-
-    # Generate measurement groups
-    init!(mc)
-    th_groups = generate_groups(
-        mc, mc.model, 
-        [mc.measurements[k] for k in keys(mc.thermalization_measurements) if !(k in ignore)]
-    )
-    groups = generate_groups(
-        mc, mc.model, 
-        [mc.measurements[k] for k in keys(mc.measurements) if !(k in ignore)]
-    )
-
     start_time = now()
     last_checkpoint = now()
     max_sweep_duration = 0.0
     verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
-    # fresh stack
-    verbose && println("Preparing Green's function stack")
-    reverse_build_stack(mc, mc.stack)
-    propagate(mc)
-
-    # Check assumptions for global updates
-    if !all(update isa AbstractLocalUpdate for update in updates(mc.scheduler))
-        try
-            copyto!(mc.stack.tmp2, mc.stack.greens)
-            udt_AVX_pivot!(mc.stack.tmp1, mc.stack.tempvf, mc.stack.tmp2, mc.stack.pivot, mc.stack.tempv)
-            ud = det(Matrix(mc.stack.tmp1))
-            td = det(Matrix(mc.stack.tmp2))
-            if !(0.9999999 <= abs(td) <= 1.0000001) || !(0.9999999 <= abs(ud) <= 1.0000001)
-                @error("Assumptions for global updates broken! ($td, $ud should be 1)")
-            end
-        catch e
-            @warn "Could not verify global update" exception = e
-        end
-    end
-
+    th_groups, groups = initialize_run(mc; 
+        verbose = verbose, ignore = ignore,
+        thermalization = thermalization, sweeps = sweeps
+    )
+    total_sweeps = sweeps + thermalization
     min_sweeps = round(Int, 1 / min_update_rate)
 
     _time = time() # for step estimations
@@ -208,28 +247,7 @@ See also: [`resume!`](@ref)
     while mc.last_sweep < total_sweeps
         verbose && (mc.last_sweep == thermalization + 1) && println("\n\nMeasurement stage - ", sweeps)
         
-        # Perform whatever update is scheduled next
-        update(mc.scheduler, mc, mc.model)
-
-        # Trigger measurements
-        if mc.last_sweep ≤ thermalization
-            if iszero(mc.last_sweep % mc.parameters.measure_rate)
-                for (requirement, group) in th_groups
-                    apply!(requirement, group, mc, mc.model, mc.last_sweep)
-                end
-            end
-            if mc.last_sweep == thermalization
-                mc.analysis.th_runtime += time() - t0
-                t0 = time()
-            end
-        else
-            push!(mc.recorder, field(mc), mc.last_sweep)
-            if iszero(mc.last_sweep % mc.parameters.measure_rate)
-                for (requirement, group) in groups
-                    apply!(requirement, group, mc, mc.model, mc.last_sweep)
-                end
-            end
-        end
+        t0 = sweep_once!(mc, th_groups, groups, thermalization, t0)
 
         if mc.last_sweep > min_sweeps
             acc = max_acceptance(mc.scheduler)
