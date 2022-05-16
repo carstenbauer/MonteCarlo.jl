@@ -48,7 +48,9 @@ abstract type AbstractLocalUpdate <: AbstractUpdate end
 init!(mc, update::AbstractUpdate) = nothing
 is_full_sweep(update::AbstractUpdate) = true
 requires_temp_conf(update::AbstractUpdate) = false
-
+function _save(file::FileLike, name::String, update::AbstractUpdate)
+    write(file, "$name/tag", nameof(typeof(update)))
+end
 
 
 """
@@ -65,6 +67,7 @@ function update(u::NoUpdate, args...)
 end
 name(::NoUpdate) = "NoUpdate"
 is_full_sweep(update::NoUpdate) = false
+_load(f::FileLike, ::Val{:NoUpdate}) = NoUpdate()
 
 
 
@@ -76,6 +79,8 @@ A placeholder for adaptive updates in the `AdaptiveScheduler`.
 """
 struct Adaptive <: AbstractUpdate end
 name(::Adaptive) = "Adaptive"
+_load(f::FileLike, ::Val{:Adaptive}) = Adaptive()
+
 
 
 
@@ -105,6 +110,18 @@ function Base.show(io::IO, u::AcceptanceStatistics)
 end
 init!(mc, update::AcceptanceStatistics) = init!(mc, update.update)
 is_full_sweep(update::AcceptanceStatistics) = is_full_sweep(update.update)
+function _save(file::FileLike, name::String, update::AcceptanceStatistics)
+    write(file, "$name/tag", nameof(typeof(update)))
+    write(file, "$name/accepted", update.accepted)
+    write(file, "$name/total", update.total)
+    _save(file, "$name/update", update.update)
+    return
+end
+function _load(f::FileLike, ::Val{:AcceptanceStatistics})
+    AcceptanceStatistics(
+        f["accepted"], f["total"], _load(f["update"], Val(f["update/tag"]))
+    )
+end
 
 
 
@@ -224,12 +241,13 @@ end
 function _save(file::FileLike, entryname::String, s::SimpleScheduler)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "SimpleScheduler")
-    write(file, entryname * "/sequence", s.sequence)
+    _save_collection(file, "$entryname/sequence", s.sequence)
     write(file, entryname * "/idx", s.idx)
     nothing
 end
 function _load(data, ::Val{:SimpleScheduler})
-    SimpleScheduler(data["sequence"], data["idx"])
+    sequence = _load_collection(data["sequence"])
+    SimpleScheduler(Tuple(sequence), data["idx"])
 end
 
 to_tag(::Type{<: SimpleScheduler}) = Val(:SimpleScheduler)
@@ -437,9 +455,9 @@ end
 function _save(file::FileLike, entryname::String, s::AdaptiveScheduler)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "AdaptiveScheduler")
-    write(file, entryname * "/sequence", s.sequence)
+    _save_collection(file, "$entryname/sequence", s.sequence)
     write(file, entryname * "/sampling_rates", s.sampling_rates)
-    write(file, entryname * "/pool", s.adaptive_pool)
+    _save_collection(file, "entryname/pool", s.adaptive_pool)
     write(file, entryname * "/minimum_sampling_rate", s.minimum_sampling_rate)
     write(file, entryname * "/grace_period", s.grace_period)
     write(file, entryname * "/adaptive_rate", s.adaptive_rate)
@@ -447,7 +465,9 @@ function _save(file::FileLike, entryname::String, s::AdaptiveScheduler)
     nothing
 end
 function _load(data, ::Val{:AdaptiveScheduler})
-    s = AdaptiveScheduler(data["sequence"], data["pool"])
+    sequence = _load_collection(data["sequence"])
+    pool = _load_collection(data["pool"])
+    s = AdaptiveScheduler(Tuple(sequence), Tuple(pool))
     s.sampling_rates = data["sampling_rates"]
     s.minimum_sampling_rate = data["minimum_sampling_rate"]
     s.grace_period = data["grace_period"]

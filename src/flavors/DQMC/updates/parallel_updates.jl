@@ -116,6 +116,12 @@ end
 ReplicaExchange(target) = ReplicaExchange(target, 600.0)
 ReplicaExchange(mc, model, target, timeout=600.0) = ReplicaExchange(target, timeout)
 name(::ReplicaExchange) = "ReplicaExchange"
+function _save(f::FileLike, name::String, update::ReplicaExchange)
+    write(f, "$name/tag", :ReplicaExchange)
+    write(f, "$name/target", update.target)
+    write(f, "$name/timeout", update.timeout)
+end
+_load(f::FileLike, ::Val{:ReplicaExchange}) = ReplicaExchange(f["target"], f["timeout"])
 
 @bm function update(u::ReplicaExchange, mc, model, field)
     tc = temp_conf(field)
@@ -175,6 +181,11 @@ ReplicaPull() = ReplicaPull(1)
 ReplicaPull(mc::MonteCarloFlavor, model::Model) = ReplicaPull(1)
 name(::ReplicaPull) = "ReplicaPull"
 Base.:(==)(a::ReplicaPull, b::ReplicaPull) = a.cycle_idx == b.cycle_idx
+function _save(f::FileLike, name::String, update::ReplicaPull)
+    write(f, "$name/tag", :ReplicaPull)
+    write(f, "$name/idx", update.cycle_idx)
+end
+_load(f::FileLike, ::Val{:ReplicaPull}) = ReplicaPull(f["idx"])
 
 @bm function update(u::ReplicaPull, mc, model, field)
     tc = temp_conf(field)

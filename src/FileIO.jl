@@ -242,3 +242,23 @@ function load_rng!(data; rng = _GLOBAL_RNG, entryname::String="RNG")
 end
 
 
+# Convenience for saving and loading a collection of custom types
+function _save_collection(file::FileLike, name::String, collection)
+    N = length(collection)
+    for i in 1:N
+        _save(file, "$name/$i", collection[i])
+    end
+    write(file, "$name/N", N)
+    return
+end
+
+function _load_collection(file::FileLike, T = Any)
+    N = file["N"]
+    output = Vector{T}(undef, N)
+    for i in 1:N
+        output[i] = _load(file["$i"], to_tag(file["$i"]))
+    end
+    return output
+end
+
+

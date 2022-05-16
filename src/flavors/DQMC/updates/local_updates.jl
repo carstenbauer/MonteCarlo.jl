@@ -81,3 +81,4 @@ LocalSweep(mc, model, N=1) = N == 1 ? LocalSweep() : LocalSweep(N)
 LocalSweep(N) = [LocalSweep() for _ in 1:N]
 @bm update(::LocalSweep, mc::DQMC, model, field) = local_sweep(mc, model) / 2length(field)
 name(::LocalSweep) = "LocalSweep"
+_load(::FileLike, ::Val{:LocalSweep}) = LocalSweep()
