@@ -140,5 +140,3 @@ include("measurements/generic.jl")
 include("measurements/measurements.jl")
 # Superfluid stiffness stuff
 include("measurements/superfluid_stiffness.jl")
-# Contains some post processing tools
-include("measurements/extensions.jl")

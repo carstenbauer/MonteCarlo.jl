@@ -107,106 +107,51 @@ to_tag(::Type{<: AbstractLattice}) = Val(:Generic)
 to_tag(::Type{<: Model}) = Val(:Generic)
 
 
-
-# get all files in directory recursively
-function to_files(path_or_filename)
-    if isfile(path_or_filename)
-        return [path_or_filename]
-    elseif isdir(path_or_filename)
-        return vcat(to_files.(readdir(path_or_filename, join=true))...)
-    else
-        error("$path_or_filename is neither a valid directory nor file path.")
-    end
-end
-
-function load(
-        paths_or_filenames::Vector{String}; 
-        prefix = "", postfix = r"jld2", simplify = false, silent = false,
-        parallel = true, on_error = e -> @error(exception = e)
-    )
-    # Normalize input to filepaths (recursively)
-    files = String[]
-    for path_or_file in paths_or_filenames
-        _files = to_files(path_or_file)
-        filter!(_files) do filepath
-            _, filename = splitdir(filepath)
-            startswith(filename, prefix) && endswith(filename, postfix)
-        end
-        append!(files, _files)
-    end
-
-    println(
-        "Loading $(length(files)) Simulations", 
-        parallel && nprocs() > 1 ? " on $(nworkers()) workers" : ""
-    )
-    flush(stdout)
-
-    # Might be worth shuffling files for more equal load times?
-    mcs = ProgressMeter.@showprogress pmap(files, distributed = parallel, on_error = on_error) do f
-        mc = load(f)
-        simplify && simplify_measurements!(mc)
-        mc
-    end
-
-    return mcs
-end
-
-
 """
     load(filename[, groups...])
-    load(path_or_collection; prefix = "", postfix = "jld|jld2", simplify = false)
 
-Loads one or many MonteCarlo simulations from the given file path, directory or 
-`Vector` thereof.
-
-If the given argument is directory or `Vector` of directories and file paths all
-the directories will be expanded recursively. You can use `prefix` and `postfix`
-to filter valid filenames. (These are only applied to the filename, not the 
-full path.)  If `simplify = true` a conversion of measurements to `ValueWrapper` 
-will be attempted. (This is useful to reduce the memory requirements.)
+Loads a MonteCarlo simulation from the given file path. If `groups` are given, 
+loads a specific part of the file.
 """
-function load(filename::String, groups::String...; kwargs...)
-    if isfile(filename)
-        output = try
-            @assert endswith(filename, "jld2")
-            data = JLD2.jldopen(filename, "r")
+function load(filename::String, groups::String...)
+    @assert isfile(filename) "File must exist"
+    @assert endswith(filename, "jld2") "File must be a JLD2 file"
 
-            if data["VERSION"] == 1
-                _git = (
-                    branch = "master", 
-                    commit = "a4dbd321f551e6adc079370b033555ba9a2f75e5", 
-                    dirty = false
-                )
-            else
-                _git = data["git"]
-            end
+    output = try
+        data = JLD2.jldopen(filename, "r")
 
-            output = try 
-                if haskey(data, "MC") && !("MC" in groups)
-                    _load(data, "MC", groups...) else _load(data, groups...)
-                end
-            catch e
-                git.branch != _git.branch && @info("Git branch missmatch $(git.branch) ≠ $(_git.branch)")
-                git.commit != _git.commit && @info("Git commit missmatch $(git.commit) ≠ $(_git.commit)")
-                git.dirty && @info("Repository is currently dirty.")
-                _git.dirty && @info("Repository was dirty when the file was saved.")
-                rethrow()
-            finally
-                endswith(filename, "jld2") && close(data)
-            end
-            output
-        catch e
-            println("Error loading file $filename:")
-            rethrow()
+        if data["VERSION"] == 1
+            _git = (
+                branch = "master", 
+                commit = "a4dbd321f551e6adc079370b033555ba9a2f75e5", 
+                dirty = false
+            )
+        else
+            _git = data["git"]
         end
-        
-        return output
-    elseif isdir(filename)
-        return load([filename]; kwargs...)
-    else
-        error("$filename is not a valid file or directory.")
+
+        output = try 
+            if haskey(data, "MC") && !("MC" in groups)
+                _load(data, "MC", groups...) else _load(data, groups...)
+            end
+        catch e
+            git.branch != _git.branch && @info("Git branch missmatch $(git.branch) ≠ $(_git.branch)")
+            git.commit != _git.commit && @info("Git commit missmatch $(git.commit) ≠ $(_git.commit)")
+            git.dirty && @info("Repository is currently dirty.")
+            _git.dirty && @info("Repository was dirty when the file was saved.")
+            rethrow()
+        finally
+            endswith(filename, "jld2") && close(data)
+        end
+        output
+    catch e
+        println("Error loading file $filename:")
+        rethrow()
     end
+        
+    return output
 end
+
 _load(data, g1::String, g2::String, gs::String...) = _load(data[g1], g2, gs...)
 function _load(data, g::String)
     if !(data["VERSION"] in (1, 2))

@@ -7,7 +7,6 @@ using Reexport
 using Parameters, Requires
 using TimerOutputs, StructArrays
 using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random, Distributed
-import ProgressMeter
 
 if get(ENV, "MONTECARLO_USE_LOOPVECTORIZATION", "true") == "true"
     import LoopVectorization
@@ -122,7 +121,6 @@ function __init__()
         include("flavors/DQMC/updates/mpi_updates.jl")
         export MPIReplicaExchange, MPIReplicaPull
     end
-    @require DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0" include("DataFrames.jl")
 end
 
 end # module
