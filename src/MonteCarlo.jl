@@ -130,16 +130,7 @@ function __init__()
         include("flavors/DQMC/updates/mpi_updates.jl")
         export MPIReplicaExchange, MPIReplicaPull
     end
-    @require DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0" begin
-        include("DataFrames.jl")
-        @require Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" include("Makie/dataset.jl")
-
-    end
-    @require Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" begin
-        using .Makie
-        include("Makie/main.jl")
-        @require DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0" include("Makie/dataset.jl")
-    end
+    @require DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0" include("DataFrames.jl")
 end
 
 end # module
