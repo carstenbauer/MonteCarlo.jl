@@ -93,19 +93,30 @@ export DensityHirschField, MagneticHirschField, DensityGHQField, MagneticGHQFiel
 export AbstractMeasurement, Model
 
 import Git
-const git = let
+let 
     olddir = pwd()
     cd(pkgdir(MonteCarlo))
-    git = redirect_stdout(devnull) do
-        (
-            branch = try readchomp(`$(Git.git()) rev-parse --abbrev-ref HEAD`) catch e; "unknown" end, 
-            commit = try readchomp(`$(Git.git()) rev-parse HEAD`) catch e; "unknown" end, 
-            dirty = try !isempty(readchomp(`$(Git.git()) diff --name-only --cached`)) catch e; false end
-        )
+    if isdir(".git")
+        branch = readchomp(`$(Git.git()) rev-parse --abbrev-ref HEAD`)
+        commit = readchomp(`$(Git.git()) rev-parse HEAD`)
+        dirty  = !isempty(readchomp(`$(Git.git()) diff --name-only`)) || # unstaged w/o new files
+                 !isempty(readchomp(`$(Git.git()) diff --name-only --cached`)) # staged
+        open("src/gitinfo.jl", "w") do file
+            println(file, "# This information should get updated on compilation")
+            println(file, "# if MonteCarlo.jl is a git repository. If you do not")
+            println(file, "# have MonteCarlo.jl dev'ed it should be pointing")
+            println(file, "# to the last commit in the last merged branch.")
+            println(file, "const git = (")
+            println(file, "    branch = \"$branch\",")
+            println(file, "    commit = \"$commit\",")
+            println(file, "    dirty = $dirty")
+            println(file, ")")
+        end
     end
     cd(olddir)
-    git
+    nothing
 end
+include("gitinfo.jl")
 
 
 function __init__()
