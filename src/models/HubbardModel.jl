@@ -121,7 +121,7 @@ function hopping_matrix(m::HubbardModel)
     return T
 end
 
-function save_model(file::JLDFile, m::HubbardModel, entryname::String = "Model")
+function save_model(file::FileLike, m::HubbardModel, entryname::String = "Model")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "HubbardModel")
 

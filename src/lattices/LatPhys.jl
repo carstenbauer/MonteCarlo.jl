@@ -84,7 +84,7 @@ end
 
 
 
-function save_lattice(file::JLDFile, lattice::LatPhysLattice, entryname::String)
+function save_lattice(file::FileLike, lattice::LatPhysLattice, entryname::String)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/tag", "LatPhysLattice")
     _save_lattice(file, lattice.lattice, entryname * "/lattice")
@@ -92,7 +92,7 @@ function save_lattice(file::JLDFile, lattice::LatPhysLattice, entryname::String)
     write(file, entryname * "/bonds", lattice.bonds)
     nothing
 end
-function _save_lattice(file::JLDFile, lattice::LatPhysBase.AbstractLattice, entryname::String)
+function _save_lattice(file::FileLike, lattice::LatPhysBase.AbstractLattice, entryname::String)
     write(file, entryname * "/type", typeof(lattice))
     write(file, entryname * "/lv/N", length(lattice.lattice_vectors))
     for (i, v) in enumerate(lattice.lattice_vectors)
@@ -112,7 +112,7 @@ function _save_lattice(file::JLDFile, lattice::LatPhysBase.AbstractLattice, entr
     save_unitcell(file, lattice.unitcell, entryname * "/unitcell")
     nothing
 end
-function save_unitcell(file::JLDFile, uc::LatPhysBase.AbstractUnitcell, entryname::String)
+function save_unitcell(file::FileLike, uc::LatPhysBase.AbstractUnitcell, entryname::String)
     write(file, entryname * "/type", typeof(uc))
     write(file, entryname * "/lv", uc.lattice_vectors)
     

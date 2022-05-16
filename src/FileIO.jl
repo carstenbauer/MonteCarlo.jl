@@ -37,11 +37,8 @@ will be created. If neither are true an error will be thrown.
 """
 function save(
         filename::String, mc::MonteCarloFlavor; 
-        overwrite = false, rename = true, compress = true, 
-        backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
+        overwrite = false, rename = true, compress = true, kwargs...
     )
-    # endswith(filename, ".jld") || (filename *= ".jld")
-
     # handle ranming and overwriting
     isfile(filename) && !overwrite && !rename && throw(ErrorException(
         "Cannot save because \"$filename\" already exists. Consider setting " *
@@ -61,9 +58,7 @@ function save(
     end
 
     mode = isfile(filename) ? "r+" : "w"
-    file = FileWrapper(
-        backend.jldopen(filename, mode, compress=compress; kwargs...), filename
-    )
+    file = JLD2.jldopen(filename, mode, compress=compress; kwargs...)
 
     try
         write(file, "VERSION", 2)
@@ -77,7 +72,7 @@ function save(
         end
         @error exception = e
     finally
-        close(file.file)
+        close(file)
     end
 
     if overwrite && !isempty(temp_filename) && isfile(temp_filename)
@@ -103,8 +98,7 @@ function _generate_unique_filename(filename)
     filename * '.' * parts[end]
 end
 
-to_tag(f::FileWrapper) = to_tag(f.file)
-function to_tag(data::Union{JLDFile, JLD2.Group, Dict{String, Any}})
+function to_tag(data::FileLike)
     haskey(data, "tag") && return Val(Symbol(data["tag"]))
     haskey(data, "type") && return to_tag(data["type"])
     error("Failed to get tag from $data")
@@ -127,7 +121,7 @@ end
 
 function load(
         paths_or_filenames::Vector{String}; 
-        prefix = "", postfix = r"jld|jld2", simplify = false, silent = false,
+        prefix = "", postfix = r"jld2", simplify = false, silent = false,
         parallel = true, on_error = e -> @error(exception = e)
     )
     # Normalize input to filepaths (recursively)
@@ -174,11 +168,8 @@ will be attempted. (This is useful to reduce the memory requirements.)
 function load(filename::String, groups::String...; kwargs...)
     if isfile(filename)
         output = try
-            data = if endswith(filename, "jld2")
-                FileWrapper(JLD2.jldopen(filename, "r"), filename)
-            else 
-                FileWrapper(JLD.load(filename), filename)
-            end
+            @assert endswith(filename, "jld2")
+            data = JLD2.jldopen(filename, "r")
 
             if data["VERSION"] == 1
                 _git = (
@@ -201,7 +192,7 @@ function load(filename::String, groups::String...; kwargs...)
                 _git.dirty && @info("Repository was dirty when the file was saved.")
                 rethrow()
             finally
-                endswith(filename, "jld2") && close(data.file)
+                endswith(filename, "jld2") && close(data)
             end
             output
         catch e
@@ -219,7 +210,7 @@ end
 _load(data, g1::String, g2::String, gs::String...) = _load(data[g1], g2, gs...)
 function _load(data, g::String)
     if !(data["VERSION"] in (1, 2))
-        throw(ErrorException("Failed to load $(data.path) version $(data["VERSION"])"))
+        throw(ErrorException("Failed to load $(filepath(data)) version $(data["VERSION"])"))
     end
 
     haskey(data[g], "RNG") && load_rng!(data)
@@ -239,11 +230,8 @@ returned by `run!`.
 See also: [`run!`](@ref)
 """
 function resume!(filename; kwargs...)
-    data = if endswith(filename, "jld2")
-        FileWrapper(JLD2.jldopen(filename, "r"), filename)
-    else 
-        FileWrapper(JLD.load(filename), filename)
-    end
+    @assert endswith(filename, "jld2")
+    data = JLD2.jldopen(filename, "r")
 
     if !(data["VERSION"] in (1, 2))
         throw(ErrorException("Failed to load $filename version $(data["VERSION"])"))
@@ -252,7 +240,7 @@ function resume!(filename; kwargs...)
     mc = _load(data["MC"], to_tag(data["MC"]))
     resume_init!(mc)
     load_rng!(data)
-    endswith(filename, "jld2") && close(data)
+    close(data)
 
     state = run!(mc; kwargs...)
     mc, state
@@ -260,17 +248,16 @@ end
 
 
 function save_mc(
-        filename::String, mc::MonteCarloFlavor, entryname::String="MC"; 
-        backend = endswith(filename, "jld2") ? JLD2 : JLD,
-        kwargs...
+        filename::String, mc::MonteCarloFlavor, entryname::String="MC"; kwargs...
     )
+    @assert endswith(filename, "jld2")
     mode = isfile(filename) ? "r+" : "w"
-    file = backend.jldopen(filename, mode; kwargs...)
+    file = JLD2.jldopen(filename, mode; kwargs...)
     save_mc(file, mc, entryname)
     close(file)
     nothing
 end
-to_tag(::Type{<: Union{UnknownType, JLD2.UnknownType}}) = Val{:UNKNOWN}
+to_tag(::JLD2.UnknownType) = Val{:UNKNOWN}
 function _load(data, ::Val{:UNKNOWN})
     @info "Failed to load (Unknowntype)"
     @info "Available fields: $(keys(data))"
@@ -289,16 +276,16 @@ end
 # By default the full model object is saved. When saving a simulation, the
 # entryname defaults to `MC/Model`.
 function save_model(
-        filename::String, model, entryname::String; 
-        backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
+        filename::String, model, entryname::String; kwargs...
     )
+    @assert endswith(filename, "jld2")
     mode = isfile(filename) ? "r+" : "w"
-    file = backend.jldopen(filename, mode; kwargs...)
+    file = JLD2.jldopen(filename, mode; kwargs...)
     save_model(file, model, entryname)
     close(file)
     nothing
 end
-function save_model(file::JLDFile, model, entryname::String)
+function save_model(file::FileLike, model, entryname::String)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/tag", "Generic")
     write(file, entryname * "/data", model)
@@ -316,16 +303,16 @@ _load(data, ::Val{:Generic}) = data["data"]
 # By default the full lattice object is saved. When saving a simulation, the
 # entryname defaults to `MC/Model/Lattice`.
 function save_lattice(
-        filename::String, lattice::AbstractLattice, entryname::String; 
-        backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
+        filename::String, lattice::AbstractLattice, entryname::String; kwargs...
     )
+    @assert endswith(filename, "jld2")
     mode = isfile(filename) ? "r+" : "w"
-    file = backend.jldopen(filename, mode; kwargs...)
+    file = JLD2.jldopen(filename, mode; kwargs...)
     save_lattice(file, lattice, entryname)
     close(file)
     nothing
 end
-function save_lattice(file::JLDFile, lattice::AbstractLattice, entryname::String)
+function save_lattice(file::FileLike, lattice::AbstractLattice, entryname::String)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/tag", "Generic")
     write(file, entryname * "/data", lattice)
@@ -348,15 +335,15 @@ Saves the current state of Julia's random generator (`Random.GLOBAL_RNG`) to the
 given `filename`.
 """
 function save_rng(
-        filename::String; rng = _GLOBAL_RNG, entryname::String="RNG", 
-        backend = endswith(filename, "jld2") ? JLD2 : JLD, kwargs...
+        filename::String; rng = _GLOBAL_RNG, entryname::String="RNG", kwargs...
     )
+    @assert endswith(filename, "jld2")
     mode = isfile(filename) ? "r+" : "w"
-    file = backend.jldopen(filename, mode; kwargs...)
+    file = JLD2.jldopen(filename, mode; kwargs...)
     save_rng(file, rng=rng, entryname=entryname)
     close(file)
 end
-function save_rng(file::JLDFile; rng = _GLOBAL_RNG, entryname::String="RNG")
+function save_rng(file::FileLike; rng = _GLOBAL_RNG, entryname::String="RNG")
     try
         write(file, entryname, rng)
     catch e

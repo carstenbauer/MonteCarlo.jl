@@ -8,13 +8,7 @@ to_tag(::Type{<: DQMCAnalysis}) = Val(:DQMCAnalysis)
 to_tag(::Type{<: MagnitudeStats}) = Val(:MagnitudeStats)
 
 
-#     save_mc(filename, mc, entryname)
-#
-# Saves (minimal) information necessary to reconstruct a given `mc::DQMC` to a
-# JLD-file `filename` under group `entryname`.
-#
-# When saving a simulation the default `entryname` is `MC`
-function save_mc(file::JLDFile, mc::DQMC, entryname::String="DQMC")
+function save_mc(file::FileLike, mc::DQMC, entryname::String="DQMC")
     write(file, entryname * "/VERSION", 2)
     write(file, entryname * "/tag", "DQMC")
     write(file, entryname * "/CB", mc isa DQMC_CBTrue)
@@ -30,12 +24,11 @@ function save_mc(file::JLDFile, mc::DQMC, entryname::String="DQMC")
     nothing
 end
 
+
 CB_type(T::UnionAll) = T.body.parameters[2]
 CB_type(T::DataType) = T.parameters[2]
 
-#     load_mc(data, ::Type{<: DQMC})
-#
-# Loads a DQMC from a given `data` dictionary produced by `JLD.load(filename)`.
+
 function _load(data, ::Val{:DQMC})
     if data["VERSION"] > 2
         throw(ErrorException("Failed to load DQMC version $(data["VERSION"])"))
@@ -85,13 +78,8 @@ function _load(data, ::Val{:DQMC})
     )
 end
 
-#   save_parameters(file::JLDFile, p::DQMCParameters, entryname="Parameters")
-#
-# Saves (minimal) information necessary to reconstruct a given
-# `p::DQMCParameters` to a JLD-file `filename` under group `entryname`.
-#
-# When saving a simulation the default `entryname` is `MC/Parameters`
-function save_parameters(file::JLDFile, p::DQMCParameters, entryname::String="Parameters")
+
+function save_parameters(file::FileLike, p::DQMCParameters, entryname::String="Parameters")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "DQMCParameters")
 
@@ -110,10 +98,7 @@ function save_parameters(file::JLDFile, p::DQMCParameters, entryname::String="Pa
     nothing
 end
 
-#     load_parameters(data, ::Type{<: DQMCParameters})
-#
-# Loads a DQMCParameters object from a given `data` dictionary produced by
-# `JLD.load(filename)`.
+
 function _load(data, ::Val{:DQMCParameters})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load DQMCParameters version $(data["VERSION"])"))
@@ -137,7 +122,7 @@ function _load(data, ::Val{:DQMCParameters})
     )
 end
 
-function save_analysis(file::JLDFile, a::DQMCAnalysis, entryname::String="Analysis")
+function save_analysis(file::FileLike, a::DQMCAnalysis, entryname::String="Analysis")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(a))
 
@@ -147,7 +132,7 @@ function save_analysis(file::JLDFile, a::DQMCAnalysis, entryname::String="Analys
     save_stats(file, a.negative_probability, entryname * "/neg_prob")
     save_stats(file, a.propagation_error, entryname * "/propagation")
 end
-function save_stats(file::JLDFile, ms::MagnitudeStats, entryname::String="MStats")
+function save_stats(file::FileLike, ms::MagnitudeStats, entryname::String="MStats")
     write(file, entryname * "/max", ms.max)
     write(file, entryname * "/min", ms.min)
     write(file, entryname * "/sum", ms.sum)

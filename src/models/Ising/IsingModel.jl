@@ -186,11 +186,7 @@ end
 
 
 
-function save_model(
-        file::JLDFile,
-        m::IsingModel,
-        entryname::String="Model"
-    )
+function save_model(file::FileLike, m::IsingModel, entryname::String="Model")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "IsingModel")
 
@@ -201,10 +197,6 @@ function save_model(
     nothing
 end
 
-#     load_model(data, ::Type{<: IsingModel})
-#
-# Loads an IsingModel from a given `data` dictionary produced by
-# `JLD.load(filename)`.
 function _load_model(data, ::Val{:IsingModel})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load IsingModel version $(data["VERSION"])"))

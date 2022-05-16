@@ -440,13 +440,7 @@ function replay!(
 end
 
 
-#     save_mc(filename, mc, entryname)
-#
-# Saves (minimal) information necessary to reconstruct a given `mc::MC` to a
-# JLD-file `filename` under group `entryname`.
-#
-# When saving a simulation the default `entryname` is `MC`
-function save_mc(file::JLDFile, mc::MC, entryname::String="MC")
+function save_mc(file::FileLike, mc::MC, entryname::String="MC")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "MC")
     write(file, entryname * "/type", typeof(mc))
@@ -459,9 +453,6 @@ function save_mc(file::JLDFile, mc::MC, entryname::String="MC")
     nothing
 end
 
-#     load_mc(data, ::Type{<: MC})
-#
-# Loads a MC from a given `data` dictionary produced by `JLD.load(filename)`.
 function _load(data, ::Val{:MC})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
@@ -480,14 +471,7 @@ function _load(data, ::Val{:MC})
     )
 end
 
-
-#   save_parameters(file::JLDFile, p::MCParameters, entryname="Parameters")
-#
-# Saves (minimal) information necessary to reconstruct a given
-# `p::MCParameters` to a JLD-file `filename` under group `entryname`.
-#
-# When saving a simulation the default `entryname` is `MC/Parameters`
-function save_parameters(file::JLDFile, p::MCParameters, entryname::String="Parameters")
+function save_parameters(file::FileLike, p::MCParameters, entryname::String="Parameters")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "MCParameters")
 
@@ -502,10 +486,6 @@ function save_parameters(file::JLDFile, p::MCParameters, entryname::String="Para
     nothing
 end
 
-#     load_parameters(data, ::Type{<: MCParameters})
-#
-# Loads a MCParameters object from a given `data` dictionary produced by
-# `JLD.load(filename)`.
 function _load(data, ::Val{:MCParameters})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))

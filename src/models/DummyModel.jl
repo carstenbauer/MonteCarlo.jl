@@ -25,7 +25,8 @@ lattice(m::DummyModel) = get(m.data, "l", Chain(1))
 hopping_matrix(m::DummyModel) = fill(1.0, length(lattice(m)), length(lattice(m)))
 
 
-function save_model(file::JLDFile, m::DummyModel, entryname::String="Model")
+function save_model(file::FileLike, ::DummyModel, entryname::String="Model")
+    # TODO is this ok?
     close(file)
     error("DummyModel cannot be saved.")
 end
@@ -41,7 +42,14 @@ function _load_model(data, ::Val)
     DummyModel(dict)
 end
 
-_load_to_dict(file::FileWrapper) = _load_to_dict(file.file)
+function _load_to_dict(data::FileLike)
+    output = Dict{String, Any}()
+    for key in keys(data)
+        push!(output, key => _load_to_dict(data[key]))
+    end
+    output
+end
+
 function _load_to_dict(data)
     if parentmodule(typeof(data)) == JLD2.ReconstructedTypes
         Dict(map(fieldnames(typeof(data))) do f
@@ -50,11 +58,4 @@ function _load_to_dict(data)
     else
         data
     end
-end
-function _load_to_dict(data::Union{JLD.JldFile, JLD2.JLDFile, JLD2.Group})
-    output = Dict{String, Any}()
-    for key in keys(data)
-        push!(output, key => _load_to_dict(data[key]))
-    end
-    output
 end

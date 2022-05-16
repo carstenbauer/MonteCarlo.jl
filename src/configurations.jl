@@ -45,7 +45,7 @@ Base.getindex(c::ConfigRecorder, i) = c.configs[i]
 compress(mc, model, conf) = copy(conf)
 decompress(mc, model, conf) = conf
 
-function _save(file::JLDFile, cs::ConfigRecorder, entryname::String="configs")
+function _save(file::FileLike, cs::ConfigRecorder, entryname::String="configs")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "ConfigRecorder")
     write(file, entryname * "/type", typeof(cs))
@@ -257,7 +257,7 @@ function update_filepath!(cr::BufferedConfigRecorder, parent_path)
 end
 
 
-function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
+function _save(file::FileLike, cr::BufferedConfigRecorder, entryname::String="configs")
     # save link_id
     JLD2.jldopen(cr.filename.absolute_path, "a+") do file
         if !haskey(file, "link_id") 
@@ -273,7 +273,7 @@ function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
     end
 
     # adjust relative FilePath
-    update_filepath!(cr, file.path)
+    update_filepath!(cr, filepath(file))
 
     # main save information
     write(file, entryname * "/VERSION", 3)
@@ -300,7 +300,7 @@ function _load(data, ::Val{:BufferedConfigRecorder})
     )
 
     # adjust relative FilePath
-    update_filepath!(cr, data.path)
+    update_filepath!(cr, filepath(data))
 
     # if link_id unknown get it from file or generate new
     if link_id == "N/A" && isfile(cr.filename.absolute_path)
@@ -335,7 +335,7 @@ Base.isempty(::Discarder) = true
 Base.getindex(v::Discarder, i) = BoundsError(v, i)
 Base.iterate(c::Discarder, i=1) = nothing
 
-function _save(file::JLDFile, ::Discarder, entryname::String="configs")
+function _save(file::FileLike, ::Discarder, entryname::String="configs")
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "Discarder")
 end

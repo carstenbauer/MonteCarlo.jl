@@ -22,40 +22,10 @@ else
     end
 end
 
-import JLD, JLD2
-using CodecZlib
-
-# Because we fully load all data directly for JLD we lose access to the path
-# This is supposed to keep track of path information
-struct FileWrapper{T}
-    file::T
-    path::String
-
-    FileWrapper(file::T, path) where T = new{T}(file, abspath(path))
-end
-
-function Base.getindex(fw::FileWrapper{T}, k) where T
-    out = getindex(fw.file, k)
-    if out isa Union{JLD2.JLDFile, JLD2.Group, Dict} # JLD generates a nested dict :(
-        return FileWrapper(out, fw.path)
-    else
-        out
-    end
-end
-Base.setindex!(fw::FileWrapper, k, v) = setindex!(fw.file, k, v)
-Base.haskey(fw::FileWrapper, k) = haskey(fw.file, k)
-Base.write(fw::FileWrapper, x) = write(fw.file, x)
-Base.write(fw::FileWrapper, k, x) = write(fw.file, k, x)
-Base.close(fw::FileWrapper) = close(fw.file)
-Base.get(fw::FileWrapper, k, default) = haskey(fw, k) ? fw[k] : default
-Base.keys(fw::FileWrapper) = keys(fw.file)
-
-# To allow switching between JLD and JLD2:
-const UnknownType = Union{JLD.UnsupportedType, JLD2.UnknownType}
-const _JLDFile = Union{JLD.JldFile, JLD2.JLDFile, Dict, JLD2.Group}
-const JLDFile = Union{FileWrapper{<: _JLDFile}, _JLDFile}
-
-
+import JLD2, CodecZlib
+const FileLike = Union{JLD2.JLDFile, JLD2.Group}
+filepath(f::JLD2.JLDFile) = f.path
+filepath(g::JLD2.Group) = g.f.path
 
 include("helpers.jl")
 export enable_benchmarks, disable_benchmarks, print_timer, reset_timer!
@@ -123,11 +93,19 @@ export DensityHirschField, MagneticHirschField, DensityGHQField, MagneticGHQFiel
 export AbstractMeasurement, Model
 
 import Git
-const git = (
-    branch = readchomp(`$(Git.git()) rev-parse --abbrev-ref HEAD`), 
-    commit = readchomp(`$(Git.git()) rev-parse HEAD`), 
-    dirty = !isempty(readchomp(`$(Git.git()) diff --name-only --cached`))
-)
+const git = let
+    olddir = pwd()
+    cd(pkgdir(MonteCarlo))
+    git = redirect_stdout(devnull) do
+        (
+            branch = try readchomp(`$(Git.git()) rev-parse --abbrev-ref HEAD`) catch e; "unknown" end, 
+            commit = try readchomp(`$(Git.git()) rev-parse HEAD`) catch e; "unknown" end, 
+            dirty = try !isempty(readchomp(`$(Git.git()) diff --name-only --cached`)) catch e; false end
+        )
+    end
+    cd(olddir)
+    git
+end
 
 
 function __init__()
@@ -141,7 +119,16 @@ function __init__()
         include("flavors/DQMC/updates/mpi_updates.jl")
         export MPIReplicaExchange, MPIReplicaPull
     end
-    @require DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0" include("DataFrames.jl")
+    @require DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0" begin
+        include("DataFrames.jl")
+        @require Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" include("Makie/dataset.jl")
+
+    end
+    @require Makie = "ee78f7c6-11fb-53f2-987a-cfe4a2b5a57a" begin
+        using .Makie
+        include("Makie/main.jl")
+        @require DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0" include("Makie/dataset.jl")
+    end
 end
 
 end # module

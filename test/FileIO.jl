@@ -244,7 +244,7 @@ end
         mc, verbose = false,
         safe_before = now() + Second(1),
         grace_period = Millisecond(0),
-        resumable_filename = "resumable_testfile.jld"
+        resumable_filename = "resumable_testfile.jld2"
     )
 
     @test state == false
@@ -254,18 +254,18 @@ end
 
     # Test whether safe file gets overwritten correctly
     mc, state = resume!(
-        "resumable_testfile.jld",
+        "resumable_testfile.jld2",
         verbose = false,
         safe_before = now() + Second(10),
         grace_period = Millisecond(0),
         overwrite = true,
-        resumable_filename = "resumable_testfile.jld"
+        resumable_filename = "resumable_testfile.jld2"
     )
 
     @test state == false
     cs = deepcopy(mc.configs)
     @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
-    @test isfile("resumable_testfile.jld")
+    @test isfile("resumable_testfile.jld2")
 
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
@@ -278,11 +278,11 @@ end
     state = run!(mc, verbose = false)
     @test mc.configs.configs == cs.configs
     @test mc.configs.rate == cs.rate
-    rm("resumable_testfile.jld")
+    rm("resumable_testfile.jld2")
 end
 
 for file in readdir()
-    if endswith(file, "jld") || endswith(file, "jld2") || endswith(file, ".confs")
+    if endswith(file, "jld2") || endswith(file, ".confs")
         rm(file)
     end
 end
@@ -340,9 +340,9 @@ end
     mc[:CDC] = charge_density_correlation(mc, model)
     run!(mc, verbose=false)
 
-    save("testfile.jld", mc)
-    x = load("testfile.jld")
-    rm("testfile.jld")
+    save("testfile.jld2", mc)
+    x = load("testfile.jld2")
+    rm("testfile.jld2")
     @test mc.field.conf == x.field.conf
 
     # Repeat these tests once with x being replayed rather than loaded

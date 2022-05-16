@@ -138,25 +138,6 @@ end
     # @test tau(ms)["E"] == tau(obs["E"])
 end
 
-@testset "Saving and Loading" begin
-    model = IsingModel(dims=2, L=2)
-    mc = MC(model, beta=1.0)
-    run!(mc, thermalization=10, sweeps=10, verbose=false)
-    push!(mc, :E => IsingEnergyMeasurement, :TH)
-
-    meas = measurements(mc, :all)
-    MonteCarlo.save_measurements("testfile.jld", mc, overwrite=true)
-    _meas = load("testfile.jld")
-    for (k, v) in meas
-        for (k2, v2) in v
-            for f in fieldnames(typeof(v2))
-                @test getfield(v2, f) == getfield(_meas[k][k2], f)
-            end
-        end
-    end
-    rm("testfile.jld")
-end
-
 function calc_measured_greens(mc::DQMC, G::Matrix)
     eThalfminus = mc.stack.hopping_matrix_exp
     eThalfplus = mc.stack.hopping_matrix_exp_inv

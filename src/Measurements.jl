@@ -70,7 +70,7 @@ measurement phase.
 
 See also [`save_measurements`](@ref), [`measurements`](@ref), [`_load`](@ref)
 """
-function _save(file::JLDFile, m::AbstractMeasurement, entryname::String)
+function _save(file::FileLike, m::AbstractMeasurement, entryname::String)
     # NOTE: `VERSION` and `type` are necessary
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/tag", "Generic")
@@ -519,9 +519,6 @@ end
 ### FileIO
 ################################################################################
 
-# This is just for dispath
-struct Measurements end
-
 
 """
     save_measurements!(mc, filename[, entryname=""; overwrite=false, rename=true])
@@ -534,9 +531,9 @@ will be added to the filename until it becomes unique.
 """
 function save_measurements(
         filename::String, mc::MonteCarloFlavor, entryname::String="";
-        backend = endswith(filename, "jld2") ? JLD2 : JLD,
         overwrite = false, rename = true
     )
+    @assert endswith(filename, "jld2")
     isfile(filename) && !overwrite && !rename && throw(ErrorException(
         "Cannot save because \"$filename\" already exists. Consider setting " *
         "`reanme = true` to adjust the filename or `overwrite = true`" *
@@ -552,12 +549,12 @@ function save_measurements(
     end
 
     mode = isfile(filename) ? "r+" : "w"
-    file = backend.jldopen(filename, mode)
+    file = JLD2.jldopen(filename, mode)
     save_measurements(file, mc, entryname)
     close(file)
     filename
 end
-function save_measurements(file::JLDFile, mc::MonteCarloFlavor, entryname::String="")
+function save_measurements(file::FileLike, mc::MonteCarloFlavor, entryname::String="")
     !isempty(entryname) && !endswith(entryname, "/") && (entryname *= "/")
     write(file, entryname * "VERSION", 1)
     write(file, entryname * "tag", "Measurements")
@@ -571,7 +568,6 @@ function save_measurements(file::JLDFile, mc::MonteCarloFlavor, entryname::Strin
 end
 
 
-to_tag(::Type{<: Measurements}) = Val(:Measurements)
 function _load(data, ::Val{:Measurements})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load measurements version $(data["VERSION"])"))
