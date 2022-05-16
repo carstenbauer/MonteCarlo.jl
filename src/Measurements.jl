@@ -51,8 +51,9 @@ The default implementation searches for all fields `<: AbstractObservable` and
 builds a dictionary pairs `name(obs) => obs`.
 """
 function observables(m::AbstractMeasurement)
-    os = [getfield(m, n) for n in obs_fieldnames_from_obj(m)]
-    Dict{String, AbstractObservable}(MonteCarloObservable.name(o) => o for o in os)
+    Dict{String, Any}(
+        string(n) => getfield(m, n) for n in obs_fieldnames_from_obj(m)
+    )
 end
 
 
@@ -99,7 +100,7 @@ for (func, name) in zip(
     """
     @eval begin
         @doc $docstring $func
-        function MonteCarloObservable.$(func)(m::AbstractMeasurement)
+        function BinningAnalysis.$(func)(m::AbstractMeasurement)
             fn = obs_fieldnames_from_obj(m)
             os = [getfield(m, n) for n in fn]
             if isempty(os)
@@ -107,7 +108,7 @@ for (func, name) in zip(
             elseif length(os) == 1
                 return $(func)(os[1])
             else
-                return Dict(MonteCarloObservable.name(o) => $(func)(o) for o in os)
+                return Dict(string(n) => $(func)(o) for (n, o) in zip(fn, os))
             end
         end
     end
@@ -123,7 +124,7 @@ for func in (:length, :isempty, :empty!)
             elseif length(os) == 1
                 return $(func)(os[1])
             else
-                return Dict(MonteCarloObservable.name(o) => $(func)(o) for o in os)
+                return Dict(string(n) => $(func)(o) for (n, o) in zip(fn, os))
             end
         end
     end
@@ -145,35 +146,7 @@ default_measurements(mc, model) = Dict{Symbol, AbstractMeasurement}()
 
 
 ################################################################################
-# mc based, default measurements
-
-
-"""
-    ConfigurationMeasurement(mc, model[, rate=1])
-
-Measures configurations of the given Monte Carlo flavour and model. The rate of
-measurements can be reduced with `rate`. (e.g. `rate=10` means 1 measurement per
-10 sweeps)
-"""
-struct ConfigurationMeasurement{OT <: Observable} <: AbstractMeasurement
-    obs::OT
-    rate::Int64
-    function ConfigurationMeasurement{OT}(obs, rate) where {OT <: Observable}
-        @warn(
-            "`ConfigurationMeasurement` is deprecated. Configurations can now " *
-            "be collected in `mc.configs` using an `<: AbstractConfiguartionAccumulator`"
-        )
-        new{OT}(obs, rate)
-    end
-end
-function ConfigurationMeasurement(mc::MonteCarloFlavor, model::Model, rate=1)
-    o = Observable(typeof(mc.conf), "Configurations")
-    ConfigurationMeasurement{typeof(o)}(o, rate)
-end
-@bm function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
-    (i % m.rate == 0) && push!(m.obs, conf(mc))
-    nothing
-end
+# ValueWrapper
 
 
 """
@@ -220,8 +193,8 @@ ValueWrapper(mc, ::Val{key}) where key = ValueWrapper(mc, mc[key])
 function ValueWrapper(mc::MonteCarloFlavor, m::AbstractMeasurement)
     return ValueWrapper(mean(m), std_error(m))
 end
-MonteCarloObservable.mean(v::ValueWrapper) = v.exp_value
-MonteCarloObservable.std_error(v::ValueWrapper) = v.std_error
+BinningAnalysis.mean(v::ValueWrapper) = v.exp_value
+BinningAnalysis.std_error(v::ValueWrapper) = v.std_error
 Base.show(io::IO, ::MIME"text/plain", m::ValueWrapper) = show(io, m)
 function Base.show(io::IO, m::ValueWrapper)
     print(io, m.exp_value)
@@ -267,7 +240,7 @@ end
 # if get_all_names = false, return array of fieldnames <: AbstractObservable
 # if get_all_names = true, also return other fieldnames
 function obs_fieldnames_from_obj(obj, get_all_names=false)
-    ObsTypes = Union{AbstractObservable, LogBinner}
+    ObsTypes = Union{FullBinner, LogBinner}
     fnames = fieldnames(typeof(obj))
     obs_names = [
         s for s in fnames if getfield(obj, s) isa ObsTypes
@@ -283,32 +256,12 @@ function obs_fieldnames_from_obj(obj, get_all_names=false)
 end
 
 
-# printing
-# function Base.show(io::IO, m::AbstractMeasurement)
-#     #  no parametrization -v    v- no MonteCarlo.
-#     typename = typeof(m).name.name
-#     observables, other = obs_fieldnames_from_obj(m, true)
-#     println(io, typename)
-#     for obs_fieldname in observables
-#         o = getfield(m, obs_fieldname)
-#         oname = MonteCarloObservable.name(o)
-#         otypename = typeof(o).name.name
-#         println(io, "\t", obs_fieldname, "::", otypename, "\t → \"", oname, "\"")
-#     end
-#     for fieldname in other
-#         println(io, "\t", fieldname, "::", typeof(getfield(m, fieldname)))
-#     end
-#     nothing
-# end
-
 function Base.show(io::IO, ::MIME"text/plain", m::AbstractMeasurement)
     #small
     #  no parametrization -v    v- no MonteCarlo.
     typename = typeof(m).name.name
     temp = obs_fieldnames_from_obj(m)
-    observable_names = map(temp) do obs_fieldname
-        MonteCarloObservable.name(getfield(m, obs_fieldname))
-    end
+    observable_names = string.(temp)
     print(io, typename, "(\"", join(observable_names, "\", \""), "\")")
     nothing
 end
@@ -387,22 +340,22 @@ function observables(mc::MonteCarloFlavor, stage = :ME)
     all_stages = (:all, :ALL)
 
     if stage in measurement_stage
-        me_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+        me_obs = Dict{Symbol, Dict{String, Any}}(
             k => observables(m) for (k, m) in mc.measurements
         )
         return me_obs
 
     elseif stage in thermalization_stage
-        th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+        th_obs = Dict{Symbol, Dict{String, Any}}(
             k => observables(m) for (k, m) in mc.thermalization_measurements
         )
         return th_obs
 
     elseif stage in all_stages
-        th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+        th_obs = Dict{Symbol, Dict{String, Any}}(
             k => observables(m) for (k, m) in mc.thermalization_measurements
         )
-        me_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+        me_obs = Dict{Symbol, Dict{String, Any}}(
             k => observables(m) for (k, m) in mc.measurements
         )
         return Dict(:TH => th_obs, :ME => me_obs)

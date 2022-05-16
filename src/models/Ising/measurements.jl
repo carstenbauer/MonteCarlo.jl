@@ -12,18 +12,18 @@ Measures observables related to the energy of the IsingModel. This includes
 """
 struct IsingEnergyMeasurement <: IsingMeasurement
     invN::Float64
-    E::Observable
-    E2::Observable
-    e::Observable
-    C::Observable
+    E::FullBinner
+    E2::FullBinner
+    e::FullBinner
+    C::FullBinner
 end
 function IsingEnergyMeasurement(mc::MC, model::IsingModel)
     IsingEnergyMeasurement(
         1.0 / model.l.sites,
-        Observable(Float64, "Total energy"),
-        Observable(Float64, "Total energy squared"),
-        Observable(Float64, "Energy per site"),
-        Observable(Float64, "Specific heat")
+        FullBinner(Float64),
+        FullBinner(Float64),
+        FullBinner(Float64),
+        FullBinner(Float64)
     )
 end
 
@@ -54,18 +54,18 @@ includes
 """
 struct IsingMagnetizationMeasurement <: IsingMeasurement
     invN::Float64
-    M::Observable
-    M2::Observable
-    m::Observable
-    chi::Observable
+    M::FullBinner
+    M2::FullBinner
+    m::FullBinner
+    chi::FullBinner
 end
 function IsingMagnetizationMeasurement(mc::MC, model::IsingModel)
     IsingMagnetizationMeasurement(
         1.0 / model.l.sites,
-        Observable(Float64, "Total magnetization"),
-        Observable(Float64, "Total magnetization squared"),
-        Observable(Float64, "Magnetization per site"),
-        Observable(Float64, "Magnetic susceptibility")
+        FullBinner(Float64),
+        FullBinner(Float64),
+        FullBinner(Float64),
+        FullBinner(Float64)
     )
 end
 

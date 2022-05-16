@@ -3,8 +3,7 @@ module MonteCarlo
 using LinearAlgebra: AbstractMatrix
 using Reexport
 # Loading the RNG will fail if Random is nto exported
-@reexport using MonteCarloObservable, Random
-import MonteCarloObservable.AbstractObservable
+@reexport using Random, BinningAnalysis
 using Parameters, Requires
 using TimerOutputs, StructArrays
 using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random, Distributed

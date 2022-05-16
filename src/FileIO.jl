@@ -315,7 +315,13 @@ function save_lattice(file::JLDFile, lattice::AbstractLattice, entryname::String
 end
 
 
-const _GLOBAL_RNG = VERSION < v"1.3.0" ? Random.GLOBAL_RNG : Random.default_rng()
+const _GLOBAL_RNG = if VERSION < v"1.3.0"
+    Random.GLOBAL_RNG
+elseif VERSION < v"1.7.0" 
+    Random.default_rng()
+else
+    copy(Random.default_rng())
+end
 
 """
     save_rng(filename [; rng = _GLOBAL_RNG, entryname = "RNG"])

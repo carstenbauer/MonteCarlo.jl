@@ -306,10 +306,8 @@ end
         @test mc.scheduler == x.scheduler
         for (k, v) in mc.thermalization_measurements
             for f in fieldnames(typeof(v))
-                r = if getfield(v, f) isa LightObservable
-                    # TODO
-                    # implement == for LightObservable in MonteCarloObservable
-                    getfield(v, f).B == getfield(x.measurements[k], f).B
+                r = if f == :observable
+                    getfield(v, f) ≈ getfield(x.measurements[k], f)
                 else
                     getfield(v, f) == getfield(x.measurements[k], f)
                 end
@@ -321,31 +319,8 @@ end
             for f in fieldnames(typeof(v))
                 v isa MonteCarlo.DQMCMeasurement && f == :temp && continue
                 v isa MonteCarlo.DQMCMeasurement && f == :kernel && continue
-                r = if getfield(v, f) isa LightObservable
-                    # TODO
-                    # implement == for LightObservable in MonteCarloObservable
-                    # TODO: implement ≈ for LightObservable, LogBinner, etc
-                    r = true
-                    a = getfield(v, f)
-                    b = getfield(x.measurements[k], f)
-                    for i in eachindex(getfield(v, f).B.compressors)
-                        r = r && (a.B.compressors[i].value ≈ b.B.compressors[i].value)
-                        r = r && (a.B.compressors[i].switch ≈ b.B.compressors[i].switch)
-                    end
-                    r = r && (a.B.x_sum ≈ b.B.x_sum)
-                    r = r && (a.B.x2_sum ≈ b.B.x2_sum)
-                    r = r && (a.B.count ≈ b.B.count)
-                elseif getfield(v, f) isa LogBinner
-                    r = true
-                    a = getfield(v, f)
-                    b = getfield(x.measurements[k], f)
-                    for i in eachindex(a.compressors)
-                        r = r && (a.compressors[i].value ≈ b.compressors[i].value)
-                        r = r && (a.compressors[i].switch ≈ b.compressors[i].switch)
-                    end
-                    r = r && (a.x_sum ≈ b.x_sum)
-                    r = r && (a.x2_sum ≈ b.x2_sum)
-                    r = r && (a.count ≈ b.count)
+                r = if f == :observable
+                    getfield(v, f) ≈ getfield(x.measurements[k], f)
                 else
                     getfield(v, f) == getfield(x.measurements[k], f)
                 end

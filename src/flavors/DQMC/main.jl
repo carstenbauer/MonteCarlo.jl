@@ -142,5 +142,3 @@ include("measurements/measurements.jl")
 include("measurements/superfluid_stiffness.jl")
 # Contains some post processing tools
 include("measurements/extensions.jl")
-# structs and conversions from the old system
-include("measurements/deprecated.jl")
