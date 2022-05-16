@@ -28,9 +28,10 @@ function IsingEnergyMeasurement(mc::MC, model::IsingModel)
 end
 
 function measure!(m::IsingEnergyMeasurement, mc::MC, model::IsingModel, i::Int64)
-    push!(m.E, model.energy[])
-    push!(m.E2, model.energy[]^2)
-    push!(m.e, model.energy[] * m.invN)
+    E = energy(mc, model, mc.conf)
+    push!(m.E, E)
+    push!(m.E2, E^2)
+    push!(m.e, E * m.invN)
     nothing
 end
 

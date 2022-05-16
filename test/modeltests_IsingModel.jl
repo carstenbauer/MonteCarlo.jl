@@ -26,15 +26,6 @@
     conff = deepcopy(conf)
     @test MonteCarlo.energy(mc, m, conf) == -164320.0
 
-    # rand, conftype
-    Random.seed!(123)
-    _conf = if VERSION.major == 1 && VERSION.minor == 5
-        IsingSpin[1 -1 1 1 -1 -1 1 -1; 1 -1 1 -1 1 1 -1 -1; -1 -1 -1 -1 1 -1 1 1; 1 1 1 1 -1 1 -1 -1; -1 1 1 1 1 -1 -1 1; 1 1 -1 -1 -1 -1 1 -1; 1 -1 1 -1 -1 -1 1 -1; 1 1 -1 1 -1 -1 1 -1]
-    else # assuming v1.6
-        IsingSpin[1 -1 -1 1 1 -1 1 1; -1 1 1 1 1 -1 1 -1; -1 -1 -1 -1 1 1 1 -1; -1 1 1 -1 -1 -1 -1 -1; 1 -1 1 1 1 1 -1 1; 1 -1 -1 1 -1 -1 -1 1; -1 1 -1 -1 -1 1 -1 1; 1 -1 -1 1 -1 1 -1 1]
-    end
-    @test rand(MC, m) == _conf
-
     # propose, accept
     @test MonteCarlo.propose_local(mc, m, 13, conff) == (1352.0, nothing)
     @test conf == conff

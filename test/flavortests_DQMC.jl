@@ -242,7 +242,6 @@ end
 
 @testset "DQMC stack" begin
     # chunk generation
-    Random.seed!()
     check_chunks = true
     for _ in 1:100
         slices = rand(1:100)
@@ -552,7 +551,6 @@ end
     @info "Exact Greens comparison"
     for model in models, beta in (1.0, 10.0)
         @testset "$(typeof(model).name.name) β=$(beta)" begin
-            Random.seed!(123)
             dqmc = DQMC(
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
                 thermalization = 1, sweeps = 2, measure_rate = 1

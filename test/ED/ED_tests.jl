@@ -54,7 +54,7 @@ include("ED.jl")
     @test _sign == -1.0 &&  s == up
 
     # check Greens consistency
-    model = HubbardModel(2, 2, U = rand(), mu = rand(), t = rand()
+    model = HubbardModel(2, 2, U = 0.5 + rand(), mu = 0.1 + rand(), t = 0.5 + rand()
     )
     H = HamiltonMatrix(model)
     for substate1 in 1:2, substate2 in 1:2
@@ -410,7 +410,6 @@ end
     println("Finite U ED Comparison")
     for model in models
         @testset "$(typeof(model))" begin
-            Random.seed!(123)
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
                 thermalization = 5_000, sweeps = 5_000, print_rate=1000,
@@ -715,7 +714,6 @@ end
         end
 
         @testset "$(nameof(typeof(model))) + $(nameof(field))" begin
-            Random.seed!(123)
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
                 thermalization = 5_000, sweeps = 5_000, print_rate=1000, field = field,

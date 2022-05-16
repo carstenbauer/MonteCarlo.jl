@@ -35,9 +35,9 @@ TimerOutputs = "0.5.3"
 julia = "1.5"
 
 [extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 InteractiveUtils = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 StableDQMC = "0827807b-44c9-51d0-af97-efe667fe6b2a"
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
 test = ["Test", "InteractiveUtils", "StableDQMC"]
