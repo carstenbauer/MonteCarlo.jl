@@ -440,16 +440,16 @@ function replay!(
 end
 
 
-function save_mc(file::FileLike, mc::MC, entryname::String="MC")
+function _save(file::FileLike, entryname::String, mc::MC)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "MC")
     write(file, entryname * "/type", typeof(mc))
-    save_parameters(file, mc.p, entryname * "/parameters")
+    _save(file, entryname * "/parameters", mc.p)
     write(file, entryname * "/conf", mc.conf)
-    _save(file, mc.configs, entryname * "/configs")
+    _save(file, entryname * "/configs", mc.configs)
     write(file, entryname * "/last_sweep", mc.last_sweep)
-    save_measurements(file, mc, entryname * "/Measurements")
-    save_model(file, mc.model, entryname * "/Model")
+    save_measurements(file, entryname * "/Measurements", mc)
+    _save(file, entryname * "/Model", mc.model)
     nothing
 end
 
@@ -461,7 +461,7 @@ function _load(data, ::Val{:MC})
     conf = data["conf"]
     configs = _load(data["configs"], to_tag(data["configs"]))
     last_sweep = data["last_sweep"]
-    model = _load_model(data["Model"], to_tag(data["Model"]))
+    model = load_model(data["Model"], to_tag(data["Model"]))
     measurements = _load(data["Measurements"], Val(:Measurements))
     
     MC(
@@ -471,7 +471,7 @@ function _load(data, ::Val{:MC})
     )
 end
 
-function save_parameters(file::FileLike, p::MCParameters, entryname::String="Parameters")
+function _save(file::FileLike, entryname::String, p::MCParameters)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "MCParameters")
 

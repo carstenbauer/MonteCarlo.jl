@@ -84,7 +84,7 @@ end
 
 
 
-function save_lattice(file::FileLike, lattice::LatPhysLattice, entryname::String)
+function _save(file::FileLike, entryname::String, lattice::LatPhysLattice)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/tag", "LatPhysLattice")
     _save_lattice(file, lattice.lattice, entryname * "/lattice")

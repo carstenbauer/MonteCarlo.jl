@@ -102,7 +102,7 @@ _default_capacity(mc::DQMC) = 2 * ceil(Int, mc.parameters.sweeps / mc.parameters
 # definition is not guaranteed to be the same
 # though maybe that's a good thing - changing function definitions doesn't
 # break stuff this way
-function _save(file::FileLike, m::DQMCMeasurement, key::String)
+function _save(file::FileLike, key::String, m::DQMCMeasurement)
     write(file, "$key/VERSION", 1)
     write(file, "$key/tag", "DQMCMeasurement")
     write(file, "$key/GI", m.greens_iterator)

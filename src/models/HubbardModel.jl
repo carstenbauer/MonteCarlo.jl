@@ -121,30 +121,30 @@ function hopping_matrix(m::HubbardModel)
     return T
 end
 
-function save_model(file::FileLike, m::HubbardModel, entryname::String = "Model")
+function _save(file::FileLike, entryname::String, m::HubbardModel)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "HubbardModel")
 
     write(file, entryname * "/mu", m.mu)
     write(file, entryname * "/U", m.U)
     write(file, entryname * "/t", m.t)
-    save_lattice(file, m.l, entryname * "/l")
+    _save(file, entryname * "/l", m.l)
 
     nothing
 end
 
 # compat
-function _load_model(data, ::Val{:HubbardModel})
+function load_model(data, ::Val{:HubbardModel})
     l = _load(data["l"], to_tag(data["l"]))
     HubbardModel(data["t"], data["mu"], data["U"], l)
 end
-_load_model(data, ::Val{:HubbardModelAttractive}) = _load_model(data, Val(:HubbardModel))
-function _load_model(data, ::Val{:HubbardModelRepulsive})
+load_model(data, ::Val{:HubbardModelAttractive}) = load_model(data, Val(:HubbardModel))
+function load_model(data, ::Val{:HubbardModelRepulsive})
     l = _load(data["l"], to_tag(data["l"]))
     HubbardModel(data["t"], 0.0, -data["U"], l)
 end
-_load_model(data, ::Val{:AttractiveGHQHubbardModel}) = _load_model(data, Val(:HubbardModelAttractive))
-_load_model(data, ::Val{:RepulsiveGHQHubbardModel}) = _load_model(data, Val(:HubbardModelRepulsive))
+load_model(data, ::Val{:AttractiveGHQHubbardModel}) = load_model(data, Val(:HubbardModelAttractive))
+load_model(data, ::Val{:RepulsiveGHQHubbardModel}) = load_model(data, Val(:HubbardModelRepulsive))
 field_hint(m, ::Val) = choose_field(m)
 field_hint(m, ::Val{:AttractiveGHQHubbardModel}) = MagneticGHQField
 field_hint(m, ::Val{:RepulsiveGHQHubbardModel}) = MagneticGHQField

@@ -221,7 +221,7 @@ function Base.show(io::IO, s::SimpleScheduler)
     print(io, "SimpleScheduler(): $sequence -> (repeat)")
 end
 
-function save_scheduler(file::FileLike, s::SimpleScheduler, entryname::String="/Scheduler")
+function _save(file::FileLike, entryname::String, s::SimpleScheduler)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "SimpleScheduler")
     write(file, entryname * "/sequence", s.sequence)
@@ -434,7 +434,7 @@ function Base.show(io::IO, s::AdaptiveScheduler)
     print(io, "\twith Adaptive() = ($pool)")
 end
 
-function save_scheduler(file::FileLike, s::AdaptiveScheduler, entryname::String="/Scheduler")
+function _save(file::FileLike, entryname::String, s::AdaptiveScheduler)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "AdaptiveScheduler")
     write(file, entryname * "/sequence", s.sequence)

@@ -63,7 +63,7 @@ function save(
     try
         write(file, "VERSION", 2)
         write(file, "git", git)
-        save_mc(file, mc, "MC")
+        _save(file, "MC", mc)
         save_rng(file)
     catch e
         if overwrite && !isempty(temp_filename) && isfile(temp_filename)
@@ -201,22 +201,14 @@ function _load(data, ::Val{:UNKNOWN})
 end
 
 
-function save_model(file::FileLike, model, entryname::String)
+function _save(file::FileLike, entryname::String, data)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/tag", "Generic")
-    write(file, entryname * "/data", model)
+    write(file, entryname * "/data", data)
     nothing
 end
 
 _load(data, ::Val{:Generic}) = data["data"]
-
-
-function save_lattice(file::FileLike, lattice::AbstractLattice, entryname::String)
-    write(file, entryname * "/VERSION", 0)
-    write(file, entryname * "/tag", "Generic")
-    write(file, entryname * "/data", lattice)
-    nothing
-end
 
 
 const _GLOBAL_RNG = if VERSION < v"1.3.0"

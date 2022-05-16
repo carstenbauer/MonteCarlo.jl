@@ -295,13 +295,13 @@ maybe_to_float(c::ComplexF64) = abs(imag(c)) < 10eps(real(c)) ? real(c) : c
 
 Base.length(f::AbstractField) = length(conf(f))
 
-function save_field(file, field::AbstractField, entryname="field")
+function _save(file::FileLike, entryname::String, field::AbstractField)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/name", nameof(typeof(field)))
     write(file, entryname * "/conf", conf(field))
 end
 
-function load_field(data, ::Val{:Field}, param, model)
+function _load(data::FileLike, ::Val{:Field}, param::DQMCParameters, model::Model)
     name = data["name"]
     c = data["conf"]
     field = if name == "DensityHirschField"

@@ -70,7 +70,7 @@ measurement phase.
 
 See also [`save_measurements`](@ref), [`measurements`](@ref), [`_load`](@ref)
 """
-function _save(file::FileLike, m::AbstractMeasurement, entryname::String)
+function _save(file::FileLike, entryname::String, m::AbstractMeasurement)
     # NOTE: `VERSION` and `type` are necessary
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/tag", "Generic")
@@ -520,7 +520,7 @@ end
 ################################################################################
 
 
-function save_measurements(file::FileLike, mc::MonteCarloFlavor, entryname::String="")
+function save_measurements(file::FileLike, entryname::String, mc::MonteCarloFlavor)
     !isempty(entryname) && !endswith(entryname, "/") && (entryname *= "/")
     write(file, entryname * "VERSION", 1)
     write(file, entryname * "tag", "Measurements")
@@ -528,7 +528,7 @@ function save_measurements(file::FileLike, mc::MonteCarloFlavor, entryname::Stri
     for (k0, v0) in measurement_dict # :TH or :ME
         for (k1, meas) in v0 # Measurement name
             _entryname = entryname * "$k0/$k1"
-            _save(file, meas, _entryname)
+            _save(file, _entryname, meas)
         end
     end
 end

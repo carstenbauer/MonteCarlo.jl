@@ -186,18 +186,18 @@ end
 
 
 
-function save_model(file::FileLike, m::IsingModel, entryname::String="Model")
+function _save(file::FileLike, entryname::String, m::IsingModel)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "IsingModel")
 
     write(file, entryname * "/L", m.L)
     write(file, entryname * "/dims", m.dims)
-    save_lattice(file, m.l, entryname * "/l")
+    _save(file, entryname * "/l", m.l)
     write(file, entryname * "/energy", m.energy[])
     nothing
 end
 
-function _load_model(data, ::Val{:IsingModel})
+function load_model(data, ::Val{:IsingModel})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load IsingModel version $(data["VERSION"])"))
     end

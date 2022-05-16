@@ -25,13 +25,13 @@ lattice(m::DummyModel) = get(m.data, "l", Chain(1))
 hopping_matrix(m::DummyModel) = fill(1.0, length(lattice(m)), length(lattice(m)))
 
 
-function save_model(file::FileLike, ::DummyModel, entryname::String="Model")
+function _save(file::FileLike, entryname::String, ::DummyModel)
     # TODO is this ok?
     close(file)
     error("DummyModel cannot be saved.")
 end
 
-function _load_model(data, ::Val)
+function load_model(data, ::Val)
     tag = to_tag(data)
     @warn "Failed to load $tag, creating DummyModel"
     dict = _load_to_dict(data)

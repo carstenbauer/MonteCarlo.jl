@@ -8,19 +8,18 @@ to_tag(::Type{<: DQMCAnalysis}) = Val(:DQMCAnalysis)
 to_tag(::Type{<: MagnitudeStats}) = Val(:MagnitudeStats)
 
 
-function save_mc(file::FileLike, mc::DQMC, entryname::String="DQMC")
+function _save(file::FileLike, entryname::String, mc::DQMC)
     write(file, entryname * "/VERSION", 2)
     write(file, entryname * "/tag", "DQMC")
     write(file, entryname * "/CB", mc isa DQMC_CBTrue)
-    save_parameters(file, mc.parameters, entryname * "/Parameters")
-    save_analysis(file, mc.analysis, entryname * "/Analysis")
-    # write(file, entryname * "/conf", mc.conf)
-    save_field(file, mc.field, entryname * "/field")
-    _save(file, mc.recorder, entryname * "/configs")
+    _save(file, entryname * "/Parameters", mc.parameters)
+    _save(file, entryname * "/Analysis", mc.analysis)
+    _save(file, entryname * "/field", mc.field)
+    _save(file, entryname * "/configs", mc.recorder)
     write(file, entryname * "/last_sweep", mc.last_sweep)
-    save_measurements(file, mc, entryname * "/Measurements")
-    save_model(file, mc.model, entryname * "/Model")
-    save_scheduler(file, mc.scheduler, entryname * "/Scheduler")
+    save_measurements(file, entryname * "/Measurements", mc)
+    _save(file, entryname * "/Model", mc.model)
+    _save(file, entryname * "/Scheduler", mc.scheduler)
     nothing
 end
 
@@ -42,9 +41,9 @@ function _load(data, ::Val{:DQMC})
     analysis = _load(data["Analysis"], Val(:DQMCAnalysis))
     recorder = _load(data["configs"], to_tag(data["configs"]))
     last_sweep = data["last_sweep"]
-    model = _load_model(data["Model"], to_tag(data["Model"]))
+    model = load_model(data["Model"], to_tag(data["Model"]))
     if haskey(data, "field")
-        field = load_field(data["field"], Val(:Field), parameters, model)
+        field = _load(data["field"], Val(:Field), parameters, model)
     else
         conf = data["conf"]
         field = field_hint(model, to_tag(data["Model"]))(parameters, model)
@@ -79,8 +78,8 @@ function _load(data, ::Val{:DQMC})
 end
 
 
-function save_parameters(file::FileLike, p::DQMCParameters, entryname::String="Parameters")
-    write(file, entryname * "/VERSION", 1)
+function _save(file::FileLike, entryname::String, p::DQMCParameters)
+    write(file, entryname * "/VERSION", 2)
     write(file, entryname * "/tag", "DQMCParameters")
 
     write(file, entryname * "/thermalization", p.thermalization)
@@ -100,7 +99,7 @@ end
 
 
 function _load(data, ::Val{:DQMCParameters})
-    if !(data["VERSION"] == 1)
+    if !(data["VERSION"] in (1, 2))
         throw(ErrorException("Failed to load DQMCParameters version $(data["VERSION"])"))
     end
 
@@ -122,17 +121,17 @@ function _load(data, ::Val{:DQMCParameters})
     )
 end
 
-function save_analysis(file::FileLike, a::DQMCAnalysis, entryname::String="Analysis")
+function _save(file::FileLike, entryname::String, a::DQMCAnalysis)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/type", typeof(a))
 
     write(file, entryname * "/th_runtime", a.th_runtime)
     write(file, entryname * "/me_runtime", a.me_runtime)
-    save_stats(file, a.imaginary_probability, entryname * "/imag_prob")
-    save_stats(file, a.negative_probability, entryname * "/neg_prob")
-    save_stats(file, a.propagation_error, entryname * "/propagation")
+    _save(file, entryname * "/imag_prob", a.imaginary_probability)
+    _save(file, entryname * "/neg_prob", a.negative_probability)
+    _save(file, entryname * "/propagation", a.propagation_error)
 end
-function save_stats(file::FileLike, ms::MagnitudeStats, entryname::String="MStats")
+function _save(file::FileLike, entryname::String, ms::MagnitudeStats)
     write(file, entryname * "/max", ms.max)
     write(file, entryname * "/min", ms.min)
     write(file, entryname * "/sum", ms.sum)
