@@ -122,6 +122,13 @@ export DensityHirschField, MagneticHirschField, DensityGHQField, MagneticGHQFiel
 # For extending
 export AbstractMeasurement, Model
 
+import Git
+const git = (
+    branch = readchomp(`$(Git.git()) rev-parse --abbrev-ref HEAD`), 
+    commit = readchomp(`$(Git.git()) rev-parse HEAD`), 
+    dirty = !isempty(readchomp(`$(Git.git()) diff --name-only --cached`))
+)
+
 
 function __init__()
     # @require LatPhysBase="eec5c15a-e8bd-11e8-0d23-6799ca40c963" include("lattices/LatPhys.jl")

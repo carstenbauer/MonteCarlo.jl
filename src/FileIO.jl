@@ -66,7 +66,8 @@ function save(
     )
 
     try
-        write(file, "VERSION", 1)
+        write(file, "VERSION", 2)
+        write(file, "git", git)
         save_mc(file, mc, "MC")
         save_rng(file)
     catch e
@@ -178,10 +179,27 @@ function load(filename::String, groups::String...; kwargs...)
             else 
                 FileWrapper(JLD.load(filename), filename)
             end
+
+            if data["VERSION"] == 1
+                _git = (
+                    branch = "master", 
+                    commit = "a4dbd321f551e6adc079370b033555ba9a2f75e5", 
+                    dirty = false
+                )
+            else
+                _git = data["git"]
+            end
+
             output = try 
                 if haskey(data, "MC") && !("MC" in groups)
                     _load(data, "MC", groups...) else _load(data, groups...)
                 end
+            catch e
+                git.branch != _git.branch && @info("Git branch missmatch $(git.branch) ≠ $(_git.branch)")
+                git.commit != _git.commit && @info("Git commit missmatch $(git.commit) ≠ $(_git.commit)")
+                git.dirty && @info("Repository is currently dirty.")
+                _git.dirty && @info("Repository was dirty when the file was saved.")
+                rethrow()
             finally
                 endswith(filename, "jld2") && close(data.file)
             end
@@ -200,7 +218,7 @@ function load(filename::String, groups::String...; kwargs...)
 end
 _load(data, g1::String, g2::String, gs::String...) = _load(data[g1], g2, gs...)
 function _load(data, g::String)
-    if !(data["VERSION"] == 1)
+    if !(data["VERSION"] in (1, 2))
         throw(ErrorException("Failed to load $(data.path) version $(data["VERSION"])"))
     end
 
@@ -227,7 +245,7 @@ function resume!(filename; kwargs...)
         FileWrapper(JLD.load(filename), filename)
     end
 
-    if !(data["VERSION"] == 1)
+    if !(data["VERSION"] in (1, 2))
         throw(ErrorException("Failed to load $filename version $(data["VERSION"])"))
     end
 
