@@ -93,7 +93,7 @@ export DensityHirschField, MagneticHirschField, DensityGHQField, MagneticGHQFiel
 export AbstractMeasurement, Model
 
 import Git
-let 
+const git = let 
     olddir = pwd()
     cd(pkgdir(MonteCarlo))
     if isdir(".git")
@@ -101,22 +101,14 @@ let
         commit = readchomp(`$(Git.git()) rev-parse HEAD`)
         dirty  = !isempty(readchomp(`$(Git.git()) diff --name-only`)) || # unstaged w/o new files
                  !isempty(readchomp(`$(Git.git()) diff --name-only --cached`)) # staged
-        open("src/gitinfo.jl", "w") do file
-            println(file, "# This information should get updated on compilation")
-            println(file, "# if MonteCarlo.jl is a git repository. If you do not")
-            println(file, "# have MonteCarlo.jl dev'ed it should be pointing")
-            println(file, "# to the last commit in the last merged branch.")
-            println(file, "const git = (")
-            println(file, "    branch = \"$branch\",")
-            println(file, "    commit = \"$commit\",")
-            println(file, "    dirty = $dirty")
-            println(file, ")")
-        end
+        git = (branch = branch, commit = commit, dirty = dirty)
+    else
+        @warn "Cannot identify git information because MonteCarlo.jl is not a git repository. "
+        git = (branch = "unknown", commit = "unknown", dirty = "false")
     end
     cd(olddir)
-    nothing
+    git
 end
-include("gitinfo.jl")
 
 
 function __init__()
