@@ -247,16 +247,6 @@ function resume!(filename; kwargs...)
 end
 
 
-function save_mc(
-        filename::String, mc::MonteCarloFlavor, entryname::String="MC"; kwargs...
-    )
-    @assert endswith(filename, "jld2")
-    mode = isfile(filename) ? "r+" : "w"
-    file = JLD2.jldopen(filename, mode; kwargs...)
-    save_mc(file, mc, entryname)
-    close(file)
-    nothing
-end
 to_tag(::JLD2.UnknownType) = Val{:UNKNOWN}
 function _load(data, ::Val{:UNKNOWN})
     @info "Failed to load (Unknowntype)"
@@ -266,25 +256,6 @@ function _load(data, ::Val{:UNKNOWN})
 end
 
 
-
-
-#     save_model(filename, model, entryname)
-#
-# Save (minimal) information necessary to reconstruct the given `model` in a
-# jld-file `filename` under group `entryname`.
-#
-# By default the full model object is saved. When saving a simulation, the
-# entryname defaults to `MC/Model`.
-function save_model(
-        filename::String, model, entryname::String; kwargs...
-    )
-    @assert endswith(filename, "jld2")
-    mode = isfile(filename) ? "r+" : "w"
-    file = JLD2.jldopen(filename, mode; kwargs...)
-    save_model(file, model, entryname)
-    close(file)
-    nothing
-end
 function save_model(file::FileLike, model, entryname::String)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/tag", "Generic")
@@ -295,23 +266,6 @@ end
 _load(data, ::Val{:Generic}) = data["data"]
 
 
-#     save_lattice(filename, lattice, entryname)
-#
-# Save (minimal) information necessary to reconstruct the given `lattice` in a
-# jld-file `filename` under group `entryname`.
-#
-# By default the full lattice object is saved. When saving a simulation, the
-# entryname defaults to `MC/Model/Lattice`.
-function save_lattice(
-        filename::String, lattice::AbstractLattice, entryname::String; kwargs...
-    )
-    @assert endswith(filename, "jld2")
-    mode = isfile(filename) ? "r+" : "w"
-    file = JLD2.jldopen(filename, mode; kwargs...)
-    save_lattice(file, lattice, entryname)
-    close(file)
-    nothing
-end
 function save_lattice(file::FileLike, lattice::AbstractLattice, entryname::String)
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/tag", "Generic")
@@ -328,21 +282,7 @@ else
     copy(Random.default_rng())
 end
 
-"""
-    save_rng(filename [; rng = _GLOBAL_RNG, entryname = "RNG"])
 
-Saves the current state of Julia's random generator (`Random.GLOBAL_RNG`) to the
-given `filename`.
-"""
-function save_rng(
-        filename::String; rng = _GLOBAL_RNG, entryname::String="RNG", kwargs...
-    )
-    @assert endswith(filename, "jld2")
-    mode = isfile(filename) ? "r+" : "w"
-    file = JLD2.jldopen(filename, mode; kwargs...)
-    save_rng(file, rng=rng, entryname=entryname)
-    close(file)
-end
 function save_rng(file::FileLike; rng = _GLOBAL_RNG, entryname::String="RNG")
     try
         write(file, entryname, rng)

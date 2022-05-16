@@ -520,40 +520,6 @@ end
 ################################################################################
 
 
-"""
-    save_measurements!(mc, filename[, entryname=""; overwrite=false, rename=true])
-
-Saves all measurements to `filename`.
-
-If `overwrite = true` the file will
-be overwritten if it already exists. If `rename = true` random characters
-will be added to the filename until it becomes unique.
-"""
-function save_measurements(
-        filename::String, mc::MonteCarloFlavor, entryname::String="";
-        overwrite = false, rename = true
-    )
-    @assert endswith(filename, "jld2")
-    isfile(filename) && !overwrite && !rename && throw(ErrorException(
-        "Cannot save because \"$filename\" already exists. Consider setting " *
-        "`reanme = true` to adjust the filename or `overwrite = true`" *
-        " to overwrite the file."
-    ))
-    if isfile(filename) && !overwrite && rename
-        while isfile(filename)
-            # those map to 0-9, A-Z, a-z
-            x = rand([(48:57)..., (65:90)..., (97:122)...])
-            s = string(Char(x))
-            filename = filename[1:end-4] * s * ".jld"
-        end
-    end
-
-    mode = isfile(filename) ? "r+" : "w"
-    file = JLD2.jldopen(filename, mode)
-    save_measurements(file, mc, entryname)
-    close(file)
-    filename
-end
 function save_measurements(file::FileLike, mc::MonteCarloFlavor, entryname::String="")
     !isempty(entryname) && !endswith(entryname, "/") && (entryname *= "/")
     write(file, entryname * "VERSION", 1)
