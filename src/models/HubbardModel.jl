@@ -112,16 +112,10 @@ function hopping_matrix(m::HubbardModel)
 
     # Nearest neighbor hoppings
     @inbounds @views begin
-        for b in neighbors(m.l, Val(true))
+        for b in bonds(m.l, Val(true))
             T[b.to, b.from] += -m.t
         end
     end
-    # @inbounds @views begin
-    #     for (src, trg) in neighbors(m.l, Val(true))
-    #         trg == -1 && continue
-    #         T[trg, src] += -m.t
-    #     end
-    # end
 
     return T
 end

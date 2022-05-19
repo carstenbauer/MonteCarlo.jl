@@ -34,8 +34,8 @@ The methods returns
     * `n_groups::Int`: number of checkerboard groups.
 """
 function build_checkerboard(l::AbstractLattice)
-    bonds = collect(neighbors(l))
-    n_bonds = length(bonds)
+    _bonds = collect(bonds(l))
+    n_bonds = length(_bonds)
 
     groups = UnitRange[]
     edges_used = zeros(Int64, n_bonds)
@@ -46,7 +46,7 @@ function build_checkerboard(l::AbstractLattice)
     while minimum(edges_used) == 0
         sites_used = zeros(Int64, length(l))
 
-        for (id, b) in enumerate(bonds)
+        for (id, b) in enumerate(_bonds)
             src = b.from; trg = b.to
             if edges_used[id] == 1 continue end
             if sites_used[src] == 1 continue end

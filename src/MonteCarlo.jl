@@ -28,31 +28,24 @@ filepath(g::JLD2.Group) = g.f.path
 
 include("helpers.jl")
 export enable_benchmarks, disable_benchmarks, print_timer, reset_timer!
+include("lattices/lattice.jl")
 include("flavors/abstract.jl")
 include("models/abstract.jl")
-include("lattices/abstract.jl")
 
 include("configurations.jl")
 export Discarder, ConfigRecorder, BufferedConfigRecorder, RelativePath, AbsolutePath
 include("Measurements.jl")
 export measurements, observables
 
+include("lattices/constructors.jl")
 include("lattices/lattice_iterators.jl")
-# include("lattices/square.jl")
-# include("lattices/chain.jl")
-# include("lattices/cubic.jl")
-# include("lattices/honeycomb.jl")
-# include("lattices/triangular.jl")
-# include("lattices/ALPS.jl")
-# include("lattices/deprecated.jl")
-include("lattices/new.jl")
 
 export AbstractLattice, Lattice, Chain, SquareLattice, Honeycomb, CubicLattice
 # export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
 export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, 
         EachLocalQuadByDistance, EachLocalQuadBySyncedDistance, 
         Sum, ApplySymmetries
-export positions, neighbors, directions
+export positions, bonds, directions
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/main.jl")
@@ -115,7 +108,6 @@ end
 function __init__()
     # @require LatPhysBase="eec5c15a-e8bd-11e8-0d23-6799ca40c963" include("lattices/LatPhys.jl")
     @require LatticePhysics = "53011200-ee7a-11e8-39f1-5f3e57afe4fd" include("lattices/LatPhys.jl")
-    @require LightXML = "9c8b4983-aa76-5018-a973-4c85ecc9e179" include("lattices/ALPS.jl")
     @require MPI = "da04e1cc-30fd-572f-bb4f-1f8673147195" begin
         include("mpi.jl")
         export mpi_queue

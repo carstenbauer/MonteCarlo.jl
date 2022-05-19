@@ -75,7 +75,7 @@ Base.rand(::Type{MC}, m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m
 
 @propagate_inbounds @bm function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf)
     field = 0.0
-    @inbounds for b in neighbors(m.l, i)
+    @inbounds for b in bonds(m.l, i)
         field += conf[b.to]
     end
     delta_E = 2.0 * conf[i] * field
@@ -123,7 +123,7 @@ Returns wether a cluster spinflip has been performed (any spins have been flippe
 
     while !isempty(tocheck)
         cur = pop!(tocheck)
-        @inbounds for b in neighbors(m.l, cur)
+        @inbounds for b in bonds(m.l, cur)
 
             if conf[cur] == conf[b.to] && !(b.to in cluster) && rand() < (1 - exp(- 2.0 * beta))
                 push!(tocheck, b.to)
@@ -150,7 +150,7 @@ Calculate energy of Ising configuration `conf` for Ising model `m`.
 """
 function energy(mc::MC, m::IsingModel, conf::IsingConf)
     E = 0.0
-    for b in neighbors(m.l)
+    for b in bonds(m.l)
         E -= conf[b.from] * conf[b.to]
     end
     m.energy[] = E
@@ -161,7 +161,7 @@ end
 #         LT <: Union{Chain, SquareLattice, CubicLattice}
 #     }
 #     E = 0.0
-#     @inbounds for (src, trg) in neighbors(m.l, Val(false))
+#     @inbounds for (src, trg) in bonds(m.l, Val(false))
 #         E -= conf[src]*conf[trg]
 #     end
 #     m.energy[] = E

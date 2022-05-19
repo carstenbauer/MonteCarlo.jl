@@ -84,7 +84,7 @@ function HamiltonMatrix(model::Model)
             E = 0.0
             # hopping (hermitian conjugate implied/included by lattice generation)
             for substate in [1, 2]
-                for b in neighbors(lattice, Val(true))
+                for b in bonds(lattice, Val(true))
                     # be careful not to change rstate 
                     # (or restore it with state_from_integer!)
                     _sign1, state = annihilate(rstate, b.from, substate)    

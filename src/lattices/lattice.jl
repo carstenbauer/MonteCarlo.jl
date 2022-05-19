@@ -1,3 +1,14 @@
+# In case there is need to implement a different interface in the future
+abstract type AbstractLattice end
+abstract type AbstractBond end
+abstract type AbstractUnitCell end
+
+
+################################################################################
+### Bonds
+################################################################################
+
+
 """
     Bond(from::Int, to::Int, uc_shift::NTuple{N, Int}[, label::Int = 1])
     Bond{N}(from::Int, to::Int, label::Int)
@@ -10,10 +21,10 @@ represents a translation to another unitcell, given by
 shifts `(1, 0), (-1, 0), (0, 1), (0, -1)` describe bonds that connect to a 
 neighboring unit cell.
 
-In the context of a lattice (i.e. through `neighbors(l)`) `from` and `to` 
+In the context of a lattice (i.e. through `bonds(l)`) `from` and `to` 
 represent sites on the lattice and `uc_shift = ntuple(_ -> 0, N)` for all bonds.
 """
-struct Bond{N}
+struct Bond{N} <: AbstractBond
     from::Int
     to::Int
     uc_shift::NTuple{N, Int}
@@ -26,10 +37,36 @@ function _is_reversal(b1::Bond{N}, b2::Bond{N}) where N
     b1.from == b2.to && b1.to == b2.from && 
     all(((a, b),) -> a == -b, zip(b1.uc_shift, b2.uc_shift))
 end
+
+"""
+    from(b::Bond)
+
+Returns the (linear) site index corresponding to the origin of a bond `b`.
+"""
 from(b::Bond)  = b.from
+
+"""
+    to(b::Bond)
+
+Returns the (linear) site index corresponding to the target of a bond `b`.
+"""
 to(b::Bond)    = b.to
+
+"""
+    label(b::Bond)
+
+Returns the label of a bond `b`.
+"""
 label(b::Bond) = b.label
 
+function Base.:(==)(a::Bond, b::Bond)
+    a.from == b.from && a.to == b.to && a.label == b.label && a.uc_shift == b.uc_shift
+end
+
+
+################################################################################
+### UnitCell
+################################################################################
 
 
 """
@@ -52,7 +89,7 @@ Bravais lattice positions.
 Finally `bonds` describe pairs of "connected" sites. Reverse bonds (i.e. a -> b
 and b -> a) must be included. See (@ref)[`Bond`] for more information.
 """
-struct UnitCell{N}
+struct UnitCell{N} <: AbstractUnitCell
     # Bravais lattice vectors point to nearby unit cells
     lattice_vectors::NTuple{N, Vector{Float64}}
 
@@ -83,7 +120,15 @@ struct UnitCell{N}
     end
 end
 
+function Base.:(==)(a::UnitCell, b::UnitCell)
+    a.lattice_vectors == b.lattice_vectors && a.sites == b.sites &&
+    all(a.bonds .== b.bonds) && a._directed_indices == b._directed_indices
+end
 
+
+################################################################################
+### Lattice
+################################################################################
 
 
 struct Lattice{N} <: AbstractLattice
@@ -92,20 +137,40 @@ struct Lattice{N} <: AbstractLattice
     # TODO lattice_iterator_cache maybe?
 end
 
+"""
+    length(l::Lattice)
 
+Returns the total number of sites of a given lattice.
+"""
 Base.length(l::Lattice) = length(l.unitcell.sites) * prod(l.Ls)
+
+"""
+    size(l::Lattice)
+
+Returns the linear system size of a given lattice. 
+
+Note that this does not include the number of sites in a unit cell.
+"""
 Base.size(l::Lattice) = l.Ls
-Base.eachindex(l::Lattice) = 1:length(l)
+
+"""
+    eachindex(l::Lattice)
+
+Returns an iterator which iterates through each site of the lattice.
+"""
+Base.eachindex(l::AbstractLattice) = 1:length(l)
+
+"""
+    lattice_vectors(l::Lattice)
+
+Returns the basis of the Bravais lattice. 
+
+Note that the total extent of the lattice can be calculated as 
+`size(l) .* lattice_vectors(l)`.
+"""
 lattice_vectors(l::Lattice) = l.unitcell.lattice_vectors
 
 Base.:(==)(a::Lattice, b::Lattice) = a.Ls == b.Ls && a.unitcell == b.unitcell
-function Base.:(==)(a::UnitCell, b::UnitCell)
-    a.lattice_vectors == b.lattice_vectors && a.sites == b.sites &&
-    all(a.bonds .== b.bonds) && a._directed_indices == b._directed_indices
-end
-function Base.:(==)(a::Bond, b::Bond)
-    a.from == b.from && a.to == b.to && a.label == b.label && a.uc_shift == b.uc_shift
-end
 
 # flat index to tuple
 function _ind2sub(l::Lattice, idx::Int)
@@ -182,24 +247,22 @@ function _shift_Bravais(l::Lattice{N}, flat::Int, b::Bond{N}) where N
     return Bond{N}(flat + b.from, flat_out, b.label)
 end
 
-# """
-#     neighbors(l::AbstractLattice[, directed=Val(false)])
+"""
+    bonds(l::AbstractLattice[, directed=Val(false)])
 
-# Returns an iterator over bonds, given as tuples (source index, target index). If
-# `directed = Val(true)` bonds are assumed to be directed, i.e. both
-# `(1, 2)` and `(2, 1)` are included. If `directed = Val(false)` bonds are
-# assumed to be undirected, i.e. `(1, 2)` and `(2, 1)` are assumed to be
-# equivalent and only one of them will be included.
-# """
-neighbors(l::Lattice) = neighbors(l, Val(false))
-function neighbors(l::Lattice{N}, directed::Val{true}) where N
+Returns an iterator over all bonds of the lattice. If `directed = Val(true)` this 
+includes bonds going from site `a -> b` as well as `b -> a`. Otherwise only one
+of these is given.
+"""
+bonds(l::AbstractLattice) = bonds(l, Val(false))
+function bonds(l::Lattice{N}, directed::Val{true}) where N
     (
         _shift_Bravais(l, idx, b)
             for idx in 0:length(l.unitcell.sites):length(l)-1
             for b in l.unitcell.bonds
     )
 end
-function neighbors(l::Lattice{N}, directed::Val{false}) where {N}
+function bonds(l::Lattice{N}, directed::Val{false}) where {N}
     bonds = l.unitcell.bonds
     (
         _shift_Bravais(l, idx, bonds[j])
@@ -207,7 +270,13 @@ function neighbors(l::Lattice{N}, directed::Val{false}) where {N}
             for j in l.unitcell._directed_indices
     )
 end
-function neighbors(l::Lattice{N}, site::Int) where N
+
+"""
+    bonds(l::AbstractLattice, source::Int)
+
+Returns an iterator over all bonds starting at `source`.
+"""
+function bonds(l::Lattice{N}, site::Int) where N
     uc_idx = mod1(site, length(l.unitcell.sites))
     (
         Bond{N}(site, _shift(l, site, b), b.label) 
@@ -216,14 +285,15 @@ function neighbors(l::Lattice{N}, site::Int) where N
 end
 
 
-# """
-#     positions(l::Lattice)
+"""
+    positions(l::Lattice)
 
-# Returns an iterator containing all site positions on the lattice. 
+Returns an iterator containing all site positions on the lattice. 
 
-# If collected this iterator will return a multidimensional Array. The indices of 
-# this Array are [unitcell_sites, Bravais_x, Bravais_y, ...].
-# """
+If collected this iterator will return a multidimensional Array. The indices of 
+this Array are [unitcell_sites, Bravais_x, Bravais_y, ...]. It can also be 
+indexed with a linear site index.
+"""
 function positions(l::Lattice{1})
     (o + lattice_vectors(l)[1] * i for o in l.unitcell.sites, i in 1:l.Ls[1] )
 end
@@ -251,7 +321,7 @@ end
 """
     reciprocal_vectors(l::Lattice)
 
-Returns the reciprocal unit vectors for 2 or 3 Dimensional lattices
+Returns the reciprocal unit vectors for 2 or 3 dimensional lattice.
 """
 function reciprocal_vectors(l::Lattice{2})
     v1, v2 = lattice_vectors(l)
@@ -291,65 +361,4 @@ function _load(data, ::Val{:MonteCarloLattice})
             map(t -> Bond(t[1], t[2], t[3:end-1], t[end]), data["uc/bonds"])
         ), data["Ls"]
     )
-end
-
-################################################################################
-### Lattice Constructors
-################################################################################
-
-
-
-function Chain(Lx)
-    uc = UnitCell(
-        (Float64[1],),
-        [Float64[0]],
-        [Bond(1, 1, ( 1,)), Bond(1, 1, (-1,))]
-    )
-
-    Lattice(uc, (Lx,))
-end
-
-function SquareLattice(Lx, Ly = Lx)
-    uc = UnitCell(
-        (Float64[1, 0], Float64[0, 1]),
-        [Float64[0, 0]],
-        [
-            Bond(1, 1, ( 1,  0)),
-            Bond(1, 1, ( 0,  1)),
-            Bond(1, 1, (-1,  0)),
-            Bond(1, 1, ( 0, -1))
-        ]
-    )
-
-    Lattice(uc, (Lx, Ly))
-end
-
-function CubicLattice(Lx, Ly = Lx, Lz = Lx)
-    uc = UnitCell(
-        (Float64[1, 0, 0], Float64[0, 1, 0], Float64[0, 0, 1]),
-        [Float64[0, 0, 0]],
-        [
-            Bond(1, 1, ( 1,  0,  0)),
-            Bond(1, 1, ( 0,  1,  0)),
-            Bond(1, 1, ( 0,  0,  1)),
-            Bond(1, 1, (-1,  0,  0)),
-            Bond(1, 1, ( 0, -1,  0)),
-            Bond(1, 1, ( 0,  0, -1))
-        ]
-    )
-
-    Lattice(uc, (Lx, Ly, Lz))
-end
-
-function Honeycomb(Lx, Ly = Lx)
-    uc = UnitCell(
-        (Float64[sqrt(3.0)/2, -0.5], Float64[sqrt(3.0)/2, +0.5]),
-        [Float64[0.0, 0.0], Float64[1/sqrt(3.0), 0.0]],
-        [
-            Bond(1, 2, (0, 0)), Bond(1, 2, (-1, 0)), Bond(1, 2, (0, -1)),
-            Bond(2, 1, (0, 0)), Bond(2, 1, ( 1, 0)), Bond(2, 1, (0,  1)),
-        ]
-    )
-
-    Lattice(uc, (Lx, Ly))
 end

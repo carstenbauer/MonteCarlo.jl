@@ -12,17 +12,17 @@ using MonteCarlo: lattice_vectors
     @test size(ps) == (1, 4) 
     @test ps[:] == [[1.0], [2.0], [3.0], [4.0]]
 
-    bs = collect(neighbors(l))
+    bs = collect(bonds(l))
     @test MonteCarlo.from.(bs) == [1,2,3,4]
     @test MonteCarlo.to.(bs) == [2,3,4,1]
     @test MonteCarlo.label.(bs) == [1,1,1,1]
 
-    bs = collect(neighbors(l, Val(true)))
+    bs = collect(bonds(l, Val(true)))
     @test MonteCarlo.from.(bs) == [1,1,2,2,3,3,4,4]
     @test MonteCarlo.to.(bs) == [2,4,3,1,4,2,1,3]
     @test MonteCarlo.label.(bs) == ones(8)
 
-    bs = collect(neighbors(l, 3))
+    bs = collect(bonds(l, 3))
     @test MonteCarlo.from.(bs) == [3,3]
     @test MonteCarlo.to.(bs) == [4,2]
     @test MonteCarlo.label.(bs) == ones(2)
@@ -40,17 +40,17 @@ end
     @test size(ps) == (1, 3, 3) 
     @test ps[:] == [[1.0, 1.0], [2.0, 1.0], [3.0, 1.0], [1.0, 2.0], [2.0, 2.0], [3.0, 2.0], [1.0, 3.0], [2.0, 3.0], [3.0, 3.0]]
 
-    bs = collect(neighbors(l))
+    bs = collect(bonds(l))
     @test MonteCarlo.from.(bs) == [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
     @test MonteCarlo.to.(bs) == [2, 4, 3, 5, 1, 6, 5, 7, 6, 8, 4, 9, 8, 1, 9, 2, 7, 3]
     @test MonteCarlo.label.(bs) == ones(18)
 
-    bs = collect(neighbors(l, Val(true)))
+    bs = collect(bonds(l, Val(true)))
     @test MonteCarlo.from.(bs) == [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9]
     @test MonteCarlo.to.(bs) == [2, 4, 3, 7, 3, 5, 1, 8, 1, 6, 2, 9, 5, 7, 6, 1, 6, 8, 4, 2, 4, 9, 5, 3, 8, 1, 9, 4, 9, 2, 7, 5, 7, 3, 8, 6]
     @test MonteCarlo.label.(bs) == ones(36)
 
-    bs = collect(neighbors(l, 3))
+    bs = collect(bonds(l, 3))
     @test MonteCarlo.from.(bs) == [3,3,3,3]
     @test MonteCarlo.to.(bs) == [1,6,2,9]
     @test MonteCarlo.label.(bs) == ones(4)
@@ -68,17 +68,17 @@ end
     @test size(ps) == (1, 2, 2, 2) 
     @test ps[:] == [[1.0, 1.0, 1.0], [2.0, 1.0, 1.0], [1.0, 2.0, 1.0], [2.0, 2.0, 1.0], [1.0, 1.0, 2.0], [2.0, 1.0, 2.0], [1.0, 2.0, 2.0], [2.0, 2.0, 2.0]]
 
-    bs = collect(neighbors(l))
+    bs = collect(bonds(l))
     @test MonteCarlo.from.(bs) == [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8]
     @test MonteCarlo.to.(bs) == [2, 3, 5, 1, 4, 6, 4, 1, 7, 3, 2, 8, 6, 7, 1, 5, 8, 2, 8, 5, 3, 7, 6, 4]
     @test MonteCarlo.label.(bs) == ones(24)
 
-    bs = collect(neighbors(l, Val(true)))
+    bs = collect(bonds(l, Val(true)))
     @test MonteCarlo.from.(bs) == [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8]
     @test MonteCarlo.to.(bs) == [2, 3, 5, 2, 3, 5, 1, 4, 6, 1, 4, 6, 4, 1, 7, 4, 1, 7, 3, 2, 8, 3, 2, 8, 6, 7, 1, 6, 7, 1, 5, 8, 2, 5, 8, 2, 8, 5, 3, 8, 5, 3, 7, 6, 4, 7, 6, 4]
     @test MonteCarlo.label.(bs) == ones(48)
 
-    bs = collect(neighbors(l, 3))
+    bs = collect(bonds(l, 3))
     @test MonteCarlo.from.(bs) == [3,3,3,3,3,3]
     @test MonteCarlo.to.(bs) == [4,1,7,4,1,7]
     @test MonteCarlo.label.(bs) == ones(6)
@@ -96,17 +96,17 @@ end
     @test size(ps) == (2, 2, 2) 
     @test ps[:] == [[1.7320508075688772, 0.0], [2.309401076758503, 0.0], [2.598076211353316, -0.5], [3.1754264805429413, -0.5], [2.598076211353316, 0.5], [3.1754264805429417, 0.5], [3.4641016151377544, 0.0], [4.04145188432738, 0.0]]
 
-    bs = collect(neighbors(l))
+    bs = collect(bonds(l))
     @test MonteCarlo.from.(bs) == [1, 1, 1, 3, 3, 3, 5, 5, 5, 7, 7, 7]
     @test MonteCarlo.to.(bs) == [2, 4, 6, 4, 2, 8, 6, 8, 2, 8, 6, 4]
     @test MonteCarlo.label.(bs) == ones(12)
 
-    bs = collect(neighbors(l, Val(true)))
+    bs = collect(bonds(l, Val(true)))
     @test MonteCarlo.from.(bs) == [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8]
     @test MonteCarlo.to.(bs) == [2, 4, 6, 1, 3, 5, 4, 2, 8, 3, 1, 7, 6, 8, 2, 5, 7, 1, 8, 6, 4, 7, 5, 3]
     @test MonteCarlo.label.(bs) == ones(24)
 
-    bs = collect(neighbors(l, 3))
+    bs = collect(bonds(l, 3))
     @test MonteCarlo.from.(bs) == [3,3,3]
     @test MonteCarlo.to.(bs) == [4,2,8]
     @test MonteCarlo.label.(bs) == ones(3)
@@ -538,7 +538,7 @@ end
 #         l = MonteCarlo.HoneycombLattice(L)
 #         @test length(l) == (2L)^2
 #
-#         bonds = collect(MonteCarlo.neighbors(l, Val(true)))
+#         bonds = collect(MonteCarlo.bonds(l, Val(true)))
 #         @test length(bonds) == 3 * (2L)^2
 #         @test allunique(bonds)
 #         for i in 0:length(l)-1
@@ -548,7 +548,7 @@ end
 #             @test allunique(x[2] for x in bonds[3i .+ (1:3)])
 #         end
 #
-#         reduced_bonds = collect(MonteCarlo.neighbors(l, Val(false)))
+#         reduced_bonds = collect(MonteCarlo.bonds(l, Val(false)))
 #         @test length(reduced_bonds) == round(Int64, 1.5 * (2L)^2)
 #         # If directed is false, only one of (i, j) and (j, i)
 #         # should be kept.
