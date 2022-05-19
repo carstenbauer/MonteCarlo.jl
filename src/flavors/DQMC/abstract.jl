@@ -46,7 +46,8 @@ function build_checkerboard(l::AbstractLattice)
     while minimum(edges_used) == 0
         sites_used = zeros(Int64, length(l))
 
-        for (id, (src, trg)) in enumerate(bonds)
+        for (id, b) in enumerate(bonds)
+            src = b.from; trg = b.to
             if edges_used[id] == 1 continue end
             if sites_used[src] == 1 continue end
             if sites_used[trg] == 1 continue end

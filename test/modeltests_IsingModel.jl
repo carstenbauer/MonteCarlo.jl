@@ -6,15 +6,15 @@
     @test m.L == 8 && m.dims == 2
     @test ndims(m) == 2
     @test length(lattice(m)) == 64
-    @test typeof(m) == IsingModel{SquareLattice}
+    @test typeof(m) == IsingModel{Lattice{2}}
     m = IsingModel(dims=1, L=10);
-    @test typeof(m) == IsingModel{Chain}
+    @test typeof(m) == IsingModel{Lattice{1}}
     @test m.L == 10 && m.dims == 1
     @test length(lattice(m)) == 10
     @test ndims(m) == 1
     d = Dict(:dims=>3, :L=>3)
     m = IsingModel(d)
-    @test typeof(m) == IsingModel{CubicLattice{Array{Int64,3}}}
+    @test typeof(m) == IsingModel{Lattice{3}}
     @test m.L == 3 && m.dims == 3
 
     # energy, general

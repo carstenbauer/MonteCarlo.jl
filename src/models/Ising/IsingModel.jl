@@ -28,8 +28,10 @@ function choose_lattice(::Type{IsingModel}, dims::Int, L::Int)
         return Chain(L)
     elseif dims == 2
         return SquareLattice(L)
+    elseif dims == 3
+        return CubicLattice(L)
     else
-        return CubicLattice(dims, L)
+        error("Can't create lattice with dimension $dims")
     end
 end
 
@@ -73,8 +75,8 @@ Base.rand(::Type{MC}, m::IsingModel) = rand(IsingDistribution, fill(m.L, ndims(m
 
 @propagate_inbounds @bm function propose_local(mc::MC, m::IsingModel, i::Int, conf::IsingConf)
     field = 0.0
-    @inbounds for trg in neighbors(m.l, i)
-        field += conf[trg]
+    @inbounds for b in neighbors(m.l, i)
+        field += conf[b.to]
     end
     delta_E = 2.0 * conf[i] * field
     return delta_E, nothing
@@ -88,17 +90,17 @@ end
     nothing
 end
 
-# optimized for 2D case
-@propagate_inbounds @bm function propose_local(
-        mc::MC, m::IsingModel{SquareLattice}, i::Int, conf::IsingConf
-    )
-    neighs = m.l.neighs
-    @inbounds delta_E = 2.0 * conf[i] * (
-        conf[neighs[1, i]] + conf[neighs[2, i]] +
-        conf[neighs[3, i]] + conf[neighs[4, i]]
-    )
-    return delta_E, nothing
-end
+# # optimized for 2D case
+# @propagate_inbounds @bm function propose_local(
+#         mc::MC, m::IsingModel{SquareLattice}, i::Int, conf::IsingConf
+#     )
+#     neighs = m.l.neighs
+#     @inbounds delta_E = 2.0 * conf[i] * (
+#         conf[neighs[1, i]] + conf[neighs[2, i]] +
+#         conf[neighs[3, i]] + conf[neighs[4, i]]
+#     )
+#     return delta_E, nothing
+# end
 
 
 # optional functions/methods
@@ -121,11 +123,11 @@ Returns wether a cluster spinflip has been performed (any spins have been flippe
 
     while !isempty(tocheck)
         cur = pop!(tocheck)
-        @inbounds for n in neighbors(m.l, cur)
+        @inbounds for b in neighbors(m.l, cur)
 
-            if conf[cur] == conf[n] && !(n in cluster) && rand() < (1 - exp(- 2.0 * beta))
-                push!(tocheck, n)
-                push!(cluster, n)
+            if conf[cur] == conf[b.to] && !(b.to in cluster) && rand() < (1 - exp(- 2.0 * beta))
+                push!(tocheck, b.to)
+                push!(cluster, b.to)
             end
 
         end
@@ -148,41 +150,41 @@ Calculate energy of Ising configuration `conf` for Ising model `m`.
 """
 function energy(mc::MC, m::IsingModel, conf::IsingConf)
     E = 0.0
-    for (src, trg) in neighbors(m.l)
-        E -= conf[src]*conf[trg]
+    for b in neighbors(m.l)
+        E -= conf[b.from] * conf[b.to]
     end
     m.energy[] = E
     return E
 end
 
-function energy(mc::MC, m::IsingModel{LT}, conf::IsingConf) where {
-        LT <: Union{Chain, SquareLattice, CubicLattice}
-    }
-    E = 0.0
-    @inbounds for (src, trg) in neighbors(m.l, Val(false))
-        E -= conf[src]*conf[trg]
-    end
-    m.energy[] = E
-    return E
-end
+# function energy(mc::MC, m::IsingModel{LT}, conf::IsingConf) where {
+#         LT <: Union{Chain, SquareLattice, CubicLattice}
+#     }
+#     E = 0.0
+#     @inbounds for (src, trg) in neighbors(m.l, Val(false))
+#         E -= conf[src]*conf[trg]
+#     end
+#     m.energy[] = E
+#     return E
+# end
 
 
-"""
-    energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
+# """
+#     energy(mc::MC, m::IsingModel{Square}, conf::IsingConf)
 
-Calculate energy of Ising configuration `conf` for 2D Ising model `m`.
-This method is a faster variant of the general method for the
-square lattice case. (It is roughly twice as fast in this case.)
-"""
-function energy(mc::MC, m::IsingModel{SquareLattice}, conf::IsingConf)
-    neighs = m.l.neighs
-    E = 0.0
-    @inbounds @simd for i in 1:length(lattice(m))
-        E -= conf[i]*conf[neighs[1,i]] + conf[i]*conf[neighs[2,i]]
-    end
-    m.energy[] = E
-    return E
-end
+# Calculate energy of Ising configuration `conf` for 2D Ising model `m`.
+# This method is a faster variant of the general method for the
+# square lattice case. (It is roughly twice as fast in this case.)
+# """
+# function energy(mc::MC, m::IsingModel{Square}, conf::IsingConf)
+#     neighs = m.l.neighs
+#     E = 0.0
+#     @inbounds @simd for i in 1:length(lattice(m))
+#         E -= conf[i]*conf[neighs[1,i]] + conf[i]*conf[neighs[2,i]]
+#     end
+#     m.energy[] = E
+#     return E
+# end
 
 
 

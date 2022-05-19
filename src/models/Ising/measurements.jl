@@ -19,7 +19,7 @@ struct IsingEnergyMeasurement <: IsingMeasurement
 end
 function IsingEnergyMeasurement(mc::MC, model::IsingModel)
     IsingEnergyMeasurement(
-        1.0 / model.l.sites,
+        1.0 / length(lattice(model)),
         FullBinner(Float64),
         FullBinner(Float64),
         FullBinner(Float64),
@@ -62,7 +62,7 @@ struct IsingMagnetizationMeasurement <: IsingMeasurement
 end
 function IsingMagnetizationMeasurement(mc::MC, model::IsingModel)
     IsingMagnetizationMeasurement(
-        1.0 / model.l.sites,
+        1.0 / length(lattice(model)),
         FullBinner(Float64),
         FullBinner(Float64),
         FullBinner(Float64),

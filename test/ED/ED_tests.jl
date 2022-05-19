@@ -58,16 +58,16 @@ include("ED.jl")
     )
     H = HamiltonMatrix(model)
     for substate1 in 1:2, substate2 in 1:2
-        for site1 in 1:model.l.sites, site2 in 1:model.l.sites
+        for site1 in eachindex(model.l), site2 in eachindex(model.l)
             G = expectation_value(
                 Greens(site1, site2, substate1, substate2),
                 H,
-                N_sites = model.l.sites,
+                N_sites = length(lattice(model)),
             )
             G_perm = expectation_value(
                 Greens_permuted(site1, site2, substate1, substate2),
                 H,
-                N_sites = model.l.sites,
+                N_sites = length(lattice(model)),
             )
             @test G ≈ G_perm
 
@@ -75,13 +75,13 @@ include("ED.jl")
             UTG = expectation_value(
                 s -> annihilate(s, site2, substate2),
                 s -> create(s, site1, substate1),
-                H, 0.1, 0.1, N_sites=model.l.sites
+                H, 0.1, 0.1, N_sites=length(lattice(model))
             )
             @test check(UTG, real(G), 1e-14, 0.0)
             UTG = expectation_value(
                 s -> annihilate(s, site2, substate2),
                 s -> create(s, site1, substate1),
-                H, 0.7, 0.7, N_sites=model.l.sites
+                H, 0.7, 0.7, N_sites=length(lattice(model))
             )
             @test check(UTG, real(G), 1e-14, 0.0)
         end

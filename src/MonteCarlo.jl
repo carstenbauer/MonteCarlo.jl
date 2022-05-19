@@ -38,19 +38,21 @@ include("Measurements.jl")
 export measurements, observables
 
 include("lattices/lattice_iterators.jl")
-include("lattices/square.jl")
-include("lattices/chain.jl")
-include("lattices/cubic.jl")
-include("lattices/honeycomb.jl")
-include("lattices/triangular.jl")
-include("lattices/ALPS.jl")
-include("lattices/deprecated.jl")
-# export directions, RawMask, DistanceMask # maybe getorder?
-export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
+# include("lattices/square.jl")
+# include("lattices/chain.jl")
+# include("lattices/cubic.jl")
+# include("lattices/honeycomb.jl")
+# include("lattices/triangular.jl")
+# include("lattices/ALPS.jl")
+# include("lattices/deprecated.jl")
+include("lattices/new.jl")
+
+export AbstractLattice, Lattice, Chain, SquareLattice, Honeycomb, CubicLattice
+# export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
 export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, 
         EachLocalQuadByDistance, EachLocalQuadBySyncedDistance, 
         Sum, ApplySymmetries
-export neighbors, directions
+export positions, neighbors, directions
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/main.jl")

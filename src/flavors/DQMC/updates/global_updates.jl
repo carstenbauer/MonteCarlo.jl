@@ -354,8 +354,8 @@ _load(::FileLike, ::Val{:Denoise}) = Denoise()
     copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))
         average = tc[i, slice]
-        for j in neighbors(lattice(model), i)
-            average += 2 * tc[j, slice]
+        for b in neighbors(lattice(model), i)
+            average += 2 * tc[b.to, slice]
         end
         c[i, slice] = sign(average)
     end
@@ -381,8 +381,8 @@ _load(::FileLike, ::Val{:DenoiseFlip}) = DenoiseFlip()
     copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))
         average = tc[i, slice]
-        for j in neighbors(lattice(model), i)
-            average += 2 * tc[j, slice]
+        for b in neighbors(lattice(model), i)
+            average += 2 * tc[b.to, slice]
         end
         c[i, slice] = -sign(average)
     end
@@ -407,8 +407,8 @@ _load(::FileLike, ::Val{:StaggeredDenoise}) = StaggeredDenoise()
     copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))
         average = tc[i, slice]
-        for j in neighbors(lattice(model), i)
-            average += 2 * tc[j, slice]
+        for b in neighbors(lattice(model), i)
+            average += 2 * tc[b.to, slice]
         end
         c[i, slice] = (1 - 2 * (i % 2)) * sign(average)
     end

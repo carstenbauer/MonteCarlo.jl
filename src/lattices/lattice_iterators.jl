@@ -47,7 +47,7 @@ Base.haskey(cache::LatticeIteratorCache, key::LICacheKeys) = haskey(cache.cache,
 
 
 # For shifting sites across periodic bounds
-function generate_combinations(vs::Vector{<: Vector})
+function generate_combinations(vs)
     out = [zeros(length(vs[1]))]
     for v in vs
         out = vcat([e.-v for e in out], out, [e.+v for e in out])
@@ -69,8 +69,8 @@ end
 
 function Base.push!(cache::LatticeIteratorCache, key::Dir2SrcTrg, lattice::AbstractLattice, ϵ=1e-6)
     if !haskey(cache.cache, key)
-        _positions = positions(lattice)
-        wrap = generate_combinations(lattice_vectors(lattice))
+        _positions = collect(positions(lattice))
+        wrap = generate_combinations(size(lattice) .* lattice_vectors(lattice))
         directions = Vector{Float64}[]
         # (src, trg), first index is dir, second index irrelevant
         bonds = [Tuple{Int64, Int64}[] for _ in 1:length(lattice)]
@@ -647,8 +647,8 @@ Base.eltype(s::_ApplySymmetries) = eltype(s.iter)
 # end
 
 function directions(iter::_EachSitePairByDistance, lattice::AbstractLattice, ϵ=1e-6)
-    pos = MonteCarlo.positions(lattice)
-    wrap = generate_combinations(lattice_vectors(lattice))
+    pos = collect(positions(lattice))
+    wrap = generate_combinations(size(lattice) .* lattice_vectors(lattice))
 
     map(iter.dir2srctrg) do pairs
         src, trg = pairs[1]
@@ -669,8 +669,8 @@ end
 directions(dqmc::MonteCarloFlavor, ϵ=1e-6) = directions(lattice(dqmc), ϵ)
 directions(model::Model, ϵ=1e-6) = directions(lattice(model), ϵ)
 function directions(lattice::AbstractLattice, ϵ = 1e-6)
-    _positions = positions(lattice)
-    wrap = generate_combinations(lattice_vectors(lattice))
+    _positions = collect(positions(lattice))
+    wrap = generate_combinations(size(lattice) .* lattice_vectors(lattice))
     directions = Vector{Float64}[]
     for origin in 1:length(lattice)
         for (trg, p) in enumerate(_positions)

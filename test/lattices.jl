@@ -1,35 +1,117 @@
-for (d, lattype) in enumerate((
-        Chain,
-        SquareLattice,
-        CubicLattice
-    ))
-    constructor = d < 3 ? L -> lattype(L) : L -> lattype(d, L)
+using MonteCarlo: lattice_vectors
 
-    @testset "$(d)D $lattype" begin
-        for L in (3, 4)
-            l = constructor(L)
-            @test length(l) == L^d
+@testset "Chain" begin
+    l = Chain(4)
 
-            bonds = collect(neighbors(l, Val(true)))
-            @test length(bonds) == 2*d*L^d
-            @test allunique(bonds)
-            for i in 0:length(l)-1
-                # same source
-                @test all(bonds[2d*i + 1][1] == x[1] for x in bonds[2d*i .+ (2:2d)])
-                # different target
-                @test allunique(x[2] for x in bonds[2d*i .+ (1:2d)])
-            end
+    @test length(l) == 4
+    @test size(l) == (4,)
+    @test lattice_vectors(l) == ([1.0],)
+    @test eachindex(l) == 1:4
 
-            reduced_bonds = collect(neighbors(l, Val(false)))
-            @test length(reduced_bonds) == d*L^d
-            # If directed is false, only one of (i, j) and (j, i)
-            # should be kept.
-            mirrored_bonds = [[trg, src] for (src, trg) in reduced_bonds]
-            all_bonds = vcat(reduced_bonds, mirrored_bonds)
-            @test sort(all_bonds) == sort(bonds)
-        end
-    end
+    ps = collect(positions(l))
+    @test size(ps) == (1, 4) 
+    @test ps[:] == [[1.0], [2.0], [3.0], [4.0]]
+
+    bs = collect(neighbors(l))
+    @test MonteCarlo.from.(bs) == [1,2,3,4]
+    @test MonteCarlo.to.(bs) == [2,3,4,1]
+    @test MonteCarlo.label.(bs) == [1,1,1,1]
+
+    bs = collect(neighbors(l, Val(true)))
+    @test MonteCarlo.from.(bs) == [1,1,2,2,3,3,4,4]
+    @test MonteCarlo.to.(bs) == [2,4,3,1,4,2,1,3]
+    @test MonteCarlo.label.(bs) == ones(8)
+
+    bs = collect(neighbors(l, 3))
+    @test MonteCarlo.from.(bs) == [3,3]
+    @test MonteCarlo.to.(bs) == [4,2]
+    @test MonteCarlo.label.(bs) == ones(2)
 end
+
+@testset "Square" begin
+    l = SquareLattice(3)
+
+    @test length(l) == 9
+    @test size(l) == (3,3)
+    @test lattice_vectors(l) == ([1.0, 0.0], [0.0, 1.0])
+    @test eachindex(l) == 1:9
+
+    ps = collect(positions(l))
+    @test size(ps) == (1, 3, 3) 
+    @test ps[:] == [[1.0, 1.0], [2.0, 1.0], [3.0, 1.0], [1.0, 2.0], [2.0, 2.0], [3.0, 2.0], [1.0, 3.0], [2.0, 3.0], [3.0, 3.0]]
+
+    bs = collect(neighbors(l))
+    @test MonteCarlo.from.(bs) == [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9]
+    @test MonteCarlo.to.(bs) == [2, 4, 3, 5, 1, 6, 5, 7, 6, 8, 4, 9, 8, 1, 9, 2, 7, 3]
+    @test MonteCarlo.label.(bs) == ones(18)
+
+    bs = collect(neighbors(l, Val(true)))
+    @test MonteCarlo.from.(bs) == [1, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 6, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 8, 9, 9, 9, 9]
+    @test MonteCarlo.to.(bs) == [2, 4, 3, 7, 3, 5, 1, 8, 1, 6, 2, 9, 5, 7, 6, 1, 6, 8, 4, 2, 4, 9, 5, 3, 8, 1, 9, 4, 9, 2, 7, 5, 7, 3, 8, 6]
+    @test MonteCarlo.label.(bs) == ones(36)
+
+    bs = collect(neighbors(l, 3))
+    @test MonteCarlo.from.(bs) == [3,3,3,3]
+    @test MonteCarlo.to.(bs) == [1,6,2,9]
+    @test MonteCarlo.label.(bs) == ones(4)
+end
+
+@testset "Cubic" begin
+    l = CubicLattice(2)
+
+    @test length(l) == 8
+    @test size(l) == (2,2,2)
+    @test lattice_vectors(l) == ([1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0])
+    @test eachindex(l) == 1:8
+
+    ps = collect(positions(l))
+    @test size(ps) == (1, 2, 2, 2) 
+    @test ps[:] == [[1.0, 1.0, 1.0], [2.0, 1.0, 1.0], [1.0, 2.0, 1.0], [2.0, 2.0, 1.0], [1.0, 1.0, 2.0], [2.0, 1.0, 2.0], [1.0, 2.0, 2.0], [2.0, 2.0, 2.0]]
+
+    bs = collect(neighbors(l))
+    @test MonteCarlo.from.(bs) == [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8]
+    @test MonteCarlo.to.(bs) == [2, 3, 5, 1, 4, 6, 4, 1, 7, 3, 2, 8, 6, 7, 1, 5, 8, 2, 8, 5, 3, 7, 6, 4]
+    @test MonteCarlo.label.(bs) == ones(24)
+
+    bs = collect(neighbors(l, Val(true)))
+    @test MonteCarlo.from.(bs) == [1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3, 3, 4, 4, 4, 4, 4, 4, 5, 5, 5, 5, 5, 5, 6, 6, 6, 6, 6, 6, 7, 7, 7, 7, 7, 7, 8, 8, 8, 8, 8, 8]
+    @test MonteCarlo.to.(bs) == [2, 3, 5, 2, 3, 5, 1, 4, 6, 1, 4, 6, 4, 1, 7, 4, 1, 7, 3, 2, 8, 3, 2, 8, 6, 7, 1, 6, 7, 1, 5, 8, 2, 5, 8, 2, 8, 5, 3, 8, 5, 3, 7, 6, 4, 7, 6, 4]
+    @test MonteCarlo.label.(bs) == ones(48)
+
+    bs = collect(neighbors(l, 3))
+    @test MonteCarlo.from.(bs) == [3,3,3,3,3,3]
+    @test MonteCarlo.to.(bs) == [4,1,7,4,1,7]
+    @test MonteCarlo.label.(bs) == ones(6)
+end
+
+@testset "Honeycomb" begin
+    l = Honeycomb(2)
+
+    @test length(l) == 8
+    @test size(l) == (2,2)
+    @test lattice_vectors(l) == ([0.8660254037844386, -0.5], [0.8660254037844386, 0.5])
+    @test eachindex(l) == 1:8
+
+    ps = collect(positions(l))
+    @test size(ps) == (2, 2, 2) 
+    @test ps[:] == [[1.7320508075688772, 0.0], [2.309401076758503, 0.0], [2.598076211353316, -0.5], [3.1754264805429413, -0.5], [2.598076211353316, 0.5], [3.1754264805429417, 0.5], [3.4641016151377544, 0.0], [4.04145188432738, 0.0]]
+
+    bs = collect(neighbors(l))
+    @test MonteCarlo.from.(bs) == [1, 1, 1, 3, 3, 3, 5, 5, 5, 7, 7, 7]
+    @test MonteCarlo.to.(bs) == [2, 4, 6, 4, 2, 8, 6, 8, 2, 8, 6, 4]
+    @test MonteCarlo.label.(bs) == ones(12)
+
+    bs = collect(neighbors(l, Val(true)))
+    @test MonteCarlo.from.(bs) == [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8]
+    @test MonteCarlo.to.(bs) == [2, 4, 6, 1, 3, 5, 4, 2, 8, 3, 1, 7, 6, 8, 2, 5, 7, 1, 8, 6, 4, 7, 5, 3]
+    @test MonteCarlo.label.(bs) == ones(24)
+
+    bs = collect(neighbors(l, 3))
+    @test MonteCarlo.from.(bs) == [3,3,3]
+    @test MonteCarlo.to.(bs) == [4,2,8]
+    @test MonteCarlo.label.(bs) == ones(3)
+end
+
 
 using MonteCarlo: directed_norm
 
@@ -41,7 +123,7 @@ using MonteCarlo: directed_norm
     m = HubbardModel(10, 1, U = -1.0)
     dqmc2 = DQMC(m, beta=1.0)
 
-    l = TriangularLattice(0, Lx=2, Ly=6)
+    l = SquareLattice(2, 6)
     m = HubbardModel(l)
     dqmc3 = DQMC(m, beta=1.0)
 
@@ -123,8 +205,9 @@ using MonteCarlo: directed_norm
             @test Base.IteratorEltype(EachSitePairByDistance) == Base.HasEltype()
 
             dirs = directions(dqmc)
-            pos = MonteCarlo.positions(lattice(dqmc))
-            wrap = MonteCarlo.generate_combinations(MonteCarlo.lattice_vectors(MonteCarlo.lattice(dqmc)))
+            pos = collect(positions(lattice(dqmc)))
+            wrap = MonteCarlo.generate_combinations(
+                size(lattice(dqmc)) .* MonteCarlo.lattice_vectors(lattice(dqmc)))
 
             # Let's summarize these tests...
             check = true
@@ -157,14 +240,16 @@ using MonteCarlo: directed_norm
         for dqmc in dqmcs
             iter = EachLocalQuadByDistance(6)(dqmc, dqmc.model)
             Nsites = length(lattice(dqmc))
-            @test length(iter) == 6^2 * Nsites^2
+            @test length(iter) == 6^2 * Nsites^2 # TODO x3
             @test eltype(iter) == NTuple{5, Int64}
             @test Base.IteratorSize(EachLocalQuadByDistance) == Base.HasLength()
             @test Base.IteratorEltype(EachLocalQuadByDistance) == Base.HasEltype()
 
             dirs = directions(dqmc)
-            pos = MonteCarlo.positions(lattice(dqmc))
-            wrap = MonteCarlo.generate_combinations(MonteCarlo.lattice_vectors(MonteCarlo.lattice(dqmc)))
+            pos = collect(positions(lattice(dqmc)))
+            wrap = MonteCarlo.generate_combinations(
+                size(lattice(dqmc)) .* MonteCarlo.lattice_vectors(lattice(dqmc))
+            )
 
             # Let's summarize these tests...
             check12 = true
@@ -230,8 +315,9 @@ using MonteCarlo: directed_norm
             @test Base.IteratorEltype(EachLocalQuadBySyncedDistance) == Base.HasEltype()
 
             dirs = directions(dqmc)
-            pos = MonteCarlo.positions(lattice(dqmc))
-            wrap = MonteCarlo.generate_combinations(MonteCarlo.lattice_vectors(MonteCarlo.lattice(dqmc)))
+            pos = collect(positions(lattice(dqmc)))
+            wrap = MonteCarlo.generate_combinations(
+                size(lattice(dqmc)) .* MonteCarlo.lattice_vectors(lattice(dqmc)))
 
             # Let's summarize these tests...
             check12 = true

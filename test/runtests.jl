@@ -2,11 +2,9 @@ using MonteCarlo, StableDQMC
 using Test
 using LinearAlgebra, Random, Dates
 using MonteCarlo: @bm, TimerOutputs
-
 using MonteCarlo: vmul!, lvmul!, rvmul!, rdivp!, udt_AVX_pivot!, rvadd!, vsub!
 using MonteCarlo: vmin!, vmininv!, vmax!, vmaxinv!, vinv!
 using MonteCarlo: BlockDiagonal, CMat64, CVec64, StructArray
-
 
 struct DummyModel <: MonteCarlo.Model 
     lattice
