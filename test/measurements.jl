@@ -180,7 +180,7 @@ end
         m = occupation(mc, m1)
         @test m isa MonteCarlo.DQMCMeasurement
         @test m.greens_iterator == Greens()
-        @test m.lattice_iterator == EachSiteAndFlavor()
+        @test m.lattice_iterator == EachSiteAndFlavor(mc)
         @test m.kernel == MonteCarlo.occupation_kernel
         @test m.observable isa LogBinner{Vector{Float64}}
         @test m.temp isa Vector{Float64}
@@ -197,8 +197,8 @@ end
             @test m isa MonteCarlo.DQMCMeasurement
             @test m.lattice_iterator == EachSitePairByDistance()
             @test m.kernel == MonteCarlo.cdc_kernel
-            @test m.observable isa LogBinner{Vector{Float64}}
-            @test m.temp isa Vector{Float64}
+            @test m.observable isa LogBinner{Array{Float64, 3}}
+            @test m.temp isa Array{Float64, 3}
 
             # Spin densities
             for dir in (:x, :y, :z)
@@ -212,8 +212,8 @@ end
                 @test m isa MonteCarlo.DQMCMeasurement
                 @test m.lattice_iterator == EachSitePairByDistance()
                 @test m.kernel == Core.eval(MonteCarlo, Symbol(:sdc_, dir, :_kernel))
-                @test m.observable isa LogBinner{Vector{Float64}}
-                @test m.temp isa Vector{Float64}
+                @test m.observable isa LogBinner{Array{Float64, 3}}
+                @test m.temp isa Array{Float64, 3}
             end
 
             # pairings
@@ -227,8 +227,8 @@ end
             @test m isa MonteCarlo.DQMCMeasurement
             @test m.lattice_iterator == EachLocalQuadByDistance(1:5)
             @test m.kernel == MonteCarlo.pc_combined_kernel
-            @test m.observable isa LogBinner{Array{Float64, 3}}
-            @test m.temp isa Array{Float64, 3}
+            @test m.observable isa LogBinner{Array{Float64, 5}}
+            @test m.temp isa Array{Float64, 5}
         end
 
         # Magnetizations
@@ -248,7 +248,7 @@ end
         @test m.greens_iterator == TimeIntegral(mc)
         @test m.lattice_iterator == EachLocalQuadBySyncedDistance(2:5)
         @test m.kernel == MonteCarlo.cc_kernel
-        @test m.observable isa LogBinner{Matrix{Float64}}
-        @test m.temp isa Matrix{Float64}
+        @test m.observable isa LogBinner{Array{Float64, 4}}
+        @test m.temp isa Array{Float64, 4}
     end
 end

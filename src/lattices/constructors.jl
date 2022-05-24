@@ -1,5 +1,6 @@
 function Chain(Lx)
     uc = UnitCell(
+        "Chain",
         (Float64[1],),
         [Float64[0]],
         [Bond(1, 1, ( 1,)), Bond(1, 1, (-1,))]
@@ -10,6 +11,7 @@ end
 
 function SquareLattice(Lx, Ly = Lx)
     uc = UnitCell(
+        "Square",
         (Float64[1, 0], Float64[0, 1]),
         [Float64[0, 0]],
         [
@@ -25,6 +27,7 @@ end
 
 function CubicLattice(Lx, Ly = Lx, Lz = Lx)
     uc = UnitCell(
+        "Cubic",
         (Float64[1, 0, 0], Float64[0, 1, 0], Float64[0, 0, 1]),
         [Float64[0, 0, 0]],
         [
@@ -42,6 +45,7 @@ end
 
 function Honeycomb(Lx, Ly = Lx)
     uc = UnitCell(
+        "Honeycomb",
         (Float64[sqrt(3.0)/2, -0.5], Float64[sqrt(3.0)/2, +0.5]),
         [Float64[0.0, 0.0], Float64[1/sqrt(3.0), 0.0]],
         [

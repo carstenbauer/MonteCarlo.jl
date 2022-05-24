@@ -36,7 +36,6 @@ mutable struct DQMC{
     recorder::RT
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
-    lattice_iterator_cache::LatticeIteratorCache
 
     function DQMC{M, CB, FT, RT, Stack, UTStack, US}(args...) where {
             M <: Model, CB <: Checkerboard, FT <: AbstractField, 
@@ -52,7 +51,7 @@ mutable struct DQMC{
         @assert isconcretetype(RT)
         @assert isconcretetype(US)
         
-        new{M, CB, FT, RT, Stack, UTStack, US}(args..., LatticeIteratorCache())
+        new{M, CB, FT, RT, Stack, UTStack, US}(args...)
     end
 end
 
@@ -139,4 +138,4 @@ include("measurements/generic.jl")
 # Quick constructers and measurement kernels (i.e. applied Wicks theorem)
 include("measurements/measurements.jl")
 # Superfluid stiffness stuff
-include("measurements/superfluid_stiffness.jl")
+# include("measurements/superfluid_stiffness.jl")

@@ -46,16 +46,11 @@ rebuild(B::T, capacity) where T = T(B, capacity=capacity)
 function Measurement(
         dqmc, _model, greens_iterator, lattice_iterator, kernel;
         capacity = _default_capacity(dqmc), eltype = geltype(dqmc),
-        temp = _measurement_buffer(dqmc, _model, lattice_iterator, eltype),
+        temp = _measurement_buffer(dqmc, lattice_iterator, eltype),
         obs = LogBinner(
-            _binner_zero_element(dqmc, _model, lattice_iterator, eltype), 
+            _binner_zero_element(dqmc, lattice_iterator, eltype), 
             capacity=capacity
-        ),
-        # let
-        #     shape = _get_final_shape(dqmc, _model, lattice_iterator)
-        #     _zero = shape === nothing ? zero(eltype) : zeros(eltype, shape)
-        #     LogBinner(_zero, capacity=capacity)
-        # end
+        )
     )
     DQMCMeasurement(greens_iterator, lattice_iterator, kernel, obs, temp)
 end
@@ -133,69 +128,20 @@ to_tag(::Type{<: DQMCMeasurement}) = Val(:DQMCMeasurement)
 ################################################################################
 
 
+# I think this all now
+_measurement_buffer(mc, li, eltype) = zeros(eltype, output_size(li, lattice(mc)))
+_measurement_buffer(mc, ::Nothing, eltype) = nothing
 
-# function _measurement_buffer(mc::DQMC, m::Model, li, eltype)
-#     shape = _get_temp_shape(dqmc, _model, lattice_iterator)
-#     shape === nothing ? nothing : Array{eltype}(undef, shape)
-# end
-
-# General (Float64)
-_measurement_buffer(mc, model, li, eltype) = _simple_buffer(mc, li, eltype)
-_measurement_buffer(mc, model, ::Sum, eltype) = zeros(eltype, 1)
-function _measurement_buffer(mc, model, ::LatticeIterationWrapper{LI}, eltype) where {LI}
-    _measurement_buffer(mc, model, LI, eltype)
+function _binner_zero_element(mc, li, eltype)
+    shape = output_size(li, lattice(mc))
+    return shape == (1,) ? zero(eltype) : zeros(eltype, shape)
 end
-
-# StructArrays / ComplexF64
-# This unwraps wrapper to see if any of the wrapped types matches what we're 
-# looking for. Currently looks for T1 in T2
-function is_wrapped_type_of(T1, T2)
-    if T1 == T2
-        return true
-    else
-        for t2 in T2.types
-            is_subtype_of(T1, t2) && return true
-        end
-    end
-    false
-end
-
-function maybe_structarray(mc, A)
-    is_wrapped_type_of(CMat64, gmattype(mc)) ? StructArray(A) : A
-end
-
-_measurement_buffer(mc, model, li, ::ComplexF64) = maybe_structarray(mc, _simple_buffer(mc, li, eltype))
-_measurement_buffer(mc, model, ::Sum, ::ComplexF64) = maybe_structarray(mc, zeros(ComplexF64, 1))
-function _measurement_buffer(mc, model, ::LatticeIterationWrapper{LI}, ::ComplexF64) where {LI}
-    maybe_structarray(mc, _measurement_buffer(mc, model, LI, eltype))
-end
+_binner_zero_element(mc, ::Nothing, eltype) = zero(eltype)
 
 
-# can be determined from type
-_simple_buffer(mc, t::Type, T) = _simple_buffer(mc, t(), T)
-_simple_buffer(mc, ::Type{Nothing}, T) = nothing
-_simple_buffer(mc, ::Nothing, T) = nothing
-_simple_buffer(mc, ::EachSite, T) = zeros(T, length(lattice(mc)))
-_simple_buffer(mc, ::EachSiteAndFlavor, T) = zeros(T, nflavors(mc) * length(lattice(mc)))
-_simple_buffer(mc, ::EachSitePair, T) = zeros(T, length(lattice(mc)), length(lattice(mc)))
-
-
-# determined from type data
-_simple_buffer(mc, li::DeferredLatticeIteratorTemplate, T) = zeros(T, ndirections(mc, li)) # TODO
-
-# zero element for binner
-_binner_zero_element(mc, model, li, eltype) = _simple_buffer(mc, li, eltype)
-_binner_zero_element(mc, model, ::Type{Nothing}, eltype) = zero(eltype)
-_binner_zero_element(mc, model, ::Nothing, eltype) = zero(eltype)
-_binner_zero_element(mc, model, ::Sum, eltype) = zero(eltype)
-# _binner_zero_element(mc, model, ::SuperfluidDensity, eltype) = zero(eltype)
-function _binner_zero_element(mc, model, li::ApplySymmetries{LI, N}, eltype) where {LI, N}
-    if LI <: EachLocalQuadByDistance || LI <: EachLocalQuadBySyncedDistance
-        return zeros(eltype, first(ndirection(LI(mc, model))), N) # TODO
-    else
-        throw(MethodError(_binner_zero_element, (mc, model, li, eltype)))
-    end
-end
+################################################################################
+### Initialization
+################################################################################
 
 
 requires(::AbstractMeasurement) = (Nothing, Nothing)
@@ -203,8 +149,6 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
 
 
 @bm function generate_groups(mc, model, measurements)
-    empty!(mc.lattice_iterator_cache)
-
     # get unique requirements
     requirements = requires.(measurements)
     GIs = unique(first.(requirements))
@@ -224,10 +168,7 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
     # ]
     output = map(enumerate(GIs)) do (i, G)
         ms = filter(m -> G == requires(m)[1], measurements)
-        group = map(ms) do m
-            LI = requires(m)[2]
-            (LI === nothing ? nothing : LI(mc, model), m)
-        end
+        group = map(m -> (requires(m)[2], m), ms)
         (G isa Type ? G(mc, model) : G) => group
     end
 
@@ -240,14 +181,16 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
         end
         N = length(measurements)
         M = mapreduce(x -> length(x[2]), +, output, init = 0)
-        error("Oh no. We lost some measurements. $N -> $M")
+        error("Oh no! We lost some measurements: $N -> $M")
     end
 
     return output
 end
 
 
-lattice_iterator(m::DQMCMeasurement, mc, model) = m.lattice_iterator(mc, model)
+function lattice_iterator(m::DQMCMeasurement, mc)
+    return with_lattice(m.lattice_iterator, lattice(mc))
+end
 
 
 
@@ -312,42 +255,42 @@ Base.length(iter::_TimeIntegral) = length(iter.iter)
 
 
 
-@bm function apply!(::Nothing, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+@bm function apply!(::Nothing, combined::Vector{<: Tuple}, mc::DQMC)
     for (lattice_iterator, measurement) in combined
         # Clear temp if necessary
-        prepare!(lattice_iterator, model, measurement)
+        prepare!(lattice_iterator, measurement, mc)
         # Write measurement to ouput
-        measure!(lattice_iterator, measurement, mc, model, sweep)
+        measure!(lattice_iterator, measurement, mc)
         # Finalize computation (temp) and commit
-        finish!(lattice_iterator, model, measurement)
+        finish!(lattice_iterator, measurement, mc)
     end
 
     nothing
 end
 
-@bm function apply!(::Greens, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+@bm function apply!(::Greens, combined::Vector{<: Tuple}, mc::DQMC)
     G = greens!(mc)
     for (lattice_iterator, measurement) in combined
-        prepare!(lattice_iterator, model, measurement)
-        measure!(lattice_iterator, measurement, mc, model, sweep, G)
-        finish!(lattice_iterator, model, measurement)
+        prepare!(lattice_iterator, measurement, mc)
+        measure!(lattice_iterator, measurement, mc, G)
+        finish!(lattice_iterator, measurement, mc)
     end
     nothing
 end
 
-@bm function apply!(g::GreensAt, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+@bm function apply!(g::GreensAt, combined::Vector{<: Tuple}, mc::DQMC)
     G = greens!(mc, g.k, g.l)
     for (lattice_iterator, measurement) in combined
-        prepare!(lattice_iterator, model, measurement)
-        measure!(lattice_iterator, measurement, mc, model, sweep, G)
-        finish!(lattice_iterator, model, measurement)
+        prepare!(lattice_iterator, measurement, mc)
+        measure!(lattice_iterator, measurement, mc, G)
+        finish!(lattice_iterator, measurement, mc)
     end
     nothing
 end
 
-@bm function apply!(iter::TimeIntegral, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+@bm function apply!(iter::TimeIntegral, combined::Vector{<: Tuple}, mc::DQMC)
     for (lattice_iterator, measurement) in combined
-        prepare!(lattice_iterator, model, measurement)
+        prepare!(lattice_iterator, measurement, mc)
     end
 
     G00 = greens!(mc)
@@ -355,30 +298,30 @@ end
     for (i, (G0l, Gl0, Gll)) in enumerate(init(mc, iter))
         weight = ifelse(i in (1, M), 0.5, 1.0) * mc.parameters.delta_tau
         for (lattice_iterator, measurement) in combined
-            measure!(lattice_iterator, measurement, mc, model, sweep, (G00, G0l, Gl0, Gll), weight)
+            measure!(lattice_iterator, measurement, mc, (G00, G0l, Gl0, Gll), weight)
         end
     end
 
     for (lattice_iterator, measurement) in combined
-        finish!(lattice_iterator, model, measurement)
+        finish!(lattice_iterator, measurement, mc)
     end
     nothing
 end
 
-@bm function apply!(iter::AbstractGreensIterator, combined::Vector{<: Tuple}, mc::DQMC, model, sweep)
+@bm function apply!(iter::AbstractGreensIterator, combined::Vector{<: Tuple}, mc::DQMC)
     for (lattice_iterator, measurement) in combined
-        prepare!(lattice_iterator, model, measurement)
+        prepare!(lattice_iterator, measurement, mc)
     end
 
     G00 = greens!(mc)
     for (G0l, Gl0, Gll) in init(mc, iter)
         for (lattice_iterator, measurement) in combined
-            measure!(lattice_iterator, measurement, mc, model, sweep, (G00, G0l, Gl0, Gll))
+            measure!(lattice_iterator, measurement, mc, (G00, G0l, Gl0, Gll))
         end
     end
 
     for (lattice_iterator, measurement) in combined
-        finish!(lattice_iterator, model, measurement)
+        finish!(lattice_iterator, measurement, mc)
     end
     nothing
 end
@@ -391,16 +334,16 @@ end
 
 
 
-@bm function measure!(lattice_iterator, measurement, mc::DQMC, model, sweep, packed_greens, weight = 1.0)
+@bm function measure!(lattice_iterator, measurement, mc::DQMC, packed_greens, weight = 1.0)
     # ignore sweep
-    apply!(measurement.temp, lattice_iterator, measurement, mc, model, packed_greens, weight)
+    apply!(measurement.temp, lattice_iterator, measurement, mc, packed_greens, weight)
     nothing
 end
 
 # Lattice irrelevant
-@bm function measure!(::Nothing, measurement, mc::DQMC, model, sweep, packed_greens)
+@bm function measure!(::Nothing, measurement, mc::DQMC, packed_greens)
     flv = Val(nflavors(mc))
-    push!(measurement.observable, measurement.kernel(mc, model, packed_greens, flv))
+    push!(measurement.observable, measurement.kernel(mc, mc.model, packed_greens, flv))
     nothing
 end
 
@@ -411,62 +354,30 @@ end
 ################################################################################
 
 
-# Call kernel for each site (linear index)
-@bm function apply!(temp::Array, iter::DirectLatticeIterator, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
+@bm function apply!(
+        temp::Array, iter::DirectLatticeIterator, measurement, mc::DQMC, 
+        packed_greens, weight = 1.0
+    )
     flv = Val(nflavors(mc))
-    for i in iter
-        temp[i] += weight * measurement.kernel(mc, model, i, packed_greens, flv)
-    end
-    nothing
-end
-
-# Call kernel for each pair (src, trg) (Nsties² total)
-@bm function apply!(temp::Array, iter::EachSitePair, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
-    flv = Val(nflavors(mc))
-    for (i, j) in iter
-        temp[i, j] += weight * measurement.kernel(mc, model, (i, j), packed_greens, flv)
-    end
-    nothing
-end
-
-# Call kernel for each pair (site, site) (i.e. on-site) 
-@bm function apply!(temp::Array, iter::_OnSite, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
-    flv = Val(nflavors(mc))
-    for (i, j) in iter
-        temp[i] += weight * measurement.kernel(mc, model, (i, j), packed_greens, flv)
-    end
-    nothing
-end
-
-@bm function apply!(temp::Array, iter::DeferredLatticeIterator, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
-    flv = Val(nflavors(mc))
-    @inbounds for idxs in iter
-        temp[first(idxs)] += weight * measurement.kernel(mc, model, idxs[2:end], packed_greens, flv)
+    for idx in with_lattice(iter, lattice(mc))
+        val = getindex(temp, CartesianIndex(idx))
+        val += weight * measurement.kernel(mc, mc.model, idx, packed_greens, flv)
+        setindex!(temp, val, CartesianIndex(idx))
     end
     nothing
 end
 
 
-# Sums
-@bm function apply!(temp::Array, iter::_Sum{<: DirectLatticeIterator}, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
+@bm function apply!(
+        temp::Array, iter::DeferredLatticeIterator, measurement, mc::DQMC, 
+        packed_greens, weight = 1.0
+    )
     flv = Val(nflavors(mc))
-    @inbounds for idxs in iter
-        temp[1] += weight * measurement.kernel(mc, model, idxs, packed_greens, flv)
+    @inbounds for idxs in with_lattice(iter, lattice(mc))
+        temp[first(idxs)] += weight * measurement.kernel(mc, mc.model, idxs[2:end], packed_greens, flv)
     end
     nothing
 end
-@bm function apply!(temp::Array, iter::_Sum{<: DeferredLatticeIterator}, measurement, mc::DQMC, model, packed_greens, weight = 1.0)
-    flv = Val(nflavors(mc))
-    @inbounds for idxs in iter
-        temp[1] += weight * measurement.kernel(mc, model, idxs[2:end], packed_greens, flv)
-    end
-    nothing
-end
-
-@inline function apply!(temp::Array, s::LatticeIterationWrapper, m, mc, model, pg, weight = 1.0)
-    apply!(temp, s.iter, m, mc, model, pg, weight)
-end
-
 
 
 ################################################################################
@@ -476,50 +387,47 @@ end
 
 
 # If LatticeIterator is Nothing, then things should be handled in measure!
-@inline prepare!(::Nothing, model, m) = nothing
-@inline prepare!(::AbstractLatticeIterator, model, m) = m.temp .= zero(eltype(m.temp))
-@inline prepare!(s::_Sum, args...) = prepare!(s.iter, args...)
+@inline prepare!(::Nothing, m, mc) = nothing
+@inline prepare!(::AbstractLatticeIterator, m, mc) = m.temp .= zero(eltype(m.temp))
+
 
 @inline finish!(::Nothing, args...) = nothing # handled in measure!
-@inline function finish!(li, model, m)
-    finalize_temp!(li, model, m)
+@inline function finish!(li, m, mc)
+    finalize_temp!(li, m, mc)
     commit!(li, m)
 end
 
-@inline function finalize_temp!(::AbstractLatticeIterator, model, m)
+@inline function finalize_temp!(::AbstractLatticeIterator, m, mc)
     nothing
 end
-@inline function finalize_temp!(::DeferredLatticeIterator, model, m)
-    m.temp ./= length(lattice(model))
-end
-@inline function finalize_temp!(s::LatticeIterationWrapper, model, m)
-    finalize_temp!(s.iter, model, m)
+@inline function finalize_temp!(::DeferredLatticeIterator, m, mc)
+    m.temp ./= length(lattice(mc))
 end
 
 @inline commit!(::AbstractLatticeIterator, m) = push!(m.observable, m.temp)
-@inline commit!(::_Sum, m) = push!(m.observable, m.temp[1])
+@inline commit!(::Sum, m) = push!(m.observable, m.temp[1])
 
 
-function commit!(s::_ApplySymmetries{<: EachLocalQuadByDistance}, m)
-    final = zeros(eltype(m.temp), size(m.temp, 1), length(s.symmetries))
-    # This calculates
-    # ∑_{a a'} O(Δr, a, a') f_ζ(a) f_ζ(a')
-    # where a, a' are typically nearest neighbor directions and
-    # f_ζ(a) is the weight in direction a for a symmetry ζ
-    for (i, sym) in enumerate(s.symmetries)
-        for k in 1:length(sym), l in 1:length(sym)
-            @. final[:, i] += m.temp[:, k, l] * sym[k] * sym[l]
-        end
-    end
-    push!(m.observable, final)
-end
-function commit!(s::_ApplySymmetries{<: EachLocalQuadBySyncedDistance}, m)
-    final = zeros(eltype(m.temp), size(m.temp, 1), length(s.symmetries))
-    # Same as above but with a = a'
-    for (i, sym) in enumerate(s.symmetries)
-        for k in 1:length(sym)
-            @. final[:, i] += m.temp[:, k] * sym[k] * sym[k]
-        end
-    end
-    push!(m.observable, final)
-end
+# function commit!(s::ApplySymmetries{<: EachLocalQuadByDistance}, m)
+#     final = zeros(eltype(m.temp), size(m.temp, 1), length(s.symmetries))
+#     # This calculates
+#     # ∑_{a a'} O(Δr, a, a') f_ζ(a) f_ζ(a')
+#     # where a, a' are typically nearest neighbor directions and
+#     # f_ζ(a) is the weight in direction a for a symmetry ζ
+#     for (i, sym) in enumerate(s.symmetries)
+#         for k in 1:length(sym), l in 1:length(sym)
+#             @. final[:, i] += m.temp[:, k, l] * sym[k] * sym[l]
+#         end
+#     end
+#     push!(m.observable, final)
+# end
+# function commit!(s::ApplySymmetries{<: EachLocalQuadBySyncedDistance}, m)
+#     final = zeros(eltype(m.temp), size(m.temp, 1), length(s.symmetries))
+#     # Same as above but with a = a'
+#     for (i, sym) in enumerate(s.symmetries)
+#         for k in 1:length(sym)
+#             @. final[:, i] += m.temp[:, k] * sym[k] * sym[k]
+#         end
+#     end
+#     push!(m.observable, final)
+# end

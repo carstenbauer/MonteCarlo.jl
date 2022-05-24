@@ -38,14 +38,16 @@ include("Measurements.jl")
 export measurements, observables
 
 include("lattices/constructors.jl")
+include("lattices/lattice_cache.jl")
 include("lattices/lattice_iterators.jl")
 
-export AbstractLattice, Lattice, Chain, SquareLattice, Honeycomb, CubicLattice
+export AbstractLattice, Lattice, Bravais
+export Chain, SquareLattice, Honeycomb, CubicLattice
 # export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
 export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, 
         EachLocalQuadByDistance, EachLocalQuadBySyncedDistance, 
         Sum, ApplySymmetries
-export positions, bonds, directions
+export unitcell, positions, bonds, directions
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/main.jl")

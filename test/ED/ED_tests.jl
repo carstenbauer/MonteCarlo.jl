@@ -194,7 +194,7 @@ end
                 @testset "Charge Density Correlation" begin
                     CDC = mean(dqmc.measurements[:CDC])
                     ED_CDC = zeros(size(CDC))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDC], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDC], dqmc)
                         ED_CDC[dir] += expectation_value(
                             charge_density_correlation(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -234,7 +234,7 @@ end
                 @testset "Spin density correlation x" begin
                     SDCx = mean(dqmc.measurements[:SDCx])
                     ED_SDCx = zeros(ComplexF64, size(SDCx))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCx], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCx], dqmc)
                         ED_SDCx[dir] += expectation_value(
                             spin_density_correlation_x(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -245,7 +245,7 @@ end
                 @testset "Spin density correlation y" begin
                     SDCy = mean(dqmc.measurements[:SDCy])
                     ED_SDCy = zeros(ComplexF64, size(SDCy))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCy], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCy], dqmc)
                         ED_SDCy[dir] += expectation_value(
                             spin_density_correlation_y(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -256,7 +256,7 @@ end
                 @testset "Spin density correlation z" begin
                     SDCz = mean(dqmc.measurements[:SDCz])
                     ED_SDCz = zeros(ComplexF64, size(SDCz))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCz], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCz], dqmc)
                         ED_SDCz[dir] += expectation_value(
                             spin_density_correlation_z(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -269,7 +269,7 @@ end
                     PC = mean(dqmc.measurements[:PC])
                     ED_PC = zeros(ComplexF64, size(PC))
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.lattice_iterator(dqmc[:PC], dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:PC], dqmc)
                         ED_PC[dirs] += expectation_value(
                             pairing_correlation(src1, trg1, src2, trg2), 
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -302,7 +302,7 @@ end
                 @testset "Charge Density Susceptibility" begin
                     CDS = mean(dqmc.measurements[:CDS])
                     ED_CDS = zeros(size(CDS))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDS], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDS], dqmc)
                         ED_CDS[dir] += expectation_value_integrated(
                             number_operator(trg), number_operator(src), H, 
                             step = dqmc.parameters.delta_tau, beta = dqmc.parameters.beta, N_sites = N
@@ -315,7 +315,7 @@ end
                 @testset "Spin density Susceptibility x" begin
                     SDSx = mean(dqmc.measurements[:SDSx])
                     ED_SDSx = zeros(ComplexF64, size(SDSx))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSx], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSx], dqmc)
                         ED_SDSx[dir] += expectation_value_integrated(
                             m_x(trg), m_x(src), H, step = dqmc.parameters.delta_tau, 
                             beta = dqmc.parameters.beta, N_sites = N
@@ -326,7 +326,7 @@ end
                 @testset "Spin density Susceptibility y" begin
                     SDSy = mean(dqmc.measurements[:SDSy])
                     ED_SDSy = zeros(ComplexF64, size(SDSy))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSy], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSy], dqmc)
                         ED_SDSy[dir] += expectation_value_integrated(
                             m_y(trg), m_y(src), H, step = dqmc.parameters.delta_tau, 
                             beta = dqmc.parameters.beta, N_sites = N
@@ -337,7 +337,7 @@ end
                 @testset "Spin density Susceptibility z" begin
                     SDSz = mean(dqmc.measurements[:SDSz])
                     ED_SDSz = zeros(ComplexF64, size(SDSz))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSz], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSz], dqmc)
                         ED_SDSz[dir] += expectation_value_integrated(
                             m_z(trg), m_z(src), H, step = dqmc.parameters.delta_tau, 
                             beta = dqmc.parameters.beta, N_sites = N
@@ -350,7 +350,7 @@ end
                     PS = mean(dqmc.measurements[:PS])
                     ED_PS = zeros(Float64, size(PS))
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.lattice_iterator(dqmc[:PS], dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:PS], dqmc)
                         ED_PS[dirs] += expectation_value_integrated(
                             state -> begin
                                 sign1, _state  = annihilate(state, trg1, DOWN)
@@ -377,7 +377,7 @@ end
                     ED_CCS = zeros(Float64, size(CCS))
                     T = dqmc.stack.hopping_matrix
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.lattice_iterator(dqmc[:CCS], dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:CCS], dqmc)
                         ED_CCS[dirs] -= expectation_value_integrated(
                             # actually the order of this doesn't seem to matter
                             current_density(src2, trg2, T), 
@@ -494,7 +494,7 @@ end
                 @testset "Charge Density Correlation" begin
                     CDC = mean(dqmc.measurements[:CDC])
                     ED_CDC = zeros(size(CDC))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDC], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDC], dqmc)
                         ED_CDC[dir] += expectation_value(
                             charge_density_correlation(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -534,7 +534,7 @@ end
                 @testset "Spin density correlation x" begin
                     SDCx = mean(dqmc.measurements[:SDCx])
                     ED_SDCx = zeros(ComplexF64, size(SDCx))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCx], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCx], dqmc)
                         ED_SDCx[dir] += expectation_value(
                             spin_density_correlation_x(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -545,7 +545,7 @@ end
                 @testset "Spin density correlation y" begin
                     SDCy = mean(dqmc.measurements[:SDCy])
                     ED_SDCy = zeros(ComplexF64, size(SDCy))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCy], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCy], dqmc)
                         ED_SDCy[dir] += expectation_value(
                             spin_density_correlation_y(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -556,7 +556,7 @@ end
                 @testset "Spin density correlation z" begin
                     SDCz = mean(dqmc.measurements[:SDCz])
                     ED_SDCz = zeros(ComplexF64, size(SDCz))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCz], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCz], dqmc)
                         ED_SDCz[dir] += expectation_value(
                             spin_density_correlation_z(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -569,7 +569,7 @@ end
                     PC = mean(dqmc.measurements[:PC])
                     ED_PC = zeros(ComplexF64, size(PC))
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.lattice_iterator(dqmc[:PC], dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:PC], dqmc)
                         ED_PC[dirs] += expectation_value(
                             pairing_correlation(src1, trg1, src2, trg2), 
                             H, beta = dqmc.parameters.beta, N_sites = N
@@ -604,7 +604,7 @@ end
                 @testset "Charge Density Susceptibility" begin
                     CDS = mean(dqmc.measurements[:CDS])
                     ED_CDS = zeros(size(CDS))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDS], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDS], dqmc)
                         ED_CDS[dir] += expectation_value_integrated(
                             number_operator(trg), number_operator(src), H, 
                             step = dqmc.parameters.delta_tau, beta = dqmc.parameters.beta, N_sites = N
@@ -617,7 +617,7 @@ end
                 @testset "Spin density Susceptibility x" begin
                     SDSx = mean(dqmc.measurements[:SDSx])
                     ED_SDSx = zeros(ComplexF64, size(SDSx))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSx], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSx], dqmc)
                         ED_SDSx[dir] += expectation_value_integrated(
                             m_x(trg), m_x(src), H, step = dqmc.parameters.delta_tau, 
                             beta = dqmc.parameters.beta, N_sites = N
@@ -628,7 +628,7 @@ end
                 @testset "Spin density Susceptibility y" begin
                     SDSy = mean(dqmc.measurements[:SDSy])
                     ED_SDSy = zeros(ComplexF64, size(SDSy))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSy], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSy], dqmc)
                         ED_SDSy[dir] += expectation_value_integrated(
                             m_y(trg), m_y(src), H, step = dqmc.parameters.delta_tau, 
                             beta = dqmc.parameters.beta, N_sites = N
@@ -639,7 +639,7 @@ end
                 @testset "Spin density Susceptibility z" begin
                     SDSz = mean(dqmc.measurements[:SDSz])
                     ED_SDSz = zeros(ComplexF64, size(SDSz))
-                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSz], dqmc, model)
+                    for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDSz], dqmc)
                         ED_SDSz[dir] += expectation_value_integrated(
                             m_z(trg), m_z(src), H, step = dqmc.parameters.delta_tau, 
                             beta = dqmc.parameters.beta, N_sites = N
@@ -652,7 +652,7 @@ end
                     PS = mean(dqmc.measurements[:PS])
                     ED_PS = zeros(Float64, size(PS))
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.lattice_iterator(dqmc[:PS], dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:PS], dqmc)
                         ED_PS[dirs] += expectation_value_integrated(
                             state -> begin
                                 sign1, _state  = annihilate(state, trg1, DOWN)
@@ -679,7 +679,7 @@ end
                     ED_CCS = zeros(Float64, size(CCS))
                     T = dqmc.stack.hopping_matrix
                     for (dirs, src1, trg1, src2, trg2) in 
-                            MonteCarlo.lattice_iterator(dqmc[:CCS], dqmc, model)
+                            MonteCarlo.lattice_iterator(dqmc[:CCS], dqmc)
                         ED_CCS[dirs] -= expectation_value_integrated(
                             # actually the order of this doesn't seem to matter
                             current_density(src2, trg2, T), 

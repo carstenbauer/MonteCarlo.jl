@@ -25,7 +25,7 @@ Returns directional indices corresponding to original hopping directions. This
 is derived from the hopping matrix and does not include on-site "hoppings".
 """
 function hopping_directions(dqmc::DQMC, model)
-    dir2srctrg = dqmc[Dir2SrcTrg()]
+    dir2srctrg = lattice(dqmc)[:dir2srctrg]
     T = hopping_matrix(model)
     valid_directions = Int64[]
     
@@ -66,7 +66,7 @@ end
 
 function occupation(
         mc::DQMC, model::Model; wrapper = nothing, 
-        lattice_iterator = EachSiteAndFlavor(), kwargs...
+        lattice_iterator = EachSiteAndFlavor(mc), kwargs...
     )
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
     Measurement(mc, model, Greens(), li, occupation_kernel; kwargs...)

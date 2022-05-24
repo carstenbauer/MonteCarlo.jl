@@ -3,6 +3,27 @@ abstract type AbstractLattice end
 abstract type AbstractBond end
 abstract type AbstractUnitCell end
 
+# See lattice_cache.jl and lattice_iterators.jl
+struct LatticeCache
+    # Directions on the Bravais lattice
+    Bravais_dir2srctrg::LazyData{Vector{Vector{Int}}}
+    # src2dirtrg::LazyData{Vector{Vector{Tuple{Int, Int}}}}
+    Bravais_srctrg2dir::LazyData{Matrix{Int}}
+
+    # Directions on the full lattice
+    dir2srctrg::LazyData{Vector{Vector{Tuple{Int, Int}}}}
+    src2dirtrg::LazyData{Vector{Vector{Tuple{Int, Int}}}}
+    srctrg2dir::LazyData{Matrix{Int}}
+
+    # positions
+    # directions
+    # bonds
+    # ...?
+end
+
+
+
+
 
 ################################################################################
 ### Bonds
@@ -90,6 +111,8 @@ Finally `bonds` describe pairs of "connected" sites. Reverse bonds (i.e. a -> b
 and b -> a) must be included. See (@ref)[`Bond`] for more information.
 """
 struct UnitCell{N} <: AbstractUnitCell
+    name::String
+
     # Bravais lattice vectors point to nearby unit cells
     lattice_vectors::NTuple{N, Vector{Float64}}
 
@@ -104,6 +127,7 @@ struct UnitCell{N} <: AbstractUnitCell
     _directed_indices::Vector{Int}
 
     function UnitCell(
+            name::String,
             lattice_vectors::NTuple{N, Vector{Float64}}, 
             sites::Vector{Vector{Float64}}, 
             bonds::Vector{Bond{N}}
@@ -116,7 +140,7 @@ struct UnitCell{N} <: AbstractUnitCell
             end
         end
 
-        new{N}(lattice_vectors, sites, bonds, directed)
+        new{N}(name, lattice_vectors, sites, bonds, directed)
     end
 end
 
@@ -124,6 +148,8 @@ function Base.:(==)(a::UnitCell, b::UnitCell)
     a.lattice_vectors == b.lattice_vectors && a.sites == b.sites &&
     all(a.bonds .== b.bonds) && a._directed_indices == b._directed_indices
 end
+
+positions(uc::UnitCell) = uc.sites
 
 
 ################################################################################
@@ -134,7 +160,24 @@ end
 struct Lattice{N} <: AbstractLattice
     unitcell::UnitCell{N}
     Ls::NTuple{N, Int}
-    # TODO lattice_iterator_cache maybe?
+    cache::LatticeCache
+end
+
+function Lattice(uc, Ls)
+    l = Lattice(uc, Ls, LatticeCache())
+    init!(l.cache, l)
+    return l
+end
+
+function Base.show(io::IO, l::Lattice{N}) where N
+    print(io, "Lattice{$N}($(l.unitcell.name), $(l.Ls))")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", l::Lattice{N}) where N
+    print(io, "$N-dimensional $(l.unitcell.name) Lattice\n")
+    print(io, "\t Linear System Size L = $(l.Ls)\n")
+    print(io, "\t Number of Sites N = $(length(l))\n")
+    print(io, "\t Number of Sites in unitcell: $(length(l.unitcell.sites))")
 end
 
 """
@@ -169,6 +212,14 @@ Note that the total extent of the lattice can be calculated as
 `size(l) .* lattice_vectors(l)`.
 """
 lattice_vectors(l::Lattice) = l.unitcell.lattice_vectors
+
+"""
+    unitcell(l::Lattice)
+
+Returns the unitcell of a given lattice.
+"""
+unitcell(l::Lattice) = l.unitcell
+
 
 Base.:(==)(a::Lattice, b::Lattice) = a.Ls == b.Ls && a.unitcell == b.unitcell
 
@@ -288,7 +339,7 @@ end
 """
     positions(l::Lattice)
 
-Returns an iterator containing all site positions on the lattice. 
+Returns an iterator containing positions of all sites on the lattice. 
 
 If collected this iterator will return a multidimensional Array. The indices of 
 this Array are [unitcell_sites, Bravais_x, Bravais_y, ...]. It can also be 
@@ -345,6 +396,7 @@ function _save(file::FileLike, entryname::String, l::Lattice)
     write(file, "$entryname/VERSION", 0)
     write(file, "$entryname/tag", "MonteCarloLattice")
     write(file, "$entryname/Ls", l.Ls)
+    write(file, "$entryname/uc/name", l.unitcell.name)
     write(file, "$entryname/uc/lv", l.unitcell.lattice_vectors)
     write(file, "$entryname/uc/sites", l.unitcell.sites)
     serialized = map(b -> (b.from, b.to, b.uc_shift...,  b.label), l.unitcell.bonds)
@@ -356,9 +408,48 @@ function _load(data, ::Val{:MonteCarloLattice})
     data["VERSION"] == 0 || @warn("Loading Version $(data["VERSION"]) as Version 0.")
     Lattice(
         UnitCell(
+            data["uc/name"],
             data["uc/lv"],
             data["uc/sites"],
             map(t -> Bond(t[1], t[2], t[3:end-1], t[end]), data["uc/bonds"])
         ), data["Ls"]
     )
 end
+
+
+################################################################################
+### Bravais Lattice
+################################################################################
+
+
+"""
+    Bravais(l::Lattice)
+
+This wrapper tells functions to only consider the Bravais lattice, i.e. 
+disregard sites within a unitcell.
+"""
+struct Bravais{N} <: AbstractLattice
+    l::Lattice{N}
+end
+
+"""
+    positions(l::Bravais)
+
+Returns an iterator containing all site positions on the Bravais lattice. 
+Explicitly this means ignoring offsets from sites within the unitcell.
+
+If collected this iterator will return a multidimensional Array. The indices of 
+this Array are [Bravais_x, Bravais_y, ...].
+"""
+positions(b::Bravais{1}) = (lattice_vectors(b.l)[1] * i for i in 1:b.l.Ls[1])
+function positions(b::Bravais{2})
+    v1, v2 = lattice_vectors(b.l)
+    (v1 * i + v2 * j for i in 1:b.l.Ls[1], j in 1:b.l.Ls[2])
+end
+
+# Arbitrary dimensions
+positions(b::Bravais{N}) where N = _positions(b.l, N)
+lattice_vectors(b::Bravais) = lattice_vectors(b.l)
+Base.size(b::Bravais) = size(b.l)
+Base.length(b::Bravais) = prod(b.l.Ls)
+Base.eachindex(b::Bravais) = 1:length(b)

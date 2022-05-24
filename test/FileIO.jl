@@ -193,10 +193,7 @@ end
         @test mc.conf == x.conf
         @test mc.model.L == x.model.L
         @test mc.model.dims == x.model.dims
-        for f in fieldnames(typeof(mc.model.l))
-            @test getfield(mc.model.l, f) == getfield(x.model.l, f)
-        end
-        # @test mc.model.neighs == x.model.neighs
+        @test mc.model.l == x.model.l
         @test mc.model.energy[] == x.model.energy[]
         for (k, v) in mc.thermalization_measurements
             for f in fieldnames(typeof(v))
@@ -299,9 +296,7 @@ end
         @test mc.model.mu == x.model.mu
         @test mc.model.t == x.model.t
         @test mc.model.U == x.model.U
-        for f in fieldnames(typeof(mc.model.l))
-            @test getfield(mc.model.l, f) == getfield(x.model.l, f)
-        end
+        @test mc.model.l == x.model.l
         @test MonteCarlo.nflavors(mc.field) == MonteCarlo.nflavors(x.field)
         @test mc.scheduler == x.scheduler
         for (k, v) in mc.thermalization_measurements
