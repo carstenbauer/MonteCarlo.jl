@@ -460,29 +460,3 @@ using MonteCarlo: directed_norm
     # TODO
     # SymmetryWrapper, SuperfluidDensity wrapper
 end
-
-
-# using LatticePhysics
-
-# @testset "LatticePhysics Kagome" begin
-#     lpl = getLatticePeriodic(getUnitcellKagome(), 4)
-#     mcl = MonteCarlo.Lattice(lpl)
-
-#     @test length(mcl) == numSites(lpl)
-#     @test all(MonteCarlo.lattice_vectors(mcl) .≈ latticeVectors(lpl.unitcell))
-#     @test all(size(mcl) .* MonteCarlo.lattice_vectors(mcl) .≈ latticeVectors(lpl))
-    
-#     @test MonteCarlo.from.(mcl.unitcell.bonds) == LatticePhysics.from.(lpl.unitcell.bonds)
-#     @test MonteCarlo.to.(mcl.unitcell.bonds) == LatticePhysics.to.(lpl.unitcell.bonds)
-#     @test MonteCarlo.label.(mcl.unitcell.bonds) == LatticePhysics.label.(lpl.unitcell.bonds)
-
-#     lpl2 = LatPhysBase.Lattice(mcl)
-
-#     @test numSites(lpl2) == numSites(lpl)
-#     @test all(latticeVectors(lpl2.unitcell) .≈ latticeVectors(lpl.unitcell))
-#     @test all(latticeVectors(lpl2) .≈ latticeVectors(lpl))
-    
-#     @test LatticePhysics.from.(lpl2.unitcell.bonds) == LatticePhysics.from.(lpl.unitcell.bonds)
-#     @test LatticePhysics.to.(lpl2.unitcell.bonds) == LatticePhysics.to.(lpl.unitcell.bonds)
-#     @test LatticePhysics.label.(lpl2.unitcell.bonds) == LatticePhysics.label.(lpl.unitcell.bonds)
-# end
