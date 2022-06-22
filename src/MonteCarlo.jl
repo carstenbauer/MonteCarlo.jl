@@ -22,12 +22,51 @@ else
 end
 
 import JLD2, CodecZlib
-const FileLike = Union{JLD2.JLDFile, JLD2.Group}
-filepath(f::JLD2.JLDFile) = f.path
-filepath(g::JLD2.Group) = g.f.path
 
 include("helpers.jl")
 export enable_benchmarks, disable_benchmarks, print_timer, reset_timer!
+
+mutable struct FileData
+    data::Dict{String, Any}
+    subspace::String
+    path::String
+end
+FileData(data, path) = FileData(data, "", path)
+@bm function Base.getindex(f::FileData, key::String)
+    subspace = f.subspace * key * '/' 
+    if any(k -> startswith(k, subspace), keys(f.data))
+        return FileData(f.data, subspace, f.path)
+    elseif haskey(f.data, f.subspace * key)
+        return getindex(f.data, f.subspace * key)
+    else
+        return getindex(f.data, key)
+    end
+end
+@bm function Base.haskey(f::FileData, key::String)
+    subspace = f.subspace * key
+    haskey(f.data, key) || any(k -> startswith(k, subspace), keys(f.data))
+end
+@bm function Base.get(f::FileData, k::String, v)
+    return haskey(f, k) ? getindex(f, k) : v
+end
+@bm function Base.keys(f::FileData)
+    _keys = String[]
+    i0 = length(f.subspace)
+    for key in keys(f.data)
+        if startswith(key, f.subspace)
+            i1 = findnext(isequal('/'), key, i0+1)
+            _key = string(key[i0+1:i1-1])
+            _key in _keys || push!(_keys, _key)
+        end
+    end
+    return _keys
+end
+
+const FileLike = Union{JLD2.JLDFile, JLD2.Group, FileData}
+filepath(f::FileLike) = f.path
+filepath(g::JLD2.Group) = g.f.path
+
+
 include("lattices/lattice.jl")
 include("flavors/abstract.jl")
 include("models/abstract.jl")

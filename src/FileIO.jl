@@ -101,7 +101,9 @@ end
 function to_tag(data::FileLike)
     haskey(data, "tag") && return Val(Symbol(data["tag"]))
     haskey(data, "type") && return to_tag(data["type"])
-    error("Failed to get tag from $data")
+    #error("Failed to get tag from $data")
+    error("Failed to get tag from data")
+    return
 end
 to_tag(::Type{<: AbstractLattice}) = Val(:Generic)
 to_tag(::Type{<: Model}) = Val(:Generic)
@@ -113,26 +115,29 @@ to_tag(::Type{<: Model}) = Val(:Generic)
 Loads a MonteCarlo simulation from the given file path. If `groups` are given, 
 loads a specific part of the file.
 """
-function load(filename::String, groups::String...)
+@bm function load(filename::String, groups::String...)
     @assert isfile(filename) "File must exist"
     @assert endswith(filename, "jld2") "File must be a JLD2 file"
 
     output = try
-        data = JLD2.jldopen(filename, "r")
+        file = JLD2.jldopen(filename, "r")
 
-        if data["VERSION"] == 1
+        if file["VERSION"] == 1
             _git = (
                 branch = "master", 
                 commit = "a4dbd321f551e6adc079370b033555ba9a2f75e5", 
                 dirty = false
             )
         else
-            _git = data["git"]
+            _git = file["git"]
         end
 
         output = try 
-            if haskey(data, "MC") && !("MC" in groups)
-                _load(data, "MC", groups...) else _load(data, groups...)
+            if haskey(file, "MC") && !("MC" in groups)
+                data = FileData(JLD2.load(filename), filename)
+                _load(data, "MC", groups...)
+            else 
+                _load(file, groups...)
             end
         catch e
             git.branch != _git.branch && @info("Git branch missmatch $(git.branch) ≠ $(_git.branch)")
@@ -141,7 +146,7 @@ function load(filename::String, groups::String...)
             _git.dirty && @info("Repository was dirty when the file was saved.")
             rethrow()
         finally
-            endswith(filename, "jld2") && close(data)
+            close(file)
         end
         output
     catch e
