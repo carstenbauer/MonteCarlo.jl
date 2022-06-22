@@ -100,8 +100,6 @@ end
 
 
 @testset "Exact Greens comparison (ED, tiny systems)" begin
-    # These are theoretically the same but their implementation differs on
-    # some level. To make sure both are correct it makes sense to check both here.
     models = (
         HubbardModel(2, 2, U = 0.0, t = 1.0),
     )
@@ -111,7 +109,7 @@ end
         @testset "$(typeof(model))" begin
             dqmc = DQMC(
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
-                thermalization = 1, sweeps = 2, measure_rate=1#, field = field
+                thermalization = 1, sweeps = 2, measure_rate=1
             )
             print(
                 "  Running DQMC ($(nameof(typeof(model)))) " * 
