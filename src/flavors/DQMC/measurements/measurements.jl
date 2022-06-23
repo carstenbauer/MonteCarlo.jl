@@ -38,7 +38,7 @@ function hopping_directions(dqmc::DQMC, model)
         end
     end
 
-    valid_directions
+    return valid_directions
 end
 
 

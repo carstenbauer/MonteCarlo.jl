@@ -1,19 +1,3 @@
-# TODO
-# - [x] directions...
-#   - [x] need all lattice directions
-#   - [x] all Bravais directions
-#   - [x] all lattice direction with unit cell indices
-# - [x] EachLocalQuadBySyncedDistance should be done
-# - [x] EachLocalQuadByDistance
-# - [ ] all of them need testing
-# - [ ] need to check if Template types need removal
-# - if I feel adventurous I could think about chaining iterators more
-#   EachSitePair |> ByDistance?
-#   EachLocalQuad |> ByDistance?
-# - [ ] also prolly check lattices again
-# - [ ] change DirectLatticeIterator to a type with various constructors
-
-
 # Helpers
 
 # This can be called with one less element in Ns than in idxs (tight left)
@@ -38,6 +22,7 @@ abstract type DirectLatticeIterator <: AbstractLatticeIterator end # TODO I thin
 abstract type DeferredLatticeIterator <: AbstractLatticeIterator end 
 
 function _save(file::FileLike, key::String, m::T) where {T <: AbstractLatticeIterator}
+    write(file, "$key/VERSION", 1)
     write(file, "$key/tag", nameof(T))
     write(file, "$key/fields", getfield.((m,), fieldnames(T)))
     return

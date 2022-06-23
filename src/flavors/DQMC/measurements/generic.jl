@@ -15,6 +15,8 @@
 # TODO
 # try replacing global function rather than creatin new local ones
 
+include("greens_iterators.jl")
+
 
 struct DQMCMeasurement{GI, LI, F <: Function, OT, T} <: AbstractMeasurement
     greens_iterator::GI
@@ -100,7 +102,7 @@ _default_capacity(mc::DQMC) = 2 * ceil(Int, mc.parameters.sweeps / mc.parameters
 function _save(file::FileLike, key::String, m::DQMCMeasurement)
     write(file, "$key/VERSION", 1)
     write(file, "$key/tag", "DQMCMeasurement")
-    write(file, "$key/GI", m.greens_iterator)
+    _save(file, "$key/GI", m.greens_iterator)
     _save(file, "$key/LI", m.lattice_iterator)
     # maybe add module for eval?
     write(file, "$key/kernel", Symbol(m.kernel))
@@ -116,8 +118,9 @@ function _load(data, ::Val{:DQMCMeasurement})
         @warn "Failed to load kernel in module MonteCarlo." exception=e
         missing_kernel
     end
+    gi = _load(data["GI"], Val(:GreensIterator))
     li = _load(data["LI"], Val(:LatticeIterator))
-    DQMCMeasurement(data["GI"], li, kernel, data["obs"], temp)
+    DQMCMeasurement(gi, li, kernel, data["obs"], temp)
 end
 
 to_tag(::Type{<: DQMCMeasurement}) = Val(:DQMCMeasurement)
@@ -191,61 +194,6 @@ end
 function lattice_iterator(m::DQMCMeasurement, mc)
     return with_lattice(m.lattice_iterator, lattice(mc))
 end
-
-
-
-################################################################################
-### Iterators
-################################################################################
-
-
-
-# Once we change greens iterators to follow the "template -> iter" structure
-# this will be compat only
-# Some type piracy to make things easier
-Base.Nothing(::DQMC, ::Model) = nothing
-
-# To identify the requirement of equal-time Greens functions
-struct Greens <: AbstractGreensIterator end
-Greens(::DQMC, ::Model)= Greens()
-
-struct GreensAt <: AbstractUnequalTimeGreensIterator
-    k::Int
-    l::Int
-end
-GreensAt(l::Integer) = GreensAt(l, l)
-GreensAt(k::Integer, l::Integer) = GreensAt(k, l)
-# GreensAt{k, l}(::DQMC, ::Model) where {k, l} = GreensAt(k, l)
-Base.:(==)(a::GreensAt, b::GreensAt) = (a.k == b.k) && (a.l == b.l)
-
-
-struct TimeIntegral <: AbstractUnequalTimeGreensIterator
-    recalculate::Int
-    TimeIntegral(recalculate::Int = -1) =  new(recalculate)
-end
-TimeIntegral(::DQMC, recalculate::Int = -1) = TimeIntegral(recalculate)  
-TimeIntegral(::DQMC, ::Model, recalculate::Int = -1) = TimeIntegral(recalculate)  
-# There is no point differentiating based on recalculate
-Base.:(==)(a::TimeIntegral, b::TimeIntegral) = true
-
-struct _TimeIntegral{T}
-    iter::_CombinedGreensIterator{T}
-end
-function init(mc, ti::TimeIntegral)
-    if ti.recalculate == -1
-        _TimeIntegral(init(mc, CombinedGreensIterator(
-            mc, start = 0, stop = mc.parameters.slices
-        )))
-    else
-        _TimeIntegral(init(mc, CombinedGreensIterator(
-            mc, start = 0, stop = mc.parameters.slices, recalculate = ti.recalculate
-        )))
-    end
-end
-Base.iterate(iter::_TimeIntegral) = iterate(iter.iter)
-Base.iterate(iter::_TimeIntegral, i) = iterate(iter.iter, i)
-Base.length(iter::_TimeIntegral) = length(iter.iter)
-
 
 
 
