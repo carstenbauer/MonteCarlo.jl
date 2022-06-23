@@ -101,7 +101,7 @@ function _save(file::FileLike, key::String, m::DQMCMeasurement)
     write(file, "$key/VERSION", 1)
     write(file, "$key/tag", "DQMCMeasurement")
     write(file, "$key/GI", m.greens_iterator)
-    write(file, "$key/LI", m.lattice_iterator)
+    _save(file, "$key/LI", m.lattice_iterator)
     # maybe add module for eval?
     write(file, "$key/kernel", Symbol(m.kernel))
     write(file, "$key/obs", m.observable)
@@ -110,14 +110,14 @@ end
 
 function _load(data, ::Val{:DQMCMeasurement})
     temp = haskey(data, "temp") ? data["temp"] : data["output"]
-    
     kernel = try
         eval(data["kernel"])
     catch e
         @warn "Failed to load kernel in module MonteCarlo." exception=e
         missing_kernel
     end
-    DQMCMeasurement(data["GI"], data["LI"], kernel, data["obs"], temp)
+    li = _load(data["LI"], Val(:LatticeIterator))
+    DQMCMeasurement(data["GI"], li, kernel, data["obs"], temp)
 end
 
 to_tag(::Type{<: DQMCMeasurement}) = Val(:DQMCMeasurement)

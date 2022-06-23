@@ -37,6 +37,26 @@ abstract type DirectLatticeIterator <: AbstractLatticeIterator end # TODO I thin
 # first index is a meta index (e.g. direction), rest for sites
 abstract type DeferredLatticeIterator <: AbstractLatticeIterator end 
 
+function _save(file::FileLike, key::String, m::T) where {T <: AbstractLatticeIterator}
+    write(file, "$key/tag", nameof(T))
+    write(file, "$key/fields", getfield.(m, fieldnames(T)))
+    return
+end
+function _load(data, ::Val{:LatticeIterator})
+    # ifelse maybe long but should be better for compile time than adding a 
+    # bunch more _load methods and better for runtime than an eval
+    tag = data["tag"]
+    fields = data["fields"]
+    for T in subtypes(AbstractLatticeIterator)
+        if tag == nameof(T)
+            return T(fields...)
+        end
+    end
+
+    # Fallback
+    return eval(:($tag($(fields)...)))
+end
+
 struct WithLattice{T, N} <: AbstractLatticeIterator
     iter::T
     lattice::Lattice{N}
