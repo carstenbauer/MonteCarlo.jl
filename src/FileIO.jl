@@ -70,7 +70,7 @@ function save(
             rm(filename)
             mv(temp_filename, filename)
         end
-        @error exception = e
+        rethrow(e)
     finally
         close(file)
     end
@@ -133,9 +133,9 @@ loads a specific part of the file.
         end
 
         output = try 
-            if haskey(file, "MC") && !("MC" in groups)
-                data = FileData(JLD2.load(filename), filename)
-                _load(data, "MC", groups...)
+            if haskey(file, "MC") && isempty(groups)
+                data = FileData(JLD2.load(filename), abspath(filename))
+                _load(data, "MC")
             else 
                 _load(file, groups...)
             end

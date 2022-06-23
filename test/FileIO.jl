@@ -418,34 +418,16 @@ function is_file_content_equal(file1, file2)
 end
 
 @testset "DummyModel" begin
+    # See assets/generate.jl
     cp("assets/dummy_in.jld2", "dummy_in.jld2", force = true)
     mc = MonteCarlo.load("dummy_in.jld2")
     @test mc.model isa MonteCarlo.DummyModel
     @test mc.model.data["x"] == 7
     @test mc.model.data["y"] == "foo"
 
-    MonteCarlo.save("dummy_in.jld2", mc, overwrite=true)
-    @test isfile("dummy_in.jld2")
-    @test is_file_content_equal("dummy_in.jld2", "assets/dummy_in.jld2")
-
-    #=
-    # Generated with
-    struct TestModel <: MonteCarlo.Model
-        l::AbstractLattice
-        U::Float64
-        x::Int64
-        y::String
-    end
-
-    Base.rand(::Type{DQMC}, ::TestModel, n::Int64) = Base.rand(4, n)
-    MonteCarlo.choose_field(::TestModel) = DensityHirschField
-    MonteCarlo.lattice(m::TestModel) = m.l
-    MonteCarlo.nflavors(::TestModel) = 1
-    MonteCarlo.hopping_matrix(::DQMC, ::TestModel) = ones(4, 4)
-
-    mc = DQMC(TestModel(SquareLattice(2), 1.0, 7, "foo"), beta=1.0, recorder=Discarder())
-    MonteCarlo.save("assets/dummy_in.jld2", mc, overwrite=true)
-    =#
-
+    @test_throws ErrorException MonteCarlo.save("dummy_in.jld2", mc, overwrite=true)
+    # @test isfile("dummy_in.jld2")
+    # @test is_file_content_equal("dummy_in.jld2", "assets/dummy_in.jld2")
+    
     rm("dummy_in.jld2")
 end

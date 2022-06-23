@@ -54,7 +54,7 @@ end
     i0 = length(f.subspace)
     for key in keys(f.data)
         if startswith(key, f.subspace)
-            i1 = findnext(isequal('/'), key, i0+1)
+            i1 = something(findnext(isequal('/'), key, i0+1), length(key)+1)
             _key = string(key[i0+1:i1-1])
             _key in _keys || push!(_keys, _key)
         end

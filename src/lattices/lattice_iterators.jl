@@ -39,15 +39,16 @@ abstract type DeferredLatticeIterator <: AbstractLatticeIterator end
 
 function _save(file::FileLike, key::String, m::T) where {T <: AbstractLatticeIterator}
     write(file, "$key/tag", nameof(T))
-    write(file, "$key/fields", getfield.(m, fieldnames(T)))
+    write(file, "$key/fields", getfield.((m,), fieldnames(T)))
     return
 end
+
 function _load(data, ::Val{:LatticeIterator})
     # ifelse maybe long but should be better for compile time than adding a 
     # bunch more _load methods and better for runtime than an eval
     tag = data["tag"]
     fields = data["fields"]
-    for T in subtypes(AbstractLatticeIterator)
+    for T in _all_lattice_iterator_types
         if tag == nameof(T)
             return T(fields...)
         end
@@ -470,3 +471,9 @@ output_size(::Sum, l::Lattice) = (1,)
 #     iter::IT
 #     symmetries::NTuple{N, Vector{T}}
 # end
+
+const _all_lattice_iterator_types = [
+    EachSiteAndFlavor, EachSite, EachSitePair, EachSiteByDistance,
+    OnSite, EachLocalQuadByDistance, EachLocalQuadBySyncedDistance,
+    Sum
+]
