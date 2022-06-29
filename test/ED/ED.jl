@@ -712,7 +712,7 @@ end
             for n in eachindex(vals), m in eachindex(vals)
                 o += exp(-(beta-τ)*vals[n] - τ*vals[m]) * X[n, m]
             end
-            O += ifelse(i in (1, M), 0.5step, step) * o / Z
+            O += ifelse(i in (0, M), 0.5step, step) * o / Z
         end
     end
     
