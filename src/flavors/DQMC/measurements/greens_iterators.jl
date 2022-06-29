@@ -88,6 +88,18 @@ TimeIntegral(::DQMC, ::Model, recalculate::Int = -1) = TimeIntegral(recalculate)
 # There is no point differentiating based on recalculate
 Base.:(==)(a::TimeIntegral, b::TimeIntegral) = true
 
+function init(mc, ti::TimeIntegral)
+    if ti.recalculate == -1
+        _TimeIntegral(init(mc, CombinedGreensIterator(
+            mc, start = 0, stop = mc.parameters.slices
+        )))
+    else
+        _TimeIntegral(init(mc, CombinedGreensIterator(
+            mc, start = 0, stop = mc.parameters.slices, recalculate = ti.recalculate
+        )))
+    end
+end
+
 
 ################################################################################
 ### CombinedGreensIterator (G0l, Gl0, Gll)
@@ -416,17 +428,6 @@ end
 
 struct _TimeIntegral{T}
     iter::_CombinedGreensIterator{T}
-end
-function init(mc, ti::TimeIntegral)
-    if ti.recalculate == -1
-        _TimeIntegral(init(mc, CombinedGreensIterator(
-            mc, start = 0, stop = mc.parameters.slices
-        )))
-    else
-        _TimeIntegral(init(mc, CombinedGreensIterator(
-            mc, start = 0, stop = mc.parameters.slices, recalculate = ti.recalculate
-        )))
-    end
 end
 Base.iterate(iter::_TimeIntegral) = iterate(iter.iter)
 Base.iterate(iter::_TimeIntegral, i) = iterate(iter.iter, i)

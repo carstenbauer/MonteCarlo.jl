@@ -23,9 +23,9 @@ imaginary time slice.
 @bm function sweep_spatial(mc::DQMC, m)
     N = size(conf(field(mc)), 1)
 
-    # @inbounds for i in rand(1:N, N)
     accepted = 0
     @inbounds for i in 1:N
+        #i = rand(1:N)
         detratio, ΔE_boson, passthrough = propose_local(mc, m, field(mc), i, current_slice(mc))
 
         p = exp(- ΔE_boson) * detratio

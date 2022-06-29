@@ -179,7 +179,7 @@ requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
         for (G, group) in output
             println(G)
             for (li, m) in group
-                println("\t", typeof(li), typeof(m.kernel))
+                println("\t", typeof(li), " ", typeof(m.kernel))
             end
         end
         N = length(measurements)
@@ -244,7 +244,7 @@ end
     G00 = greens!(mc)
     M = nslices(mc)
     for (i, (G0l, Gl0, Gll)) in enumerate(init(mc, iter))
-        weight = ifelse(i in (1, M), 0.5, 1.0) * mc.parameters.delta_tau
+        weight = ifelse(i in (1, M+1), 0.5, 1.0) * mc.parameters.delta_tau
         for (lattice_iterator, measurement) in combined
             measure!(lattice_iterator, measurement, mc, (G00, G0l, Gl0, Gll), weight)
         end
