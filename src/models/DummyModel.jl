@@ -21,7 +21,7 @@ end
 
 choose_field(::DummyModel) = DensityHirschField
 nflavors(::DummyModel) = 1
-lattice(m::DummyModel) = get(m.data, "l", Chain(1))
+lattice(m::DummyModel) = get(m.data, "l", get(m.data, "lattice", nothing))
 hopping_matrix(m::DummyModel) = fill(1.0, length(lattice(m)), length(lattice(m)))
 
 

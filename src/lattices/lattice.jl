@@ -21,7 +21,10 @@ struct LatticeCache
     # ...?
 end
 
-
+# to fix loading errors when Lattice is saved directly
+JLD2.writeas(::Type{LatticeCache}) = String
+JLD2.wconvert(::Type{String}, a::LatticeCache) = "LatticeCache"
+JLD2.rconvert(::Type{LatticeCache}, a::String) = LatticeCache()
 
 
 
