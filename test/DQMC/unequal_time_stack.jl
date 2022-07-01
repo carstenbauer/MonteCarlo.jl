@@ -297,7 +297,7 @@ using MonteCarlo
         G = MonteCarlo.calculate_greens_full1!(mc, mc.ut_stack, 37, 14)
         # general testing: ⪅ 1e-7
         # here: < 1e-13
-        @test check(G, calc_greens(mc, 37, 14), 0, 1e-13)
+        @test check(G, calc_greens(mc, 37, 14), 0, 1e-12)
     end
 
     setprecision(BigFloat, old_precision)
