@@ -112,6 +112,7 @@ include("models/DummyModel.jl")
 export IsingEnergyMeasurement, IsingMagnetizationMeasurement
 
 include("FileIO.jl")
+include("BinningAnalysis.jl")
 export save, load, resume!
 
 

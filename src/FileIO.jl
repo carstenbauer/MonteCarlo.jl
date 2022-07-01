@@ -167,7 +167,7 @@ function _load(data, g::String)
 
     _load(data[g], to_tag(data[g]))
 end
-_load(data) = _load(data, to_tag(data))
+@inline _load(data) = _load(data, to_tag(data))
 
 
 """

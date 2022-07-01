@@ -278,7 +278,9 @@ function _save(file::FileLike, entryname::String, cr::BufferedConfigRecorder)
     # main save information
     write(file, entryname * "/VERSION", 3)
     write(file, entryname * "/tag", "BufferedConfigRecorder")
-    write(file, entryname * "/filename", cr.filename)
+    write(file, entryname * "/filename/is_relative", cr.filename.is_relative)
+    write(file, entryname * "/filename/relative_path", cr.filename.relative_path)
+    write(file, entryname * "/filename/absolute_path", cr.filename.absolute_path)
     write(file, entryname * "/link_id", cr.link_id)
     write(file, entryname * "/buffer", cr.buffer)
     write(file, entryname * "/rate", cr.rate)
@@ -293,9 +295,15 @@ function _load(data, ::Val{:BufferedConfigRecorder})
     end
 
     link_id = get(data, "link_id", "N/A")
+
+    filepath = FilePath(
+        data["filename/is_relative"],
+        data["filename/relative_path"],
+        data["filename/absolute_path"]
+    )
     
     cr = BufferedConfigRecorder(
-        data["filename"], link_id, data["buffer"], data["rate"], -1, -1, 
+        filepath, link_id, data["buffer"], data["rate"], -1, -1, 
         data["total_length"], data["save_idx"]
     )
 

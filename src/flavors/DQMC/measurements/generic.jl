@@ -106,7 +106,7 @@ function _save(file::FileLike, key::String, m::DQMCMeasurement)
     _save(file, "$key/LI", m.lattice_iterator)
     # maybe add module for eval?
     write(file, "$key/kernel", Symbol(m.kernel))
-    write(file, "$key/obs", m.observable)
+    _save(file, "$key/obs", m.observable)
     write(file, "$key/temp", m.temp)
 end
 
