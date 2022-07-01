@@ -296,14 +296,14 @@ function _load(data, ::Val{:BufferedConfigRecorder})
 
     link_id = get(data, "link_id", "N/A")
 
-    filepath = FilePath(
+    _filepath = FilePath(
         data["filename/is_relative"],
         data["filename/relative_path"],
         data["filename/absolute_path"]
     )
     
     cr = BufferedConfigRecorder(
-        filepath, link_id, data["buffer"], data["rate"], -1, -1, 
+        _filepath, link_id, data["buffer"], data["rate"], -1, -1, 
         data["total_length"], data["save_idx"]
     )
 

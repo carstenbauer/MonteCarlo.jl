@@ -14,10 +14,9 @@ function _save(file::FileLike, key::String, obs::LogBinner)
 end
 
 function _load(data, ::Val{:LogBinner})
-    LogBinner(
-        Tuple(BinningAnalysis.Compressor.(data["cache"], data["state"])),
-        _load(data["accumulators"])
-    )
+    comp = Tuple(BinningAnalysis.Compressor.(data["cache"], data["state"]))
+    acc =  _load(data["accumulators"])
+    return LogBinner{typeof(first(comp).value), length(comp)}(comp, acc)
 end
 
 function _save(

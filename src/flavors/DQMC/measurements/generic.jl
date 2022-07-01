@@ -120,7 +120,8 @@ function _load(data, ::Val{:DQMCMeasurement})
     end
     gi = _load(data["GI"], Val(:GreensIterator))
     li = _load(data["LI"], Val(:LatticeIterator))
-    DQMCMeasurement(gi, li, kernel, data["obs"], temp)
+    obs = _load(data["obs"])
+    DQMCMeasurement(gi, li, kernel, obs, temp)
 end
 
 to_tag(::Type{<: DQMCMeasurement}) = Val(:DQMCMeasurement)
