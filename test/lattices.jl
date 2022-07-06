@@ -246,8 +246,9 @@ using MonteCarlo: directed_norm
     end
 
     @testset "EachLocalQuadByDistance" begin
-        for dqmc in dqmcs
-            iter = MonteCarlo.with_lattice(EachLocalQuadByDistance(6), lattice(dqmc))
+        setups = (6, [1, 3, 4], 5:6)
+        for (setup, dqmc) in zip(setups, dqmcs)
+            iter = MonteCarlo.with_lattice(EachLocalQuadByDistance(setup), lattice(dqmc))
             dir2srctrg = lattice(dqmc)[:dir2srctrg]
             iter_length = mapreduce(dir -> length(dir2srctrg[dir]), +, iter.iter.directions)^2
             @test length(iter) == iter_length
@@ -268,7 +269,8 @@ using MonteCarlo: directed_norm
             check2 = true
 
             B = length(lattice(dqmc).unitcell.sites)
-            idxs = CartesianIndices((B, B, length(dirs), 6, 6))
+            Ndirs = length(iter.iter.directions)
+            idxs = CartesianIndices((B, B, length(dirs), Ndirs, Ndirs))
             N = 0
 
             for (lin, src1, trg1, src2, trg2) in iter
@@ -295,7 +297,7 @@ using MonteCarlo: directed_norm
                         d .= new_d
                     end
                 end
-                check1 = check1 && (full_dirs[idx1] ≈ d)
+                check1 = check1 && (full_dirs[iter.iter.directions[idx1]] ≈ d)
 
                 # src2 -- idx2 -- trg2
                 _d = full_pos[src2] - full_pos[trg2]
@@ -306,7 +308,7 @@ using MonteCarlo: directed_norm
                         d .= new_d
                     end
                 end
-                check2 = check2 && (full_dirs[idx2] ≈ d)
+                check2 = check2 && (full_dirs[iter.iter.directions[idx2]] ≈ d)
             end
 
             @test length(iter) == N
@@ -317,8 +319,9 @@ using MonteCarlo: directed_norm
     end
 
     @testset "EachLocalQuadBySyncedDistance" begin
-        for dqmc in dqmcs
-            iter = MonteCarlo.with_lattice(EachLocalQuadBySyncedDistance(6), lattice(dqmc))
+        setups = (6, [1, 3, 4], 5:6)
+        for (setup, dqmc) in zip(setups, dqmcs)
+            iter = MonteCarlo.with_lattice(EachLocalQuadBySyncedDistance(setup), lattice(dqmc))
             dir2srctrg = lattice(dqmc)[:dir2srctrg]
             iter_length = mapreduce(dir -> length(dir2srctrg[dir])^2, +, iter.iter.directions)
             @test length(iter) == iter_length
@@ -339,7 +342,7 @@ using MonteCarlo: directed_norm
             check2 = true
 
             B = length(lattice(dqmc).unitcell.sites)
-            idxs = CartesianIndices((B, B, length(dirs), 6))
+            idxs = CartesianIndices((B, B, length(dirs), length(iter.iter.directions)))
             N = 0
 
             for (lin, src1, trg1, src2, trg2) in iter
@@ -366,7 +369,7 @@ using MonteCarlo: directed_norm
                         d .= new_d
                     end
                 end
-                check1 = check1 && (full_dirs[idx] ≈ d)
+                check1 = check1 && (full_dirs[iter.iter.directions[idx]] ≈ d)
 
                 # src2 -- idx -- trg2
                 _d = full_pos[src2] - full_pos[trg2]
@@ -377,7 +380,7 @@ using MonteCarlo: directed_norm
                         d .= new_d
                     end
                 end
-                check2 = check2 && (full_dirs[idx] ≈ d)
+                check2 = check2 && (full_dirs[iter.iter.directions[idx]] ≈ d)
             end
 
             @test length(iter) == N
