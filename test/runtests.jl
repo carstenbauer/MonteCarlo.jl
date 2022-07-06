@@ -13,7 +13,7 @@ DummyModel() = DummyModel(SquareLattice(2))
 struct DummyField <: MonteCarlo.AbstractField end
 
 # check elementwise, not matrix norm
-function check(A::Array, B::Array, atol, rtol=atol)
+function check(A::Array, B::Array, atol, rtol)
     for (x, y) in zip(A, B)
         if !isapprox(x, y, atol=atol, rtol=rtol)
             @info "$x ≉ $y "
@@ -22,7 +22,7 @@ function check(A::Array, B::Array, atol, rtol=atol)
     end
     true
 end
-function check(x::Number, y::Number, atol, rtol=atol)
+function check(x::Number, y::Number, atol, rtol)
     result = isapprox(x, y, atol=atol, rtol=rtol)
     result || @info "$x ≉ $y"
     result
