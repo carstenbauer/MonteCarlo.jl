@@ -222,7 +222,7 @@ passed it will include `1:directions` as dir1 and dir2. If a range or vector is
 passed it will use that range. Note that if that range or vector is 
 discontinuous, the output will be remapped to avoid storing unnecessary data. 
 I.e. `directions = [2, 5, 6]` will pick target sites matching directions 2, 5
-and 6, but return 1, 2 and 3 as directions.
+and 6, but return 1, 2 and 3 as indices.
 
 Requires `lattice` to implement `positions` and `lattice_vectors`.
 """
@@ -312,9 +312,9 @@ _eltype(::EachLocalQuadBySyncedDistance, ::Lattice) = NTuple{5, Int64}
 Returns a lattice iterator that iterates through combinations of four sites.
 
 In each step the iterator returns `(out_idx, src, src', trg, trg')`. The first
-index combines `(b1, b2, dir, dir1, dir2)` where `b` refer to site indices
+index combines `(b1, b2, dir, idxs1, idx2)` where `b` refer to site indices
 within the unit cell, `dir` refers to a direction on the Bravais lattice and 
-dir1, dir2 refer to directions on the full lattice. This can be visualized as
+idx1, idx2 refer to indices into `directions`. This can be visualized as
 
 ```
           b1      b2
@@ -322,6 +322,8 @@ dir1, dir2 refer to directions on the full lattice. This can be visualized as
 src' --- src --- trg --- trg'
       ↑       ↑       ↑
     dir1     dir     dir2
+      ↑               ↑
+    idx1             idx2
 ```
 
 """
