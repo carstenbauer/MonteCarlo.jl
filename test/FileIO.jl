@@ -239,7 +239,7 @@ end
     )
     state = run!(
         mc, verbose = false,
-        safe_before = now() + Second(1),
+        safe_before = now() + Second(2),
         grace_period = Millisecond(0),
         resumable_filename = "resumable_testfile.jld2"
     )
@@ -426,8 +426,8 @@ end
     @test mc.model.data["y"] == "foo"
 
     @test_throws ErrorException MonteCarlo.save("dummy_in.jld2", mc, overwrite=true)
-    # @test isfile("dummy_in.jld2")
-    # @test is_file_content_equal("dummy_in.jld2", "assets/dummy_in.jld2")
+    @test isfile("dummy_in.jld2")
+    @test is_file_content_equal("dummy_in.jld2", "assets/dummy_in.jld2")
     
     rm("dummy_in.jld2")
 end

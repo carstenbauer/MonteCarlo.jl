@@ -19,7 +19,7 @@
     @test -31.95    ≈ measured[:Energy].E |> mean       atol=0.1
     @test 0.006907  ≈ measured[:Energy].E |> std_error  atol=0.002
     @test 1021.4    ≈ measured[:Energy].E2 |> mean      atol=5.0
-    @test 0.3868    ≈ measured[:Energy].E2 |> std_error atol=0.1
+    @test 0.3868    ≈ measured[:Energy].E2 |> std_error atol=0.2
     @test -1.9971   ≈ measured[:Energy].e |> mean       atol=0.01
     @test 0.0004317 ≈ measured[:Energy].e |> std_error  atol=0.0002
     @test 0.02378   ≈ measured[:Energy].C |> mean       atol=0.01 # long run
