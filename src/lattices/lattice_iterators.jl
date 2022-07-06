@@ -286,8 +286,8 @@ function _iterate(iter::EachLocalQuadBySyncedDistance, l::Lattice, state = (1,1,
     Bsrc2, uc2 = fldmod1(src2, B)
     dir12 = l[:Bravais_srctrg2dir][Bsrc1, Bsrc2]
 
-    # combine (uc1, uc2, dir12, sync_dir) to linear index
-    combined_dir = _sub2ind((B, B, Ndir, N), (uc1, uc2, dir12, sync_dir))
+    # combine (uc1, uc2, dir12, sync_idx) to linear index
+    combined_dir = _sub2ind((B, B, Ndir, length(iter.directions)), (uc1, uc2, dir12, sync_idx))
 
     # state = (src1 mask index, src2 mask index, filter1 index, filter2 index)
     return ((combined_dir, src1, trg1, src2, trg2), (sync_idx, idx1, idx2))
@@ -392,9 +392,12 @@ function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,0))
     Bsrc2, uc2 = fldmod1(src2, B)
     dir12 = l[:Bravais_srctrg2dir][Bsrc1, Bsrc2]
 
-    # combine (uc1, uc2, dir12, sub_dir1, sub_dir2) to linear index
+    # combine (uc1, uc2, dir12, sub_idx1, sub_idx2) to linear index
+    # Note that we use sub_idx not sub_dir because we don't want to pad the 
+    # array with zeroes for skipped directions
+    subN = length(iter.directions)
     combined_dir = _sub2ind(
-        (B, B, Ndir, N, N), (uc1, uc2, dir12, sub_dir1, sub_dir2)
+        (B, B, Ndir, subN, subN), (uc1, uc2, dir12, sub_idx1, sub_idx2)
     )
 
     # state = (src1 mask index, src2 mask index, filter1 index, filter2 index)
