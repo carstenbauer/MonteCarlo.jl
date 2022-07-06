@@ -371,6 +371,16 @@ function _positions(l::Lattice, N)
     end
 end
 
+"""
+    position(l::Lattice, uc_index, idxs...)
+
+Returns the position of a Lattice at a given set of lattice indices. The indices 
+are sorted (basis index, x index, y index, z index)
+"""
+function position(l::Lattice, idxs...)
+    return l.unitcell.sites[idxs[1]] .+ sum(lattice_vectors(l) .* idxs[2:end])
+end
+
 
 """
     reciprocal_vectors(l::Lattice)
@@ -380,8 +390,8 @@ Returns the reciprocal unit vectors for 2 or 3 dimensional lattice.
 function reciprocal_vectors(l::Lattice{2})
     v1, v2 = lattice_vectors(l)
     V = 2pi / abs(v1[2] * v2[1] - v1[1] * v2[2])
-    r1 = V * cross([v1[1], v1[2], 0.0], [0,0,1])
-    r2 = V * cross([v2[1], v2[2], 0.0], [0,0,1])
+    r1 = V * [v1[2], -v1[1]]
+    r2 = V * [v2[2], -v2[1]]
     return r1, r2
 end
 
