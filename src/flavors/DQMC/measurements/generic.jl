@@ -15,9 +15,6 @@
 # TODO
 # try replacing global function rather than creatin new local ones
 
-include("greens_iterators.jl")
-
-
 struct DQMCMeasurement{GI, LI, F <: Function, OT, T} <: AbstractMeasurement
     greens_iterator::GI
     lattice_iterator::LI
@@ -151,8 +148,32 @@ _binner_zero_element(mc, ::Nothing, eltype) = zero(eltype)
 requires(::AbstractMeasurement) = (Nothing, Nothing)
 requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
 
+function _flatten_measurements(measurements)
+    output = Vector{DQMCMeasurement}()
+    for m in measurements
+        if m isa DQMCMeasurement
+            push!(output, m)
+
+        elseif m isa MultiMeasurement
+            for _m in m.measurements
+                if _m isa DQMCMeasurement
+                    push!(output, _m)
+                else
+                    @warn "$_m not recognized as DQMCMeasurement. Ignoring."
+                end
+            end
+            
+        else
+            @warn "Failed to convert $m into DQMCMeasurements"
+        end
+    end
+
+    return output
+end
 
 @bm function generate_groups(mc, model, measurements)
+    measurements = _flatten_measurements(measurements)
+
     # get unique requirements
     requirements = requires.(measurements)
     GIs = unique(first.(requirements))
@@ -209,7 +230,7 @@ end
         # Clear temp if necessary
         prepare!(lattice_iterator, measurement, mc)
         # Write measurement to ouput
-        measure!(lattice_iterator, measurement, mc)
+        measure!(lattice_iterator, measurement, mc, nothing)
         # Finalize computation (temp) and commit
         finish!(lattice_iterator, measurement, mc)
     end
@@ -292,7 +313,7 @@ end
 # Lattice irrelevant
 @bm function measure!(::Nothing, measurement, mc::DQMC, packed_greens)
     flv = Val(nflavors(mc))
-    push!(measurement.observable, measurement.kernel(mc, mc.model, packed_greens, flv))
+    push!(measurement.observable, measurement.kernel(mc, mc.model, nothing, packed_greens, flv))
     nothing
 end
 

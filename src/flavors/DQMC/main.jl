@@ -104,8 +104,7 @@ include("fields.jl")
 # This also contains some functions for calculating greens functions.
 include("stack.jl")
 
-# Contains the `UnequalTimeStack`, related greens calculation methods and 
-# iterators (i.e. CombinedGreens). This is used for unequal time measurements.
+# Contains the `UnequalTimeStack` and code for time displaced greens functions
 include("unequal_time_stack.jl")
 
 # Contains functions for computations using the matrices representing a time 
@@ -133,9 +132,11 @@ include("FileIO.jl")
 include("greens.jl")
 
 # Contains code related to make measurements. Specifically:
+# Greens iterators
+include("measurements/greens_iterators.jl")
 # The overall structure
 include("measurements/generic.jl")
 # Quick constructers and measurement kernels (i.e. applied Wicks theorem)
 include("measurements/measurements.jl")
 # Superfluid stiffness stuff
-# include("measurements/superfluid_stiffness.jl")
+include("measurements/superfluid_stiffness.jl")
