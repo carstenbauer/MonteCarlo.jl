@@ -22,7 +22,7 @@
     @test 0.3868    ≈ measured[:Energy].E2 |> std_error atol=0.2
     @test -1.9971   ≈ measured[:Energy].e |> mean       atol=0.01
     @test 0.0004317 ≈ measured[:Energy].e |> std_error  atol=0.0002
-    @test 0.02378   ≈ measured[:Energy].C |> mean       atol=0.01 # long run
+    @test 0.02378   ≈ measured[:Energy].C |> mean       atol=0.015 # long run
     # @test 0.01594   ≈ measured[:Energy].C |> mean       atol=0.007 # short run
     @test isempty(mc.configs) == true
 end
