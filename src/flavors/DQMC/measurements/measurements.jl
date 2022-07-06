@@ -229,7 +229,8 @@ Returns the unprocessed Greens function `greens(mc) = {⟨cᵢcⱼ^†⟩}`.
 * Lattice Iterators: `nothing` (zero index)
 * Greens Iterators: `Greens` or `GreensAt`
 """
-greens_kernel(mc, model, G::GreensMatrix, flv) = G.val
+# greens_kernel(mc, model, G::GreensMatrix, flv) = G.val
+greens_kernel(mc, model, ::Nothing, G::GreensMatrix, flv) = G.val
 
 
 """
@@ -528,7 +529,7 @@ end
 
 
 
-@inline function nonintE_kernel(mc, model, G::GreensMatrix, flv)
+@inline function nonintE_kernel(mc, model, ::Nothing, G::GreensMatrix, flv)
     # <T> = \sum Tji * (Iij - Gij) = - \sum Tji * (Gij - Iij)
     T = mc.stack.hopping_matrix
     nonintE(T, G.val, flv)
@@ -557,8 +558,8 @@ function nonintE(T::BlockDiagonal{X, N}, G::BlockDiagonal{X, N}, flv) where {X, 
 end
 
 
-function totalE_kernel(mc, model, G::GreensMatrix, flv)
-    nonintE_kernel(mc, model, G, flv) + intE_kernel(mc, model, G, flv)
+function totalE_kernel(mc, model, ::Nothing, G::GreensMatrix, flv)
+    nonintE_kernel(mc, model, nothing, G, flv) + intE_kernel(mc, model, nothing, G, flv)
 end
 
 
@@ -649,7 +650,7 @@ function cc_kernel(mc, model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
     output
 end
 
-@inline function nonintE_kernel(mc, model, G::GreensMatrix, flv::Val{1})
+@inline function nonintE_kernel(mc, model, ::Nothing, G::GreensMatrix, flv::Val{1})
     # <T> = \sum Tji * (Iij - Gij) = - \sum Tji * (Gij - Iij)
     T = mc.stack.hopping_matrix
     # 2 because we're using spin up/down symmetry

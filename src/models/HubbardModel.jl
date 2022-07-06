@@ -148,7 +148,7 @@ field_hint(m, ::Val) = choose_field(m)
 field_hint(m, ::Val{:AttractiveGHQHubbardModel}) = MagneticGHQField
 field_hint(m, ::Val{:RepulsiveGHQHubbardModel}) = MagneticGHQField
 
-function intE_kernel(mc, model::HubbardModel, G::GreensMatrix, ::Val{1})
+function intE_kernel(mc, model::HubbardModel, ::Nothing, G::GreensMatrix, ::Val{1})
     # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... 
     # = U [G↑↑ G↓↓ - G↓↑ G↑↓ - 0.5 G↑↑ - 0.5 G↓↓ + G↑↓ + 0.25]
     # = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
@@ -156,10 +156,10 @@ function intE_kernel(mc, model::HubbardModel, G::GreensMatrix, ::Val{1})
     - model.U * sum((diag(G.val) .- 0.5).^2)
 end
 # Technically this only applies to BlockDiagonal
-function intE_kernel(mc, model::HubbardModel, G::GreensMatrix{Float64}, ::Val{2})
+function intE_kernel(mc, model::HubbardModel, ::Nothing, G::GreensMatrix{Float64}, ::Val{2})
     - model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
 end
-function intE_kernel(mc, model::HubbardModel, G::GreensMatrix{ComplexF64}, ::Val{2})
+function intE_kernel(mc, model::HubbardModel, ::Nothing, G::GreensMatrix{ComplexF64}, ::Val{2})
     N = length(lattice(model))
     output = 0.0 + 0.0im
     for i in 1:N
