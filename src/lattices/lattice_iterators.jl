@@ -252,7 +252,7 @@ function _iterate(iter::EachLocalQuadBySyncedDistance, l::Lattice, state = (1,1,
     #     🡣                       🡣
     # (sync_dir, idx1)        (sync_dir, idx2)
     #    🡧        🡦             🡧        🡦
-    # src' ------ src ------- trg ------ trg'
+    # src' <----- src ------> trg -----> trg'
     #              🡣  🡦     🡧  🡣        
     #             uc1   dir   uc2
 
@@ -319,7 +319,7 @@ idx1, idx2 refer to indices into `directions`. This can be visualized as
 ```
           b1      b2
           ↓       ↓
-src' --- src --- trg --- trg'
+src' <-- src --> trg --> trg'
       ↑       ↑       ↑
     dir1     dir     dir2
       ↑               ↑

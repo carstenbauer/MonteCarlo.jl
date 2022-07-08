@@ -79,6 +79,7 @@ export measurements, observables
 include("lattices/constructors.jl")
 include("lattices/lattice_cache.jl")
 include("lattices/lattice_iterators.jl")
+include("lattices/directions.jl")
 
 export AbstractLattice, Lattice, Bravais
 export Chain, SquareLattice, Honeycomb, CubicLattice

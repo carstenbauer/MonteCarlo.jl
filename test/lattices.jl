@@ -114,7 +114,11 @@ using MonteCarlo: lattice_vectors
     end
 end
 
+
+
 using MonteCarlo: directed_norm
+
+
 
 @testset "Lattice Iterators" begin
     # Set up a few test models/DQMCs    
@@ -135,7 +139,7 @@ using MonteCarlo: directed_norm
         for dqmc in dqmcs
             dirs = directions(lattice(dqmc))
             for i in 2:length(dirs)
-                @test norm(dirs[i-1]) < norm(dirs[i]) + 1e-5
+                @test norm(dirs[i-1]) < norm(dirs[i]) + 1e-10
             end
         end
 
@@ -212,16 +216,20 @@ using MonteCarlo: directed_norm
             
             B = length(lattice(dqmc).unitcell.sites)
             ind2sub = CartesianIndices((B, B, length(dirs)))
+            iter_dirs = directions(iter.iter, lattice(dqmc))
 
             # Let's summarize these tests...
             check = true
+            check_dirs = true
             N = 0
 
             for (combined, src, trg) in iter
                 N += 1
                 b1, b2, idx = Tuple(ind2sub[combined])
                 # raw distance between points - wrapped Bravais distance - raw uc distance
-                _d = pos[src] - pos[trg] - dirs[idx] - uc_pos[b1] + uc_pos[b2]
+                _d = (dirs[idx] + uc_pos[b2] - uc_pos[b1])
+                check_dirs = check_dirs && (_d ≈ iter_dirs[b1, b2, idx])
+                _d = (pos[trg] - pos[src]) - _d
                 
                 # Redo wrapping around periodic bounds. Note that the wrapping
                 # in the Bravais lattice may differ from what would happen with
@@ -231,7 +239,7 @@ using MonteCarlo: directed_norm
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]
                     new_d = _d .+ v
-                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                    if dot(new_d, new_d) < dot(d, d)
                         d .= new_d
                     end
                 end
@@ -267,10 +275,12 @@ using MonteCarlo: directed_norm
             check12 = true
             check1 = true
             check2 = true
+            check_dirs = true
 
             B = length(lattice(dqmc).unitcell.sites)
             Ndirs = length(iter.iter.directions)
             idxs = CartesianIndices((B, B, length(dirs), Ndirs, Ndirs))
+            iter_dirs = directions(iter.iter, lattice(dqmc))
             N = 0
 
             for (lin, src1, trg1, src2, trg2) in iter
@@ -278,33 +288,39 @@ using MonteCarlo: directed_norm
                 uc1, uc2, idx12, idx1, idx2 = Tuple(idxs[lin])
 
                 # src1 -- idx12 -- src2
-                _d = full_pos[src1] - full_pos[src2] - dirs[idx12] + uc_pos[uc2] - uc_pos[uc1]
+                # _d = full_pos[src1] - full_pos[src2] - dirs[idx12] + uc_pos[uc2] - uc_pos[uc1]
+                _d = dirs[idx12] + uc_pos[uc2] - uc_pos[uc1]
+                check_dirs = check_dirs && (_d ≈ iter_dirs[1][uc1, uc2, idx12])
+                _d = full_pos[src2] - full_pos[src1] - _d
+
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]
                     new_d = _d .+ v
-                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                    if dot(new_d, new_d) < dot(d, d)
                         d .= new_d
                     end
                 end
                 check12 = check12 && all(d .< 1e-15)
 
                 # src1 -- idx1 -- trg1
-                _d = full_pos[src1] - full_pos[trg1]
+                _d = full_pos[trg1] - full_pos[src1]
+                check_dirs = check_dirs && (_d ≈ iter_dirs[2][idx1])
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]
                     new_d = _d .+ v
-                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                    if dot(new_d, new_d) < dot(d, d)
                         d .= new_d
                     end
                 end
                 check1 = check1 && (full_dirs[iter.iter.directions[idx1]] ≈ d)
 
                 # src2 -- idx2 -- trg2
-                _d = full_pos[src2] - full_pos[trg2]
+                _d = full_pos[trg2] - full_pos[src2]
+                check_dirs = check_dirs && (_d ≈ iter_dirs[2][idx2])
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]
                     new_d = _d .+ v
-                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                    if dot(new_d, new_d) < dot(d, d)
                         d .= new_d
                     end
                 end
@@ -340,9 +356,11 @@ using MonteCarlo: directed_norm
             check12 = true
             check1 = true
             check2 = true
+            check_dirs = true
 
             B = length(lattice(dqmc).unitcell.sites)
             idxs = CartesianIndices((B, B, length(dirs), length(iter.iter.directions)))
+            iter_dirs = directions(iter.iter, lattice(dqmc))
             N = 0
 
             for (lin, src1, trg1, src2, trg2) in iter
@@ -350,33 +368,37 @@ using MonteCarlo: directed_norm
                 uc1, uc2, idx12, idx = Tuple(idxs[lin])
 
                 # src1 -- idx12 -- src2
-                _d = full_pos[src1] - full_pos[src2] - dirs[idx12] - uc_pos[uc1] + uc_pos[uc2]
+                _d = dirs[idx12] + uc_pos[uc2] - uc_pos[uc1]
+                check_dirs = check_dirs && (_d ≈ iter_dirs[1][uc1, uc2, idx12])
+                _d = full_pos[src2] - full_pos[src1] - _d
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]
                     new_d = _d .+ v
-                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                    if dot(new_d, new_d) < dot(d, d)
                         d .= new_d
                     end
                 end
                 check12 = check12 && all(d .< 1e-15)
 
                 # src1 -- idx -- trg1
-                _d = full_pos[src1] - full_pos[trg1]
+                _d = full_pos[trg1] - full_pos[src1]
+                check_dirs = check_dirs && (_d ≈ iter_dirs[2][idx])
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]
                     new_d = _d .+ v
-                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                    if dot(new_d, new_d) < dot(d, d)
                         d .= new_d
                     end
                 end
                 check1 = check1 && (full_dirs[iter.iter.directions[idx]] ≈ d)
 
                 # src2 -- idx -- trg2
-                _d = full_pos[src2] - full_pos[trg2]
+                _d = full_pos[trg2] - full_pos[src2]
+                check_dirs = check_dirs && (_d ≈ iter_dirs[2][idx])
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]
                     new_d = _d .+ v
-                    if directed_norm(new_d, 1e-6) + 1e-6 < directed_norm(d, 1e-6)
+                    if dot(new_d, new_d) < dot(d, d)
                         d .= new_d
                     end
                 end
