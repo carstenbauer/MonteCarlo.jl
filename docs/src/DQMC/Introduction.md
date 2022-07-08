@@ -19,7 +19,7 @@ The model is a description of the Hamiltonian. Currently MonteCarlo.jl only impl
 
 #### Lattice
 
-The lattice is interchangeable part of the model. We currently support a few lattices natively (Chain, Square, Cubic, Triangular) and provide a Wrapper for [LatticePhysics.jl](https://github.com/janattig/LatticePhysics.jl)
+MonteCarlo.jl provides its own lattice structure inspired by [LatticePhysics.jl](https://github.com/janattig/LatticePhysics.jl). The structure is generic, meaning that it should be possible to implement any lattice with it. Lattices are currently part of the model and the `HubbardModel` should work with any lattice. 
 
 #### Field
 
