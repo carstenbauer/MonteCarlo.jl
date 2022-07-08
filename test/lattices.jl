@@ -27,6 +27,8 @@ using MonteCarlo: lattice_vectors
         @test MonteCarlo.from.(bs) == [3,3]
         @test MonteCarlo.to.(bs) == [4,2]
         @test MonteCarlo.label.(bs) == ones(2)
+
+        @test_throws MethodError MonteCarlo.reciprocal_vectors(l)
     end
 
     @testset "Square" begin
@@ -55,6 +57,8 @@ using MonteCarlo: lattice_vectors
         @test MonteCarlo.from.(bs) == [3,3,3,3]
         @test MonteCarlo.to.(bs) == [1,6,2,9]
         @test MonteCarlo.label.(bs) == ones(4)
+
+        @test all(MonteCarlo.reciprocal_vectors(l) .≈ [[0., -2.0pi], [2.0pi, 0.]])
     end
 
     @testset "Cubic" begin
@@ -83,6 +87,9 @@ using MonteCarlo: lattice_vectors
         @test MonteCarlo.from.(bs) == [3,3,3,3,3,3]
         @test MonteCarlo.to.(bs) == [4,1,7,4,1,7]
         @test MonteCarlo.label.(bs) == ones(6)
+
+        @test all(MonteCarlo.reciprocal_vectors(l) .≈ [Float64[2pi, 0, 0], Float64[0, 2pi, 0], Float64[0, 0, 2pi]])
+
     end
 
     @testset "Honeycomb" begin
