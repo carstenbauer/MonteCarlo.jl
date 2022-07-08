@@ -40,14 +40,14 @@ function _save(
         file::FileLike, key::String, accumulators::NTuple{N, <: BinningAnalysis.FastVariance}
     ) where N
     write(file, "$key/tag", "FastVarAccum")
-    write(file, "$key/m1", [a.x_sum for a in accumulators])
-    write(file, "$key/m2", [a.x2_sum for a in accumulators])
+    write(file, "$key/x_sum", [a.x_sum for a in accumulators])
+    write(file, "$key/x2_sum", [a.x2_sum for a in accumulators])
     write(file, "$key/count", [a.count for a in accumulators])
     return
 end
 
 function _load(data, ::Val{:FastVarAccum})
-    Tuple(BinningAnalysis.Variance.(
+    Tuple(BinningAnalysis.FastVariance.(
         data["x_sum"], data["x2_sum"],data["count"]
     ))
 end

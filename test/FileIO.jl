@@ -182,6 +182,41 @@
 end
 
 
+@testset "BinningAnalysis" begin
+    isfile("testfile.jld2") && rm("testfile.jld2")
+
+    # stable Variance
+    LB = LogBinner(rand(1000), accumulator = BinningAnalysis.Variance)
+    file = jldopen("testfile.jld2", "w")
+    MonteCarlo._save(file, "binner", LB)
+    close(file)
+
+    loaded = MonteCarlo._load(MonteCarlo.FileData(JLD2.load("testfile.jld2"), "")["binner"])
+    rm("testfile.jld2")
+    @test LB == loaded
+
+    # fast variance
+    LB = LogBinner(rand(1000), accumulator = BinningAnalysis.FastVariance)
+    file = jldopen("testfile.jld2", "w")
+    MonteCarlo._save(file, "binner", LB)
+    close(file)
+
+    loaded = MonteCarlo._load(MonteCarlo.FileData(JLD2.load("testfile.jld2"), "")["binner"])
+    rm("testfile.jld2")
+    @test LB == loaded
+
+    # FullBinner
+    FB = FullBinner(rand(1000))
+    file = jldopen("testfile.jld2", "w")
+    MonteCarlo._save(file, "binner", FB)
+    close(file)
+
+    loaded = MonteCarlo._load(MonteCarlo.FileData(JLD2.load("testfile.jld2"), "")["binner"])
+    rm("testfile.jld2")
+    @test FB == loaded
+end
+
+
 
 @time @testset "MC" begin
 
