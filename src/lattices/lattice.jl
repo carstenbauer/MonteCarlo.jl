@@ -56,6 +56,7 @@ struct Bond{N} <: AbstractBond
 end
 Bond(from::Int, to::Int, uc_shift::NTuple) = Bond(from, to, uc_shift, 1)
 Bond{N}(from::Int, to::Int, label::Int) where N = Bond(from, to, ntuple(i -> 0, N), label)
+Bond{N}(::Nothing) where N = Bond(0, 0, ntuple(i -> 0, N), 0)
 
 function _is_reversal(b1::Bond{N}, b2::Bond{N}) where N
     b1.from == b2.to && b1.to == b2.from && 
@@ -289,7 +290,7 @@ function _shift_Bravais(l::Lattice{N}, flat::Int, b::Bond{N}) where N
     @boundscheck 1 <= flat <= length(l) # flat in bounds
 
     flat_out = b.to
-    flat_fld = fld1(flat+1, length(l.unitcell.sites))
+    flat_fld = fld1(flat, length(l.unitcell.sites))
     f = length(l.unitcell.sites)
     for d in eachindex(l.Ls)
         flat_fld, t = fldmod1(flat_fld, l.Ls[d])
@@ -298,7 +299,7 @@ function _shift_Bravais(l::Lattice{N}, flat::Int, b::Bond{N}) where N
         f *= l.Ls[d]
     end
 
-    return Bond{N}(flat + b.from, flat_out, b.label)
+    return Bond{N}(flat + b.from - 1, flat_out, b.label)
 end
 
 """
@@ -312,7 +313,7 @@ bonds(l::AbstractLattice) = bonds(l, Val(false))
 function bonds(l::Lattice{N}, directed::Val{true}) where N
     (
         _shift_Bravais(l, idx, b)
-            for idx in 0:length(l.unitcell.sites):length(l)-1
+            for idx in 1:length(l.unitcell.sites):length(l)
             for b in l.unitcell.bonds
     )
 end
@@ -320,7 +321,7 @@ function bonds(l::Lattice{N}, directed::Val{false}) where {N}
     bonds = l.unitcell.bonds
     (
         _shift_Bravais(l, idx, bonds[j])
-            for idx in 0:length(l.unitcell.sites):length(l)-1
+            for idx in 1:length(l.unitcell.sites):length(l)
             for j in l.unitcell._directed_indices
     )
 end
@@ -337,6 +338,9 @@ function bonds(l::Lattice{N}, site::Int) where N
             for b in l.unitcell.bonds if b.from == uc_idx
     )
 end
+
+
+
 
 
 """
@@ -466,3 +470,61 @@ lattice_vectors(b::Bravais) = lattice_vectors(b.l)
 Base.size(b::Bravais) = size(b.l)
 Base.length(b::Bravais) = prod(b.l.Ls)
 Base.eachindex(b::Bravais) = 1:length(b)
+
+
+
+################################################################################
+### Open bonds
+################################################################################
+
+
+
+# flat index shifted by bond
+function _shift_Bravais_open(l::Lattice{N}, flat::Int, b::Bond{N}) where N
+    @boundscheck 1 <= flat <= length(l) # flat in bounds
+
+    flat_out = b.to
+    flat_fld = fld1(flat, length(l.unitcell.sites))
+    f = length(l.unitcell.sites)
+    for d in eachindex(l.Ls)
+        flat_fld, t = fldmod1(flat_fld, l.Ls[d])
+        # t = mod1(t + b.uc_shift[d], l.Ls[d])
+        t = t + b.uc_shift[d]
+        1 <= t <= l.Ls[d] || return Bond{N}(nothing)
+        flat_out += f * (t - 1)
+        f *= l.Ls[d]
+    end
+
+    return Bond{N}(flat + b.from - 1, flat_out, b.label)
+end
+
+struct OpenBondIterator{N}
+    l::Lattice{N}
+    directed::Bool
+end
+
+bonds_open(l::AbstractLattice, ::Val{true}) = bonds_open(l, true)
+bonds_open(l::AbstractLattice, ::Val{false}) = bonds_open(l, false)
+bonds_open(l::AbstractLattice, directed = false) = OpenBondIterator(l, directed)
+
+function Base.iterate(iter::OpenBondIterator{N}, state = (1, 1)) where N
+    flat, bond_idx = state
+    flat > length(iter.l) && return nothing
+    uc = iter.l.unitcell
+
+    if iter.directed
+        bond = _shift_Bravais_open(iter.l, flat, uc.bonds[bond_idx])
+        next_flat = flat + (bond_idx == length(uc.bonds)) * length(uc.sites)
+        next_bond_idx = mod1(bond_idx+1, length(uc.bonds))
+    else
+        bond = _shift_Bravais_open(iter.l, flat, uc.bonds[uc._directed_indices[bond_idx]])
+        next_flat = flat + (bond_idx == length(uc._directed_indices)) * length(uc.sites)
+        next_bond_idx = mod1(bond_idx+1, length(uc._directed_indices))
+    end
+
+    if bond == Bond{N}(nothing)
+        return iterate(iter, (next_flat, next_bond_idx))
+    else
+        return bond, (next_flat, next_bond_idx)
+    end
+end

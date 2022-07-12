@@ -87,7 +87,7 @@ export Chain, SquareLattice, Honeycomb, CubicLattice
 export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, 
         EachLocalQuadByDistance, EachLocalQuadBySyncedDistance, 
         Sum, ApplySymmetries
-export unitcell, positions, bonds, directions
+export unitcell, positions, bonds, bonds_open, directions
 
 include("flavors/MC/MC.jl")
 include("flavors/DQMC/main.jl")
