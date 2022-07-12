@@ -33,69 +33,61 @@ The model is defined for a square lattice, however the paper suggests defining i
 
 The nearest neighbors are directed, catching different values for $$\phi_{ij}^\sigma$$ as a result. We need to create two groups, one with directions as indicated in figure 1a) in the paper, and one with the reverse. For second nearest neighbors the prefactor $$s_{\langle i, j \rangle_2}$$ depends on the combination of sublattice and direction. In $$a_1$$ direction the value is positive (negative) on the A (B) sublattice, and in $$a_2$$ it is negative (positive) on the A (B) sublattice. The fifth nearest neighbors always have the same weight and thus do not require special grouping.
 
-We implement the lattice with [LatticePhysics.jl](https://github.com/janattig/LatticePhysics.jl). The package requires us to define a unitcell with all bonds we want to see in the full lattice. 
-
 ```julia
-using LatticePhysics, LatPhysUnitcellLibrary
+using MonteCarlo: UnitCell, Bond, Lattice
 
-function LatPhysUnitcellLibrary.getUnitcellSquare(
-            unitcell_type  :: Type{U},
-            implementation :: Val{17}
-        ) :: U where {LS,LB,S<:AbstractSite{LS,2},B<:AbstractBond{LB,2}, U<:AbstractUnitcell{S,B}}
-
-    # return a new Unitcell
-    return newUnitcell(
-        # Type of the unitcell
-        U,
+function HBCLattice(Lx, Ly = Lx)
+    uc = UnitCell(
+        # name
+        "HBC Square",
 
         # Bravais lattice vectors
-        [[1.0, +1.0], [1.0, -1.0]],
+        ([1.0, +1.0], [1.0, -1.0]),
         
-        # Basis sites
-        S[
-            newSite(S, [0.0, 0.0], getDefaultLabelN(LS, 1)),
-            newSite(S, [0.0, 1.0], getDefaultLabelN(LS, 2))
-        ],
+        # Sites
+        [[0.0, 0.0], [0.0, 1.0]],
 
         # Bonds
-        B[
+        [
             # NN, directed
             # bonds from ref plot, π/4 weight for spin up
-            newBond(B, 1, 2, getDefaultLabelN(LB, 1), (0, 1)),
-            newBond(B, 1, 2, getDefaultLabelN(LB, 1), (-1, 0)),
-            newBond(B, 2, 1, getDefaultLabelN(LB, 1), (+1, -1)),
-            newBond(B, 2, 1, getDefaultLabelN(LB, 1), (0, 0)),
+            Bond(1, 2, ( 0,  1), 1),
+            Bond(1, 2, (-1,  0), 1),
+            Bond(2, 1, (+1, -1), 1),
+            Bond(2, 1, ( 0,  0), 1),
 
             # NN reversal
-            newBond(B, 2, 1, getDefaultLabelN(LB, 2), (0, -1)),
-            newBond(B, 2, 1, getDefaultLabelN(LB, 2), (+1, 0)),
-            newBond(B, 1, 2, getDefaultLabelN(LB, 2), (-1, +1)),
-            newBond(B, 1, 2, getDefaultLabelN(LB, 2), (0, 0)),
+            Bond(2, 1, ( 0, -1), 2),
+            Bond(2, 1, (+1,  0), 2),
+            Bond(1, 2, (-1, +1), 2),
+            Bond(1, 2, ( 0,  0), 2),
             
             # NNN
-            # positive weight (forward and backward facing)
-            newBond(B, 1, 1, getDefaultLabelN(LB, 3), (+1, 0)),
-            newBond(B, 1, 1, getDefaultLabelN(LB, 3), (-1, 0)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 3), (0, +1)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 3), (0, -1)),
+            # positive weight (we need forward and backward facing bonds here too)
+            Bond(1, 1, (+1,  0), 3),
+            Bond(1, 1, (-1,  0), 3),
+            Bond(2, 2, ( 0, +1), 3),
+            Bond(2, 2, ( 0, -1), 3),
             # negative weight
-            newBond(B, 1, 1, getDefaultLabelN(LB, 4), (0, +1)),
-            newBond(B, 1, 1, getDefaultLabelN(LB, 4), (0, -1)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 4), (+1, 0)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 4), (-1, 0)),
+            Bond(1, 1, ( 0, +1), 4),
+            Bond(1, 1, ( 0, -1), 4),
+            Bond(2, 2, (+1,  0), 4),
+            Bond(2, 2, (-1,  0), 4),
             
-            # Fifth nearest neighbors (forward)
-            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (2, 0)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (2, 0)),
-            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (0, 2)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (0, 2)),  
-            # backwards facing bonds (backwards)
-            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (-2, 0)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (-2, 0)),
-            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (0, -2)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (0, -2)), 
+            # Fifth nearest neighbors
+            Bond(1, 1, (2, 0), 5),
+            Bond(2, 2, (2, 0), 5),
+            Bond(1, 1, (0, 2), 5),
+            Bond(2, 2, (0, 2), 5),
+            # backwards facing bonds
+            Bond(1, 1, (-2,  0), 5),
+            Bond(2, 2, (-2,  0), 5),
+            Bond(1, 1, ( 0, -2), 5),
+            Bond(2, 2, ( 0, -2), 5),
         ]
     )
+
+    return Lattice(uc, (Lx, Ly))
 end
 ```
 
@@ -103,8 +95,7 @@ With this implementation we can then generate a lattice of arbitrary size with
 
 ```julia
 L = 8
-uc = LatticePhysics.getUnitcellSquare(17)
-lpl = getLatticePeriodic(uc, L)
+l = HBCLattice(L)
 ```
 
 where `L` is the linear system size. Note that due to the two basis sites the total number of sites is $$2L^2$$. To verify our lattice implementation it is useful to create a comparable plot. In Makie, for example, we may run
@@ -113,25 +104,24 @@ where `L` is the linear system size. Note that due to the two basis sites the to
 using GLMakie
 
 # get small lattice without periodic bonds
-uc = LatticePhysics.getUnitcellSquare(17)
-lpl = getLatticeOpen(uc, 3)
+l = HBCLattice(3)
 
 # create figure and axis without background grid and stretching
 fig = Figure()
 ax = Axis(fig[1, 1], aspect=DataAspect(), xgridvisible = false, ygridvisible = false)
 
 # collect list of bonds grouped by label
-ps = Point2f.(point.(sites(lpl)))
+ps = Point2f.(positions(l))
 ls = [Point2f[] for _ in 1:5]
-for b in bonds(lpl)
+for b in bonds_open(l, true)
     push!(ls[b.label], ps[b.from], ps[b.to])
 end
 
 # Draw arrows for NN groups
 ds = ls[1][2:2:end] .- ls[1][1:2:end]
-arrows!(ax, ls[1][1:2:end] .+ 0.35 .* ds, 0.55 .* ds, color = :black)
+a = arrows!(ax, ls[1][1:2:end] .+ 0.35 .* ds, 0.55 .* ds, color = :black, arrowsize = 16)
 ds = ls[2][2:2:end] .- ls[2][1:2:end]
-arrows!(ax, ls[2][1:2:end] .+ 0.65 .* ds, 0.25 .* ds, color = :lightgray)
+arrows!(ax, ls[2][1:2:end] .+ 0.65 .* ds, 0.25 .* ds, color = :lightgray, arrowsize = 16)
 
 # NNN
 linesegments!(ax, ls[3], color = :black, linewidth=1)
@@ -141,17 +131,19 @@ linesegments!(ax, ls[4], color = :black, linewidth=1, linestyle = :dash)
 linesegments!(ax, ls[5] .+ Point2f(0, 0.05), color = :red)
 
 # draw A and B sites
-As = [Point2f(point(s)) for s in sites(lpl) if s.label == 1]
-Bs = [Point2f(point(s)) for s in sites(lpl) if s.label == 2]
+As = ps[1, :, :][:]
+Bs = ps[2, :, :][:]
 scatter!(ax, As, color = :black, markersize = 10)
-scatter!(ax, Bs, color = :black, marker='■', markersize = 8)
+scatter!(ax, Bs, color = :black, marker='■', markersize = 16)
 
 # Label A and B sites
-text!(ax, "A", position = Point2f(-0.2, 0), align = (:right, :center))
-text!(ax, "B", position = Point2f(-0.2, 1), align = (:right, :center))
+text!(ax, "A", position = Point2f(2-0.2, 0), align = (:right, :center))
+text!(ax, "B", position = Point2f(2-0.2, 1), align = (:right, :center))
 
 Makie.save("HBC_lattice.png", fig)
 fig
+
+
 ```
 
 ![](assets/HBC/HBC_lattice.png)
@@ -167,7 +159,7 @@ Now that we have the lattice we can generate a fitting hopping matrix. But befor
 [LoopVectorization.jl](https://github.com/JuliaSIMD/LoopVectorization.jl) is a great tool when pushing for peak single threaded/single core linear algebra performance. The linear algebra needed for DQMC is reimplemented in MonteCarlo.jl using it for both `Float64` and `ComplexF64`. The latter uses `MonteCarlo.CMat64` and `MonteCarlo.CVec64` as concrete array types which are based on [StructArrays.jl](https://github.com/JuliaArrays/StructArrays.jl) under the hood. They should be used in this model. Furthermore we can make use of `MonteCarlo.BlockDiagonal` as we have no terms with differing spin indices. Thus we set
 
 ```julia
-MonteCarlo.@with_kw_noshow struct HBCModel{LT<:AbstractLattice} <: Model
+MonteCarlo.@with_kw_noshow struct HBCModel <: Model
     # parameters with defaults based on paper
     mu::Float64 = 0.0
     U::Float64 = 1.0
@@ -177,7 +169,8 @@ MonteCarlo.@with_kw_noshow struct HBCModel{LT<:AbstractLattice} <: Model
     t5::Float64 = (1 - sqrt(2)) / 4
 
     # lattice
-    l::LT
+    l::Lattice{2}
+    @assert l.unitcell.name == "HBC Square"
 end
 
 MonteCarlo.hoppingeltype(::Type{DQMC}, ::HBCModel) = ComplexF64
@@ -189,7 +182,7 @@ MonteCarlo.greens_matrix_type( ::Type{DQMC}, ::HBCModel) = BlockDiagonal{Complex
 for our model. The definition of the hopping matrix then follows from the various weights in the Hamiltonian as
 
 ```julia
-function MonteCarlo.hopping_matrix(mc::DQMC, m::HBCModel{<: LatPhysLattice})
+function MonteCarlo.hopping_matrix(m::HBCModel)
     # number of sites
     N = length(m.l)
 
@@ -203,7 +196,7 @@ function MonteCarlo.hopping_matrix(mc::DQMC, m::HBCModel{<: LatPhysLattice})
     t2p = + m.t2
     t2m = - m.t2
     
-    for b in bonds(m.l.lattice)
+    for b in bonds(m.l.lattice, Val(true))
         # NN paper direction
         if b.label == 1 
             tup[b.from, b.to]   = - t1p
@@ -256,9 +249,7 @@ The full code including these convenience functions can be found [here](HBC_mode
 To keep the runtime of this crosscheck reasonable we used the smallest linear system size the paper considers, `L = 8`. We also set `U = 1` and the fifth nearest neighbor hopping `t5 = 0`. This corresponds to a flatness ratio $$F = 0.2$$. To be comparable to the paper we will need to tune the chemical potential $$\mu$$ to hit half filling. This can be done through trial and error on a smaller lattice. The optimal $$\mu$$, after running the main simulation with a small set of different values, seems to be $$\mu \approx -2.206$$. Thus the basic setup for our simulation becomes
 
 ```julia
-uc = LatticePhysics.getUnitcellSquare(17)
-lpl = getLatticePeriodic(uc, 8)
-l = LatPhysLattice(lpl)
+l = HBCLattice(8)
 m = HBCModel(l, t5 = 0.0, mu = -2.206) # other defaults match F = 0.2 setup
 mc = DQMC(
     m, beta = beta, thermalization = 1000, sweeps = 5000, 
@@ -339,7 +330,7 @@ Much like $$K_x$$ these terms are closely related to the hopping terms of the Ha
 Let's get back to what we need to measure in our simulation. MonteCarlo.jl's `current_current_susceptibility` measures $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$\alpha$$ and $$\beta$$ are directions that get passedto the function. Since we set `t5 = 0` we can ignore equations 14g - 14j leaving 6 equations with 3 directions on 2 sublattices. MonteCarlo.jl does not care about sublattices, so we're left with three +x directions `[2, 6, 9]` which need to be passed. You can check these with `directions(mc)[[2, 6, 9]]` against the paper. Our measurement is given by
 
 ```julia
-mc[:CCS] = current_current_susceptibility(mc, model, [2, 6, 9])
+mc[:CCS] = current_current_susceptibility(mc, model, directions = [2, 6, 9])
 ```
 
 ## Running the simulations

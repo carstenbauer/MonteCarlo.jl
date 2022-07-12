@@ -82,7 +82,7 @@ include("lattices/lattice_iterators.jl")
 include("lattices/directions.jl")
 
 export AbstractLattice, Lattice, Bravais
-export Chain, SquareLattice, Honeycomb, CubicLattice
+export Chain, SquareLattice, CubicLattice, TriangularLattice, Honeycomb
 # export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
 export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, 
         EachLocalQuadByDistance, EachLocalQuadBySyncedDistance, 

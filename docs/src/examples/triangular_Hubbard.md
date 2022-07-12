@@ -13,15 +13,15 @@ using MonteCarlo
 
 betas = (2.0, 5.0, 7.0)
 mus = vcat(-2.0, -1.5, -1.25:0.05:-1.0, -0.8:0.2:0.8, 0.9:0.05:1.25, 1.5, 2.0)
-lattice = TriangularLattice(4)
+l = TriangularLattice(4)
 dqmcs = []
 
 counter = 0
 N = length(mus) * length(betas)
 @time for beta in betas, mu in mus
     counter += 1
-    print("\r[", lpad("$counter", 2), "/$N]")
-    m = HubbardModel(l = lattice, t = 1.0, U = 4.0, mu = mu)
+    print("\r[", lpad("$counter", 2), "/$N] ")
+    m = HubbardModel(l = l, t = 1.0, U = 4.0, mu = mu)
     dqmc = DQMC(
         m, beta = beta, delta_tau = 0.125, safe_mult = 8, 
         thermalization = 1000, sweeps = 1000, measure_rate = 1,
@@ -66,8 +66,8 @@ for i in 0:2
     # For s-wave symmetry these weights are always (1, 0, ..., 0) (only vector 0).
     # To match the paper the index i should just be summed over. This is 
     # equivalent to a q=0 Fourier transform.
-    _pcs = [sum(mean(dqmcs[N*i + j][:PC])[:, 1, 1]) for j in 1:N]
-    dpcs = [sqrt(sum(std_error(dqmcs[N*i + j][:PC])[:, 1, 1].^2)) for j in 1:N]
+    _pcs = [sum(mean(dqmcs[N*i + j][:PC])[:, :, :, 1, 1]) for j in 1:N]
+    dpcs = [sqrt(sum(std_error(dqmcs[N*i + j][:PC])[:, :, :, 1, 1].^2)) for j in 1:N]
     push!(pcs, _pcs)
     push!(Δpcs, dpcs)
 end
@@ -153,12 +153,12 @@ Here we expanded the term into creation and annihilation operators, applied Wick
 which needs to be implemented as a function and passed to `MonteCarlo.Measurement` to be used.
 
 ```julia
-function my_kernel(::DQMC, ::HubbardModelAttractive, ij::NTuple{2}, G::AbstractArray)
+function my_kernel(mc, m, ij::NTuple{2}, G::GreensMatrix, flv)
     i, j = ij
     4 * (I[j, i] - G[j, i]) * G[i, j]
 end
 
-dqmc[:CDC] = MonteCarlo.Measurement(mc, model, Greens, EachSitePairByDistance, my_kernel)
+dqmc[:CDC] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance, my_kernel)
 ```
 
 In the above, `Greens` is a greens function iterator used by the measurement. It yields an equal time greens function to the measurement which is eventually passed as `G` to the kernel. `EachSitePairByDistance` defines which lattice indices are passed to the kernel and how they are saved. In this case i and j run through each site index independently and the results are summed such that we have one value per unique distance vector.
@@ -174,9 +174,17 @@ qs = vcat(
     range(Float64[pi, pi], Float64[0, 0], length=10),
 )
 ys = map(dqmcs) do dqmc
-    MonteCarlo.fourier_transform(
-        qs, directions(MonteCarlo.lattice(dqmc)), mean(dqmc[:CDC])
-    ) |> real
+    result = zeros(ComplexF64, length(qs))
+    vals = mean(dqmc[:CDC])
+    dirs = directions(dqmc[:CDC].lattice_iterator, lattice(dqmc))
+    for (j, q) in enumerate(qs)
+        # basis, basis, directional index (on Bravais lattice)
+        for b1 in axes(dirs, 1), b2 in axes(dirs, 2), i in axes(dirs, 3)
+            result += vals[b1, b2, i] * cis(dot(dirs[b1, b2, i], q))
+        end
+    end
+
+    real(result)
 end
 ```
 

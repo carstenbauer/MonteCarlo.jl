@@ -56,3 +56,17 @@ function Honeycomb(Lx, Ly = Lx)
 
     Lattice(uc, (Lx, Ly))
 end
+
+function TriangularLattice(Lx, Ly = Lx)
+    uc = UnitCell(
+        "Triangular",
+        (Float64[sqrt(3.0)/2, -0.5], Float64[sqrt(3.0)/2, +0.5]),
+        [Float64[0.0, 0.0]],
+        [
+            Bond(1, 1, ( 1,  0)), Bond(1, 1, ( 0,  1)), Bond(1, 1, (-1,  1)),
+            Bond(1, 1, (-1,  0)), Bond(1, 1, ( 0, -1)), Bond(1, 1, ( 1, -1)),
+        ]
+    )
+
+    Lattice(uc, (Lx, Ly))
+end
