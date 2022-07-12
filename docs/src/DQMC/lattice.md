@@ -9,7 +9,8 @@ There are a few functions defined for lattices which you may find useful.
 
 - `position(lattice)` returns an iterator which produces all site position of the lattice. When collected, this will create a D+1 dimensional array for a D dimensional lattice, where the first index represents the basis and the following represent the extend along the different lattice vectors.
 - `bonds(lattice[, directed = Val(false)])` returns an iterator which produces all bonds of the lattice. If `directed = Val(false)` bonds will be assumed to be directionless, meaning that only one of $1 \to 2$ and $2 \to 1$ will be returned. If `directed = Val(true)` both bonds will be generated.
-- `bonds(lattice, site::Int)` returns a generator which produces bonds starting from `site`.
+- `bond_open(lattice[, directed = false)` returns an iterator which filters out periodic bonds which might be useful for plotting.
+- `bonds(lattice, site::Int)` returns an iterator which produces bonds starting from `site`.
 - `lattice_vectors(lattice)` returns the lattice vectors of the lattice. (These are the vectors $v_i$ in $R = v_1 i_1 + v_2 i_2 + v_3 i_3$, i.e.e the vectors that generate the periodic Bravais lattice.)
 - `reciprocal_vectors(lattice)` returns the Fourier transformed lattice vectors.
 - `length(lattice)` returns the total number of sites in the lattice.
@@ -31,16 +32,20 @@ If neither MonteCarlo.jl nor LatticePhysics.jl implements the lattice you need, 
 ```julia
 function Honeycomb(Lx, Ly = Lx)
     uc = UnitCell(
+        # Name
         "Honeycomb",
+        # lattice vectors
         (Float64[sqrt(3.0)/2, -0.5], Float64[sqrt(3.0)/2, +0.5]),
+        # basis
         [Float64[0.0, 0.0], Float64[1/sqrt(3.0), 0.0]],
+        # bonds
         [
             Bond(1, 2, (0, 0)), Bond(1, 2, (-1, 0)), Bond(1, 2, (0, -1)),
             Bond(2, 1, (0, 0)), Bond(2, 1, ( 1, 0)), Bond(2, 1, (0,  1)),
         ]
     )
 
-    Lattice(uc, (Lx, Ly))
+    return Lattice(uc, (Lx, Ly))
 end
 ```
 
