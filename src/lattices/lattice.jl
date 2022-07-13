@@ -96,6 +96,7 @@ end
 
 """
     UnitCell(
+        name::String,
         lattice_vectors::NTuple{N, Vector{Float64}}, 
         sites::Vector{Vector{Float64}}, 
         bonds::Vector{Bonds{N}}
@@ -154,6 +155,7 @@ function Base.:(==)(a::UnitCell, b::UnitCell)
 end
 
 positions(uc::UnitCell) = uc.sites
+Base.length(uc::UnitCell) = length(uc.sites)
 
 
 ################################################################################
@@ -474,7 +476,7 @@ Base.eachindex(b::Bravais) = 1:length(b)
 
 
 ################################################################################
-### Open bonds
+### Open Boundary
 ################################################################################
 
 

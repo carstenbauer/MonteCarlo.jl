@@ -1,6 +1,34 @@
 using MonteCarlo: lattice_vectors
 
 @testset "Lattices" begin
+
+    function check_uc(l, name, basis)
+        uc = unitcell(l)
+        @test uc == l.unitcell
+        @test uc.name == name
+        @test length(uc) == length(basis)
+        @test positions(uc) == basis
+    end
+
+    function check_Bravais(l::Lattice{N}) where N
+        B = Bravais(l)
+        @test typeof(B) == Bravais{N}
+
+        pos_check = true
+        B_pos = collect(positions(B))
+        uc = unitcell(l)
+        for (i, p) in enumerate(positions(l))
+            j, b = fldmod1(i, length(uc))
+            pos_check = (p ≈ (uc.sites[b] + B_pos[j])) && pos_check
+        end
+        @test pos_check
+
+        @test lattice_vectors(B) == lattice_vectors(l)
+        @test size(B) == l.Ls
+        @test length(B) == prod(l.Ls)
+        @test eachindex(B) == 1:prod(l.Ls)
+    end
+
     @testset "Chain" begin
         l = Chain(4)
 
@@ -29,6 +57,9 @@ using MonteCarlo: lattice_vectors
         @test MonteCarlo.label.(bs) == ones(2)
 
         @test_throws MethodError MonteCarlo.reciprocal_vectors(l)
+
+        check_uc(l, "Chain", [[0.0]])
+        check_Bravais(l)
     end
 
     @testset "Square" begin
@@ -59,6 +90,9 @@ using MonteCarlo: lattice_vectors
         @test MonteCarlo.label.(bs) == ones(4)
 
         @test all(MonteCarlo.reciprocal_vectors(l) .≈ [[0., -2.0pi], [2.0pi, 0.]])
+
+        check_uc(l, "Square", [[0.0, 0.0]])
+        check_Bravais(l)
     end
 
     @testset "Cubic" begin
@@ -90,6 +124,8 @@ using MonteCarlo: lattice_vectors
 
         @test all(MonteCarlo.reciprocal_vectors(l) .≈ [Float64[2pi, 0, 0], Float64[0, 2pi, 0], Float64[0, 0, 2pi]])
 
+        check_uc(l, "Cubic", [[0.0, 0.0, 0.0]])
+        check_Bravais(l)
     end
 
     @testset "Honeycomb" begin
@@ -118,6 +154,9 @@ using MonteCarlo: lattice_vectors
         @test MonteCarlo.from.(bs) == [3,3,3]
         @test MonteCarlo.to.(bs) == [4,2,8]
         @test MonteCarlo.label.(bs) == ones(3)
+
+        check_uc(l, "Honeycomb", [[0.0, 0.0], [1/sqrt(3), 0.0]])
+        check_Bravais(l)
     end
 end
 
@@ -145,9 +184,18 @@ using MonteCarlo: directed_norm
     @testset "Meta" begin
         for dqmc in dqmcs
             dirs = directions(lattice(dqmc))
+            check_dirs = true
             for i in 2:length(dirs)
-                @test norm(dirs[i-1]) < norm(dirs[i]) + 1e-10
+                check_dirs = check_dirs && (norm(dirs[i-1]) < norm(dirs[i]) + 1e-10)
             end
+            @test check_dirs
+
+            dirs = directions(Bravais(lattice(dqmc)))
+            check_dirs = true
+            for i in 2:length(dirs)
+                check_dirs = check_dirs && (norm(dirs[i-1]) < norm(dirs[i]) + 1e-10)
+            end
+            @test check_dirs
         end
 
         dirs = [[cos(x), sin(x)] for x in range(0, 2pi-10eps(2pi), length=10)]

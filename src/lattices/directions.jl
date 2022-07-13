@@ -33,41 +33,43 @@ function directions(lattice::AbstractLattice, ϵ = 1e-6)
 end
 
 
-"""
-    directions_with_uc(lattice::Lattice)
+# """
+#     directions_with_uc(lattice::Lattice)
 
-Returns a tuple `(trg_uc, src_uc, dir_vec)` for each (non-equivalent) direction 
-in the given lattice.
+# Returns a tuple `(trg_uc, src_uc, dir_vec)` for each (non-equivalent) direction 
+# in the given lattice.
 
-See also: [`directions`](@ref)
-"""
-function directions_with_uc(lattice::Lattice, ϵ = 1e-6)
-    _positions = collect(positions(lattice))
-    wrap = generate_combinations(lattice_vectors(lattice))
-    directions = Tuple{Int, Int, Vector{Float64}}[]
-    B = length(lattice.unitcell.sites)
+# See also: [`directions`](@ref)
+# """
+# function directions_with_uc(lattice::Lattice, ϵ = 1e-6)
+#     _positions = collect(positions(lattice))
+#     wrap = generate_combinations(lattice_vectors(lattice))
+#     directions = Tuple{Int, Int, Vector{Float64}}[]
+#     B = length(lattice.unitcell.sites)
 
-    for origin in 1:length(lattice)
-        src_uc = mod1(origin, B)
-        for (trg, p) in enumerate(_positions)
-            d = p .- _positions[origin] .+ wrap[1]
-            for v in wrap[2:end]
-                new_d = p .- _positions[origin] .+ v
-                if directed_norm(new_d, ϵ) + 100eps(Float64) < directed_norm(d, ϵ)
-                    d .= new_d
-                end
-            end
+#     for origin in 1:length(lattice)
+#         src_uc = mod1(origin, B)
+#         for (trg, p) in enumerate(_positions)
+#             d = p .- _positions[origin] .+ wrap[1]
+#             for v in wrap[2:end]
+#                 new_d = p .- _positions[origin] .+ v
+#                 if directed_norm(new_d, ϵ) + 100eps(Float64) < directed_norm(d, ϵ)
+#                     d .= new_d
+#                 end
+#             end
+#
+#             # TODO this is not ok. The same direction can appear with multiple
+#             # basis indices. (e.g. a lattice vector can start from any basis site)
+#             idx = findfirst(dir -> isapprox(dir, d, atol=ϵ), directions)
+#             if idx === nothing
+#                 trg_uc = mod1(trg, B)
+#                 push!(directions, (src_uc, trg_uc, d))
+#             end
+#         end
+#     end
 
-            idx = findfirst(dir -> isapprox(dir, d, atol=ϵ), directions)
-            if idx === nothing
-                trg_uc = mod1(trg, B)
-                push!(directions, (src_uc, trg_uc, d))
-            end
-        end
-    end
-
-    return sort!(directions, by = v -> directed_norm(v, ϵ))
-end
+#     return sort!(directions, by = v -> directed_norm(v, ϵ))
+# end
 
 
 ################################################################################
