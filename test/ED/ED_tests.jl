@@ -410,10 +410,7 @@ end
         @testset "$(typeof(model))" begin
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
-                thermalization = 5_000, sweeps = 5_000, print_rate=1000,
-                scheduler = AdaptiveScheduler(
-                    (LocalSweep(10), Adaptive(),), (GlobalShuffle(), GlobalFlip())
-                )
+                thermalization = 5_000, sweeps = 5_000, print_rate=1000, measure_rate = 1,
             )
             print(
                 "  Running DQMC ($(nameof(typeof(model)))) " * 
