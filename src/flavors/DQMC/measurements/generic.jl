@@ -278,24 +278,6 @@ end
     nothing
 end
 
-@bm function apply!(iter::AbstractGreensIterator, combined::Vector{<: Tuple}, mc::DQMC)
-    for (lattice_iterator, measurement) in combined
-        prepare!(lattice_iterator, measurement, mc)
-    end
-
-    G00 = greens!(mc)
-    for (G0l, Gl0, Gll) in init(mc, iter)
-        for (lattice_iterator, measurement) in combined
-            measure!(lattice_iterator, measurement, mc, (G00, G0l, Gl0, Gll))
-        end
-    end
-
-    for (lattice_iterator, measurement) in combined
-        finish!(lattice_iterator, measurement, mc)
-    end
-    nothing
-end
-
 
 
 ################################################################################
