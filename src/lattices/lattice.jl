@@ -14,6 +14,7 @@ struct LatticeCache
     dir2srctrg::LazyData{Vector{Vector{Tuple{Int, Int}}}}
     src2dirtrg::LazyData{Vector{Vector{Tuple{Int, Int}}}}
     srctrg2dir::LazyData{Matrix{Int}}
+    srcdir2trg::LazyData{Matrix{Int}}
 
     # positions
     # directions
@@ -504,6 +505,10 @@ struct OpenBondIterator{N}
     l::Lattice{N}
     directed::Bool
 end
+
+# TODO: Can we derive length from wrapping + lattice size?
+Base.IteratorSize(::OpenBondIterator) = Base.SizeUnknown()
+Base.eltype(::OpenBondIterator{N}) where N = Bond{N}
 
 bonds_open(l::AbstractLattice, ::Val{true}) = bonds_open(l, true)
 bonds_open(l::AbstractLattice, ::Val{false}) = bonds_open(l, false)

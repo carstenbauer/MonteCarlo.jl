@@ -21,6 +21,7 @@ function LatticeCache()
         LazyData{Matrix{Int}}(),
         LazyData{Vector{Vector{Tuple{Int, Int}}}}(),
         LazyData{Vector{Vector{Tuple{Int, Int}}}}(),
+        LazyData{Matrix{Int}}(),
         LazyData{Matrix{Int}}()
     )
 end
@@ -32,6 +33,7 @@ function init!(c::LatticeCache, l::Lattice)
     c.dir2srctrg.constructor = () -> construct_dir2srctrg(l)
     c.src2dirtrg.constructor = () -> construct_src2dirtrg(l)
     c.srctrg2dir.constructor = () -> construct_srctrg2dir(l)
+    c.srcdir2trg.constructor = () -> construct_srcdir2trg(l)
     return
 end
 
@@ -81,6 +83,17 @@ function construct_srctrg2dir(l::AbstractLattice)
         end
     end
     return srctrg2dir
+end
+
+function construct_srcdir2trg(l::AbstractLattice)
+    dir2srctrg = _dir2srctrg(l)
+    srcdir2trg = zeros(Int, length(l), length(dir2srctrg))
+    for dir in eachindex(dir2srctrg)
+        for (src, trg) in dir2srctrg[dir]
+            srcdir2trg[src, dir] = trg
+        end
+    end
+    return srcdir2trg
 end
 
 

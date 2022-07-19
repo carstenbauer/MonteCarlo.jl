@@ -331,6 +331,50 @@ end
     nothing
 end
 
+# More Performance pls
+@bm function apply!(
+        temp::Array, iter::EachLocalQuadByDistance, measurement, mc::DQMC, 
+        packed_greens, weight = 1.0
+    )
+    flv = Val(nflavors(mc))
+    l = lattice(mc)
+    srcdir2trg = l[:srcdir2trg]::Matrix{Int}
+    Bsrctrg2dir = l[:Bravais_srctrg2dir]::Matrix{Int}
+    B = length(unitcell(l))
+    subN = length(iter.directions)
+    Ndir = length(l[:Bravais_dir2srctrg])
+
+    for src1 in eachindex(l)
+        Bsrc1, uc1 = fldmod1(src1, B)
+
+        for src2 in eachindex(l)
+            Bsrc2, uc2 = fldmod1(src2, B)
+            dir12 = Bsrctrg2dir[Bsrc1, Bsrc2]
+            
+            for (sub_idx1, dir1) in enumerate(iter.directions)
+                trg1 = srcdir2trg[src1, dir1]
+                trg1 == 0 && continue
+                
+                for (sub_idx2, dir2) in enumerate(iter.directions)
+                    trg2 = srcdir2trg[src2, dir2]
+                    trg2 == 0 && continue
+                    
+                    combined_dir = _sub2ind(
+                        (B, B, Ndir, subN, subN), 
+                        (uc1, uc2, dir12, sub_idx1, sub_idx2)
+                    )
+
+                    temp[combined_dir] += weight * measurement.kernel(
+                        mc, mc.model, (src1, trg1, src2, trg2), packed_greens, flv
+                    )
+                end
+            end
+        end
+    end
+    
+    return 
+end
+
 
 ################################################################################
 ### LatticeIterator preparation and finalization
