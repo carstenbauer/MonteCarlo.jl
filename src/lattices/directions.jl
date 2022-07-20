@@ -133,3 +133,41 @@ function directions(iter::EachLocalQuadByDistance, l::Lattice)
     ps = l.unitcell.sites
     return [p2 - p1 + dir for p1 in ps, p2 in ps, dir in Bravais_dirs], sub_dirs
 end
+
+
+################################################################################
+### Other Utilities
+################################################################################
+
+
+function nearest_neighbor_count(l::Lattice, ϵ = 1e-6)
+    uc = unitcell(l)
+    distances = map(uc._directed_indices)do idx
+        bond = uc.bonds[idx]
+        p0 = uc.sites[from(bond)]
+        p1 = uc.sites[to(bond)]
+        shift = sum(bond.uc_shift .* uc.lattice_vectors)
+        r = p1 - p0 + shift
+        return dot(r, r)
+    end
+
+    min_dist = minimum(distances)
+    return sum(d < min_dist + ϵ for d in distances)
+end
+
+function hopping_directions(l::Lattice, ϵ = 1e-6)
+    uc = unitcell(l)
+    lattice_directions = directions(l)
+    valid_directions = map(uc._directed_indices) do idx
+        bond = uc.bonds[idx]
+        p0 = uc.sites[from(bond)]
+        p1 = uc.sites[to(bond)]
+        shift = sum(bond.uc_shift .* uc.lattice_vectors)
+        r = p1 - p0 + shift
+        findfirst(eachindex(lattice_directions)) do idx
+            isapprox(r, lattice_directions[idx], atol = ϵ)
+        end
+    end
+
+    return valid_directions
+end

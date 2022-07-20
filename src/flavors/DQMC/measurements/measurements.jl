@@ -1,45 +1,28 @@
+# TODO optimize both 
 """
     nearest_neighbor_count(mc, ϵ = 1e-6)
+    nearest_neighbor_count(lattice, ϵ = 1e-6)
 
-Determines the number of nearest neighbors by bond distance.
+Determines the number of nearest neighbors by bond distance. This assumes the
+lattice to include forward and backward facing bonds. (by only considering 
+`from(bond) < to(bond)`.)
 """
-function nearest_neighbor_count(mc, ϵ = 1e-6)
-    l = lattice(mc)
-    dirs = directions(l)
-    @assert dirs[1] == [0.0, 0.0]
-
-    sq_norm = dot(dirs[2], dirs[2])
-    for i in 3:length(l)
-        if !(sq_norm * (1.0 - ϵ)  <= dot(dirs[i], dirs[i]) <= sq_norm * (1.0 + ϵ))
-            return i-2
-        end
-    end
-    return length(l)-1
+function nearest_neighbor_count(mc::MonteCarloFlavor, ϵ = 1e-6)
+    return nearest_neighbor_count(lattice(mc), ϵ)
 end
 
 
-"""
-    hopping_directions(dqmc, model)
 
-Returns directional indices corresponding to original hopping directions. This
-is derived from the hopping matrix and does not include on-site "hoppings".
 """
-function hopping_directions(dqmc::DQMC, model)
-    dir2srctrg = lattice(dqmc)[:dir2srctrg]
-    T = hopping_matrix(model)
-    valid_directions = Int64[]
-    
-    for i in 2:length(dir2srctrg)
-        for (src, trg) in dir2srctrg[i]
-            if T[trg, src] != 0
-                push!(valid_directions, i)
-                break
-            end
-        end
-    end
+    hopping_directions(model)
+    hopping_directions(lattice)
 
-    return valid_directions
-end
+Returns directional indices corresponding to original hopping directions. 
+
+By default this returns directional indices all for undirected bonds (no reversal, 
+i.e. `from(bond) < to(bond)`).
+"""
+hopping_directions(model::Model) = hopping_directions(lattice(model))
 
 
 ################################################################################
@@ -171,7 +154,7 @@ see larger values than expected.
 """
 function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
-        directions = hopping_directions(dqmc, model),
+        directions = hopping_directions(model),
         greens_iterator = TimeIntegral(dqmc), wrapper = nothing,
         lattice_iterator = EachLocalQuadByDistance(directions), kwargs...
     )
