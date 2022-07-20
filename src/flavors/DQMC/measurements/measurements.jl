@@ -231,6 +231,7 @@ Returns the unprocessed Greens function `greens(mc) = {⟨cᵢcⱼ^†⟩}`.
 """
 # greens_kernel(mc, model, G::GreensMatrix, flv) = G.val
 greens_kernel(mc, model, ::Nothing, G::GreensMatrix, flv) = G.val
+greens_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv) = G.val[ij[1], ij[2]]
 
 
 """

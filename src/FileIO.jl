@@ -37,7 +37,8 @@ will be created. If neither are true an error will be thrown.
 """
 function save(
         filename::String, mc::MonteCarloFlavor; 
-        overwrite = false, rename = true, compress = true, kwargs...
+        overwrite = false, rename = true, 
+        compress = CodecLz4.LZ4FrameCompressor(), kwargs...
     )
     # handle ranming and overwriting
     isfile(filename) && !overwrite && !rename && throw(ErrorException(

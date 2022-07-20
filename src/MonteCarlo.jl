@@ -21,7 +21,7 @@ else
     end
 end
 
-import JLD2, CodecZlib
+import JLD2, CodecLz4
 
 include("helpers.jl")
 export enable_benchmarks, disable_benchmarks, print_timer, reset_timer!

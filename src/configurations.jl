@@ -178,7 +178,7 @@ end
 function save_chunk!(cr::BufferedConfigRecorder, chunk = cr.chunk)
     @boundscheck chunk > 0 && (chunk-1) * length(cr.buffer) < cr.total_length
     k = string(chunk)
-    JLD2.jldopen(cr.filename.absolute_path, "a+", compress = true) do file
+    JLD2.jldopen(cr.filename.absolute_path, "a+", compress = CodecLz4.LZ4FrameCompressor()) do file
         if haskey(file, k)
             @debug "Replacing chunk $k"
             delete!(file, k)
