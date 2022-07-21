@@ -197,7 +197,7 @@ function superfluid_stiffness(
     shift_dir = normalize([0 1; -1 0] * transversal)
     
     # find all hopping directions (skipping on-site)
-    valid_directions = hopping_directions(dqmc, model)
+    valid_directions = hopping_directions(model)
 
     # reduce to directions that have a positive component in shift_dir
     # (the negative version is already in the kernel function)
