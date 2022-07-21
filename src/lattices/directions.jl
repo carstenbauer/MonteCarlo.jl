@@ -142,8 +142,9 @@ end
 
 function nearest_neighbor_count(l::Lattice, ϵ = 1e-6)
     uc = unitcell(l)
-    distances = map(uc._directed_indices)do idx
-        bond = uc.bonds[idx]
+    distances = map(uc.bonds) do bond
+        # filter reversals except for i -> i 
+        from(bond) > to(bond) && return Inf
         p0 = uc.sites[from(bond)]
         p1 = uc.sites[to(bond)]
         shift = sum(bond.uc_shift .* uc.lattice_vectors)
@@ -158,8 +159,9 @@ end
 function hopping_directions(l::Lattice, ϵ = 1e-6)
     uc = unitcell(l)
     lattice_directions = directions(l)
-    valid_directions = map(uc._directed_indices) do idx
-        bond = uc.bonds[idx]
+    valid_directions = map(uc.bonds) do bond
+        # filter reversals except for i -> i 
+        from(bond) > to(bond) && return Inf
         p0 = uc.sites[from(bond)]
         p1 = uc.sites[to(bond)]
         shift = sum(bond.uc_shift .* uc.lattice_vectors)
