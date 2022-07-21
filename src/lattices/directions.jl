@@ -11,25 +11,45 @@ function directions(lattice::AbstractLattice, ϵ = 1e-6)
     _positions = collect(positions(lattice))
     wrap = generate_combinations(lattice)
     directions = Vector{Float64}[]
+    sizehint!(directions, length(lattice))
 
-    for origin in 1:length(lattice)
-        for (trg, p) in enumerate(_positions)
-            d = p .- _positions[origin] .+ wrap[1]
+    d = copy(first(_positions))
+    new_d = copy(first(_positions))
+
+    for p0 in _positions
+        for p in _positions
+            d .= p .- p0 .+ wrap[1]
+            n2 = directed_norm2(d, ϵ)
+
             for v in wrap[2:end]
-                new_d = p .- _positions[origin] .+ v
-                if directed_norm(new_d, ϵ) + 100eps(Float64) < directed_norm(d, ϵ)
+                new_d .= p .- p0 .+ v
+                new_n2 = directed_norm2(new_d, ϵ)
+                if new_n2 + 100eps(n2) < n2
                     d .= new_d
+                    n2 = new_n2
                 end
             end
 
-            idx = findfirst(dir -> isapprox(dir, d, atol=ϵ), directions)
-            if idx === nothing
-                push!(directions, d)
+            # search for d in directions
+            # if not present push it, otherwise continue with next iteration
+            for dir in directions
+                new_d .= dir .- d
+                b = true
+                for v in new_d
+                    b = b && (abs(v) < ϵ)
+                end
+                if b # all_below(new_d, ϵ)
+                    @goto loop_end
+                end
             end
+
+            push!(directions, copy(d))
+
+            @label loop_end
         end
     end
 
-    return sort!(directions, by = v -> directed_norm(v, ϵ))
+    return sort!(directions, by = v -> directed_norm2(v, ϵ))
 end
 
 

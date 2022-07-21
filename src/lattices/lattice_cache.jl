@@ -113,7 +113,7 @@ end
 # norm + ϵ * angle(v, e_x)
 function directed_norm(v, ϵ)
     l = norm(v)
-    if length(v) == 2 && l > ϵ
+    if (length(v) == 2) && (l > ϵ)
         angle = acos(dot([1, 0], v) / l)
         v[2] < 0 && (angle = 2pi - angle)
         return l + ϵ * angle
@@ -121,28 +121,61 @@ function directed_norm(v, ϵ)
         return l
     end
 end
-
+function directed_norm2(v, ϵ)
+    if length(v) == 2
+        angle = atan(v[2], v[1])
+        angle += (angle < 0.0) * 2pi
+        return dot(v, v) * (1.0 + ϵ * angle)
+    else
+        return dot(v, v)
+    end
+end
 
 function _dir2srctrg(l::AbstractLattice, ϵ = 1e-6)
     _positions = collect(positions(l))
     wrap = generate_combinations(l)
     directions = Vector{Float64}[]
+    sizehint!(directions, length(l))
     # (src, trg), first index is dir, second index irrelevant
     bonds = [Tuple{Int64, Int64}[] for _ in eachindex(l)]
 
+    p0 = copy(first(_positions))
+    d = copy(first(_positions))
+    new_d = copy(first(_positions))
+
     for origin in eachindex(l)
+        p0 = _positions[origin]
         for (trg, p) in enumerate(_positions)
-            d = p .- _positions[origin] .+ wrap[1]
+            d .= p .- p0 .+ wrap[1]
+            n2 = directed_norm2(d, ϵ)
+
             for v in wrap[2:end]
-                new_d = p .- _positions[origin] .+ v
-                if directed_norm(new_d, ϵ) + 100eps(Float64) < directed_norm(d, ϵ)
+                new_d .= p .- p0 .+ v
+                new_n2 = directed_norm2(new_d, ϵ)
+                if new_n2 + 100eps(n2) < n2
                     d .= new_d
+                    n2 = new_n2
                 end
             end
 
-            idx = findfirst(dir -> isapprox(dir, d, atol=ϵ), directions)
-            if idx === nothing
-                push!(directions, d)
+            # search for d in directions
+            idx = 0
+            found = false
+            for (i, dir) in enumerate(directions)
+                new_d .= dir .- d
+                b = true
+                for v in new_d
+                    b = b && (abs(v) < ϵ)
+                end
+                if b
+                    idx = i
+                    found = true
+                    break
+                end
+            end
+
+            if !found
+                push!(directions, copy(d))
                 if length(bonds) < length(directions)
                     push!(bonds, Tuple{Int64, Int64}[])
                 end
@@ -153,6 +186,6 @@ function _dir2srctrg(l::AbstractLattice, ϵ = 1e-6)
         end
     end
 
-    temp = sortperm(directions, by = v -> directed_norm(v, ϵ))
+    temp = sortperm(directions, by = v -> directed_norm2(v, ϵ))
     return bonds[temp]
 end
