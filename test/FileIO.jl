@@ -281,7 +281,7 @@ end
         resumable_filename = "resumable_testfile.jld2"
     )
 
-    @test state == false
+    @test state == MonteCarlo.CANCELLED_TIME_LIMIT
     cs = deepcopy(mc.configs)
     @assert length(cs) > 1 "No measurements have been taken. Test with more time!"
     L = length(cs)
@@ -296,7 +296,7 @@ end
         resumable_filename = "resumable_testfile.jld2"
     )
 
-    @test state == false
+    @test state == MonteCarlo.CANCELLED_TIME_LIMIT
     cs = deepcopy(mc.configs)
     @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
     @test isfile("resumable_testfile.jld2")
@@ -310,6 +310,7 @@ end
         measure_rate=10_000, recorder=ConfigRecorder(MC, IsingModel, 10_000)
     )
     state = run!(mc, verbose = false)
+    @test state = MonteCarlo.SUCCESS
     @test mc.configs.configs == cs.configs
     @test mc.configs.rate == cs.rate
     rm("resumable_testfile.jld2")
@@ -406,7 +407,7 @@ end
         resumable_filename = "resumable_testfile.jld2"
     )
 
-    @test state == false
+    @test state == MonteCarlo.CANCELLED_TIME_LIMIT
     cs = [mc.recorder[i] for i in 1:length(mc.recorder)]
     @assert length(cs) > 1 "No measurements have been taken. Test with more time!"
     L = length(cs)
@@ -421,7 +422,7 @@ end
         resumable_filename = "resumable_testfile.jld2"
     )
 
-    @test state == false
+    @test state == MonteCarlo.CANCELLED_TIME_LIMIT
     cs = [mc.recorder[i] for i in 1:length(mc.recorder)]
     @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
     @test isfile("resumable_testfile.jld2")
@@ -440,6 +441,7 @@ end
         matches = matches && (mc.recorder[i] == cs[i])
     end
     @test matches
+    @test MonteCarlo.SUCCESS
     rm("resumable_testfile.jld2")
     isfile("testfile.confs") && rm("testfile.confs")
 end

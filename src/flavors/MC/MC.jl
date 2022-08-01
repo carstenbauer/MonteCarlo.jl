@@ -289,7 +289,7 @@ See also: [`resume!`](@ref)
             resumable_filename = save(resumable_filename, mc, overwrite=overwrite)
             verbose && println("\nEarly save finished")
 
-            return false
+            return CANCELLED_TIME_LIMIT
         elseif (now() - last_checkpoint) > safe_every
             verbose && println("Performing scheduled save.")
             last_checkpoint = now()
@@ -308,7 +308,7 @@ See also: [`resume!`](@ref)
         println()
     end
 
-    return true
+    return SUCCESS
 end
 
 """
@@ -365,7 +365,7 @@ function replay!(
     )
     if isempty(configurations)
         println("Nothin to replay (configurations empty). Exiting")    
-        return true
+        return GENERIC_FAILURE
     end
 
     start_time = now()
@@ -423,7 +423,7 @@ function replay!(
             filename = save(filename, mc, overwrite = overwrite)
             verbose && println("\nEarly save finished")
 
-            return false
+            return CANCELLED_TIME_LIMIT
         elseif (now() - last_checkpoint) > safe_every
             verbose && println("Performing scheduled save.")
             last_checkpoint = now()
@@ -436,7 +436,7 @@ function replay!(
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
 
-    return true
+    return SUCCESS
 end
 
 

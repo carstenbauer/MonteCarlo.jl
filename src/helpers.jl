@@ -1,3 +1,10 @@
+@enum ExitCode begin
+    GENERIC_FAILURE = -1
+    SUCCESS = 0
+    CANCELLED_TIME_LIMIT = 1
+    CANCELLED_LOW_ACCEPTANCE = 2
+end
+
 # This follows the idea from
 # https://discourse.julialang.org/t/best-practice-approach-for-caching-data-in-objects/20419/5
 # This type allows for lazy initialization/construction of some data. 

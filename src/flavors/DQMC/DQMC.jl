@@ -232,6 +232,7 @@ See also: [`resume!`](@ref)
     _time = time()           # for sweep time estimations (for safe_before)
     t0 = time()              # for analysis.runtime, might be reset
     max_sweep_duration = 0.0
+    exit_code = SUCCESS
 
     total_sweeps = sweeps + thermalization
     min_sweeps = round(Int, 1 / min_update_rate)
@@ -263,7 +264,8 @@ See also: [`resume!`](@ref)
                 if overwrite && isfile(resumable_filename)
                     rm(resumable_filename)
                 end
-                return true
+                exit_code = CANCELLED_LOW_ACCEPTANCE
+                break
             end
         end
 
@@ -293,7 +295,8 @@ See also: [`resume!`](@ref)
             save(resumable_filename, mc, overwrite = overwrite, rename = false)
             verbose && println("\nEarly save finished")
             disconnect(connected_ids)
-            return false
+            exit_code = CANCELLED_TIME_LIMIT
+            break
         elseif (now() - last_checkpoint) > safe_every
             verbose && println("Performing scheduled save.")
             last_checkpoint = now()
@@ -350,7 +353,7 @@ See also: [`resume!`](@ref)
         println()
     end
 
-    return true
+    return exit_code
 end
 
 
@@ -448,7 +451,7 @@ function replay!(
             save(resumable_filename, mc, overwrite = overwrite, rename = false)
             verbose && println("\nEarly save finished")
 
-            return false
+            return CANCELLED_TIME_LIMIT
         elseif (now() - last_checkpoint) > safe_every
             verbose && println("Performing scheduled save.")
             last_checkpoint = now()
@@ -461,5 +464,5 @@ function replay!(
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
 
-    return true
+    return SUCCESS
 end
