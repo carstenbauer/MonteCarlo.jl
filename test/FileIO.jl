@@ -310,7 +310,7 @@ end
         measure_rate=10_000, recorder=ConfigRecorder(MC, IsingModel, 10_000)
     )
     state = run!(mc, verbose = false)
-    @test state = MonteCarlo.SUCCESS
+    @test state == MonteCarlo.SUCCESS
     @test mc.configs.configs == cs.configs
     @test mc.configs.rate == cs.rate
     rm("resumable_testfile.jld2")
@@ -441,7 +441,7 @@ end
         matches = matches && (mc.recorder[i] == cs[i])
     end
     @test matches
-    @test MonteCarlo.SUCCESS
+    @test state == MonteCarlo.SUCCESS
     rm("resumable_testfile.jld2")
     isfile("testfile.confs") && rm("testfile.confs")
 end
