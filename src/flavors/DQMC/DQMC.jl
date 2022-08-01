@@ -227,28 +227,32 @@ See also: [`resume!`](@ref)
         fail_filename = "failed_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld2"
     )
 
-    start_time = now()
-    last_checkpoint = now()
+    start_time = now()       # unchanged starting time
+    last_checkpoint = now()  # last interval-save
+    _time = time()           # for sweep time estimations (for safe_before)
+    t0 = time()              # for analysis.runtime, might be reset
     max_sweep_duration = 0.0
-    verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
 
+    total_sweeps = sweeps + thermalization
+    min_sweeps = round(Int, 1 / min_update_rate)
+    next_print = (div(mc.last_sweep, mc.parameters.print_rate) + 1) * mc.parameters.print_rate
+    first_sweep = mc.last_sweep
+
+    verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
+    verbose && println("\n\nThermalization stage - ", thermalization)
+
+    # Organize measurements into groups, initialize stack
     th_groups, groups = initialize_run(mc; 
         verbose = verbose, ignore = ignore,
         thermalization = thermalization, sweeps = sweeps
     )
-    total_sweeps = sweeps + thermalization
-    min_sweeps = round(Int, 1 / min_update_rate)
 
-    _time = time() # for step estimations
-    t0 = time() # for analysis.runtime, may need to reset
-    verbose && println("\n\nThermalization stage - ", thermalization)
-
-    next_print = (div(mc.last_sweep, mc.parameters.print_rate) + 1) * mc.parameters.print_rate
     while mc.last_sweep < total_sweeps
         verbose && (mc.last_sweep == thermalization + 1) && println("\n\nMeasurement stage - ", sweeps)
         
         t0 = sweep_once!(mc, th_groups, groups, thermalization, t0)
 
+        # Cancel if updates don't get accepted
         if mc.last_sweep > min_sweeps
             acc = max_acceptance(mc.scheduler)
             if acc < min_update_rate
@@ -266,7 +270,8 @@ See also: [`resume!`](@ref)
         # Show sweep statistics - i.e. time/sweep, acceptance rates
         if mc.last_sweep >= next_print
             next_print += mc.parameters.print_rate
-            sweep_dur = (time() - _time)/mc.parameters.print_rate
+            N = min(mc.last_sweep - first_sweep, mc.parameters.print_rate)
+            sweep_dur = (time() - _time) / N
             max_sweep_duration = max(max_sweep_duration, sweep_dur)
             if verbose
                 println("\t", mc.last_sweep)
@@ -296,6 +301,7 @@ See also: [`resume!`](@ref)
         end
     end
     
+    # Update runtimes
     if mc.last_sweep ≤ thermalization
         mc.analysis.th_runtime += time() - t0
     else
@@ -303,6 +309,7 @@ See also: [`resume!`](@ref)
     end
 
     disconnect(connected_ids)
+    end_time = now()
 
     # Print (numerical) error information
     if verbose
@@ -330,10 +337,16 @@ See also: [`resume!`](@ref)
     end
 
     # Total timings
-    end_time = now()
     if verbose
-        println("\nEnded: ", Dates.format(end_time, "d.u yyyy HH:MM"))
-        @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
+        println("\nEnded:          ", Dates.format(end_time, "d.u yyyy HH:MM"))
+        println("Run duration:   ", canonicalize((end_time - start_time)))
+        th = Millisecond(round(Int, 1000 * mc.analysis.th_runtime))
+        me = Millisecond(round(Int, 1000 * mc.analysis.me_runtime))
+        println("Total duration: ", canonicalize(th), " + ", canonicalize(me))
+        thps = Millisecond(round(Int, th.value / max(1, min(mc.last_sweep, mc.parameters.thermalization))))
+        meps = Millisecond(round(Int, me.value / max(1, mc.last_sweep - mc.parameters.thermalization)))
+        println("Per sweep:      ", canonicalize(thps), " + ", canonicalize(meps))
+
         println()
     end
 
