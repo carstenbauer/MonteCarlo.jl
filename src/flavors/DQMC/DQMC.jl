@@ -91,6 +91,43 @@ DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
     beta = p.beta, delta_tau = p.delta_tau, thermalization = p.thermalization, sweeps = p.sweeps
 )
 
+estimate_size(NSites, Nflavors, ::BlockDiagonal{CMat64}) = 16 * Nflavors * NSites^2
+estimate_size(NSites, Nflavors, ::BlockDiagonal{T}) where {T} = Nflavors * NSites^2 * sizeof(T)
+estimate_size(NSites, Nflavors, ::Matrix{T}) where {T} = Nflavors^2 * NSites^2 * sizeof(T)
+estimate_size(NSites, Nflavors, ::CMat64) = 16 * Nflavors^2 * NSites^2
+estimate_size(NSites, Nflavors, ::Diagonal{T}) where {T} = Nflavors * NSites * sizeof(T)
+estimate_size(NSites, Nflavors, ::Vector{T}) where {T} = Nflavors * NSites * sizeof(T)
+
+# function estimate_size()
+#     Nsites
+#     Nflavors
+#     NSweeps
+#     field
+#     model # TODO move lattice out. I keep thinking I should
+#     NChunks = length(generate_chunks(NSlices, safe_mult))
+
+#     # Stack (w/o field cache because that's not really a relevant size)
+#     GET = greens_eltype(field, model)
+#     IMT = interaction_matrix_type(field, model)
+#     HMT = hopping_matrix_type(field, model)
+#     GMT = greens_matrix_type(field, model)
+#     stack_size = (
+#         (2 * NChunks + 9) * estimate_size(NSites, Nflavors, GMT) + 
+#         (NChunks + 4) * estimate_size(NSites, Nflavors, Vector{Float64}) + # pivot + diagonals
+#         estimate_size(NSites, Nflavors, Vector{GET}) +
+#         estimate_size(NSites, Nflavors, Matrix{ComplexF64}) +
+#         estimate_size(Nsites, nflavors, IMT) +
+#         5 * estimate_size(Nsites, nflavors, HMT)
+#     )
+
+#     # conf is kind of relevant
+#     field_size = Base.summarysize(field)
+#     # because of recorders but we don't want to load them...
+
+#     # same with measurements?
+
+# end
+
 # cosmetics
 import Base.summary
 import Base.show
@@ -191,8 +228,9 @@ end
 """
     run!(mc::DQMC[; kwargs...])
 
-Runs the given Monte Carlo simulation `mc`. Returns true if the run finished and
-false if it cancelled early to generate a resumable save-file.
+Runs the given Monte Carlo simulation `mc`. Returns `SUCCESS::ExitCode = 0` if 
+the simulation finished normally or various other codes if failed or cancelled. 
+See [`ExitCode`](@ref).
 
 ### Keyword Arguments:
 - `verbose = true`: If true, print progress messaged to stdout.

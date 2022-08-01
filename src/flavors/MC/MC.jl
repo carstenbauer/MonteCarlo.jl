@@ -168,8 +168,9 @@ end
 """
     run!(mc::MC[; kwargs...])
 
-Runs the given Monte Carlo simulation `mc`. Returns true if the run finished and
-false if it cancelled early to generate a resumable save-file.
+Runs the given Monte Carlo simulation `mc`. Returns `SUCCESS::ExitCode = 0` if 
+the simulation finished normally or various other codes if failed or cancelled. 
+See [`ExitCode`](@ref).
 
 
 ### Keyword Arguments:

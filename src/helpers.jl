@@ -1,3 +1,19 @@
+"""
+    Enum ExitCode
+
+An ExitCode is returned by `run!(mc)` once it finishes. Currently there are four
+possible codes:
+
+- `GENERIC_FAILURE` is the fallback for a failed or cancelled run. Usually there
+is no save file in this case.
+- `SUCCESS` indicates that the simulation finished normally. In this case the 
+simulation has not created/overwritten a save file.
+- `CANCELLED_TIME_LIMIT` indicates that the simulation ran normally but didn't 
+finish due to reaching a set time limit. In this case the simulation has created
+or overwritten a save file.
+- `CANCELLED_LOW_ACCEPTANCE` means the simulation cancelled due to a lack of 
+accepted updates. A save file is created in this case.
+"""
 @enum ExitCode begin
     GENERIC_FAILURE = -1
     SUCCESS = 0
