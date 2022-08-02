@@ -160,15 +160,16 @@ end
 ################################################################################
 
 
+"""
+    nearest_neighbor_count(l::Lattice[, ϵ = 1e-6])
+
+Returns the number of nearest neighbors on the lattice.
+"""
 function nearest_neighbor_count(l::Lattice, ϵ = 1e-6)
-    uc = unitcell(l)
-    distances = map(uc.bonds) do bond
-        # filter reversals except for i -> i 
-        from(bond) > to(bond) && return Inf
-        p0 = uc.sites[from(bond)]
-        p1 = uc.sites[to(bond)]
-        shift = sum(bond.uc_shift .* uc.lattice_vectors)
-        r = p1 - p0 + shift
+    lattice_directions = directions(l)
+    dir_idxs = hopping_directions(l, ϵ, lattice_directions)
+    distances = map(dir_idxs) do dir_idx
+        r = lattice_directions[dir_idx]
         return dot(r, r)
     end
 
@@ -176,12 +177,15 @@ function nearest_neighbor_count(l::Lattice, ϵ = 1e-6)
     return sum(d < min_dist + ϵ for d in distances)
 end
 
-function hopping_directions(l::Lattice, ϵ = 1e-6)
+"""
+    hopping_directions(l::Lattice[, ϵ = 1e-6, lattice_directions = directions(l)])
+
+Returns the indices of every hopping direction defined on the lattice. (This 
+includes hoppings beyond NN if they are available.)
+"""
+function hopping_directions(l::Lattice, ϵ = 1e-6, lattice_directions = directions(l))
     uc = unitcell(l)
-    lattice_directions = directions(l)
     valid_directions = map(uc.bonds) do bond
-        # filter reversals except for i -> i 
-        from(bond) > to(bond) && return Inf
         p0 = uc.sites[from(bond)]
         p1 = uc.sites[to(bond)]
         shift = sum(bond.uc_shift .* uc.lattice_vectors)
@@ -191,5 +195,5 @@ function hopping_directions(l::Lattice, ϵ = 1e-6)
         end
     end
 
-    return valid_directions
+    return unique(valid_directions)
 end

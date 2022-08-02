@@ -60,6 +60,9 @@ using MonteCarlo: lattice_vectors
 
         check_uc(l, "Chain", [[0.0]])
         check_Bravais(l)
+
+        @test MonteCarlo.hopping_directions(l) == [2, 3]
+        @test MonteCarlo.nearest_neighbor_count(l) == 2
     end
 
     @testset "Square" begin
@@ -93,6 +96,9 @@ using MonteCarlo: lattice_vectors
 
         check_uc(l, "Square", [[0.0, 0.0]])
         check_Bravais(l)
+
+        @test MonteCarlo.hopping_directions(l) == [2, 3, 4, 5]
+        @test MonteCarlo.nearest_neighbor_count(l) == 4
     end
 
     @testset "Cubic" begin
@@ -126,6 +132,9 @@ using MonteCarlo: lattice_vectors
 
         check_uc(l, "Cubic", [[0.0, 0.0, 0.0]])
         check_Bravais(l)
+
+        @test MonteCarlo.hopping_directions(l) == [2, 4, 6, 3, 5, 7]
+        @test MonteCarlo.nearest_neighbor_count(l) == 6
     end
 
     @testset "Honeycomb" begin
@@ -157,6 +166,9 @@ using MonteCarlo: lattice_vectors
 
         check_uc(l, "Honeycomb", [[0.0, 0.0], [1/sqrt(3), 0.0]])
         check_Bravais(l)
+
+        @test MonteCarlo.hopping_directions(l) == [2, 4, 6, 5, 7, 3]
+        @test MonteCarlo.nearest_neighbor_count(l) == 6
     end
 end
 
