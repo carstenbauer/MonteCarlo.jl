@@ -49,7 +49,6 @@ function value(d::LazyData{T})::T where {T}
     end
     return d.value
 end
-end
 
 ################################################################################
 
