@@ -195,5 +195,5 @@ function hopping_directions(l::Lattice, ϵ = 1e-6, lattice_directions = directio
         end
     end
 
-    return unique(valid_directions)
+    return sort!(unique(valid_directions))
 end
