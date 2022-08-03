@@ -133,7 +133,7 @@ using MonteCarlo: lattice_vectors
         check_uc(l, "Cubic", [[0.0, 0.0, 0.0]])
         check_Bravais(l)
 
-        @test MonteCarlo.hopping_directions(l) == [2, 4, 6, 3, 5, 7]
+        @test MonteCarlo.hopping_directions(l) == [2, 3, 4, 5, 6, 7]
         @test MonteCarlo.nearest_neighbor_count(l) == 6
     end
 
@@ -167,7 +167,7 @@ using MonteCarlo: lattice_vectors
         check_uc(l, "Honeycomb", [[0.0, 0.0], [1/sqrt(3), 0.0]])
         check_Bravais(l)
 
-        @test MonteCarlo.hopping_directions(l) == [2, 4, 6, 5, 7, 3]
+        @test MonteCarlo.hopping_directions(l) == [2, 3, 4, 5, 6, 7]
         @test MonteCarlo.nearest_neighbor_count(l) == 6
     end
 end
