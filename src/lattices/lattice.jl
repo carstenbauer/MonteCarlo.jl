@@ -16,6 +16,9 @@ struct LatticeCache
     srctrg2dir::LazyData{Matrix{Int}}
     srcdir2trg::LazyData{Matrix{Int}}
 
+    # uc2bonddir[basis_idx] contains directional inddices for bonds leaving basis
+    uc2bonddir::LazyData{Tuple{Int, Vector{Vector{Pair{Int, Int}}}}}
+
     # positions
     # directions
     # bonds
@@ -288,7 +291,7 @@ function _shift(l::Lattice{N}, flat::Int, b::Bond{N}) where N
     return flat_out
 end
 
-# flat index shifted by bond
+# flat index shifted by bond (flat on Bravais)
 function _shift_Bravais(l::Lattice{N}, flat::Int, b::Bond{N}) where N
     @boundscheck 1 <= flat <= length(l) # flat in bounds
 

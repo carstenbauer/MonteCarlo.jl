@@ -10,6 +10,31 @@ function _sub2ind(Ns, idxs)
 end
 
 
+"""
+    BondDirections()
+
+Used to specify directions to iterate over. While giving specific indices 
+considers all possible pairing of sites, this only considers sites connected by 
+bonds.
+
+Currently only works with EachLocalQuadByDistance.
+"""
+struct BondDirections end
+
+function _dir_idxs(l::Lattice, x::BondDirections, src::Int)
+    return _dir_idxs_uc(l, x, mod1(src, length(unitcell(l))))
+end
+function _dir_idxs_uc(l::Lattice, ::BondDirections, uc::Int)
+    uc2bonddir = l[:uc2bonddir]::Tuple{Int, Vector{Vector{Pair{Int, Int}}}}
+    @inbounds return uc2bonddir[2][uc]
+end
+_dir_idxs(::Lattice, iterable, ::Int) = iterable
+_dir_idxs_uc(::Lattice, iterable, ::Int) = iterable
+
+_length(l::Lattice, ::BondDirections) = l[:uc2bonddir][1]
+_length(::Lattice, xs) = length(xs)
+
+
 ################################################################################
 ### Abstract Iterator Types
 ################################################################################
@@ -329,8 +354,13 @@ src' <-- src --> trg --> trg'
 """
 struct EachLocalQuadByDistance{T} <: DeferredLatticeIterator
     directions::T
+    
     EachLocalQuadByDistance(N::Integer) = EachLocalQuadByDistance(1:N)
-    EachLocalQuadByDistance(dirs::T) where T = new{T}(dirs)
+    EachLocalQuadByDistance(dirs::BondDirections) = new{BondDirections}(dirs)
+    function EachLocalQuadByDistance(dirs)
+        pairs = Pair.(eachindex(dirs), dirs)
+        new{typeof(pairs)}(pairs)
+    end
 end
 
 function EachLocalQuadByDistance(::MonteCarloFlavor, arg)
@@ -347,63 +377,63 @@ function output_size(iter::EachLocalQuadByDistance, l::Lattice)
     K = length(iter.directions)
     return (B, B, Ndir, K, K)
 end
-
-
-function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,0))
-    #  sub_idx1                sub_idx2
-    #     🡣                       🡣
-    # (sub_dir1, idx1)        (sub_dir2, idx2)
-    #    🡧        🡦             🡧        🡦
-    # src' ------ src ------- trg ------ trg'
-    #              🡣  🡦     🡧  🡣        
-    #             uc1   dir   uc2
-
-    sub_idx1, sub_idx2, idx1, idx2 = state
-
-    # Branchless increments
-    sub_dir1 = iter.directions[sub_idx1]
-    sub_dir2 = iter.directions[sub_idx2]
-    dir2srctrg = l[:dir2srctrg]
-    Ndir = length(l[:Bravais_dir2srctrg])
-    N = length(iter.directions)
+function output_size(iter::EachLocalQuadByDistance{BondDirections}, l::Lattice)
     B = length(l.unitcell.sites)
+    Ndir = length(l[:Bravais_dir2srctrg]) # TODO this is a lot for just a number
+    K = length(hopping_directions(l))
+    return (B, B, Ndir, K, K)
+end
 
-    # fast changing
-    b1 = idx2 == length(dir2srctrg[sub_dir2])
-    b2 = b1 && (idx1 == length(dir2srctrg[sub_dir1]))
-    b3 = b2 && (sub_idx2 == length(iter.directions))
-    b4 = b3 && (sub_idx1 == length(iter.directions))
-    # slow changing
+function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1))
+    state == (0,0,0,0) && return nothing
+    src1, src2, sub_idx1, sub_idx2 = state
 
-    b4 && return nothing
-
-    idx2 = Int64(b1 || (idx2 + 1))
-    idx1 = Int64(b2 || (idx1 + b1))
-    sub_idx2 = Int64(b3 || (sub_idx2 + b2))
-    sub_idx1 = Int64(sub_idx1 + b3)
-
-    sub_dir1 = iter.directions[sub_idx1]
-    sub_dir2 = iter.directions[sub_idx2]
-    
-    # These are lattice indices
-    src1, trg1 = dir2srctrg[sub_dir1][idx1]
-    src2, trg2 = dir2srctrg[sub_dir2][idx2]
-    
     # convert to uc idx + Bravais lattice index
+    B = length(l.unitcell.sites)
     Bsrc1, uc1 = fldmod1(src1, B)
     Bsrc2, uc2 = fldmod1(src2, B)
     dir12 = l[:Bravais_srctrg2dir][Bsrc1, Bsrc2]
 
-    # combine (uc1, uc2, dir12, sub_idx1, sub_idx2) to linear index
-    # Note that we use sub_idx not sub_dir because we don't want to pad the 
-    # array with zeroes for skipped directions
-    subN = length(iter.directions)
+    # Get src -- trg directions (idx is for the output matrix)
+    dirs1 = _dir_idxs_uc(l, iter.directions, uc1)
+    idx1, sub_dir1 = dirs1[sub_idx1]
+    dirs2 = _dir_idxs_uc(l, iter.directions, uc2)
+    idx2, sub_dir2 = dirs2[sub_idx2]
+
+    # target sites
+    srcdir2trg = l[:srcdir2trg]
+    trg1 = srcdir2trg[src1, sub_dir1]
+    trg2 = srcdir2trg[src2, sub_dir2]
+
+    # Prepare next iteration
+
+    # fast changing
+    b1 = sub_idx2 == length(dirs2)
+    b2 = b1 && (sub_idx1 == length(dirs1))
+    b3 = b2 && (src2 == length(l))
+    b4 = b3 && (src1 == length(l))
+    # slow changing
+
+    sub_idx2 = Int64(b1 || (sub_idx2 + 1))
+    sub_idx1 = Int64(b2 || (sub_idx1 + b1))
+    next_src2 = Int64(b3 || (src2 + b2))
+    next_src1 = Int64(src1 + b3)
+
+    next_state = Int(!b4) .* (next_src1, next_src2, sub_idx1, sub_idx2)
+
+    # Check validity
+    if trg1 == 0 || trg2 == 0
+        return iterate(iter, l, next_state)
+    end
+
+    # TODO
+    subN = _length(l, iter.directions)
+    Ndir = length(l[:Bravais_dir2srctrg])
     combined_dir = _sub2ind(
-        (B, B, Ndir, subN, subN), (uc1, uc2, dir12, sub_idx1, sub_idx2)
+        (B, B, Ndir, subN, subN), (uc1, uc2, dir12, idx1, idx2)
     )
 
-    # state = (src1 mask index, src2 mask index, filter1 index, filter2 index)
-    return ((combined_dir, src1, trg1, src2, trg2), (sub_idx1, sub_idx2, idx1, idx2))
+    return ((combined_dir, src1, trg1, src2, trg2), next_state)
 end
 
 

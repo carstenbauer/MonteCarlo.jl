@@ -341,21 +341,25 @@ end
     srcdir2trg = l[:srcdir2trg]::Matrix{Int}
     Bsrctrg2dir = l[:Bravais_srctrg2dir]::Matrix{Int}
     B = length(unitcell(l))
-    subN = length(iter.directions)
-    Ndir = length(l[:Bravais_dir2srctrg])
+    subN = _length(l, iter.directions)::Int
+    Ndir = length(l[:Bravais_dir2srctrg])::Int
 
     for src1 in eachindex(l)
         Bsrc1, uc1 = fldmod1(src1, B)
+        dirs1 = _dir_idxs_uc(l, iter.directions, uc1)::Vector{Pair{Int, Int}}
 
         for src2 in eachindex(l)
             Bsrc2, uc2 = fldmod1(src2, B)
             dir12 = Bsrctrg2dir[Bsrc1, Bsrc2]
+            dirs2 = _dir_idxs_uc(l, iter.directions, uc2)::Vector{Pair{Int, Int}}
             
-            for (sub_idx1, dir1) in enumerate(iter.directions)
+            for (sub_idx1, dir1) in dirs1
+            # for (sub_idx1, dir1) in iter.directions
                 trg1 = srcdir2trg[src1, dir1]
                 trg1 == 0 && continue
                 
-                for (sub_idx2, dir2) in enumerate(iter.directions)
+                for (sub_idx2, dir2) in dirs2
+                # for (sub_idx2, dir2) in iter.directions
                     trg2 = srcdir2trg[src2, dir2]
                     trg2 == 0 && continue
                     
@@ -371,7 +375,7 @@ end
             end
         end
     end
-    
+
     return 
 end
 

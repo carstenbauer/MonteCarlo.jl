@@ -8,6 +8,8 @@ using Parameters, Requires
 using TimerOutputs, StructArrays
 using Printf, SparseArrays, LinearAlgebra, Dates, Statistics, Random, Distributed
 
+# unoptized version, mainly for tests
+# this still uses custom linear algebra methods, just without loopvectorization
 if get(ENV, "MONTECARLO_USE_LOOPVECTORIZATION", "true") == "true"
     import LoopVectorization
     using LoopVectorization: @turbo

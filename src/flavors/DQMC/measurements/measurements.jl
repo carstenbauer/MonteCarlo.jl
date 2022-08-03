@@ -154,7 +154,7 @@ see larger values than expected.
 """
 function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
-        directions = hopping_directions(model),
+        directions = BondDirections(),
         greens_iterator = TimeIntegral(dqmc), wrapper = nothing,
         lattice_iterator = EachLocalQuadByDistance(directions), kwargs...
     )

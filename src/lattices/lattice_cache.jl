@@ -22,7 +22,8 @@ function LatticeCache()
         LazyData{Vector{Vector{Tuple{Int, Int}}}}(),
         LazyData{Vector{Vector{Tuple{Int, Int}}}}(),
         LazyData{Matrix{Int}}(),
-        LazyData{Matrix{Int}}()
+        LazyData{Matrix{Int}}(),
+        LazyData{Tuple{Int, Vector{Vector{Pair{Int, Int}}}}}()
     )
 end
 
@@ -34,6 +35,7 @@ function init!(c::LatticeCache, l::Lattice)
     c.src2dirtrg.constructor = () -> construct_src2dirtrg(l)
     c.srctrg2dir.constructor = () -> construct_srctrg2dir(l)
     c.srcdir2trg.constructor = () -> construct_srcdir2trg(l)
+    c.uc2bonddir.constructor = () -> construct_uc2bonddir(l)
     return
 end
 
@@ -94,6 +96,43 @@ function construct_srcdir2trg(l::AbstractLattice)
         end
     end
     return srcdir2trg
+end
+
+function construct_uc2bonddir(l::Lattice)
+    dir2srctrg = _dir2srctrg(l)
+    B = length(unitcell(l))
+
+    # Find directional indices along bonds per basis index
+    _bonds = map(1:B) do basis
+        [MonteCarlo._shift_Bravais(l, 1, b) for b in l.unitcell.bonds if from(b) == basis]
+    end
+    bonddir = map(_bonds) do bs
+        map(bs) do b
+            for dir in 2:length(dir2srctrg)
+                idx = findfirst(isequal((b.from, b.to)), dir2srctrg[dir])
+                if idx !== nothing
+                    return dir
+                end
+            end
+            error("Failed to find directional index connection $(b.from) -> $(b.to)")
+        end
+    end
+
+    # create a mapping idx => dir where each dir has one index and indices go
+    # from 1:N in steps of 1. 
+    alldirs = sort!(unique(vcat(bonddir...)))
+    mapping = zeros(Int, maximum(alldirs))
+    i = 1
+    for dir in alldirs
+        mapping[dir] = i
+        i += 1
+    end
+
+    bonddir = map(bonddir) do dirs
+        [mapping[dir] => dir for dir in dirs]
+    end
+
+    return (i-1, bonddir)
 end
 
 

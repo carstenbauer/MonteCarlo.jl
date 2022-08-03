@@ -43,11 +43,12 @@ end
 
 _lazy_error() = error("LazyData can not be initialized because no constructor was provided.")
 
-function value(d::LazyData{T}) where {T}
+function value(d::LazyData{T})::T where {T}
     if !isdefined(d, :value)
         d.value = d.constructor()
     end
-    return d.value::T
+    return d.value
+end
 end
 
 ################################################################################
