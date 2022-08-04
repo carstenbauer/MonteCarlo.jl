@@ -18,17 +18,7 @@ function directions(lattice::AbstractLattice, ϵ = 1e-6)
 
     for p0 in _positions
         for p in _positions
-            d .= p .- p0 .+ wrap[1]
-            n2 = directed_norm2(d, ϵ)
-
-            for v in wrap[2:end]
-                new_d .= p .- p0 .+ v
-                new_n2 = directed_norm2(new_d, ϵ)
-                if new_n2 + 100eps(n2) < n2
-                    d .= new_d
-                    n2 = new_n2
-                end
-            end
+            _apply_wrap!(d, p, p0, wrap, new_d, ϵ)
 
             # search for d in directions
             # if not present push it, otherwise continue with next iteration
@@ -50,6 +40,22 @@ function directions(lattice::AbstractLattice, ϵ = 1e-6)
     end
 
     return sort!(directions, by = v -> directed_norm2(v, ϵ))
+end
+
+function _apply_wrap!(d, p, p0, wrap, new_d = similar(d), ϵ = 1e-6)
+    d .= p .- p0 .+ wrap[1]
+    n2 = directed_norm2(d, ϵ)
+
+    for v in wrap[2:end]
+        new_d .= p .- p0 .+ v
+        new_n2 = directed_norm2(new_d, ϵ)
+        if new_n2 + 100eps(n2) < n2
+            d .= new_d
+            n2 = new_n2
+        end
+    end
+
+    return d
 end
 
 
@@ -148,7 +154,7 @@ end
 
 
 function directions(iter::EachLocalQuadByDistance, l::Lattice)
-    sub_dirs = directions(l)[iter.directions]
+    sub_dirs = directions(l)[last.(iter.directions)]
     Bravais_dirs = directions(Bravais(l))
     ps = l.unitcell.sites
     return [p2 - p1 + dir for p1 in ps, p2 in ps, dir in Bravais_dirs], sub_dirs
@@ -183,17 +189,28 @@ end
 Returns the indices of every hopping direction defined on the lattice. (This 
 includes hoppings beyond NN if they are available.)
 """
-function hopping_directions(l::Lattice, ϵ = 1e-6, lattice_directions = directions(l))
+function hopping_directions(l::Lattice{N}, ϵ = 1e-6, lattice_directions = directions(l)) where N
     uc = unitcell(l)
+    r = Vector{Float64}(undef, N)
+
     valid_directions = map(uc.bonds) do bond
         p0 = uc.sites[from(bond)]
         p1 = uc.sites[to(bond)]
         shift = sum(bond.uc_shift .* uc.lattice_vectors)
-        r = p1 - p0 + shift
+        @. r = p1 - p0 + shift
         findfirst(eachindex(lattice_directions)) do idx
             isapprox(r, lattice_directions[idx], atol = ϵ)
         end
     end
 
-    return sort!(unique(valid_directions))
+    try
+        return sort!(unique(valid_directions))
+    catch e
+        # The error caught here is `isless(::Nothing, ::Real) does not exist`.
+        # `nothing` appears because there is no direction matching the bond 
+        # direction for `findfirst` to find. With wrapping this can be 
+        # circumvented, but that breaks assumptions in summations so it's better
+        # to just error.
+        error("The given lattice is too small to include all hopping directions.")
+    end
 end

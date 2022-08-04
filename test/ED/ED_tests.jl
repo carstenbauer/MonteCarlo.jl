@@ -126,9 +126,7 @@ end
             dqmc[:SDCx] = spin_density_correlation(dqmc, model, :x)
             dqmc[:SDCy] = spin_density_correlation(dqmc, model, :y)
             dqmc[:SDCz] = spin_density_correlation(dqmc, model, :z)
-            dqmc[:PC]   = pairing_correlation(
-                dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
-            )
+            dqmc[:PC]   = pairing_correlation(dqmc, model, K = 4)
 
             # Unequal time
             l1s = [0, 3, 5, 7, 3, 0, MonteCarlo.nslices(dqmc), 0]
@@ -141,9 +139,7 @@ end
             dqmc[:SDSx] = spin_density_susceptibility(dqmc, model, :x)
             dqmc[:SDSy] = spin_density_susceptibility(dqmc, model, :y)
             dqmc[:SDSz] = spin_density_susceptibility(dqmc, model, :z)
-            dqmc[:PS]   = pairing_susceptibility(
-                dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
-            )
+            dqmc[:PS]   = pairing_susceptibility(dqmc, model, K = 4)
             dqmc[:CCS]  = current_current_susceptibility(
                 dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
             )
@@ -427,9 +423,7 @@ end
             dqmc[:SDCx] = spin_density_correlation(dqmc, model, :x)
             dqmc[:SDCy] = spin_density_correlation(dqmc, model, :y)
             dqmc[:SDCz] = spin_density_correlation(dqmc, model, :z)
-            dqmc[:PC]   = pairing_correlation(
-                dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
-            )
+            dqmc[:PC]   = pairing_correlation(dqmc, model, K = 4)
 
             # Unequal time
             l1s = [0, 3, 5, 7, 3, 0]
@@ -447,9 +441,7 @@ end
             dqmc[:SDSx] = spin_density_susceptibility(dqmc, model, :x)
             dqmc[:SDSy] = spin_density_susceptibility(dqmc, model, :y)
             dqmc[:SDSz] = spin_density_susceptibility(dqmc, model, :z)
-            dqmc[:PS]   = pairing_susceptibility(
-                dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
-            )
+            dqmc[:PS]   = pairing_susceptibility(dqmc, model, K = 4)
             dqmc[:CCS]  = current_current_susceptibility(
                 dqmc, model, lattice_iterator = EachLocalQuadByDistance(1:4)
             )

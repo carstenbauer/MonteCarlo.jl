@@ -133,8 +133,8 @@ using MonteCarlo: lattice_vectors
         check_uc(l, "Cubic", [[0.0, 0.0, 0.0]])
         check_Bravais(l)
 
-        @test MonteCarlo.hopping_directions(l) == [2, 3, 4, 5, 6, 7]
-        @test MonteCarlo.nearest_neighbor_count(l) == 6
+        @test_throws ErrorException MonteCarlo.hopping_directions(l) # [2, 3, 4, 5, 6, 7]
+        @test_throws ErrorException MonteCarlo.nearest_neighbor_count(l)
     end
 
     @testset "Honeycomb" begin
@@ -325,7 +325,7 @@ using MonteCarlo: directed_norm
         for (setup, dqmc) in zip(setups, dqmcs)
             iter = MonteCarlo.with_lattice(EachLocalQuadByDistance(setup), lattice(dqmc))
             dir2srctrg = lattice(dqmc)[:dir2srctrg]
-            iter_length = mapreduce(dir -> length(dir2srctrg[dir]), +, iter.iter.directions)^2
+            iter_length = mapreduce(dir -> length(dir2srctrg[dir[2]]), +, iter.iter.directions)^2
             @test length(iter) == iter_length
             @test eltype(iter) == NTuple{5, Int64}
             @test Base.IteratorSize(EachLocalQuadByDistance) == Base.HasLength()
@@ -379,7 +379,7 @@ using MonteCarlo: directed_norm
                         d .= new_d
                     end
                 end
-                check1 = check1 && (full_dirs[iter.iter.directions[idx1]] ≈ d)
+                check1 = check1 && (full_dirs[iter.iter.directions[idx1][2]] ≈ d)
 
                 # src2 -- idx2 -- trg2
                 _d = full_pos[trg2] - full_pos[src2]
@@ -391,7 +391,7 @@ using MonteCarlo: directed_norm
                         d .= new_d
                     end
                 end
-                check2 = check2 && (full_dirs[iter.iter.directions[idx2]] ≈ d)
+                check2 = check2 && (full_dirs[iter.iter.directions[idx2][2]] ≈ d)
             end
 
             @test length(iter) == N

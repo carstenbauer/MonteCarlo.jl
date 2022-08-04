@@ -423,7 +423,7 @@ function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1))
 
     # Check validity
     if trg1 == 0 || trg2 == 0
-        return iterate(iter, l, next_state)
+        return _iterate(iter, l, next_state)
     end
 
     # TODO
@@ -439,7 +439,7 @@ end
 
 function _length(iter::EachLocalQuadByDistance, l::Lattice)
     dir2srctrg = l[:dir2srctrg]
-    return mapreduce(dir -> length(dir2srctrg[dir]), +, iter.directions)^2
+    return mapreduce(dir -> length(dir2srctrg[dir[2]]), +, iter.directions)^2
 end
 _eltype(::EachLocalQuadByDistance, ::Lattice) = NTuple{5, Int64}
 
