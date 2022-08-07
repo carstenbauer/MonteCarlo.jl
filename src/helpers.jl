@@ -21,37 +21,6 @@ accepted updates. A save file is created in this case.
     CANCELLED_LOW_ACCEPTANCE = 2
 end
 
-# This follows the idea from
-# https://discourse.julialang.org/t/best-practice-approach-for-caching-data-in-objects/20419/5
-# This type allows for lazy initialization/construction of some data. 
-# Note that there is no tangible difference between `isdefined` and a boolean
-
-
-"""
-    LazyData(constructor::Function)
-
-This type represents lazily constructed data. To get the data, call 
-`value(::LazyData)`. If the data is not present yet, `constructor()` will be
-called to create it. 
-"""
-mutable struct LazyData{T}
-    constructor::Function
-    value::T
-
-    LazyData{T}(constructor = _lazy_error) where T = new{T}(constructor)
-end
-
-_lazy_error() = error("LazyData can not be initialized because no constructor was provided.")
-
-function value(d::LazyData{T})::T where {T}
-    if !isdefined(d, :value)
-        d.value = d.constructor()
-    end
-    return d.value
-end
-
-################################################################################
-
 
 """
     sparsity(A)
