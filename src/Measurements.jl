@@ -146,64 +146,6 @@ default_measurements(mc, model) = Dict{Symbol, AbstractMeasurement}()
 
 
 ################################################################################
-# ValueWrapper
-
-
-"""
-    ValueWrapper(mc, ::Val{key})
-    ValueWrapper(mc, m::AbstractMeasurement)
-
-Attempt to calculate a (value, error) pair for a given measurement. You can call
-`mean` and `std_error` to get those values.
-
-
-
-The conversion is split into a few simple, generic methods so that the default behavior
-can be adjusted at different points. The call stack from `load` is:
-
-1. `simplify_measurements!(mc)` calls `simplify(ms, mc, ::Val{key})` with each
-    measurement key to populate a new measurements Dict `ms` which will replace
-    the old one.
-2. `simplify(ms, mc, v::Val{key}) = ms[key] = ValueWrapper(mc, v)`
-3. `ValueWrapper(mc, ::Val{key}) = ValueWrapper(mc, mc[key])`
-4. `ValueWrapper(mc, measurement) = ValueWrapper(mean(measurement), std_error(measurement))`
-
-Example Modifications:
-- If you want to further process a specifically typed set of measurements you 
-    can add a method for (4)
-- Replacing the default behavior for a specific key can be done at (2) or (3).
-- Adjusting the name of a measurement or splitting one can be done at (2)
-- Removing measurements can be done at (2) by not inserting the value in `ms`.
-"""
-struct ValueWrapper{T1, T2} <: AbstractMeasurement
-    exp_value::T1
-    std_error::T2
-end
-
-function simplify_measurements!(mc)
-    ms = Dict{Symbol, AbstractMeasurement}()
-    for key in keys(mc)
-        simplify(ms, mc, Val(key))
-    end
-    mc.measurements = ms
-    nothing
-end
-simplify(ms, mc, v::Val{key}) where key = ms[key] = ValueWrapper(mc, v)
-ValueWrapper(mc, ::Val{key}) where key = ValueWrapper(mc, mc[key])
-function ValueWrapper(mc::MonteCarloFlavor, m::AbstractMeasurement)
-    return ValueWrapper(mean(m), std_error(m))
-end
-BinningAnalysis.mean(v::ValueWrapper) = v.exp_value
-BinningAnalysis.std_error(v::ValueWrapper) = v.std_error
-Base.show(io::IO, ::MIME"text/plain", m::ValueWrapper) = show(io, m)
-function Base.show(io::IO, m::ValueWrapper)
-    print(io, m.exp_value)
-    print(io, " ± ")
-    print(io, m.std_error)
-end
-
-
-################################################################################
 # called by simulation
 
 
