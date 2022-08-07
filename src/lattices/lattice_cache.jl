@@ -43,6 +43,15 @@ function Base.getindex(l::Lattice, key::Symbol)
     end
 end
 
+function Base.get!(l::Lattice, key::Symbol, f::Function)
+    if haskey(l.cache.cache, key)
+        return l.cache.cache[key]
+    else 
+        l.cache.constructors[key] = f
+        return l.cache.cache[key] = f(l)
+    end
+end
+
 construct_dir2srctrg(l::AbstractLattice) =  _dir2srctrg(l)
 function construct_dir2srctrg(b::Bravais)
     dir2srctrg = _dir2srctrg(b)
