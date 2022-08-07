@@ -31,7 +31,10 @@ end
 _dir_idxs(::Lattice, iterable, ::Int) = iterable
 _dir_idxs_uc(::Lattice, iterable, ::Int) = iterable
 
-_length(l::Lattice, ::BondDirections) = l[:uc2bonddir][1]
+function _length(l::Lattice, ::BondDirections) 
+    uc2bonddir = l[:uc2bonddir]::Tuple{Int, Vector{Vector{Pair{Int, Int}}}}
+    return uc2bonddir[1]
+end
 _length(::Lattice, xs) = length(xs)
 
 
@@ -170,13 +173,15 @@ EachSiteByDistance(::MonteCarloFlavor) = EachSiteByDistance()
 
 function output_size(::EachSitePairByDistance, l::Lattice)
     B = length(l.unitcell.sites)
-    Ndir = length(l[:Bravais_dir2srctrg])
+    # Periodicity allows us to only consider one origin and no two sites are at 
+    # the same position, so length(dirs) = length(Bravais_lattice) here
+    Ndir = length(Bravais(l)) # on Bravais lattice
     return (B, B, Ndir)
 end
 
 function _iterate(::EachSitePairByDistance, l::Lattice, state = (0, 1, 1, 1))
     B = length(l.unitcell.sites)
-    dir2srctrg = l[:Bravais_dir2srctrg]
+    dir2srctrg = l[:Bravais_dir2srctrg]::Vector{Vector{Int}}
     uc1, uc2, dir, Bravais_src = state
 
     #= # IF structure
@@ -267,7 +272,7 @@ end
 
 function output_size(iter::EachLocalQuadBySyncedDistance, l::Lattice)
     B = length(l.unitcell.sites)
-    Ndir = length(l[:Bravais_dir2srctrg])
+    Ndir = length(Bravais(l)) # on Bravais lattice
     K = length(iter.directions)
     return (B, B, Ndir, K)
 end
@@ -285,8 +290,8 @@ function _iterate(iter::EachLocalQuadBySyncedDistance, l::Lattice, state = (1,1,
 
     # Branchless increments
     sync_dir = iter.directions[sync_idx]
-    dir2srctrg = l[:dir2srctrg]
-    Ndir = length(l[:Bravais_dir2srctrg])
+    dir2srctrg = l[:dir2srctrg]::Vector{Vector{Tuple{Int, Int}}}
+    Ndir = length(Bravais(l)) # on Bravais lattice
     N = length(dir2srctrg[sync_dir])
     B = length(l.unitcell.sites)
 
@@ -309,7 +314,7 @@ function _iterate(iter::EachLocalQuadBySyncedDistance, l::Lattice, state = (1,1,
     # convert to uc idx + Bravais lattice index
     Bsrc1, uc1 = fldmod1(src1, B)
     Bsrc2, uc2 = fldmod1(src2, B)
-    dir12 = l[:Bravais_srctrg2dir][Bsrc1, Bsrc2]
+    dir12 = (l[:Bravais_srctrg2dir]::Matrix{Int})[Bsrc1, Bsrc2]
 
     # combine (uc1, uc2, dir12, sync_idx) to linear index
     combined_dir = _sub2ind((B, B, Ndir, length(iter.directions)), (uc1, uc2, dir12, sync_idx))
@@ -320,7 +325,7 @@ end
 
 
 function _length(iter::EachLocalQuadBySyncedDistance, l::Lattice)
-    dir2srctrg = l[:dir2srctrg]
+    dir2srctrg = l[:dir2srctrg]::Vector{Vector{Tuple{Int, Int}}}
     return mapreduce(dir -> length(dir2srctrg[dir])^2, +, iter.directions)
 end
 _eltype(::EachLocalQuadBySyncedDistance, ::Lattice) = NTuple{5, Int64}
@@ -373,13 +378,13 @@ end
 
 function output_size(iter::EachLocalQuadByDistance, l::Lattice)
     B = length(l.unitcell.sites)
-    Ndir = length(l[:Bravais_dir2srctrg]) # TODO this is a lot for just a number
+    Ndir = length(Bravais(l)) # on Bravais lattice
     K = length(iter.directions)
     return (B, B, Ndir, K, K)
 end
 function output_size(iter::EachLocalQuadByDistance{BondDirections}, l::Lattice)
     B = length(l.unitcell.sites)
-    Ndir = length(l[:Bravais_dir2srctrg]) # TODO this is a lot for just a number
+    Ndir = length(Bravais(l)) # on Bravais lattice
     K = length(hopping_directions(l))
     return (B, B, Ndir, K, K)
 end
@@ -392,7 +397,7 @@ function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1))
     B = length(l.unitcell.sites)
     Bsrc1, uc1 = fldmod1(src1, B)
     Bsrc2, uc2 = fldmod1(src2, B)
-    dir12 = l[:Bravais_srctrg2dir][Bsrc1, Bsrc2]
+    dir12 = (l[:Bravais_srctrg2dir]::Matrix{Int})[Bsrc1, Bsrc2]
 
     # Get src -- trg directions (idx is for the output matrix)
     dirs1 = _dir_idxs_uc(l, iter.directions, uc1)
@@ -401,7 +406,7 @@ function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1))
     idx2, sub_dir2 = dirs2[sub_idx2]
 
     # target sites
-    srcdir2trg = l[:srcdir2trg]
+    srcdir2trg = l[:srcdir2trg]::Matrix{Int}
     trg1 = srcdir2trg[src1, sub_dir1]
     trg2 = srcdir2trg[src2, sub_dir2]
 
@@ -428,7 +433,7 @@ function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1))
 
     # TODO
     subN = _length(l, iter.directions)
-    Ndir = length(l[:Bravais_dir2srctrg])
+    Ndir = length(Bravais(l)) # on Bravais lattice
     combined_dir = _sub2ind(
         (B, B, Ndir, subN, subN), (uc1, uc2, dir12, idx1, idx2)
     )
@@ -438,7 +443,7 @@ end
 
 
 function _length(iter::EachLocalQuadByDistance, l::Lattice)
-    dir2srctrg = l[:dir2srctrg]
+    dir2srctrg = l[:dir2srctrg]::Vector{Vector{Tuple{Int, Int}}}
     return mapreduce(dir -> length(dir2srctrg[dir[2]]), +, iter.directions)^2
 end
 _eltype(::EachLocalQuadByDistance, ::Lattice) = NTuple{5, Int64}
