@@ -77,7 +77,7 @@ end
 Base.show(io::IO, m::MIME"text/plain", model::HubbardModel) = print(io, model)
 
 # Convenience
-@inline parameters(m::HubbardModel) = (N = length(m.l), t = m.t, U = m.U, mu = m.mu)
+@inline parameters(m::HubbardModel) = (N = length(m.l), Ls = size(m.l), t = m.t, U = m.U, mu = m.mu)
 choose_field(m::HubbardModel) = m.U < 0.0 ? MagneticHirschField : DensityHirschField
 
 # implement DQMC interface:
