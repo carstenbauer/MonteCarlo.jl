@@ -112,7 +112,7 @@ The indices of `EachSitePairByDistance` represent
 `(source basis, target basis, Bravais directional index)`. These are transformed 
 into composite directions here, using the same indexing.
 """
-function directions(::EachSitePairByDistance, l::Lattice)
+function directions(l::Lattice, ::EachSitePairByDistance)
     Bravais_dirs = directions(Bravais(l))
     ps = l.unitcell.sites
     return [p2 - p1 + dir for p1 in ps, p2 in ps, dir in Bravais_dirs]
@@ -145,7 +145,7 @@ indices into `iter.directions`. The first array returned here combines `b1`,
 3 dimensions of the observable. The second array represents `dir1`/`dir2`, i.e. 
 `directions(l)[iter.directions]`.
 """
-function directions(iter::EachLocalQuadBySyncedDistance, l::Lattice)
+function directions(l::Lattice, iter::EachLocalQuadBySyncedDistance)
     sub_dirs = directions(l)[iter.directions]
     Bravais_dirs = directions(Bravais(l))
     ps = l.unitcell.sites
@@ -153,7 +153,7 @@ function directions(iter::EachLocalQuadBySyncedDistance, l::Lattice)
 end
 
 
-function directions(iter::EachLocalQuadByDistance, l::Lattice)
+function directions(l::Lattice, iter::EachLocalQuadByDistance)
     sub_dirs = directions(l)[last.(iter.directions)]
     Bravais_dirs = directions(Bravais(l))
     ps = l.unitcell.sites
