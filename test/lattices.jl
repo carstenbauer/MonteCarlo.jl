@@ -283,7 +283,7 @@ using MonteCarlo: directed_norm
             
             B = length(lattice(dqmc).unitcell.sites)
             ind2sub = CartesianIndices((B, B, length(dirs)))
-            iter_dirs = directions(iter.iter, lattice(dqmc))
+            iter_dirs = directions(lattice(dqmc), iter.iter)
 
             # Let's summarize these tests...
             check = true
@@ -347,7 +347,7 @@ using MonteCarlo: directed_norm
             B = length(lattice(dqmc).unitcell.sites)
             Ndirs = length(iter.iter.directions)
             idxs = CartesianIndices((B, B, length(dirs), Ndirs, Ndirs))
-            iter_dirs = directions(iter.iter, lattice(dqmc))
+            iter_dirs = directions(lattice(dqmc), iter.iter)
             N = 0
 
             for (lin, src1, trg1, src2, trg2) in iter
@@ -427,7 +427,7 @@ using MonteCarlo: directed_norm
 
             B = length(lattice(dqmc).unitcell.sites)
             idxs = CartesianIndices((B, B, length(dirs), length(iter.iter.directions)))
-            iter_dirs = directions(iter.iter, lattice(dqmc))
+            iter_dirs = directions(lattice(dqmc), iter.iter)
             N = 0
 
             for (lin, src1, trg1, src2, trg2) in iter

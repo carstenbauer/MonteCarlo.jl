@@ -16,32 +16,32 @@ default which helps keep memory usage down when inspecting data.
 =#
 
 function LatticeCache()
-    LatticeCache(
-        LazyData{Vector{Vector{Int}}}(),
-        LazyData{Matrix{Int}}(),
-        LazyData{Vector{Vector{Tuple{Int, Int}}}}(),
-        LazyData{Vector{Vector{Tuple{Int, Int}}}}(),
-        LazyData{Matrix{Int}}(),
-        LazyData{Matrix{Int}}(),
-        LazyData{Tuple{Int, Vector{Vector{Pair{Int, Int}}}}}()
+    constructors = Dict{Symbol, Function}(
+        :Bravais_dir2srctrg => l -> construct_dir2srctrg(Bravais(l)), # Vector{Vector{Int}}}
+        :Bravais_srctrg2dir => l -> construct_srctrg2dir(Bravais(l)), # Matrix{Int}
+
+        :dir2srctrg => construct_dir2srctrg, # Vector{Vector{Tuple{Int, Int}}}
+        :src2dirtrg => construct_src2dirtrg, # Vector{Vector{Tuple{Int, Int}}}
+        :srctrg2dir => construct_srctrg2dir, # Matrix{Int}
+        :srcdir2trg => construct_srcdir2trg, # Matrix{Int}
+        :uc2bonddir => construct_uc2bonddir, # Tuple{Int, Vector{Vector{Pair{Int, Int}}}}
     )
+
+    return LatticeCache(Dict{Symbol, Any}(), constructors)
 end
 
-function init!(c::LatticeCache, l::Lattice)
-    c.Bravais_dir2srctrg.constructor = () -> construct_dir2srctrg(Bravais(l))
-    c.Bravais_srctrg2dir.constructor = () -> construct_srctrg2dir(Bravais(l))
 
-    c.dir2srctrg.constructor = () -> construct_dir2srctrg(l)
-    c.src2dirtrg.constructor = () -> construct_src2dirtrg(l)
-    c.srctrg2dir.constructor = () -> construct_srctrg2dir(l)
-    c.srcdir2trg.constructor = () -> construct_srcdir2trg(l)
-    c.uc2bonddir.constructor = () -> construct_uc2bonddir(l)
-    return
-end
+
+register!(l::Lattice, key::Symbol, f::Function) = l.cache.constructors[key] = f
 
 # for simplicity
-Base.getindex(l::Lattice, key::Symbol) = value(getproperty(l.cache, key))
-
+function Base.getindex(l::Lattice, key::Symbol)
+    if haskey(l.cache.cache, key)
+        return l.cache.cache[key]
+    else 
+        return l.cache.cache[key] = l.cache.constructors[key](l)
+    end
+end
 
 construct_dir2srctrg(l::AbstractLattice) =  _dir2srctrg(l)
 function construct_dir2srctrg(b::Bravais)

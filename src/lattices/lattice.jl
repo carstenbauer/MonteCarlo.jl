@@ -3,26 +3,9 @@ abstract type AbstractLattice end
 abstract type AbstractBond end
 abstract type AbstractUnitCell end
 
-# See lattice_cache.jl and lattice_iterators.jl
 struct LatticeCache
-    # Directions on the Bravais lattice
-    Bravais_dir2srctrg::LazyData{Vector{Vector{Int}}}
-    # src2dirtrg::LazyData{Vector{Vector{Tuple{Int, Int}}}}
-    Bravais_srctrg2dir::LazyData{Matrix{Int}}
-
-    # Directions on the full lattice
-    dir2srctrg::LazyData{Vector{Vector{Tuple{Int, Int}}}}
-    src2dirtrg::LazyData{Vector{Vector{Tuple{Int, Int}}}}
-    srctrg2dir::LazyData{Matrix{Int}}
-    srcdir2trg::LazyData{Matrix{Int}}
-
-    # uc2bonddir[basis_idx] contains directional inddices for bonds leaving basis
-    uc2bonddir::LazyData{Tuple{Int, Vector{Vector{Pair{Int, Int}}}}}
-
-    # positions
-    # directions
-    # bonds
-    # ...?
+    cache::Dict{Symbol, Any}
+    constructors::Dict{Symbol, Function}
 end
 
 # to fix loading errors when Lattice is saved directly
@@ -175,7 +158,7 @@ end
 
 function Lattice(uc, Ls)
     l = Lattice(uc, Ls, LatticeCache())
-    init!(l.cache, l)
+    # init!(l.cache, l)
     return l
 end
 
