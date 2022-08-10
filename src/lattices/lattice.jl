@@ -383,8 +383,8 @@ Returns the reciprocal unit vectors for 2 or 3 dimensional lattice.
 function reciprocal_vectors(l::Lattice{2})
     v1, v2 = lattice_vectors(l)
     V = 2pi / abs(v1[2] * v2[1] - v1[1] * v2[2])
-    r1 = V * [v1[2], -v1[1]]
-    r2 = V * [v2[2], -v2[1]]
+    r1 = V * [-v2[2], v2[1]] # R(90°) matrix applied 
+    r2 = V * [-v1[2], v1[1]]
     return r1, r2
 end
 
