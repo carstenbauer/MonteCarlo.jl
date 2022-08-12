@@ -229,8 +229,8 @@ end
 function _sub2ind(l::Lattice, t::NTuple)
     # this is very fast
     idx = t[end] - 1
-    for d in length(l.Ls)-1:-1:2
-        idx = idx * l.Ls[d] + (t[d] - 1)
+    for d in length(l.Ls)-1:-1:1
+        idx = idx * l.Ls[d] + (t[d+1] - 1)
     end
     return idx * length(l.unitcell.sites) + t[1]
 end
@@ -395,6 +395,16 @@ function reciprocal_vectors(l::Lattice{3})
     r2 = V * cross(v3, v1)
     r3 = V * cross(v1, v2)
     return r1, r2, r3
+end
+
+function ReciprocalLattice(l::Lattice{D}, scale = 1.0) where {D}
+    uc = UnitCell(
+        "reciprocal " * l.unitcell.name,
+        scale .* reciprocal_vectors(l),
+        [zeros(D)],
+        unique(map(b -> Bond(1, 1, b.uc_shift), l.unitcell.bonds))
+    )
+    Lattice(uc, l.Ls)
 end
 
 
