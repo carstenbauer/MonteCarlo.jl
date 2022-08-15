@@ -362,6 +362,7 @@ struct EachLocalQuadByDistance{T} <: DeferredLatticeIterator
     
     EachLocalQuadByDistance(N::Integer) = EachLocalQuadByDistance(1:N)
     EachLocalQuadByDistance(dirs::BondDirections) = new{BondDirections}(dirs)
+    EachLocalQuadByDistance(dirs::Vector{Pair{Int, Int}}) = new{Vector{Pair{Int, Int}}}(dirs)
     function EachLocalQuadByDistance(dirs)
         pairs = Pair.(eachindex(dirs), dirs)
         new{typeof(pairs)}(pairs)
