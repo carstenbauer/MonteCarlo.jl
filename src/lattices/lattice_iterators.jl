@@ -450,6 +450,46 @@ _eltype(::EachLocalQuadByDistance, ::Lattice) = NTuple{5, Int64}
 
 
 ################################################################################
+### Bond pairs - [EXPERIMENTAL]
+################################################################################
+
+struct EachBondPairByBravaisDistance{T} <: MonteCarlo.DeferredLatticeIterator
+    bond_idxs::T
+end
+EachBondPairByBravaisDistance(N::Integer) = EachBondPairByBravaisDistance(1:N)
+EachBondPairByBravaisDistance() = EachBondPairByBravaisDistance(Colon())
+EachBondPairByBravaisDistance(mc::MonteCarloFlavor) = EachBondPairByBravaisDistance(lattice(mc))
+function EachBondPairByBravaisDistance(l::Lattice)
+    rejected = Int[]
+    accepted = Int[]
+    sizehint!(accepted, div(length(l.unitcell.bonds), 2))
+
+    for (i, b) in enumerate(l.unitcell.bonds)
+        if !(i in rejected)
+            idx = findfirst(l.unitcell.bonds) do _b
+                _b.from == b.to &&
+                _b.to == b.from &&
+                _b.uc_shift == .- b.uc_shift
+            end::Int
+            push!(accepted, i)
+            push!(rejected, idx)
+        end
+    end
+
+    return EachBondPairByBravaisDistance(accepted)
+end
+
+function MonteCarlo.output_size(iter::EachBondPairByBravaisDistance, l::Lattice)
+    if iter.bond_idxs isa Colon
+        B = length(l.unitcell.bonds)
+    else
+        B = length(iter.bond_idxs)
+    end
+    return (l.Ls..., B, B)
+end
+
+
+################################################################################
 ### Temp friends
 ################################################################################
 

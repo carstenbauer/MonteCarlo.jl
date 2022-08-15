@@ -380,6 +380,59 @@ end
 end
 
 
+# These work with cache[1 + x1 - x2 + Lx] or cache[x + dx]
+modcachex(l::Lattice) = collect(mod1.(1:(1+3l.Ls[1]), l.Ls[1]))
+modcachey(l::Lattice) = collect(mod1.(1:(1+3l.Ls[2]), l.Ls[2]))
+
+
+@bm function apply!(
+        temp::Array, iter::EachBondPairByBravaisDistance, measurement, mc::DQMC, 
+        packed_greens, weight = 1.0
+    )
+    flv = Val(nflavors(mc))
+    l = lattice(mc)
+    Lx, Ly = l.Ls
+    bs = view(l.unitcell.bonds, iter.bond_idxs)
+    modx = get!(l, :modcachex, modcachex)::Vector{Int}
+    mody = get!(l, :modcachey, modcachey)::Vector{Int}
+    
+    
+    for s1y in 1:Ly, s1x in 1:Lx
+        for s2y in 1:Ly, s2x in 1:Lx
+            # output "directions"
+            # 1 because I want onsite at index 1
+            # _dx = mod1(1 + s2x - s1x, Lx) 
+            # _dy = mod1(1 + s2y - s1y, Ly)
+            dx = modx[1 + s2x - s1x + Lx] 
+            dy = mody[1 + s2y - s1y + Ly]
+            # @assert dx == _dx
+            # @assert dy == _dy
+
+            for (i, b1) in enumerate(bs)
+                s1 = _sub2ind(l, (from(b1), s1x, s1y))
+                x, y = b1.uc_shift
+                # _t1 = _sub2ind(l, (to(b1), mod1(s1x+x, Lx), mod1(s1y+y, Ly)))
+                t1 = _sub2ind(l, (to(b1), modx[s1x+x+Lx], mody[s1y+y+Ly]))
+                # @assert _t1 == t1
+
+                for (j, b2) in enumerate(bs)
+                    s2 = _sub2ind(l, (from(b2), s2x, s2y))
+                    x, y = b2.uc_shift
+                    # _t2 = _sub2ind(l, (to(b2), mod1(s2x+x, Lx), mod1(s2y+y, Ly)))
+                    t2 = _sub2ind(l, (to(b2), modx[s2x+x+Lx], mody[s2y+y+Ly]))
+                    # @assert _t2 == t2
+
+                    temp[dx, dy, i, j] += weight * measurement.kernel(
+                        mc, mc.model, (s1, t1, s2, t2), packed_greens, flv
+                    )
+                end
+            end
+        end
+    end
+
+    return 
+end
+
 ################################################################################
 ### LatticeIterator preparation and finalization
 ################################################################################
