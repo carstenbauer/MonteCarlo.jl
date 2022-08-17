@@ -491,7 +491,7 @@ end
 
 
 
-function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
+@bm function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
     # Computes
     # ⟨j_{t2-s2}(s2, l) j_{t1-s1}(s1, 0)⟩
     # where t2-s2 (t1-s1) is usually a NN vector/jump, and
@@ -507,19 +507,36 @@ function cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
     for σ1 in (0, N), σ2 in (0, N)
         s1 = src1 + σ1; t1 = trg1 + σ1
         s2 = src2 + σ2; t2 = trg2 + σ2
-        # Note: if H is real and Hermitian, T can be pulled out and the I's cancel
-        # Note: This matches crstnbr/dqmc if H real, Hermitian
-        # Note: I for G0l and Gl0 do not always cancel
-        # I have a tex document for this now
-        output += T[t1, s1] * T[t2, s2] * (
-            (Gll[s1, t1] - Gll[t1, s1]) * (G00[t2, s2] - G00[s2, t2]) +
-            - (id * I[t1, s2] - G0l[s2, t1]) * Gl0[s1, t2] +
-              (id * I[s1, s2] - G0l[s2, s1]) * Gl0[t1, t2] +
-              (id * I[t1, t2] - G0l[t2, t1]) * Gl0[s1, s2] +
-            - (id * I[s1, t2] - G0l[t2, s1]) * Gl0[t1, s2]
+
+        # re-re-recacluated
+        # output += (
+        #     ( T[t1, s1] * (I[s1, t1] - Gll[t1, s1]) - T[s1, t1] * (I[s1, t1] - Gll[s1, t1]) ) * 
+        #     ( T[s2, t2] * (I[s2, t2] - G00[s2, t2]) - T[t2, s2] * (I[s2, t2] - G00[t2, s2]) ) +
+        #     - T[s1, t1] * T[s2, t2] * (id * I[t1, s2] - G0l[s2, t1]) * Gl0[s1, t2] +
+        #     + T[t1, s1] * T[s2, t2] * (id * I[s1, s2] - G0l[s2, s1]) * Gl0[t1, t2] +
+        #     + T[s1, t1] * T[t2, s2] * (id * I[t1, t2] - G0l[t2, t1]) * Gl0[s1, s2] +
+        #     - T[t1, s1] * T[t2, s2] * (id * I[s1, t2] - G0l[t2, s1]) * Gl0[t1, s2]
+        # )
+
+        # Optimizations
+        # - combine first Wicks terms
+        # - index into T only once, use conj instead of transpose
+        # - use src != trg (i.e. I[s1, t1] = 0)
+        T1_st = T[s1, t1]
+        T1_ts = conj(T1_st)
+        T2_st = T[s2, t2]
+        T2_ts = conj(T2_st)
+
+        output += (
+            ( T1_st * Gll[s1, t1] - T1_ts * Gll[t1, s1] ) * 
+            ( T2_ts * G00[t2, s2] - T2_st * G00[s2, t2] ) +
+            - T1_st * T2_st * (id * I[t1, s2] - G0l[s2, t1]) * Gl0[s1, t2] +
+            + T1_ts * T2_st * (id * I[s1, s2] - G0l[s2, s1]) * Gl0[t1, t2] +
+            + T1_st * T2_ts * (id * I[t1, t2] - G0l[t2, t1]) * Gl0[s1, s2] +
+            - T1_ts * T2_ts * (id * I[s1, t2] - G0l[t2, s1]) * Gl0[t1, s2]
         )
     end
-
+    
     output
 end
 
@@ -632,7 +649,7 @@ function pc_ref_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, ::
     (I[src1, src2] * I[G0l.k, G0l.l] - G0l.val[src2, src1])
 end
 
-function cc_kernel(mc, model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
+@bm function cc_kernel(mc, model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
     src1, trg1, src2, trg2 = sites
     G00, G0l, Gl0, Gll = pg
     T = mc.stack.hopping_matrix
@@ -641,12 +658,20 @@ function cc_kernel(mc, model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
     # up-up counts, down-down counts, mixed only on 11s or 22s
     s1 = src1; t1 = trg1
     s2 = src2; t2 = trg2
-    output = T[t1, s1] * T[t2, s2] * (
-        4.0 * (Gll[s1, t1] - Gll[t1, s1]) * (G00[t2, s2] - G00[s2, t2]) +
-        - 2.0 * (id * I[t1, s2] - G0l[s2, t1]) * Gl0[s1, t2] +
-        + 2.0 * (id * I[s1, s2] - G0l[s2, s1]) * Gl0[t1, t2] +
-        + 2.0 * (id * I[t1, t2] - G0l[t2, t1]) * Gl0[s1, s2] +
-        - 2.0 * (id * I[s1, t2] - G0l[t2, s1]) * Gl0[t1, s2]
+
+    # See other method
+    T1_st = T[s1, t1]
+    T1_ts = conj(T1_st)
+    T2_st = T[s2, t2]
+    T2_ts = conj(T2_st)
+
+    output = (
+        ( T1_st * Gll[s1, t1] - T1_ts * Gll[t1, s1] ) * 
+        ( T2_ts * G00[t2, s2] - T2_st * G00[s2, t2] ) +
+        - T1_st * T2_st * (id * I[t1, s2] - G0l[s2, t1]) * Gl0[s1, t2] +
+        + T1_ts * T2_st * (id * I[s1, s2] - G0l[s2, s1]) * Gl0[t1, t2] +
+        + T1_st * T2_ts * (id * I[t1, t2] - G0l[t2, t1]) * Gl0[s1, s2] +
+        - T1_ts * T2_ts * (id * I[s1, t2] - G0l[t2, s1]) * Gl0[t1, s2]
     )
     
     output
