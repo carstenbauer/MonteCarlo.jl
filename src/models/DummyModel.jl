@@ -45,17 +45,21 @@ end
 function _load_to_dict(data::FileLike)
     output = Dict{String, Any}()
     for key in keys(data)
-        push!(output, key => _load_to_dict(data[key]))
+        try
+            push!(output, key => _load(data[key], to_tag(data[key])))
+        catch e
+            push!(output, key => _load_to_dict(data[key]))
+        end
     end
     output
 end
 
 function _load_to_dict(data)
     if parentmodule(typeof(data)) == JLD2.ReconstructedTypes
-        Dict(map(fieldnames(typeof(data))) do f
+        return Dict(map(fieldnames(typeof(data))) do f
             string(f) => _load_to_dict(getfield(data, f))
         end)
     else
-        data
+        return data
     end
 end
