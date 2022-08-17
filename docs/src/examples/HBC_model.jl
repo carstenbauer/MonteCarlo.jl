@@ -177,7 +177,7 @@ function MonteCarlo._save(file::MonteCarlo.FileLike, key::String, m::HBCModel)
     nothing
 end
 
-function MonteCarlo._load(data, ::Val{:HBCModel})
+function MonteCarlo.load_model(data, ::Val{:HBCModel})
     if data["VERSION"] == 1
         # This is compat for an earlier version which may not work due to other 
         # loading failing...

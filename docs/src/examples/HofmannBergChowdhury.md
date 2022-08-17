@@ -159,6 +159,8 @@ Now that we have the lattice we can generate a fitting hopping matrix. But befor
 [LoopVectorization.jl](https://github.com/JuliaSIMD/LoopVectorization.jl) is a great tool when pushing for peak single threaded/single core linear algebra performance. The linear algebra needed for DQMC is reimplemented in MonteCarlo.jl using it for both `Float64` and `ComplexF64`. The latter uses `MonteCarlo.CMat64` and `MonteCarlo.CVec64` as concrete array types which are based on [StructArrays.jl](https://github.com/JuliaArrays/StructArrays.jl) under the hood. They should be used in this model. Furthermore we can make use of `MonteCarlo.BlockDiagonal` as we have no terms with differing spin indices. Thus we set
 
 ```julia
+using MonteCarlo: StructArray, BlockDiagonal, CMat64
+
 MonteCarlo.@with_kw_noshow struct HBCModel <: Model
     # parameters with defaults based on paper
     mu::Float64 = 0.0
@@ -173,9 +175,9 @@ MonteCarlo.@with_kw_noshow struct HBCModel <: Model
     @assert l.unitcell.name == "HBC Square"
 end
 
-MonteCarlo.hoppingeltype(::Type{DQMC}, ::HBCModel) = ComplexF64
+MonteCarlo.hopping_eltype(::Type{DQMC}, ::HBCModel) = ComplexF64
 MonteCarlo.hopping_matrix_type(::Type{DQMC}, ::HBCModel) = BlockDiagonal{ComplexF64, 2, CMat64}
-MonteCarlo.greenseltype(::Type{DQMC}, ::HBCModel) = ComplexF64
+MonteCarlo.greens_eltype(::Type{DQMC}, ::HBCModel) = ComplexF64
 MonteCarlo.greens_matrix_type( ::Type{DQMC}, ::HBCModel) = BlockDiagonal{ComplexF64, 2, CMat64}
 ```
 
@@ -196,7 +198,7 @@ function MonteCarlo.hopping_matrix(m::HBCModel)
     t2p = + m.t2
     t2m = - m.t2
     
-    for b in bonds(m.l.lattice, Val(true))
+    for b in bonds(m.l, Val(true))
         # NN paper direction
         if b.label == 1 
             tup[b.from, b.to]   = - t1p
@@ -238,6 +240,11 @@ MonteCarlo.nflavors(::HBCModel) = 2
 ```
 
 There are a few more methods we can implement for convenience. The most important of these is `choose_field(model)`, which sets a default field for our model. The best choice here should be `DensityHirschField` or `DensityGHQField` as the model uses an attractive interaction. Beyond this we could implement `intE_kernel` to enable energy measurements, `parameters(model)`, `save_model`, `_load_model` and printing.
+
+```julia
+HBCModel(l::MonteCarlo.AbstractLattice; kwargs...) = HBCModel(l = l; kwargs...)
+MonteCarlo.choose_field(::HBCModel) = DensityHirschField
+```
 
 The full code including these convenience functions can be found [here](HBC_model.jl)
 
@@ -310,7 +317,7 @@ The `pairing_suceptibility` constructors from MonteCarlo.jl is written with thes
 
 
 ```julia
-mc[:PS] = pairing_susceptibility(mc, m, 1)
+mc[:PS] = pairing_susceptibility(mc, m, K=1)
 ```
 
 #### Superfluid Stiffness
@@ -320,7 +327,7 @@ The superfluid stiffness is given by $$0.25 [- K_x - \Lambda_{xx}(q = 0)]$$ in t
 The diamagnetic contribution $$K_x$$ is the simpler one. For that we refer to equations 15a - 15j in the paper. The sum of all of these is the $$K_x$$ we seek. Since all terms are quadratic in creation and annihilation operators we do not need to worry about expanding them with Wicks theorem. Instead we can simply measure the Greens matrix during the simulation. If we compare the equations with the Hamiltonian we will also notice that they are (almost) the same as the hopping terms. Thus we can get weights from the hopping matrix and apply them afterwards. We measure
 
 ```julia
-mc[:G] = greens_measurement(mc, model)
+mc[:G] = greens_measurement(mc, m)
 ```
 
 For the current-current correlations we need to measure $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$J_x(r, \tau)$$ is given in equation 14a - 14j. These terms are already implemented by MonteCarlo.jl, but we should briefly discuss them regardless. (We will leave the Fourier transform for later.) 
@@ -330,7 +337,7 @@ Much like $$K_x$$ these terms are closely related to the hopping terms of the Ha
 Let's get back to what we need to measure in our simulation. MonteCarlo.jl's `current_current_susceptibility` measures $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$\alpha$$ and $$\beta$$ are directions that get passedto the function. Since we set `t5 = 0` we can ignore equations 14g - 14j leaving 6 equations with 3 directions on 2 sublattices. MonteCarlo.jl does not care about sublattices, so we're left with three +x directions `[2, 6, 9]` which need to be passed. You can check these with `directions(mc)[[2, 6, 9]]` against the paper. Our measurement is given by
 
 ```julia
-mc[:CCS] = current_current_susceptibility(mc, model, directions = [2, 6, 9])
+mc[:CCS] = current_current_susceptibility(mc, m, directions = [2, 6, 9])
 ```
 
 ## Running the simulations
