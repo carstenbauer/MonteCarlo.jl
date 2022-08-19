@@ -52,6 +52,8 @@ function Base.get!(l::Lattice, key::Symbol, f::Function)
     end
 end
 
+Base.empty(l::Lattice) = empty!(l.cache.cache)
+
 construct_dir2srctrg(l::AbstractLattice) =  _dir2srctrg(l)
 function construct_dir2srctrg(b::Bravais)
     dir2srctrg = _dir2srctrg(b)

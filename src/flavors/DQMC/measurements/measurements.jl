@@ -541,6 +541,30 @@ end
 end
 
 
+function old_cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    N = length(lattice(model))
+    T = mc.stack.hopping_matrix
+    output = zero(eltype(G00))
+
+    for σ1 in (0, N), σ2 in (0, N)
+        s1 = src1 + σ1; t1 = trg1 + σ1
+        s2 = src2 + σ2; t2 = trg2 + σ2
+
+        output += (
+            (T[s2, t2] * (I[t2, s2] - Gll.val[t2, s2]) - T[t2, s2] * (I[t2, s2] - Gll.val[s2, t2])) * 
+            (T[t1, s1] * (I[s1, t1] - G00.val[s1, t1]) - T[s1, t1] * (I[s1, t1] - G00.val[t1, s1])) +
+            - T[t2, s2] * T[t1, s1] * G0l.val[s1, t2] * Gl0.val[s2, t1] +
+            + T[t2, s2] * T[s1, t1] * G0l.val[t1, t2] * Gl0.val[s2, s1] +
+            + T[s2, t2] * T[t1, s1] * G0l.val[s1, s2] * Gl0.val[t2, t1] +
+            - T[s2, t2] * T[s1, t1] * G0l.val[t1, s2] * Gl0.val[t2, s1] 
+        )
+    end
+
+    output
+end
+
 
 @inline function nonintE_kernel(mc, model, ::Nothing, G::GreensMatrix, flv)
     # <T> = \sum Tji * (Iij - Gij) = - \sum Tji * (Gij - Iij)
