@@ -547,6 +547,7 @@ function old_cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, fl
     N = length(lattice(model))
     T = mc.stack.hopping_matrix
     output = zero(eltype(G00))
+    id = I[G0l.k, G0l.l]
 
     for σ1 in (0, N), σ2 in (0, N)
         s1 = src1 + σ1; t1 = trg1 + σ1
@@ -555,10 +556,41 @@ function old_cc_kernel(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, fl
         output += (
             (T[s2, t2] * (I[t2, s2] - Gll.val[t2, s2]) - T[t2, s2] * (I[t2, s2] - Gll.val[s2, t2])) * 
             (T[t1, s1] * (I[s1, t1] - G00.val[s1, t1]) - T[s1, t1] * (I[s1, t1] - G00.val[t1, s1])) +
-            - T[t2, s2] * T[t1, s1] * G0l.val[s1, t2] * Gl0.val[s2, t1] +
-            + T[t2, s2] * T[s1, t1] * G0l.val[t1, t2] * Gl0.val[s2, s1] +
-            + T[s2, t2] * T[t1, s1] * G0l.val[s1, s2] * Gl0.val[t2, t1] +
-            - T[s2, t2] * T[s1, t1] * G0l.val[t1, s2] * Gl0.val[t2, s1] 
+            - T[t2, s2] * T[t1, s1] * (id * I[s1, t2] - G0l.val[s1, t2]) * Gl0.val[s2, t1] +
+            + T[t2, s2] * T[s1, t1] * (id * I[t1, t2] - G0l.val[t1, t2]) * Gl0.val[s2, s1] +
+            + T[s2, t2] * T[t1, s1] * (id * I[s1, s2] - G0l.val[s1, s2]) * Gl0.val[t2, t1] +
+            - T[s2, t2] * T[s1, t1] * (id * I[s2, t1] - G0l.val[t1, s2]) * Gl0.val[t2, s1] 
+        )
+    end
+
+    output
+end
+
+
+function old_cc_kernel_opt(mc, model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
+    src1, trg1, src2, trg2 = sites
+	G00, G0l, Gl0, Gll = packed_greens
+    N = length(lattice(model))
+    T = mc.stack.hopping_matrix
+    output = zero(eltype(G00))
+    id = I[G0l.k, G0l.l]
+
+    for σ1 in (0, N), σ2 in (0, N)
+        s1 = src1 + σ1; t1 = trg1 + σ1
+        s2 = src2 + σ2; t2 = trg2 + σ2
+
+        T1_st = T[s1, t1]
+        T1_ts = conj(T1_st)
+        T2_st = T[s2, t2]
+        T2_ts = conj(T2_st)
+
+        output += (
+            (T2_ts * Gll.val[s2, t2] - T2_st * Gll.val[t2, s2]) * 
+            (Ts_st * G00.val[t1, s1] - T1_ts * G00.val[s1, t1]) +
+            - T2_ts * T1_ts * (id * I[s1, t2] - G0l.val[s1, t2]) * Gl0.val[s2, t1] +
+            + T2_ts * T1_st * (id * I[t1, t2] - G0l.val[t1, t2]) * Gl0.val[s2, s1] +
+            + T2_st * T1_ts * (id * I[s1, s2] - G0l.val[s1, s2]) * Gl0.val[t2, t1] +
+            - T2_st * T1_st * (id * I[s2, t1] - G0l.val[t1, s2]) * Gl0.val[t2, s1] 
         )
     end
 
