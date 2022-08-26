@@ -181,7 +181,8 @@ function initialize_run(mc;
     propagate(mc)
 
     # Check assumptions for global updates
-    if !all(update isa AbstractLocalUpdate for update in updates(mc.scheduler))
+    # if !all(update isa AbstractLocalUpdate for update in updates(mc.scheduler))
+    if any(isa(update, AbstractGlobalUpdate) || isa(update, AbstractParallelUpdate) for update in updates(mc.scheduler))
         try
             copyto!(mc.stack.tmp2, mc.stack.greens)
             udt_AVX_pivot!(mc.stack.tmp1, mc.stack.tempvf, mc.stack.tmp2, mc.stack.pivot, mc.stack.tempv)

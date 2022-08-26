@@ -88,7 +88,7 @@ export Chain, SquareLattice, CubicLattice, TriangularLattice, Honeycomb
 # export AbstractLattice, Chain, SquareLattice, CubicLattice, TriangularLattice, ALPSLattice
 export EachSite, EachSiteAndFlavor, OnSite, EachSitePair, EachSitePairByDistance, 
         EachLocalQuadByDistance, EachLocalQuadBySyncedDistance, 
-        Sum, ApplySymmetries
+        EachBondPairByBravaisDistance, Sum, ApplySymmetries
 export unitcell, positions, bonds, bonds_open, directions
 
 include("flavors/MC/MC.jl")
