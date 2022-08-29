@@ -73,8 +73,8 @@ end
     @test_throws MethodError MonteCarlo.hopping_matrix(m)
     @test_throws MethodError rand(f)
     @test_throws MethodError rand!(f)
-    @test_throws MethodError MonteCarlo.nflavors(m)
-    @test_throws MethodError MonteCarlo.nflavors(f)
+    @test_throws MethodError MonteCarlo.unique_flavors(m)
+    @test_throws MethodError MonteCarlo.unique_flavors(f)
     @test_throws MethodError MonteCarlo.compress(f)
     @test_throws MethodError MonteCarlo.compressed_conf_type(f)
     @test_throws MethodError MonteCarlo.decompress(f, Int8[])
@@ -87,9 +87,9 @@ end
     @test_throws MethodError MonteCarlo.accept_local!(dqmc, f, 1, 1, 1.0, 1.0, nothing)
     
 
-    MonteCarlo.nflavors(::DummyModel) = 1
+    MonteCarlo.unique_flavors(::DummyModel) = 1
     MonteCarlo.lattice(m::DummyModel) = m.lattice
-    MonteCarlo.nflavors(::DummyField) = 2
+    MonteCarlo.unique_flavors(::DummyField) = 2
 
     # DQMC optional
     # method errors come from hopping_matrix(model)

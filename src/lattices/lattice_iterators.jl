@@ -103,7 +103,7 @@ Creates an iterator template which iterates through the diagonal of the Greensfu
 struct EachSiteAndFlavor <: DirectLatticeIterator
     Nflv::Int
 end
-EachSiteAndFlavor(mc::MonteCarloFlavor) = EachSiteAndFlavor(nflavors(mc))
+EachSiteAndFlavor(mc::MonteCarloFlavor) = EachSiteAndFlavor(unique_flavors(mc))
 with_lattice(iter::EachSiteAndFlavor, l::Lattice) = 1 : length(l) * iter.Nflv
 output_size(iter::EachSiteAndFlavor, l::Lattice) = (length(l) * iter.Nflv,)
 

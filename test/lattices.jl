@@ -236,7 +236,7 @@ using MonteCarlo: directed_norm
         for dqmc in dqmcs
             iter = MonteCarlo.with_lattice(EachSiteAndFlavor(dqmc), lattice(dqmc))
             Nsites = length(lattice(dqmc))
-            Nflavors = MonteCarlo.nflavors(MonteCarlo.field(dqmc))
+            Nflavors = MonteCarlo.unique_flavors(MonteCarlo.field(dqmc))
             @test collect(iter) == 1:Nsites*Nflavors
             @test length(iter) == Nsites*Nflavors
             @test eltype(iter) == Int64

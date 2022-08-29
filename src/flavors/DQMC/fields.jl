@@ -9,13 +9,13 @@ end
 
 function FieldCache(field, model)
     N = size(field.conf, 1)
-    flv = nflavors(field, model)
+    flv = unique_flavors(field, model)
     T = interaction_eltype(field)
     GET = greens_eltype(field, model)
     VT = vector_type(GET)
     MT = matrix_type(GET)
 
-    Δ = nflavors(field) == 1 ? zero(T) : vector_type(T)(undef, nflavors(field))
+    Δ = unique_flavors(field) == 1 ? zero(T) : vector_type(T)(undef, unique_flavors(field))
 
     if flv == 1
         # full greens matrix is flavor symmetric
@@ -374,7 +374,7 @@ function DensityHirschField(param::DQMCParameters, model::Model, U::Number = mod
     )
 end
 
-nflavors(::DensityHirschField) = 1
+unique_flavors(::DensityHirschField) = 1
 
 @inline function interaction_matrix_exp!(f::DensityHirschField, result::Diagonal, slice, power)
     N = size(f.conf, 1)
@@ -423,7 +423,7 @@ function MagneticHirschField(param::DQMCParameters, model::Model, U::Number = mo
     )
 end
 
-nflavors(::MagneticHirschField) = 2
+unique_flavors(::MagneticHirschField) = 2
 
 @inline function interaction_matrix_exp!(f::MagneticHirschField, result::Diagonal, slice, power)
     N = size(f.conf, 1)
@@ -539,7 +539,7 @@ function MagneticGHQField(param::DQMCParameters, model::Model, U::Number = model
     )
 end
 
-nflavors(::MagneticGHQField) = 2
+unique_flavors(::MagneticGHQField) = 2
 energy_boson(::MagneticGHQField, conf=nothing) = 0.0
 
 
@@ -609,7 +609,7 @@ function DensityGHQField(param::DQMCParameters, model::Model, U::Number = model.
     )
 end
 
-nflavors(::DensityGHQField) = 1
+unique_flavors(::DensityGHQField) = 1
 energy_boson(f::DensityGHQField, conf = f.conf) = f.α * sum(conf)
 
 

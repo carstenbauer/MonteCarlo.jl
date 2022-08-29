@@ -335,7 +335,7 @@ end
         @test mc.model.t == x.model.t
         @test mc.model.U == x.model.U
         @test mc.model.l == x.model.l
-        @test MonteCarlo.nflavors(mc.field) == MonteCarlo.nflavors(x.field)
+        @test MonteCarlo.unique_flavors(mc.field) == MonteCarlo.unique_flavors(x.field)
         @test mc.scheduler == x.scheduler
         for (k, v) in mc.thermalization_measurements
             for f in fieldnames(typeof(v))

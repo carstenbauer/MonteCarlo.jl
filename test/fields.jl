@@ -25,15 +25,15 @@ using MonteCarlo: FVec64, FMat64, CVec64, CMat64, BlockDiagonal
 
                 # hopping are always real and 1 flavor. They should get dublicated 
                 # if interaction requires two flavors (magnetic)
-                @test MonteCarlo.nflavors(mc.model) == 1
+                @test MonteCarlo.unique_flavors(mc.model) == 1
                 @test MonteCarlo.hopping_eltype(mc.model) == Float64
                 
                 # Greens matrix takes eltype from interaction because that might be complex
                 @test MonteCarlo.greens_eltype(mc.field, mc.model) == T
 
                 # 1 flavor for Density, 2 for Magnetic in interaction/total
-                @test MonteCarlo.nflavors(mc.field) == 2 - (i % 2)
-                @test MonteCarlo.nflavors(mc.field, mc.model) == 2 - (i % 2)
+                @test MonteCarlo.unique_flavors(mc.field) == 2 - (i % 2)
+                @test MonteCarlo.unique_flavors(mc.field, mc.model) == 2 - (i % 2)
                 
                 x = rand(4, 4)
 
@@ -41,7 +41,7 @@ using MonteCarlo: FVec64, FMat64, CVec64, CMat64, BlockDiagonal
                     @test MonteCarlo.hopping_matrix_type(mc.field, mc.model) == FMat64
                     @test mc.stack.hopping_matrix isa FMat64
 
-                    @test MonteCarlo.pad_to_nflavors(mc.field, mc.model, x) == x
+                    @test MonteCarlo.pad_to_unique_flavors(mc.field, mc.model, x) == x
 
                     @test MonteCarlo.greens_matrix_type(mc.field, mc.model) == mT
                     @test mc.stack.greens isa mT
@@ -52,7 +52,7 @@ using MonteCarlo: FVec64, FMat64, CVec64, CMat64, BlockDiagonal
                     @test MonteCarlo.hopping_matrix_type(mc.field, mc.model) == BlockDiagonal{Float64, 2, FMat64}
                     @test mc.stack.hopping_matrix isa BlockDiagonal{Float64, 2, FMat64}
 
-                    @test MonteCarlo.pad_to_nflavors(mc.field, mc.model, x) == BlockDiagonal(x, x)
+                    @test MonteCarlo.pad_to_unique_flavors(mc.field, mc.model, x) == BlockDiagonal(x, x)
 
                     @test MonteCarlo.greens_matrix_type(mc.field, mc.model) == BlockDiagonal{T, 2, mT}
                     @test mc.stack.greens isa BlockDiagonal{T, 2, mT}
@@ -121,7 +121,7 @@ end
         MonteCarlo.decompress!(f, compressed)
         @test MonteCarlo.conf(f) == c
 
-        @test MonteCarlo.nflavors(f) == (2 - (f isa DensityHirschField))
+        @test MonteCarlo.unique_flavors(f) == (2 - (f isa DensityHirschField))
         E = f isa DensityHirschField ? f.α * sum(f.conf) : 0.0
         @test MonteCarlo.energy_boson(f) == E
     end

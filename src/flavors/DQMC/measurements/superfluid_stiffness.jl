@@ -92,7 +92,7 @@ struct DirectedEnergy{T <: Number} <: Function
     weights::Vector{T}
 end
 
-function DirectedEnergy(mc::DQMC, dir_idxs::Vector{Int}, prefactor::Number = 3 - nflavors(mc))
+function DirectedEnergy(mc::DQMC, dir_idxs::Vector{Int}, prefactor::Number = 3 - unique_flavors(mc))
     # prefactor handles identical flavors
     
     if !isdefined(mc.stack, :hopping_matrix)

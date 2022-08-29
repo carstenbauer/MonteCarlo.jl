@@ -21,7 +21,17 @@ array, then `reshape(T, (n_sites * n_flavors, :))` is the hopping matrix.
 """
 hopping_matrix(m::Model) = throw(MethodError(hopping_matrix, (m, )))
 
-nflavors(m::Model) = throw(MethodError(nflavors, (m,)))
+"""
+    unqiue_flavors(m::Model)
+    unique_flavors(f::AbstractField)
+
+Returns the "unique" number of flavors or a Model or field.
+
+A flavors are considered unique if they affect the hopping (model) or 
+interaction matrix (field). For example a Hubbard model with spin independent
+hoppings has one unique flavor while a spin dependent one would have two.
+"""
+unique_flavors(m::Model) = throw(MethodError(unique_flavors, (m,)))
 
 ### Field
 ########################################
@@ -97,7 +107,7 @@ end
 Base.rand(f::AbstractField) = throw(MethodError(rand, (f,)))
 Random.rand!(f::AbstractField) = throw(MethodError(rand!, (f,)))
 
-nflavors(f::AbstractField) = throw(MethodError(nflavors, (f,)))
+unique_flavors(f::AbstractField) = throw(MethodError(unique_flavors, (f,)))
 
 # For ConfigRecorder
 compress(f::AbstractField) = throw(MethodError(compress, (f, )))
@@ -169,7 +179,7 @@ Returns the (matrix) type of the hopping matrix. Defaults to building a full
 hopping matrix and getting its type.
 """
 function hopping_matrix_type(f::AbstractField, m::Model)
-    typeof(pad_to_nflavors(f, m, hopping_matrix(m)))
+    typeof(pad_to_unique_flavors(f, m, hopping_matrix(m)))
 end
 
 
@@ -200,10 +210,10 @@ Returns an initial interaction matrix. This only used to allocate a correctly
 sized matrix.
 
 By default this uses the matrix type from `interaction_matrix_type` and uses 
-`max(nflavors(field), nflavors(model)) * length(lattice(model))` as the size.
+`max(unique_flavors(field), unique_flavors(model)) * length(lattice(model))` as the size.
 """
 function init_interaction_matrix(f::AbstractField, m::Model)
-    flv = nflavors(f, m)
+    flv = unique_flavors(f, m)
     N = length(lattice(m))
     FullT = interaction_matrix_type(f, m)
 
@@ -245,13 +255,22 @@ temp_conf(f::AbstractField) = f.temp_conf
 # These methods are just to simplify things. NOne of these should be implemented
 # when extending DQMC.
 
-nflavors(mc::DQMC) = nflavors(field(mc), model(mc))
-nflavors(f::AbstractField, m::Model) = max(nflavors(f), nflavors(m))
+"""
+    unique_flavors(mc::DQMC)
+    unique_flavors(f::AbstractField, m::Model)
 
-@inline pad_to_nflavors(mc::DQMC, mat) = pad_to_nflavors(field(mc), model(mc), mat)
-function pad_to_nflavors(f::AbstractField, m::Model, mat)
+Return the combined (i.e. maximum) number of unique fermion flavors between the 
+model and the field. This controls the size of the Greens matrix together with 
+`length(lattice)`.
+"""
+unique_flavors(mc::DQMC) = unique_flavors(field(mc), model(mc))
+unique_flavors(f::AbstractField, m::Model) = max(unique_flavors(f), unique_flavors(m))
+
+
+@inline pad_to_unique_flavors(mc::DQMC, mat) = pad_to_unique_flavors(field(mc), model(mc), mat)
+function pad_to_unique_flavors(f::AbstractField, m::Model, mat)
     N = length(lattice(m))
-    flv = nflavors(f, m)
+    flv = unique_flavors(f, m)
     if size(mat, 1) == N * flv
         return mat
     elseif size(mat, 1) == N

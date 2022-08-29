@@ -194,7 +194,7 @@ using MonteCarlo
         # Build stack values w/o QR decompositions with BigFloat
         GMT = Matrix{BigFloat}
         N = length(lattice(mc))
-        flv = MonteCarlo.nflavors(mc)
+        flv = MonteCarlo.unique_flavors(mc)
         M = mc.stack.n_elements
         
         forward_stack = [GMT(undef, flv*N, flv*N) for _ in 1:M]
@@ -257,7 +257,7 @@ using MonteCarlo
             # @assert slice1 ≥ slice2
             GMT = Matrix{BigFloat}
             N = length(lattice(mc))
-            flv = MonteCarlo.nflavors(mc)
+            flv = MonteCarlo.unique_flavors(mc)
             M = mc.parameters.slices
             
             eT2 = BigFloat.(Matrix(mc.stack.hopping_matrix_exp_squared))
