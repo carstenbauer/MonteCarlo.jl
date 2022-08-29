@@ -82,7 +82,8 @@ choose_field(m::HubbardModel) = m.U < 0.0 ? MagneticHirschField : DensityHirschF
 
 # implement DQMC interface:
 @inline lattice(m::HubbardModel) = m.l
-unique_flavors(::HubbardModel) = 1
+total_flavors(::HubbardModel) = 2 # 2 spins
+unique_flavors(::HubbardModel) = 1 # spins don't affect values in hopping matrix
 
 hopping_eltype(model::HubbardModel) = typeof(model.t)
 function hopping_matrix_type(field::AbstractField, model::HubbardModel)

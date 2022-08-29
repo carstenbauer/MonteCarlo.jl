@@ -33,6 +33,17 @@ hoppings has one unique flavor while a spin dependent one would have two.
 """
 unique_flavors(m::Model) = throw(MethodError(unique_flavors, (m,)))
 
+"""
+    total_flavors(m::Model)
+
+Returns the total number of fermion flavors in a model. 
+
+For example, a spin 1/2 model would return two, regardless of whether the values
+in the hopping or interaction matrix depend on spin.
+"""
+total_flavors(m::Model) = throw(MethodError(total_flavors, (m,)))
+
+
 ### Field
 ########################################
 
@@ -279,3 +290,7 @@ function pad_to_unique_flavors(f::AbstractField, m::Model, mat)
         error("Failed to expand size $(size(mat)) matrix to size ($N * $flv, $N * $flv) ")
     end
 end
+
+
+# TODO remove eventually
+@deprecate nflavors unique_flavors false
