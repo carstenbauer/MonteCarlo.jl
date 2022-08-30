@@ -149,22 +149,28 @@ field_hint(m, ::Val) = choose_field(m)
 field_hint(m, ::Val{:AttractiveGHQHubbardModel}) = MagneticGHQField
 field_hint(m, ::Val{:RepulsiveGHQHubbardModel}) = MagneticGHQField
 
-function intE_kernel(mc, model::HubbardModel, ::Nothing, G::GreensMatrix, ::Val{1})
+
+function interaction_energy_kernel(mc, model::HubbardModel, ::Nothing, G::_GM{<: DiagonallyRepeatingMatrix}, flv)
     # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... 
     # = U [G↑↑ G↓↓ - G↓↑ G↑↓ - 0.5 G↑↑ - 0.5 G↓↓ + G↑↓ + 0.25]
     # = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
     # with up-up = down-down and up-down = 0
-    - model.U * sum((diag(G.val) .- 0.5).^2)
+    - model.U * sum((diag(G.val.val) .- 0.5).^2)
 end
-# Technically this only applies to BlockDiagonal
-function intE_kernel(mc, model::HubbardModel, ::Nothing, G::GreensMatrix{Float64}, ::Val{2})
-    - model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
+
+function interaction_energy_kernel(mc, model::HubbardModel, ::Nothing, G::_GM{<: BlockDiagonal}, flv)
+    output = zero(eltype(G.val.blocks[1]))
+    @inbounds @fastmath for i in axes(G.val.blocks[1], 1)
+        output -= (G.val.blocks[1][i, i] - 0.5) * (G.val.blocks[2][i, i] - 0.5)
+    end
+    return model.U * output
 end
-function intE_kernel(mc, model::HubbardModel, ::Nothing, G::GreensMatrix{ComplexF64}, ::Val{2})
+
+function interaction_energy_kernel(mc, model::HubbardModel, ::Nothing, G::_GM{<: Matrix}, flv)
     N = length(lattice(model))
-    output = 0.0 + 0.0im
-    for i in 1:N
+    output = zero(eltype(G.val))
+    @inbounds @fastmath for i in 1:N
         output -= (G.val[i, i] .- 0.5) .* (G.val[N+i, N+i] .- 0.5)
     end
-    output * model.U
+    return output * model.U
 end

@@ -167,11 +167,18 @@ end
     for m1 in (HubbardModel(4, 2), HubbardModel(4, 2, U = -1.0))
         mc = DQMC(m1, beta=1.0, safe_mult=1)
 
+        fi = if MonteCarlo.unique_flavors(mc) == 2
+            [(1, 1), (1, 2), (2, 1), (2, 2)]
+        else
+            [(1, 1),]
+        end
+
         # Greens
         m = greens_measurement(mc, m1)
         @test m isa MonteCarlo.DQMCMeasurement
         @test m.greens_iterator == Greens()
         @test m.lattice_iterator === nothing
+        @test m.flavor_iterator === nothing
         @test m.kernel == MonteCarlo.greens_kernel
         @test m.observable isa LogBinner{Matrix{Float64}}
         @test m.temp === nothing
@@ -180,7 +187,8 @@ end
         m = occupation(mc, m1)
         @test m isa MonteCarlo.DQMCMeasurement
         @test m.greens_iterator == Greens()
-        @test m.lattice_iterator == EachSiteAndFlavor(mc)
+        @test m.lattice_iterator === nothing
+        @test m.flavor_iterator === nothing
         @test m.kernel == MonteCarlo.occupation_kernel
         @test m.observable isa LogBinner{Vector{Float64}}
         @test m.temp isa Vector{Float64}
@@ -196,6 +204,7 @@ end
             end
             @test m isa MonteCarlo.DQMCMeasurement
             @test m.lattice_iterator == EachSitePairByDistance()
+            @test m.flavor_iterator == fi
             @test m.kernel == MonteCarlo.cdc_kernel
             @test m.observable isa LogBinner{Array{Float64, 3}}
             @test m.temp isa Array{Float64, 3}
@@ -226,6 +235,7 @@ end
             end
             @test m isa MonteCarlo.DQMCMeasurement
             @test m.lattice_iterator == EachLocalQuadByDistance(1:5)
+            @test m.flavor_iterator == 2
             @test m.kernel == MonteCarlo.pc_combined_kernel
             @test m.observable isa LogBinner{Array{Float64, 5}}
             @test m.temp isa Array{Float64, 5}
@@ -237,6 +247,7 @@ end
             @test m isa MonteCarlo.DQMCMeasurement
             @test m.greens_iterator == Greens()
             @test m.lattice_iterator == EachSite()
+            @test m.flavor_iterator == 2
             @test m.kernel == Core.eval(MonteCarlo, Symbol(:m, dir, :_kernel))
             @test m.observable isa LogBinner{Vector{Float64}}
             @test m.temp isa Vector{Float64}
@@ -247,6 +258,7 @@ end
         @test m isa MonteCarlo.DQMCMeasurement
         @test m.greens_iterator == TimeIntegral(mc)
         @test m.lattice_iterator == EachLocalQuadBySyncedDistance(2:5)
+        @test m.flavor_iterator == fi
         @test m.kernel == MonteCarlo.cc_kernel
         @test m.observable isa LogBinner{Array{Float64, 4}}
         @test m.temp isa Array{Float64, 4}

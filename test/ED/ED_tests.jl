@@ -106,7 +106,7 @@ end
 
     println("Exact Greens comparison (ED)")
     for model in models, beta in (1.0, 8.9)
-        @testset "$(typeof(model))" begin
+        @testset "$(typeof(model)) β = $beta" begin
             dqmc = DQMC(
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
                 thermalization = 1, sweeps = 2, measure_rate=1
