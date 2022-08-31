@@ -28,12 +28,12 @@ Returns the per-site x-magnetization `⟨cᵢ↑^† cᵢ↓ + cᵢ↓^† cᵢ�
 * Lattice Iterators: `EachSite`
 * Greens Iterators: `Greens` or `GreensAt`
 """
-function mx_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
+@inline Base.@propagate_inbounds function mx_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
     N = length(lattice(model))
     return -G.val[i+N, i] - G.val[i, i+N]
 end
-mx_kernel(mc, model, i, G::_GM{<: DiagonallyRepeatingMatrix}, flv) = 0.0
-mx_kernel(mc, model, i, G::_GM{<: BlockDiagonal}, flv) = 0.0
+@inline Base.@propagate_inbounds mx_kernel(mc, model, i, G::_GM{<: DiagonallyRepeatingMatrix}, flv) = 0.0
+@inline Base.@propagate_inbounds mx_kernel(mc, model, i, G::_GM{<: BlockDiagonal}, flv) = 0.0
 
 
 """
@@ -45,12 +45,12 @@ imaginary prefactor.
 * Lattice Iterators: `EachSite`
 * Greens Iterators: `Greens` or `GreensAt`
 """
-function my_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
+@inline Base.@propagate_inbounds function my_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
     N = length(lattice(model))
     return G.val[i+N, i] - G.val[i, i+N]
 end
-my_kernel(mc, model, i, G::_GM{<: DiagonallyRepeatingMatrix}, flv) = 0.0
-my_kernel(mc, model, i, G::_GM{<: BlockDiagonal}, flv) = 0.0
+@inline Base.@propagate_inbounds my_kernel(mc, model, i, G::_GM{<: DiagonallyRepeatingMatrix}, flv) = 0.0
+@inline Base.@propagate_inbounds my_kernel(mc, model, i, G::_GM{<: BlockDiagonal}, flv) = 0.0
 
 
 """
@@ -61,11 +61,11 @@ Returns the per-site z-magnetization `⟨nᵢ↑ - nᵢ↓⟩`.
 * Lattice Iterators: `EachSite`
 * Greens Iterators: `Greens` or `GreensAt`
 """
-function mz_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
+@inline Base.@propagate_inbounds function mz_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
     N = length(lattice(model))
     return G.val[i+N, i+N] - G.val[i, i]
 end
-mz_kernel(mc, model, i, G::_GM{<: DiagonallyRepeatingMatrix}, flv) = 0.0
-function mz_kernel(mc, model, i, G::_GM{<: BlockDiagonal}, flv)
+@inline Base.@propagate_inbounds mz_kernel(mc, model, i, G::_GM{<: DiagonallyRepeatingMatrix}, flv) = 0.0
+@inline Base.@propagate_inbounds function mz_kernel(mc, model, i, G::_GM{<: BlockDiagonal}, flv)
     return G.val.blocks[2][i, i] - G.val.blocks[1][i, i]
 end

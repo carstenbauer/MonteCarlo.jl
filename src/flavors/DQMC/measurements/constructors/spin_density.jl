@@ -21,11 +21,13 @@ spin_density_susceptibility(mc, args...; kwargs...) = spin_density(mc, args..., 
 ################################################################################
 
 
-function sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
+@inline Base.@propagate_inbounds function sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     return sdc_x_kernel(mc, model, ij, (G, G, G, G), flv)
 end
 
-function sdc_x_kernel(mc, model, ij::NTuple{2}, packed_greens::_GM4{<: Matrix}, flv)
+@inline Base.@propagate_inbounds function sdc_x_kernel(
+        mc, model, ij::NTuple{2}, packed_greens::_GM4{<: Matrix}, flv
+    )
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
     N = length(lattice(mc))
@@ -47,7 +49,7 @@ function sdc_x_kernel(mc, model, ij::NTuple{2}, packed_greens::_GM4{<: Matrix}, 
     (0  - G0l.val[j+N, i])   * Gl0.val[i, j+N]
 end
 
-function sdc_x_kernel(
+@inline Base.@propagate_inbounds function sdc_x_kernel(
         mc, model, ij::NTuple{2}, 
         packed_greens::_GM4{<: DiagonallyRepeatingMatrix}, flvs
     )
@@ -57,7 +59,7 @@ function sdc_x_kernel(
     return 2 * (id - G0l.val.val[j, i]) * Gl0.val.val[i, j]
 end
 
-function sdc_x_kernel(
+@inline Base.@propagate_inbounds function sdc_x_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: BlockDiagonal}, flv
     )
     i, j = ij
@@ -71,11 +73,11 @@ end
 
 
 
-function sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
+@inline Base.@propagate_inbounds function sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     return sdc_y_kernel(mc, model, ij, (G, G, G, G), flv)
 end
 
-function sdc_y_kernel(
+@inline Base.@propagate_inbounds function sdc_y_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: Matrix}, flv
     )
     i, j = ij
@@ -95,7 +97,7 @@ function sdc_y_kernel(
     - (0  - G0l.val[j+N, i]) * Gl0.val[i, j+N]
 end
 
-function sdc_y_kernel(
+@inline Base.@propagate_inbounds function sdc_y_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: DiagonallyRepeatingMatrix}, flv
     )
     i, j = ij
@@ -105,7 +107,7 @@ function sdc_y_kernel(
     return 2 * (id - G0l.val.val[j, i]) * Gl0.val.val[i, j]
 end
 
-function sdc_y_kernel(
+@inline Base.@propagate_inbounds function sdc_y_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: BlockDiagonal}, flv
     )
     i, j = ij
@@ -119,11 +121,11 @@ end
 
 
 
-function sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
+@inline Base.@propagate_inbounds function sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     return sdc_z_kernel(mc, model, ij, (G, G, G, G), flv)
 end
 
-function sdc_z_kernel(
+@inline Base.@propagate_inbounds function sdc_z_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: Matrix}, flv
     )
     i, j = ij
@@ -143,7 +145,7 @@ function sdc_z_kernel(
       (id - G0l.val[j+N, i+N]) * Gl0.val[i+N, j+N]
 end
 
-function sdc_z_kernel(
+@inline Base.@propagate_inbounds function sdc_z_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: DiagonallyRepeatingMatrix}, flv
     )
     i, j = ij
@@ -152,7 +154,7 @@ function sdc_z_kernel(
     return 2 * (id - G0l.val.val[j, i]) * Gl0.val.val[i, j]
 end
 
-function sdc_z_kernel(
+@inline Base.@propagate_inbounds function sdc_z_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: BlockDiagonal}, flv
     )
     i, j = ij

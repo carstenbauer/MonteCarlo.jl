@@ -21,16 +21,16 @@ end
 # the flavor iterators imply sums...
 
 # site index, flavor index, number of sites in lattice, Greensmatrix
-function occupation_kernel(i, flv, N, G::_GM{<: Matrix})
+@inline Base.@propagate_inbounds function occupation_kernel(i, flv, N, G::_GM{<: Matrix})
     shift = N * (flv - 1)
     return 1 - G.val[i+shift, i+shift]
 end
 
-function occupation_kernel(i, flv, N, G::_GM{<: DiagonallyRepeatingMatrix})
+@inline Base.@propagate_inbounds function occupation_kernel(i, flv, N, G::_GM{<: DiagonallyRepeatingMatrix})
     return 1 - G.val.val[i, i]
 end
 
-function occupation_kernel(i, flv, N, G::_GM{<: BlockDiagonal})
+@inline Base.@propagate_inbounds function occupation_kernel(i, flv, N, G::_GM{<: BlockDiagonal})
     return 1 - G.val.blocks[flv][i, i]
 end
 
@@ -40,7 +40,7 @@ end
     )
     i = 1
     N = length(lattice(mc))
-    for flv in 1:unique_flavors(mc)
+    @inbounds @fastmath for flv in 1:unique_flavors(mc)
         for n in eachindex(lattice(mc))
             m.temp[i] = m.kernel(n, flv, N, packed_greens)
             i += 1
