@@ -80,9 +80,9 @@ end
     T = mc.stack.hopping_matrix
     output = zero(eltype(G.val.blocks[1]))
 
-    for b in eachindex(G.val.blocks)
+    @inbounds @fastmath for b in eachindex(G.val.blocks)
         g = G.val.blocks[b]
-        @turbo for i in axes(g, 1), j in axes(g, 2)
+        for i in axes(g, 1), j in axes(g, 2)
             output += conj(T.blocks[b][i, j]) * (I[i, j] - g[i, j])
         end
     end

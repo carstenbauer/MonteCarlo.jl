@@ -101,7 +101,7 @@ end
 
 @testset "Exact Greens comparison (ED, tiny systems)" begin
     models = (
-        HubbardModel(2, 2, U = 0.0, t = 1.0),
+        HubbardModel(Honeycomb(2, 1), U = 0.0, t = 1.0),
     )
 
     println("Exact Greens comparison (ED)")
