@@ -136,9 +136,5 @@ include("greens.jl")
 include("measurements/greens_iterators.jl")
 # The overall structure
 include("measurements/generic.jl")
-# Quick constructers and measurement kernels (i.e. applied Wicks theorem)
-# include("measurements/measurements.jl")
-# Superfluid stiffness stuff
-# include("measurements/superfluid_stiffness.jl")
 # coinstructors + Wicks expanded kernels
 include("measurements/constructors/main.jl")
