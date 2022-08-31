@@ -156,9 +156,9 @@ let
         @test length(iter) == length(it)
 
         for (i, (G0k, Gk0, Gkk)) in enumerate(iter)
-            @test maximum(abs.(Gk0.val .- Gk0s[i])) < 1e-14
-            @test maximum(abs.(G0k.val .- G0ks[i])) < 1e-14
-            @test maximum(abs.(Gkk.val .- Gkks[i])) < 1e-14
+            @test maximum(abs.(Gk0.val .- Gk0s[i])) < 2e-14
+            @test maximum(abs.(G0k.val .- G0ks[i])) < 2e-14
+            @test maximum(abs.(Gkk.val .- Gkks[i])) < 2e-14
         end
 
         # low precision
