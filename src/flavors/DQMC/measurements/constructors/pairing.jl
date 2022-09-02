@@ -76,7 +76,7 @@ end
     # (I-G)_{j, i+d}^{↑, ↓}(0, τ) G_{j+d', i}^{↓, ↑}(0, τ)
     (I[trg1, trg2] * I[G0l.k, G0l.l] - G0l.val[trg2+N, trg1+N]) * 
     (I[src1, src2] * I[G0l.k, G0l.l] - G0l.val[src2, src1]) -
-    G0l[src2, trg1+N] * G0l[trg2+N, src1]
+    G0l.val[src2, trg1+N] * G0l.val[trg2+N, src1]
 end
 
 @inline Base.@propagate_inbounds function pc_alt_kernel(
@@ -103,6 +103,7 @@ end
     # same as in https://arxiv.org/pdf/1912.08848.pdf
     pc_kernel(mc, model, sites, G, flv) + pc_alt_kernel(mc, model, sites, G, flv)
 end
+
 
 ################################################################################
 ### Old Methods
