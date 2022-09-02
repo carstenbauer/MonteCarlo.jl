@@ -350,72 +350,78 @@ end
 ################################################################################
 
 
-@bm function apply!(
+function apply!(
         temp::Array, iter::DirectLatticeIterator, measurement, mc::DQMC, 
         packed_greens, weight = 1.0
     )
-    @inbounds @fastmath for σ in measurement.flavor_iterator
-        for idx in with_lattice(iter, lattice(mc))
-            val = getindex(temp, CartesianIndex(idx))
-            val += weight * measurement.kernel(mc, mc.model, idx, packed_greens, σ)
-            setindex!(temp, val, CartesianIndex(idx))
-        end
+    @timeit_debug "apply!(::DirectLatticeIterator, ::$(typeof(measurement.kernel)))" begin
+        @inbounds @fastmath for σ in measurement.flavor_iterator
+            for idx in with_lattice(iter, lattice(mc))
+                val = getindex(temp, CartesianIndex(idx))
+                val += weight * measurement.kernel(mc, mc.model, idx, packed_greens, σ)
+                setindex!(temp, val, CartesianIndex(idx))
+            end
+        end 
     end
     nothing
 end
 
 
-@bm function apply!(
+function apply!(
         temp::Array, iter::DeferredLatticeIterator, measurement, mc::DQMC, 
         packed_greens, weight = 1.0
     )
-    @inbounds @fastmath for σ in measurement.flavor_iterator
-        for idxs in with_lattice(iter, lattice(mc))
-            temp[first(idxs)] += weight * measurement.kernel(
-                mc, mc.model, idxs[2:end], packed_greens, σ
-            )
+    @timeit_debug "apply!(::DeferredLatticeIterator, ::$(typeof(measurement.kernel)))" begin
+        @inbounds @fastmath for σ in measurement.flavor_iterator
+            for idxs in with_lattice(iter, lattice(mc))
+                temp[first(idxs)] += weight * measurement.kernel(
+                    mc, mc.model, idxs[2:end], packed_greens, σ
+                )
+            end
         end
     end
     nothing
 end
 
-@bm function apply!(
+function apply!(
         temp::Array, iter::EachLocalQuadByDistance, measurement, mc::DQMC, 
         packed_greens, weight = 1.0
     )
-    l = lattice(mc)
-    srcdir2trg = l[:srcdir2trg]::Matrix{Int}
-    Bsrctrg2dir = l[:Bravais_srctrg2dir]::Matrix{Int}
-    B = length(unitcell(l))
-    subN = _length(l, iter.directions)::Int
-    Ndir = length(l[:Bravais_dir2srctrg])::Int
+    @timeit_debug "apply!(::EachLocalQuadByDistance, ::$(typeof(measurement.kernel)))" begin
+        l = lattice(mc)
+        srcdir2trg = l[:srcdir2trg]::Matrix{Int}
+        Bsrctrg2dir = l[:Bravais_srctrg2dir]::Matrix{Int}
+        B = length(unitcell(l))
+        subN = _length(l, iter.directions)::Int
+        Ndir = length(l[:Bravais_dir2srctrg])::Int
 
-    @inbounds @fastmath for σ in measurement.flavor_iterator
-        for src1 in eachindex(l)
-            Bsrc1, uc1 = fldmod1(src1, B)
-            dirs1 = _dir_idxs_uc(l, iter.directions, uc1)::Vector{Pair{Int, Int}}
+        @inbounds @fastmath for σ in measurement.flavor_iterator
+            for src1 in eachindex(l)
+                Bsrc1, uc1 = fldmod1(src1, B)
+                dirs1 = _dir_idxs_uc(l, iter.directions, uc1)::Vector{Pair{Int, Int}}
 
-            for src2 in eachindex(l)
-                Bsrc2, uc2 = fldmod1(src2, B)
-                dir12 = Bsrctrg2dir[Bsrc1, Bsrc2]
-                dirs2 = _dir_idxs_uc(l, iter.directions, uc2)::Vector{Pair{Int, Int}}
-                
-                for (sub_idx1, dir1) in dirs1
-                    trg1 = srcdir2trg[src1, dir1]
-                    trg1 == 0 && continue
+                for src2 in eachindex(l)
+                    Bsrc2, uc2 = fldmod1(src2, B)
+                    dir12 = Bsrctrg2dir[Bsrc1, Bsrc2]
+                    dirs2 = _dir_idxs_uc(l, iter.directions, uc2)::Vector{Pair{Int, Int}}
                     
-                    for (sub_idx2, dir2) in dirs2
-                        trg2 = srcdir2trg[src2, dir2]
-                        trg2 == 0 && continue
+                    for (sub_idx1, dir1) in dirs1
+                        trg1 = srcdir2trg[src1, dir1]
+                        trg1 == 0 && continue
                         
-                        combined_dir = _sub2ind(
-                            (B, B, Ndir, subN, subN), 
-                            (uc1, uc2, dir12, sub_idx1, sub_idx2)
-                        )
+                        for (sub_idx2, dir2) in dirs2
+                            trg2 = srcdir2trg[src2, dir2]
+                            trg2 == 0 && continue
+                            
+                            combined_dir = _sub2ind(
+                                (B, B, Ndir, subN, subN), 
+                                (uc1, uc2, dir12, sub_idx1, sub_idx2)
+                            )
 
-                        temp[combined_dir] += weight * measurement.kernel(
-                            mc, mc.model, (src1, trg1, src2, trg2), packed_greens, σ
-                        )
+                            temp[combined_dir] += weight * measurement.kernel(
+                                mc, mc.model, (src1, trg1, src2, trg2), packed_greens, σ
+                            )
+                        end
                     end
                 end
             end
@@ -431,37 +437,39 @@ modcachex(l::Lattice) = collect(mod1.(1:(1+3l.Ls[1]), l.Ls[1]))
 modcachey(l::Lattice) = collect(mod1.(1:(1+3l.Ls[2]), l.Ls[2]))
 
 
-@bm function apply!(
+function apply!(
         temp::Array, iter::EachBondPairByBravaisDistance, measurement, mc::DQMC, 
         packed_greens, weight = 1.0
     )
-    l = lattice(mc)
-    Lx, Ly = l.Ls
-    bs = view(l.unitcell.bonds, iter.bond_idxs)
-    modx = get!(l, :modcachex, modcachex)::Vector{Int}
-    mody = get!(l, :modcachey, modcachey)::Vector{Int}
-    
-    @inbounds @fastmath for σ in measurement.flavor_iterator
-        for s1y in 1:Ly, s1x in 1:Lx
-            for s2y in 1:Ly, s2x in 1:Lx
-                # output "directions"
-                # 1 because I want onsite at index 1
-                dx = modx[1 + s2x - s1x + Lx] 
-                dy = mody[1 + s2y - s1y + Ly]
+    @timeit_debug "apply!(::EachBondPairByBravaisDistance, ::$(typeof(measurement.kernel)))" begin
+        l = lattice(mc)
+        Lx, Ly = l.Ls
+        bs = view(l.unitcell.bonds, iter.bond_idxs)
+        modx = get!(l, :modcachex, modcachex)::Vector{Int}
+        mody = get!(l, :modcachey, modcachey)::Vector{Int}
+        
+        @inbounds @fastmath for σ in measurement.flavor_iterator
+            for s1y in 1:Ly, s1x in 1:Lx
+                for s2y in 1:Ly, s2x in 1:Lx
+                    # output "directions"
+                    # 1 because I want onsite at index 1
+                    dx = modx[1 + s2x - s1x + Lx] 
+                    dy = mody[1 + s2y - s1y + Ly]
 
-                for (i, b1) in enumerate(bs)
-                    s1 = _sub2ind(l, (from(b1), s1x, s1y))
-                    x, y = b1.uc_shift
-                    t1 = _sub2ind(l, (to(b1), modx[s1x+x+Lx], mody[s1y+y+Ly]))
+                    for (i, b1) in enumerate(bs)
+                        s1 = _sub2ind(l, (from(b1), s1x, s1y))
+                        x, y = b1.uc_shift
+                        t1 = _sub2ind(l, (to(b1), modx[s1x+x+Lx], mody[s1y+y+Ly]))
 
-                    for (j, b2) in enumerate(bs)
-                        s2 = _sub2ind(l, (from(b2), s2x, s2y))
-                        x, y = b2.uc_shift
-                        t2 = _sub2ind(l, (to(b2), modx[s2x+x+Lx], mody[s2y+y+Ly]))
+                        for (j, b2) in enumerate(bs)
+                            s2 = _sub2ind(l, (from(b2), s2x, s2y))
+                            x, y = b2.uc_shift
+                            t2 = _sub2ind(l, (to(b2), modx[s2x+x+Lx], mody[s2y+y+Ly]))
 
-                        temp[dx, dy, i, j] += weight * measurement.kernel(
-                            mc, mc.model, (s1, t1, s2, t2), packed_greens, σ
-                        )
+                            temp[dx, dy, i, j] += weight * measurement.kernel(
+                                mc, mc.model, (s1, t1, s2, t2), packed_greens, σ
+                            )
+                        end
                     end
                 end
             end
