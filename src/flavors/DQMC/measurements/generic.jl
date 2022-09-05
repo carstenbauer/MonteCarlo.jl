@@ -131,6 +131,15 @@ function _save(file::FileLike, key::String, m::DQMCMeasurement)
     write(file, "$key/temp", m.temp)
 end
 
+struct ErrorIterator end
+function Base.iterate(::ErrorIterator, state = nothing)
+    error(
+        "Attempting to iterate an `ErrorIterator()`. This most likely " *
+        "happened due to loading a simulation with measurements lacking " *
+        " flavor iterators."
+    )
+end
+
 function _load(data, ::Val{:DQMCMeasurement})
     temp = haskey(data, "temp") ? data["temp"] : data["output"]
     kernel_name = data["kernel"]
@@ -148,7 +157,8 @@ function _load(data, ::Val{:DQMCMeasurement})
         # TODO generate defaults based on kernel name
         # don't think I can without mc being available because I need 
         # to call unique_flavors(mc)
-        error("TODO")
+        @error "Need to make an iterator that errors on iteration here" maxlog = 1
+        ErrorIterator()
     end
     obs = _load(data["obs"])
     DQMCMeasurement(gi, li, fi, kernel, obs, temp)
