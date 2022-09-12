@@ -35,6 +35,12 @@ end
 ### New kernels
 ################################################################################
 
+@inline Base.@propagate_inbounds function cc_kernel(
+        mc, m::Model, sites, G::_GM, flv
+    )
+    return cc_kernel(mc, m, sites, (G, G, G, G), flv)
+end
+
 
 # Basic full Matrix
 @inline Base.@propagate_inbounds function cc_kernel(
