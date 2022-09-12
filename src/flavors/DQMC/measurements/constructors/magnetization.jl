@@ -24,9 +24,6 @@ end
     mx_kernel(mc, model, i::Integer, G::GreensMatrix)
 
 Returns the per-site x-magnetization `⟨cᵢ↑^† cᵢ↓ + cᵢ↓^† cᵢ↑⟩`.
-    
-* Lattice Iterators: `EachSite`
-* Greens Iterators: `Greens` or `GreensAt`
 """
 @inline Base.@propagate_inbounds function mx_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
     N = length(lattice(model))
@@ -41,9 +38,6 @@ end
 
 Returns the per-site y-magnetization `-⟨cᵢ↑^† cᵢ↓ - cᵢ↓^† cᵢ↑⟩` without the 
 imaginary prefactor.
-    
-* Lattice Iterators: `EachSite`
-* Greens Iterators: `Greens` or `GreensAt`
 """
 @inline Base.@propagate_inbounds function my_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
     N = length(lattice(model))
@@ -57,9 +51,6 @@ end
     mz_kernel(mc, model, i::Integer, G::GreensMatrix)
 
 Returns the per-site z-magnetization `⟨nᵢ↑ - nᵢ↓⟩`.
-    
-* Lattice Iterators: `EachSite`
-* Greens Iterators: `Greens` or `GreensAt`
 """
 @inline Base.@propagate_inbounds function mz_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
     N = length(lattice(model))

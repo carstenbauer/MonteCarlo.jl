@@ -1,5 +1,5 @@
 function boson_energy_measurement(dqmc, model; kwargs...)
-    Measurement(dqmc, model, Nothing, nothing, energy_boson; kwargs...)
+    Measurement(dqmc, model, nothing, nothing, nothing, energy_boson; kwargs...)
 end
 
 @deprecate noninteracting_energy kinetic_energy

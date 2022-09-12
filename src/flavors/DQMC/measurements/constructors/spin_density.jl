@@ -2,9 +2,9 @@ function spin_density(
         dqmc, model, dir::Symbol, greens_iterator; 
         lattice_iterator = EachSitePairByDistance(), wrapper = nothing, 
         flavor_iterator = FlavorIterator(dqmc, 0),
-        kernel = if dir == :x; sdc_x_kernel
-        elseif dir == :y; sdc_y_kernel
-        elseif dir == :z; sdc_z_kernel
+        kernel = if dir == :x; full_sdc_x_kernel
+        elseif dir == :y; full_sdc_y_kernel
+        elseif dir == :z; full_sdc_z_kernel
         else throw(ArgumentError("`dir` must be :x, :y or :z, but is $dir"))
         end,
         kwargs...
@@ -17,15 +17,15 @@ spin_density_susceptibility(mc, args...; kwargs...) = spin_density(mc, args..., 
 
 
 ################################################################################
-### Methods
+### Full kernels
 ################################################################################
 
 
-@inline Base.@propagate_inbounds function sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
-    return sdc_x_kernel(mc, model, ij, (G, G, G, G), flv)
+@inline Base.@propagate_inbounds function full_sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
+    return full_sdc_x_kernel(mc, model, ij, (G, G, G, G), flv)
 end
 
-@inline Base.@propagate_inbounds function sdc_x_kernel(
+@inline Base.@propagate_inbounds function full_sdc_x_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: Matrix}, flv
     )
     i, j = ij
@@ -49,7 +49,7 @@ end
     (0  - G0l.val[j+N, i])   * Gl0.val[i, j+N]
 end
 
-@inline Base.@propagate_inbounds function sdc_x_kernel(
+@inline Base.@propagate_inbounds function full_sdc_x_kernel(
         mc, model, ij::NTuple{2}, 
         packed_greens::_GM4{<: DiagonallyRepeatingMatrix}, flvs
     )
@@ -59,7 +59,7 @@ end
     return 2 * (id - G0l.val.val[j, i]) * Gl0.val.val[i, j]
 end
 
-@inline Base.@propagate_inbounds function sdc_x_kernel(
+@inline Base.@propagate_inbounds function full_sdc_x_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: BlockDiagonal}, flv
     )
     i, j = ij
@@ -73,11 +73,11 @@ end
 
 
 
-@inline Base.@propagate_inbounds function sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
-    return sdc_y_kernel(mc, model, ij, (G, G, G, G), flv)
+@inline Base.@propagate_inbounds function full_sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
+    return full_sdc_y_kernel(mc, model, ij, (G, G, G, G), flv)
 end
 
-@inline Base.@propagate_inbounds function sdc_y_kernel(
+@inline Base.@propagate_inbounds function full_sdc_y_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: Matrix}, flv
     )
     i, j = ij
@@ -97,7 +97,7 @@ end
     - (0  - G0l.val[j+N, i]) * Gl0.val[i, j+N]
 end
 
-@inline Base.@propagate_inbounds function sdc_y_kernel(
+@inline Base.@propagate_inbounds function full_sdc_y_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: DiagonallyRepeatingMatrix}, flv
     )
     i, j = ij
@@ -107,7 +107,7 @@ end
     return 2 * (id - G0l.val.val[j, i]) * Gl0.val.val[i, j]
 end
 
-@inline Base.@propagate_inbounds function sdc_y_kernel(
+@inline Base.@propagate_inbounds function full_sdc_y_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: BlockDiagonal}, flv
     )
     i, j = ij
@@ -121,11 +121,11 @@ end
 
 
 
-@inline Base.@propagate_inbounds function sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
-    return sdc_z_kernel(mc, model, ij, (G, G, G, G), flv)
+@inline Base.@propagate_inbounds function full_sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
+    return full_sdc_z_kernel(mc, model, ij, (G, G, G, G), flv)
 end
 
-@inline Base.@propagate_inbounds function sdc_z_kernel(
+@inline Base.@propagate_inbounds function full_sdc_z_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: Matrix}, flv
     )
     i, j = ij
@@ -145,7 +145,7 @@ end
       (id - G0l.val[j+N, i+N]) * Gl0.val[i+N, j+N]
 end
 
-@inline Base.@propagate_inbounds function sdc_z_kernel(
+@inline Base.@propagate_inbounds function full_sdc_z_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: DiagonallyRepeatingMatrix}, flv
     )
     i, j = ij
@@ -154,12 +154,11 @@ end
     return 2 * (id - G0l.val.val[j, i]) * Gl0.val.val[i, j]
 end
 
-@inline Base.@propagate_inbounds function sdc_z_kernel(
+@inline Base.@propagate_inbounds function full_sdc_z_kernel(
         mc, model, ij::NTuple{2}, packed_greens::_GM4{<: BlockDiagonal}, flv
     )
     i, j = ij
 	G00, G0l, Gl0, Gll = packed_greens
-    N = length(lattice(mc))
     id = I[i, j] * I[G0l.k, G0l.l]
 
       (1 - Gll.val.blocks[1][i, i]) * (1 - G00.val.blocks[1][j, j]) +
@@ -169,4 +168,106 @@ end
 
       (id - G0l.val.blocks[1][j, i]) * Gl0.val.blocks[1][i, j] +
       (id - G0l.val.blocks[2][j, i]) * Gl0.val.blocks[2][i, j]
+end
+
+
+################################################################################
+### reduced kernels
+################################################################################
+
+
+@inline Base.@propagate_inbounds function reduced_sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
+    return reduced_sdc_x_kernel(mc, model, ij, (G, G, G, G), flv)
+end
+
+@inline Base.@propagate_inbounds function reduced_sdc_x_kernel(
+        mc, model, ij::NTuple{2}, packed_greens::_GM4{<: Matrix}, flv
+    )
+    i, j = ij
+	G00, G0l, Gl0, Gll = packed_greens
+    N = length(lattice(mc))
+    id = I[i, j] * I[G0l.k, G0l.l]
+
+    (0  - G0l.val[j, i+N])   * Gl0.val[i+N, j] + 
+    (id - G0l.val[j, i])     * Gl0.val[i+N, j+N] +
+    (id - G0l.val[j+N, i+N]) * Gl0.val[i, j] + 
+    (0  - G0l.val[j+N, i])   * Gl0.val[i, j+N]
+end
+
+# The other two methods don't have ⟨mₓ⟩⟨mₓ⟩ terms as mixed-spin sectors are zero 
+# in them
+@inline Base.@propagate_inbounds function reduced_sdc_x_kernel(
+        mc, model, ij::NTuple{2}, packed_greens::_GM4, flvs
+    )
+    return full_sdc_x_kernel(mc, model, ij, packed_greens, flvs)
+end
+
+
+
+@inline Base.@propagate_inbounds function reduced_sdc_y_kernel(
+        mc, model, ij::NTuple{2}, G::GreensMatrix, flv
+    )
+    return reduced_sdc_y_kernel(mc, model, ij, (G, G, G, G), flv)
+end
+
+@inline Base.@propagate_inbounds function reduced_sdc_y_kernel(
+        mc, model, ij::NTuple{2}, packed_greens::_GM4{<: Matrix}, flv
+    )
+    i, j = ij
+	G00, G0l, Gl0, Gll = packed_greens
+    N = length(lattice(mc))
+    id = I[i, j] * I[G0l.k, G0l.l]
+
+    - (0  - G0l.val[j, i+N])   * Gl0.val[i+N, j] + 
+      (id - G0l.val[j, i])   * Gl0.val[i+N, j+N] +
+      (id - G0l.val[j+N, i+N]) * Gl0.val[i, j]   +
+    - (0  - G0l.val[j+N, i]) * Gl0.val[i, j+N]
+end
+
+# Like sdc_x
+@inline Base.@propagate_inbounds function reduced_sdc_y_kernel(
+        mc, model, ij::NTuple{2}, packed_greens::_GM4, flvs
+    )
+    return full_sdc_y_kernel(mc, model, ij, packed_greens, flvs)
+end
+
+
+@inline Base.@propagate_inbounds function reduced_sdc_z_kernel(
+        mc, model, ij::NTuple{2}, G::GreensMatrix, flv
+    )
+    return reduced_sdc_z_kernel(mc, model, ij, (G, G, G, G), flv)
+end
+
+@inline Base.@propagate_inbounds function reduced_sdc_z_kernel(
+        mc, model, ij::NTuple{2}, packed_greens::_GM4{<: Matrix}, flv
+    )
+    i, j = ij
+	G00, G0l, Gl0, Gll = packed_greens
+    N = length(lattice(mc))
+    id = I[i, j] * I[G0l.k, G0l.l]
+
+      (id - G0l.val[j, i])     * Gl0.val[i, j] +
+    - (0  - G0l.val[j+N, i])   * Gl0.val[i, j+N] +
+    - (0  - G0l.val[j, i+N])   * Gl0.val[i+N, j] +
+      (id - G0l.val[j+N, i+N]) * Gl0.val[i+N, j+N]
+end
+
+@inline Base.@propagate_inbounds function reduced_sdc_z_kernel(
+        mc, model, ij::NTuple{2}, packed_greens::_GM4{<: DiagonallyRepeatingMatrix}, flv
+    )
+    i, j = ij
+	G00, G0l, Gl0, Gll = packed_greens
+    id = I[i, j] * I[G0l.k, G0l.l]
+    return 2 * (id - G0l.val.val[j, i]) * Gl0.val.val[i, j]
+end
+
+@inline Base.@propagate_inbounds function reduced_sdc_z_kernel(
+        mc, model, ij::NTuple{2}, packed_greens::_GM4{<: BlockDiagonal}, flv
+    )
+    i, j = ij
+	G00, G0l, Gl0, Gll = packed_greens
+    id = I[i, j] * I[G0l.k, G0l.l]
+
+    (id - G0l.val.blocks[1][j, i]) * Gl0.val.blocks[1][i, j] +
+    (id - G0l.val.blocks[2][j, i]) * Gl0.val.blocks[2][i, j]
 end
