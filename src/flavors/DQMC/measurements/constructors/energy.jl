@@ -18,7 +18,7 @@ function kinetic_energy(
 end
 
 # These require the model to implement intE_kernel
-function interacting_energy(
+function interaction_energy(
         dqmc, model; 
         greens_iterator = Greens(),
         lattice_iterator = nothing,
