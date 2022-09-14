@@ -43,26 +43,86 @@ include("occupation.jl")
 include("pairing.jl")
 include("spin_density.jl")
 
-# iterate 2
-# ccs, cdc
-# iterate 1
-# occs, 
-# explicit mix
-# pc, mx, my, mz, sdcx, sdcy, sdcz
 
-# that's sadder than I though
-# maybe I should add FlavorIterator?
+"""
+    add_default_measurements!(mc; kwargs...)
 
+Adds default measurements to a DQMC simulation. Keyword arguments can be used 
+to disable (`key = false`), enable (`key = true`) or replace 
+(`key = measurement`) each default measurement.
 
+## The keys include:
+- `:occ` for `occupation(mc, mc.model))` (skipped if :G not disabled)
+- `:Mx` for `magnetization(mc, mc.model, :x))` (skipped if :G not disabled)
+- `:My` for `magnetization(mc, mc.model, :y))` (skipped if :G not disabled)
+- `:Mz` for `magnetization(mc, mc.model, :z))` (skipped if :G not disabled)
+- `:G` for `greens_measurement(mc, mc.model))`
+- `:K` for `kinetic_energy(mc, mc.model))`
+- `:V` for `interaction_energy(mc, mc.model))`
+- `:E` for `total_energy(mc, mc.model))` (skipped if neither :K or :V are disabled)
 
-# yea do it. don't need to be anything facy, just
-# fi = 1
-# fi = 1:2
-# fi = _flavor2x2
+- `:CDC` for `charge_density_correlation(mc, mc.model))`
+- `:PC` for `pairing_correlation(mc, mc.model))`
+- `:SDCx` for `spin_density_correlation(mc, mc.model, :x))`
+- `:SDCy` for `spin_density_correlation(mc, mc.model, :y))`
+- `:SDCz` for `spin_density_correlation(mc, mc.model, :z))`
 
-# I think I need to pick these based on unique_flavors too... 
-# which FlavorIterator now does
-# maybe it should produce `Val(flv)` for dims = 0?
-# That way we can still use ::Val
-# though maybe having it return `maxflv::Int` and using `if`` is better since 
-# branch prediction does a good job?
+- `:CDS` for `charge_density_susceptibility(mc, mc.model))`
+- `:PS` for `pairing_susceptibility(mc, mc.model))`
+- `:SDSx` for `spin_density_susceptibility(mc, mc.model, :x))`
+- `:SDSy` for `spin_density_susceptibility(mc, mc.model, :y))`
+- `:SDSz` for `spin_density_susceptibility(mc, mc.model, :z))`
+"""
+function add_default_measurements!(mc; kwargs...)
+    kwarg_dict = Dict{Symbol, Any}(kwargs)
+
+    # auto-disable E when K and V are recorded
+    if (get(kwarg_dict, :K, true) != false) && (get(kwarg_dict, :V, true) != false)
+        get!(kwarg_dict, :E, false)
+    end
+
+    # auto-disable occ, Mx, My, Mz when G is recorded
+    if get(kwarg_dict, :G, true) != false
+        get!(kwarg_dict, :occ, false)
+        get!(kwarg_dict, :Mx, false)
+        get!(kwarg_dict, :My, false)
+        get!(kwarg_dict, :Mz, false)
+    end
+
+    println(kwarg_dict)
+
+    # remove true to allow autocompleting them
+    filter!(kv -> kv[2] != true, kwarg_dict)
+
+    # autocomplete measurements
+    get!(kwarg_dict, :occ, occupation(mc, mc.model))
+    get!(kwarg_dict, :Mx, magnetization(mc, mc.model, :x))
+    get!(kwarg_dict, :My, magnetization(mc, mc.model, :y))
+    get!(kwarg_dict, :Mz, magnetization(mc, mc.model, :z))
+    get!(kwarg_dict, :G, greens_measurement(mc, mc.model))
+    get!(kwarg_dict, :K, kinetic_energy(mc, mc.model))
+    get!(kwarg_dict, :V, interaction_energy(mc, mc.model))
+    get!(kwarg_dict, :E, total_energy(mc, mc.model))
+
+    get!(kwarg_dict, :CDC, charge_density_correlation(mc, mc.model))
+    get!(kwarg_dict, :PC, pairing_correlation(mc, mc.model))
+    get!(kwarg_dict, :SDCx, spin_density_correlation(mc, mc.model, :x))
+    get!(kwarg_dict, :SDCy, spin_density_correlation(mc, mc.model, :y))
+    get!(kwarg_dict, :SDCz, spin_density_correlation(mc, mc.model, :z))
+
+    get!(kwarg_dict, :CDS, charge_density_susceptibility(mc, mc.model))
+    get!(kwarg_dict, :PS, pairing_susceptibility(mc, mc.model))
+    get!(kwarg_dict, :SDSx, spin_density_susceptibility(mc, mc.model, :x))
+    get!(kwarg_dict, :SDSy, spin_density_susceptibility(mc, mc.model, :y))
+    get!(kwarg_dict, :SDSz, spin_density_susceptibility(mc, mc.model, :z))
+    get!(kwarg_dict, :CCS, current_current_susceptibility(mc, mc.model))
+
+    # remove all invalid entries
+    filter!(kv -> kv[2] isa AbstractMeasurement, kwarg_dict)
+
+    for (k, v) in kwarg_dict
+        mc[k] = v
+    end
+
+    return mc
+end

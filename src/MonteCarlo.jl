@@ -101,6 +101,7 @@ export spin_density, spin_density_correlation, spin_density_susceptibility
 export pairing, pairing_correlation, pairing_susceptibility
 export current_current_susceptibility, superfluid_density
 export noninteracting_energy, interacting_energy, total_energy
+export add_default_measurements!
 
 export EmptyScheduler, SimpleScheduler, AdaptiveScheduler
 export Adaptive, NoUpdate, LocalSweep
@@ -160,6 +161,10 @@ function __init__()
         include("flavors/DQMC/updates/mpi_updates.jl")
         export MPIReplicaExchange, MPIReplicaPull
     end
+
+    return nothing
 end
+
+#include("precompile.jl")
 
 end # module
