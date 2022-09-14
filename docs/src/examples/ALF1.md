@@ -100,27 +100,34 @@ using Revise, MonteCarlo, Printf, LinearAlgebra
 mcs = []
 @time for beta in [1.0, 6.0, 12.0]
     m = HubbardModel(4, 2, U = -4.0)
+    # There are propagation errors on the scale of 10^-7 - 10^-6 which produce
+    # frequent warnings without silent = true
     mc = DQMC(
         m, beta=beta, thermalization=5_000, sweeps=15_000, 
         print_rate=5_000, delta_tau = 0.1, measure_rate=1,
-        field = MagneticGHQField, safe_mult = 10
+        field = MagneticGHQField, safe_mult = 10, silent = true
     )
     
     # our default versions
     mc[:G] = greens_measurement(mc, m)
     mc[:SDCz] = spin_density_correlation(mc, m, :z)
     mc[:SDSz] = spin_density_susceptibility(mc, m, :z)
-    mc[:T] = noninteracting_energy(mc, m)
-    
+    mc[:T] = kinetic_energy(mc, m)
+    # charge density correlations in ALF only consider the correlated part
+    mc[:DenDen] = charge_density_correlation(mc, m, kernel = MonteCarlo.reduced_cdc_kernel)
+    mc[:DenDenTau] = charge_density_susceptibility(mc, m, kernel = MonteCarlo.reduced_cdc_kernel)
+
     # ALF defines our I - G as the measured Greens function
     function mygreens(mc, m, ij, G, flv)
-        i, j = ij; N = length(lattice(mc))
-        swapop(G)[i, j] + swapop(G)[i+N, j+N]
+        i, j = ij
+        return I[i, j] - G.val.blocks[flv][j, i]
     end
-    mc[:Gr] = MonteCarlo.Measurement(mc, m, Greens(), EachSitePairByDistance(), mygreens)
+    mc[:Gr] = MonteCarlo.Measurement(
+        mc, m, Greens(), EachSitePairByDistance(), 1:2, mygreens
+    )
     
     # The interaction energy needs to be adjusted to ALF's Hamiltonian
-    function my_intE(mc, m, idxs, G, ::Val{2})
+    function my_intE(mc, m, idxs, G, flv)
         E = 0.0; N = length(lattice(mc))
         Gup, Gdown = G.val.blocks
         for i in 1:N
@@ -128,38 +135,27 @@ mcs = []
         end
         m.U * E
     end
-    mc[:V] = MonteCarlo.Measurement(mc, m, Greens(), nothing, my_intE)
+    mc[:V] = MonteCarlo.Measurement(mc, m, Greens(), nothing, nothing, my_intE)
     
-    # ALF includes 0 and β in the time displaced greens function
-    myGk(mc, m, ij, Gs, flv) = begin G00, G0l, Gl0, Gll = Gs; i, j = ij; Gl0[i, j] end
+    function myGk(mc, m, ij, Gs, flv)
+        G00, G0l, Gl0, Gll = Gs; 
+        i, j = ij
+        0.5 * Gl0.val.blocks[flv][i, j]
+    end
     mc[:IGk] = MonteCarlo.Measurement(
-        mc, m, TimeIntegral(mc), EachSitePairByDistance(), myGk
+        mc, m, TimeIntegral(mc), EachSitePairByDistance(), 1:2, myGk
     )
-        
-    # ALF subtracts the uncorrelated part
-    function myDenDen(mc, m, ij, G, flv)
-        i, j = ij; N = length(lattice(mc))
-        swapop(G)[i, j] * G[i, j] + swapop(G)[i+N, j+N] * G[i+N, j+N]
-    end
-    mc[:DenDen] = MonteCarlo.Measurement(mc, m, Greens(), EachSitePairByDistance(), myDenDen)
-    
-    function myDenDenTau(mc, m, ij, Gs, flv)
-        i, j = ij; N = length(lattice(mc))
-        G00, G0l, Gl0, Gll = Gs
-        swapop(G0l)[i, j] * Gl0[i, j] + swapop(G0l)[i+N, j+N] * Gl0[i+N, j+N]
-    end
-    mc[:DenDenTau] = MonteCarlo.Measurement(mc, m, TimeIntegral(mc), EachSitePairByDistance(), myDenDenTau)
     
     run!(mc)
     push!(mcs, mc)
 end
 ```
 
-We run our simulations with a small $\Delta\tau$ and larger number of sweeps to reduce errors. With the given parameters the simulations will take about 6min.
+With the given parameters the simulations will take about 6min. This can be reduced further by cutting down on the number of sweeps or the measure_rate at the cost of accuracy.
 
-A lot of the observables we measure have been adjusted to match ALF. First we have the real space equal time Greens function `:Gr` which measures $\delta(\Delta r) - G(\Delta r) = \sum_r c_r^\dagger c_{r + \Delta r}$. The MonteCarlo.jl Greens function is given as $c c^\dagger$, so we need to swap the operators with `swapop`. We also need to explicitly sum the spin up and spin down channels.
+A few observables we measure have been adjusted to match ALF. First we have the real space equal time Greens function `:Gr` which measures $\delta(\Delta r) - G(\Delta r) = \sum_r c_r^\dagger c_{r + \Delta r}$. The MonteCarlo.jl Greens function is given as $c c^\dagger$, so we need to swap the operator order. This can be done with `swapop(G)[i + (flv-1)*N, j + (flv-1)*N]` or more efficiently with `I[i, j] - G.val.blocks[flv][j, i]`. The former works for any matrix type, but calls slow custom indexing. The latter is specialized for `BlockDiagonal` matrices, which we have in this case. `flv` represents the spin index which results in a shift by N (number of sites) in the first case and access to the second block in the latter.
 
-Next we have the interaction energy `:V` which needs adjustments to the different pre-transformation term. We calculate $\langle V \rangle = \frac{U}{2} \sum_i \langle V_i \rangle$ where 
+Next we have the interaction energy `:V` which needs adjustments to the different pre-transformation term ALF uses. We calculate $\langle V \rangle = \frac{U}{2} \sum_i \langle V_i \rangle$ where 
 
 ```math
 \langle V_i \rangle = \langle
@@ -239,7 +235,7 @@ This is however not what ALF implements as the potential energy. Instead of the 
 ```
 
 
-which is implemented above. After that we have the Fourier transformed time displaced Greens function `:IGk` which calculates the Fourier transform of $G^\prime(\Delta r) = \sum_{\tau = \Delta\tau}^{\beta} \Delta\tau \sum_r c_r(\tau) c_{r + \Delta r}^\dagger(0)$. Finally we have the charge density correlation `:DenDen` and susceptibility `:DenDenTau` which implement $\sum_r \langle \langle n_r n_{r - \Delta r} \rangle - \langle n_r \rangle \langle n_{r + \Delta r} \rangle \rangle_{MC}$. We note here that the subtraction happens before taking the Monte Carlo average denoted by $\langle \cdot \rangle_{MC}$.
+which is implemented above. Finally that we have the Fourier transformed time displaced Greens function `:IGk` which calculates the Fourier transform of $G^\prime(\Delta r) = \int_0^\beta \sum_r c_r(\tau) c_{r + \Delta r}^\dagger(0) d\tau$. 
 
 
 
@@ -412,33 +408,7 @@ To compare the results we will plot points over each other. Most observables hav
 
 ```julia
 using CairoMakie, LaTeXStrings, LinearAlgebra
-import MonteCarlo: DQMCMeasurement, @turbo
-
-function fourier_transform(qs::Vector, dirs::Vector, values::Array{T, 3}, weights::Vector) where {T}
-    @boundscheck begin
-        length(weights) ≤ size(values, 2) &&
-        length(dirs) == length(qs) &&
-        length(dirs) == size(values, 1)
-    end
-    map(qs) do q
-        out = zero(ComplexF64)
-        @turbo for i in eachindex(dirs)
-            temp = zero(ComplexF64)
-            for j in eachindex(weights), k in eachindex(weights)
-                temp += weights[j] * weights[k] * values[i, j, k]
-            end
-            out += cis(dot(q, dirs[i])) * temp
-        end
-        out
-    end
-end
-
-function fourier_transform(qs::Vector, dirs::Vector, values::Vector)
-    @boundscheck length(dirs) == length(qs) == length(values)
-    map(qs) do q
-        sum(cis(dot(q, v)) * o for (v, o) in zip(dirs, values))
-    end
-end
+import MonteCarloAnalysis # fourier transform
 
 function plot_by_distance(
         ys, dys, key; 
@@ -502,12 +472,9 @@ function plot_reciprocal(
         band!(ax, xs, low, high, color = (cs[l], 0.1))
         scatter!(ax, xs, real(ys[l]), color = cs[l], marker='+', markersize=12)
 
-        _ys = map(1:16) do j
-            fourier_transform(
-                ks[1][j:j], 
-                directions(lattice(mcs[l])), 
-                mean(mcs[l][key])[:]
-            )[1]
+        _ys = let
+            m = mcs[l][key]
+            fourier(ks[1], directions(lattice(mcs[l]), m.lattice_iterator), mean(m))
         end
         _dys = map(1:16) do j
             vals = std_error(mcs[l][key])[:]

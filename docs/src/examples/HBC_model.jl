@@ -99,10 +99,11 @@ function HBCModel(L, dims; kwargs...)
 end
 
 # spin up and spin down are not equivalent so always 2 flavors
-MonteCarlo.nflavors(::HBCModel) = 2
+MonteCarlo.unique_flavors(::HBCModel) = 2
+MonteCarlo.total_flavors(::HBCModel) = 2
 MonteCarlo.lattice(m::HBCModel) = m.l
 # default field choice matching the normal Hubbard model
-MonteCarlo.choose_field(m::HBCModel) = DensityHirschField
+MonteCarlo.choose_field(::HBCModel) = DensityHirschField
 
 # We have a complex phase in the Hamiltonian so we work with Complex Matrices 
 # regardless of the field type. We don't have terms mixing spin up and spin down 
@@ -127,42 +128,49 @@ Base.show(io::IO, m::MIME"text/plain", model::HBCModel) = print(io, model)
 
 
 function MonteCarlo.hopping_matrix(m::HBCModel)
+    # number of sites
     N = length(m.l)
-    t1 = diagm(0 => fill(-ComplexF64(m.mu), N))
-    t2 = diagm(0 => fill(-ComplexF64(m.mu), N))
 
-    t1p = m.t1 * cis(+pi/4)
-    t1m = m.t1 * cis(-pi/4)
+    # spin up and spin down blocks of T
+    tup = diagm(0 => fill(-ComplexF64(m.mu), N))
+    tdown = diagm(0 => fill(-ComplexF64(m.mu), N))
+
+    # positive and negative prefactors for t1, t2
+    t1p = m.t1 * cis(+pi/4) # ϕ_ij^↑ = + π/4
+    t1m = m.t1 * cis(-pi/4) # ϕ_ij^↓ = - π/4
     t2p = + m.t2
     t2m = - m.t2
     
-    # Nearest neighbor hoppings
     for b in bonds(m.l, Val(true))
+        # NN paper direction
         if b.label == 1 
-            # ϕ_ij^↑ = + π/4
-            t1[b.from, b.to] = - t1p
-            # ϕ_ij^↓ = - π/4
-            t2[b.from, b.to] = - t1m
+            tup[b.from, b.to]   = - t1p
+            tdown[b.from, b.to] = - t1m
+        
+        # NN reverse direction
         elseif b.label == 2
-            # TODO do we use reverse NN? - doesn't look like it (sign problem)
-            t1[b.from, b.to] = - t1m
-            t2[b.from, b.to] = - t1p
+            tup[b.from, b.to]   = - t1m
+            tdown[b.from, b.to] = - t1p
             
+        # NNN solid bonds
         elseif b.label == 3
-            t1[b.from, b.to] = - t2p
-            t2[b.from, b.to] = - t2p
+            tup[b.from, b.to]   = - t2p
+            tdown[b.from, b.to] = - t2p
+
+        # NNN dashed bonds
         elseif b.label == 4
-            t1[b.from, b.to] = - t2m
-            t2[b.from, b.to] = - t2m
+            tup[b.from, b.to]   = - t2m
+            tdown[b.from, b.to] = - t2m
+
+        # Fifth nearest neighbors
         else
-            t1[b.from, b.to] = - m.t5
-            t2[b.from, b.to] = - m.t5
+            tup[b.from, b.to]   = - m.t5
+            tdown[b.from, b.to] = - m.t5
         end
     end
 
-    return BlockDiagonal(StructArray(t1), StructArray(t2))
+    return BlockDiagonal(StructArray(tup), StructArray(tdown))
 end
-
 function MonteCarlo._save(file::MonteCarlo.FileLike, key::String, m::HBCModel)
     write(file, "$key/VERSION", 2)
     write(file, "$key/tag", "HBCModel")
@@ -199,18 +207,4 @@ function MonteCarlo.load_model(data, ::Val{:HBCModel})
         t5 = data["t5"],
         l = l,
     )
-end
-
-
-################################################################################
-### Measurement kernels
-################################################################################
-
-# Nothing signifies no spatial indices (or lattice_iterator = nothing)
-function MonteCarlo.intE_kernel(mc, model::HBCModel, ::Nothing, G::GreensMatrix, ::Val{2})
-    # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... 
-    # = U [G↑↑ G↓↓ - G↓↑ G↑↓ - 0.5 G↑↑ - 0.5 G↓↓ + G↑↓ + 0.25]
-    # = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
-    # with up-up = down-down and up-down = 0
-    return - model.U * sum((diag(G.val) .- 0.5).^2)
 end

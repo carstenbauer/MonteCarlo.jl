@@ -232,14 +232,15 @@ end
 
 We note that the hermitian conjugates of a hopping $$c_j^\dagger c_i$$ can also be understood as reversing the bond direction. Since we include both directions in our lattice definitions, second and fifth nearest neighbor hermitian conjugates are taken care of. First nearest neighbors get a phase shift from complex conjugation, which is included by swapping `t1p` and `t1m` between group one and two.
 
-To finish off the mandatory model interface we need to provide two more methods. The first is `lattice(model)` which simply return the lattice of the model. The other is `nflavors(model)` which returns the number of "active" flavors of the hopping matrix. This model has two flavors total, spin up and spin down, and both of these have an active effect on the hopping matrix, i.e. the values for spin up and spin down are different. Thus this method should return 2. 
+To finish off the mandatory model interface we need to provide three more methods. The first is `lattice(model)` which simply return the lattice of the model. The other two are `unique_flavors(model)` and `total_flavors(model)`. The latter returns the total number of flavors a model has without making use of any symmetries, i.e. 2 for a spin 1/2 model. The former returns the number of flavors that will result in unique entries in the hopping matrix. For this model we have a hopping directly depending on spin, thus also 2 flavors here.
 
 ```julia
 MonteCarlo.lattice(m::HBCModel) = m.l
-MonteCarlo.nflavors(::HBCModel) = 2
+MonteCarlo.unique_flavors(::HBCModel) = 2
+MonteCarlo.total_flavors(::HBCModel) = 2
 ```
 
-There are a few more methods we can implement for convenience. The most important of these is `choose_field(model)`, which sets a default field for our model. The best choice here should be `DensityHirschField` or `DensityGHQField` as the model uses an attractive interaction. Beyond this we could implement `intE_kernel` to enable energy measurements, `parameters(model)`, `save_model`, `_load_model` and printing.
+There are a few more methods we can implement for convenience. The most important of these is `choose_field(model)`, which sets a default field for our model. The best choice here should be `DensityHirschField` or `DensityGHQField` as the model uses an attractive interaction. Beyond this we could implement `parameters(model)`, `save_model`, `_load_model` and printing.
 
 ```julia
 HBCModel(l::MonteCarlo.AbstractLattice; kwargs...) = HBCModel(l = l; kwargs...)
@@ -330,14 +331,16 @@ The diamagnetic contribution $$K_x$$ is the simpler one. For that we refer to eq
 mc[:G] = greens_measurement(mc, m)
 ```
 
-For the current-current correlations we need to measure $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$J_x(r, \tau)$$ is given in equation 14a - 14j. These terms are already implemented by MonteCarlo.jl, but we should briefly discuss them regardless. (We will leave the Fourier transform for later.) 
+For current-current correlations we need to measure $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$J_x(r, \tau)$$ is given in equation 14a - 14j. These terms are partially implemented in MonteCarlo.jl with rest implemented in MonteCarloAnalysis.jl.
 
-Much like $$K_x$$ these terms are closely related to the hopping terms of the Hamiltonian. The index $$\alpha$$ ($$\beta$$) refers to the direction of the hopping. Each term contains a hopping in +x direction weighted by $$i$$ and a hopping in the opposite direction weighted by $$-i$$ via the Hermitian conjugate. The fifth nearest neighbor terms also catch a factor 2. For the measurement we need to apply Wicks theorem to every combination of any two currents $$J^\alpha_x$$ and also take care of an implied spin index. The result can be found in the `cc_kernel` in MonteCarlo.jl.
+Specifically MonteCarlo.jl implements `cc_kernel` as a generic version of the terms 14a - 14j with the directional prefactor $$\langle \hat{x}, \Delta r_\alpha$$ removed. These prefactors are instead introduced in `cached_para_ccc` from MonteCarloAnalysis.jl, which computes $$\Lambda_{xx}(q)$$. The hopping directions considered in `cc_kernel` are set by the lattice iterator. By default, it will consider half the bonds of the lattice, dropping reverse bonds. 
 
-Let's get back to what we need to measure in our simulation. MonteCarlo.jl's `current_current_susceptibility` measures $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$\alpha$$ and $$\beta$$ are directions that get passedto the function. Since we set `t5 = 0` we can ignore equations 14g - 14j leaving 6 equations with 3 directions on 2 sublattices. MonteCarlo.jl does not care about sublattices, so we're left with three +x directions `[2, 6, 9]` which need to be passed. You can check these with `directions(mc)[[2, 6, 9]]` against the paper. Our measurement is given by
+The included bonds can be adjusted by passing a `lattice_iterator = EachBondPairByBravaisDistance([1,6,9,11,13,15])` to the measurements. The indices apply to `lattice(mc).unitcell.bonds` and in this case pick the bonds fitting terms 14a - 14f. The remaing terms are 0 with the choice of $t_5 = 0$.
 
 ```julia
-mc[:CCS] = current_current_susceptibility(mc, m, directions = [2, 6, 9])
+mc[:CCS] = current_current_susceptibility(
+    mc, m, lattice_iterator = EachBondPairByBravaisDistance([1,6,9,11,13,15])
+)
 ```
 
 ## Running the simulations
@@ -392,69 +395,21 @@ The pairing susceptibility comes with three directional indices after taking `me
 
 ## Superfluid Stiffness
 
-The superfluid stiffness still requires a good amount of work. Let's start with the diamagnetic contribution $$K_x$$. As mentioned before the prefactors of $$K_x$$ match those of the hoppings in the Hamiltonian (except for 5th nearest neighbors which catch a factor of 4). The expectation values for $$\langle c_j^\dagger c_i \rangle$$ follow from the measured Greens function $$G_{ij} = c_i c_j^\dagger$$ as $$\delta_{ij} - G_{ji}$$ (permutation of operators).
-
-To pick the correct sites we can poke at the backend of the lattice iterator interface. There are a few maps that get cached, one of which returns a list of (source, target) site index pairs given a directional index. It can be fetched (and potentially generated) via `dir2srctrg = mc[Dir2SrcTrg()]`. The relevant directional indices can be determined from `directions(mc)`. Using that we calculate the total diamagnetic contribution $$K_x$$ as
+To compute the superfluid stiffness we make use of the relevant functions from MonteCarloAnalysis.jl. It is given by:
 
 ```julia
-function dia_K_x(mc)
-    # directional indices for K_x (see directions(mc)[idxs]
-    # These correspond to 
-    # K1 & K4, K1 & K4 h.c., K2 & K5, K3 & K6 h.c., K2 & K5 h.c., K3 & K5
-    idxs = [2, 4, 6, 7, 8, 9]
-    
-    # T contains the prefactors used in K_x, G contains ⟨c_i c_j^†⟩
-    T = Matrix(MonteCarlo.hopping_matrix(mc, mc.model))
-    G = mean(mc[:G])
+using MonteCarloAnalysis
 
-    # We use the dir2srctrg map to get all (src, trg) pairs relevant to the 
-    # directions we specified with `idxs` above
-    dir2srctrg = mc[MonteCarlo.Dir2SrcTrg()]
-    N = length(lattice(mc))
-    
-    Kx = ComplexF64(0)
-    for dir_idx in idxs
-        for (src, trg) in dir2srctrg[dir_idx]
-            # c_j^† c_i = δ_ij - G[i, j], but δ always 0 (no onsite)
-            Kx -= T[trg, src] * G[src, trg]         # up-up
-            Kx -= T[trg+N, src+N] * G[src+N, trg+N] # down-down
-        end
-    end
+# The diamagnetic contribution follows from the greens function. We set the 
+# direction of the current response to x = [1, 0] like the reference paper.
+K_x = dia_K(mc, :G, [1, 0])
 
-    # normalize
-    Kx /= N
-end
+# The paramagnetic contribution is calculated in full, i.e. Λxx(q) from the 
+# CCS measurement.
+Λxx = cached_para_ccc(mc, :CCS, [1,0])
+
+# Following the paper the superfluid stiffness becomes
+SFS = 0.25 * (-K_x - Λxx[1, 1])
 ```
-
-For the Fourier transformed current-current correlation $$\Lambda_{xx}(q)$$ the paper uses two summations. The first (eq. 16) runs over positions without offsets from the basis. The second (eq. 17) then resolves those offsets with a shift by $$\hat{e}_y$$ and also translates positions to the centers of the two sites involved with each hopping term. Combining both equations in a MonteCarlo.jl compatible style yields
-
-```math
-\Lambda_{xx}(q) = \sum_{\Delta r_{12}} \sum_{\Delta r_1, \Delta r_2} e^{- i q (\Delta r_{12} + 0.5 (\Delta r_1 - \Delta r_2))}
-                  \int_0^\beta \sum_{r_0} \langle J_x^{\Delta r_1}(r_0 + \Delta r_{12}, \tau) J_x^{\Delta r_2}(r_0, 0) \rangle d\tau
-
-```
-
-Here $$\Delta r_{12}$$ is the distance between any two sites including basis offsets and $$\Delta r_1$$ and $$\Delta r_2$$ are the hopping distances. The integral over imaginary time and the sum over $$r_0$$ are already performed during measuring. This leaves the following to be calculated after measuring:
-
-```julia
-function para_ccc(mc, q)
-    # direction indices for J1 & J4, J2 & J5, J3 & J6 (h.c. included in measurement)
-    idxs = [2, 6, 9]
-
-    CCS = mean(mc[:CCS])
-    dirs = directions(lattice(mc))
-    Λxx = ComplexF64(0)
-
-    for (i, dir) in enumerate(dirs)
-        for j in idxs, k in idxs
-            Λxx += CCS[i, j, k] * cis(-dot(dir + 0.5(dirs[j] .- dirs[k]), q))
-        end
-    end
-    
-    Λxx
-end
-```
-
-To compute the superfluid stiffness we now just calculate $$D_S = \frac{1}{4} [ -K_x - \Lambda_{xx}(q = 0)]$$ (eq. 4).
 
 ![](assets/HBC/DS.png)
