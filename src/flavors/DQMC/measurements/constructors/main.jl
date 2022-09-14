@@ -10,6 +10,18 @@ function _flavor_rec(maxflv, dims)
     end
 end
 
+"""
+    FlavorIterator(mc, dims)
+
+Generates a set of flavor indices for the given simulation.
+
+- `dims = 0` is interpreted as a constant flavor. In this case the iterator 
+returns just `total_flavors(mc.model)`
+- `dims = 1` is interpreted as `1:unique_flavors(mc.model)`
+- `dims > 1` generates a Vector of Tuples of size `dims`, where each element in
+the tuple runs from 1 to `unique_flavors(mc.model)`. This effectively generates
+`dims` nested loops running through `1:unique_flavors(mc.model)`.
+"""
 FlavorIterator(mc, dims::Int) = FlavorIterator(mc, mc.model, dims)
 function FlavorIterator(mc, m::Model, dims::Int)
     if dims == 0

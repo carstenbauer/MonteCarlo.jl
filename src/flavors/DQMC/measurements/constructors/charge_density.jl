@@ -5,10 +5,45 @@ function charge_density(
         kernel = full_cdc_kernel, kwargs...
     )
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
-    Measurement(mc, model, greens_iterator, li, flavor_iterator, kernel; kwargs...)
+    DQMCMeasurement(mc, model, greens_iterator, li, flavor_iterator, kernel; kwargs...)
 end
 
+"""
+    charge_density_correlation(mc, model; kwargs...)
+
+Generates an equal-time charge density measurement. Note that the result needs
+to be added to the simulation via `mc[:name] = result`.
+
+## Optional Keyword Arguments
+
+- `kernel = full_cdc_kernel` sets the function representing the Wicks expanded 
+expectation value of the measurement. See `full_cdc_kernel` and 
+`reduced_cdc_kernel`.
+- `lattice_iterator = EachSitePairByDistance()` controls which sites are passed 
+to the kernel and how they are summed. See lattice iterators
+- `flavor_iterator = FlavorIterator(mc, 2)` controls which flavor indices 
+(spins) are passed to the kernel. This should generally not be changed.
+- kwargs from `DQMCMeasurement`
+"""
 charge_density_correlation(mc, m; kwargs...) = charge_density(mc, m, Greens(); kwargs...)
+
+"""
+    charge_density_susceptibility(mc, model; kwargs...)
+
+Generates a time-integrated charge density measurement. Note that the result needs
+to be added to the simulation via `mc[:name] = result`.
+
+## Optional Keyword Arguments
+
+- `kernel = full_cdc_kernel` sets the function representing the Wicks expanded 
+expectation value of the measurement. See `full_cdc_kernel` and 
+`reduced_cdc_kernel`.
+- `lattice_iterator = EachSitePairByDistance()` controls which sites are passed 
+to the kernel and how they are summed. See lattice iterators
+- `flavor_iterator = FlavorIterator(mc, 2)` controls which flavor indices 
+(spins) are passed to the kernel. This should generally not be changed.
+- kwargs from `DQMCMeasurement`
+"""
 charge_density_susceptibility(mc, m; kwargs...) = charge_density(mc, m, TimeIntegral(mc); kwargs...)
 
 

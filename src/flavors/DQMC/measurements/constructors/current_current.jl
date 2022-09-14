@@ -1,21 +1,21 @@
 """
-    current_current_susceptibility(dqmc, model[; K = #NN + 1, kwargs...])
+    current_current_susceptibility(mc, model; kwargs...)
 
 Creates a measurement recordering the current-current susceptibility 
-`OBS[dr, dr1, dr2] = Λ_{dr1, dr2}(dr) = ∫ 1/N \\sum_ ⟨j_{dr2}(i+dr, τ) j_{dr1}(i, 0)⟩ dτ`.
+`OBS[dx, dy, bond1, bond2] = Λ_{bond1, bond2}(dx, dy) = 1/N ∑ᵢ ∫ ⟨j_{dr2}(i+(dx, dy), τ) j_{dr1}(i, 0)⟩ dτ`.
 
-By default this measurement synchronizes `dr1` and `dr2`, simplifying the 
-formula to 
-`OBS[dr, dr'] = Λ_{dr'}(dr) = ∫ 1/N \\sum_ ⟨j_{dr'}(i+dr, τ) j_{dr'}(i, 0)⟩ dτ`.
-The direction/index `dr'` runs from `1:K` through the `directions(mc)` which are 
-sorted. By default we include on-site (1) and nearest neighbors (2:K).
+## Optional Keyword Arguments
 
-The current density `j_{dr}(i, τ)` with `j = i + dr` is given by
-`j_{j-i}(i, τ) = i T_{ij} c_i^†(τ) c_j(0) + h.c.`. Note that the Hermitian
-conjugate generates a term in `-dr` direction with prefactor `-i`. If `+dr` and
-`-dr` are included in the calculation of the superfluid density (etc) you may
-see larger values than expected. 
-
+- `kernel = cc_kernel` sets the function representing the Wicks expanded 
+expectation value of the measurement.
+- `lattice_iterator = EachBondPairByBravaisDistance(mc)` controls which sites  
+are passed to the kernel and how they are summed. By default this will consider
+all bonds in the lattice without reverse bonds for `bond1, bond2` as well as all 
+Bravais source sites i and all Bravais target sites i + (dx, dy). (The basis is 
+included through bonds.)
+- `flavor_iterator = FlavorIterator(mc, 2)` controls which flavor indices 
+(spins) are passed to the kernel. This should generally not be changed.
+- kwargs from `DQMCMeasurement`
 """
 function current_current_susceptibility(
         dqmc::DQMC, model::Model; 
@@ -27,7 +27,7 @@ function current_current_susceptibility(
     )
     @assert is_approximately_hermitian(hopping_matrix(model)) "CCS assumes Hermitian matrix"
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
-    Measurement(dqmc, model, greens_iterator, li, flavor_iterator, kernel; kwargs...)
+    DQMCMeasurement(dqmc, model, greens_iterator, li, flavor_iterator, kernel; kwargs...)
 end
 
 
@@ -35,6 +35,18 @@ end
 ### New kernels
 ################################################################################
 
+
+# I didn't think about the index order in this docstring carefully...
+"""
+    cc_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
+
+Calculates ⟨j(τ, src1, trg1) j(0, src2, trg2)⟩ where j(τ, src, trg) = 
+i T[src, trg] c_trg^†(τ) c_src(τ) - i T[trg, src] c_src^†(τ) c_trg(τ)
+with T the hopping matrix.
+
+With the default lattice iterator this is equivalent to 
+⟨j_{b1}(τ, r + Δr) j_{b2}(0, r)⟩ where b1, b2 are bond indices.
+"""
 @inline Base.@propagate_inbounds function cc_kernel(
         mc, m::Model, sites, G::_GM, flv
     )

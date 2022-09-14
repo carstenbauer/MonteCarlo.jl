@@ -1,3 +1,20 @@
+"""
+    magnetization(mc, model, dir; kwargs...)
+
+Generates a measurements of magnetization in `:x`, `:y` or `:z` direction 
+depending on `dir`,
+
+## Optional Keyword Arguments
+
+- `kernel = mx_kernel/my_kernel/my_kernel` sets the function representing the 
+Wicks expanded expectation value of the measurement. In this case the kernel 
+depends on the choice of `dir`. See the the individual kernels for more information.
+- `lattice_iterator = EachSite()` controls which sites are passed 
+to the kernel and how they are summed. See lattice iterators
+- `flavor_iterator = FlavorIterator(mc, 0)` controls which flavor indices 
+(spins) are passed to the kernel. This should generally not be changed.
+- kwargs from `DQMCMeasurement`
+"""
 function magnetization(
         mc::DQMC, model::Model, dir::Symbol; 
         greens_iterator = Greens(),
@@ -11,7 +28,7 @@ function magnetization(
         kwargs...
     )
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
-    return Measurement(mc, model, greens_iterator, li, flavor_iterator, kernel; kwargs...)
+    return DQMCMeasurement(mc, model, greens_iterator, li, flavor_iterator, kernel; kwargs...)
 end
 
 
@@ -21,9 +38,12 @@ end
 
 
 """
-    mx_kernel(mc, model, i::Integer, G::GreensMatrix)
+    mx_kernel(mc, model, i::Integer, G::GreensMatrix, flavor_indices)
 
-Returns the per-site x-magnetization `⟨cᵢ↑^† cᵢ↓ + cᵢ↓^† cᵢ↑⟩`.
+Returns the per-site x-magnetization `⟨cᵢ↑^† cᵢ↓ + cᵢ↓^† cᵢ↑⟩`. 
+
+Note that flavor/spin indices are handlded in the kernel, i.e. flavors should 
+not be iterated over.
 """
 @inline Base.@propagate_inbounds function mx_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
     N = length(lattice(model))
@@ -38,6 +58,9 @@ end
 
 Returns the per-site y-magnetization `-⟨cᵢ↑^† cᵢ↓ - cᵢ↓^† cᵢ↑⟩` without the 
 imaginary prefactor.
+
+Note that flavor/spin indices are handlded in the kernel, i.e. flavors should 
+not be iterated over.
 """
 @inline Base.@propagate_inbounds function my_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
     N = length(lattice(model))
@@ -51,6 +74,9 @@ end
     mz_kernel(mc, model, i::Integer, G::GreensMatrix)
 
 Returns the per-site z-magnetization `⟨nᵢ↑ - nᵢ↓⟩`.
+
+Note that flavor/spin indices are handlded in the kernel, i.e. flavors should 
+not be iterated over.
 """
 @inline Base.@propagate_inbounds function mz_kernel(mc, model, i, G::_GM{<: Matrix}, flv)
     N = length(lattice(model))

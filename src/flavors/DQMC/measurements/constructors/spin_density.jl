@@ -10,9 +10,47 @@ function spin_density(
         kwargs...
     )
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
-    return Measurement(dqmc, model, greens_iterator, li, flavor_iterator, kernel; kwargs...)
+    return DQMCMeasurement(dqmc, model, greens_iterator, li, flavor_iterator, kernel; kwargs...)
 end
+
+"""
+    spin_density_correlation(mc, model, dir; kwargs...)
+
+Generates an equal-time spin density correlation measurement for the given x, y,
+or z direction `dir`. Note that the result needs to be added to the simulation 
+via `mc[:name] = result`.
+
+## Optional Keyword Arguments
+
+- `kernel = full_sdc_x_kernel` sets the function representing the Wicks expanded 
+expectation value of the measurement. See `full_sdc_x_kernel` and 
+`reduced_sdc_x_kernel` as well as the `sdc_y` and `sdc_z` versions.
+- `lattice_iterator = EachSitePairByDistance()` controls which sites are passed 
+to the kernel and how they are summed. See lattice iterators
+- `flavor_iterator = FlavorIterator(mc, 0)` controls which flavor indices 
+(spins) are passed to the kernel. This should generally not be changed.
+- kwargs from `DQMCMeasurement`
+"""
 spin_density_correlation(args...; kwargs...) = spin_density(args..., Greens(); kwargs...)
+
+"""
+    spin_density_susceptibility(mc, model, dir; kwargs...)
+
+Generates an time-integrated spin density susceptibility measurement for the 
+given x, y, or z direction `dir`. Note that the result needs to be added to the 
+simulation via `mc[:name] = result`.
+
+## Optional Keyword Arguments
+
+- `kernel = full_sdc_x_kernel` sets the function representing the Wicks expanded 
+expectation value of the measurement. See `full_sdc_x_kernel` and 
+`reduced_sdc_x_kernel` as well as the `sdc_y` and `sdc_z` versions.
+- `lattice_iterator = EachSitePairByDistance()` controls which sites are passed 
+to the kernel and how they are summed. See lattice iterators
+- `flavor_iterator = FlavorIterator(mc, 0)` controls which flavor indices 
+(spins) are passed to the kernel. This should generally not be changed.
+- kwargs from `DQMCMeasurement`
+"""
 spin_density_susceptibility(mc, args...; kwargs...) = spin_density(mc, args..., TimeIntegral(mc); kwargs...)
 
 
@@ -21,6 +59,12 @@ spin_density_susceptibility(mc, args...; kwargs...) = spin_density(mc, args..., 
 ################################################################################
 
 
+"""
+    full_sdc_x_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
+
+Calculates ⟨m_x(src, τ) m_x(trg, 0)⟩ with the same definitions for m_x as 
+`mx_kernel`.
+"""
 @inline Base.@propagate_inbounds function full_sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     return full_sdc_x_kernel(mc, model, ij, (G, G, G, G), flv)
 end
@@ -72,7 +116,12 @@ end
 end
 
 
+"""
+    full_sdc_y_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
 
+Calculates ⟨m_y(src, τ) m_y(trg, 0)⟩ with the same definitions for m_y as 
+`my_kernel`.
+"""
 @inline Base.@propagate_inbounds function full_sdc_y_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     return full_sdc_y_kernel(mc, model, ij, (G, G, G, G), flv)
 end
@@ -120,7 +169,12 @@ end
 end
 
 
+"""
+    full_sdc_z_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
 
+Calculates ⟨m_z(src, τ) m_z(trg, 0)⟩ with the same definitions for m_z as 
+`mz_kernel`.
+"""
 @inline Base.@propagate_inbounds function full_sdc_z_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     return full_sdc_z_kernel(mc, model, ij, (G, G, G, G), flv)
 end
@@ -175,7 +229,12 @@ end
 ### reduced kernels
 ################################################################################
 
+"""
+    reduced_sdc_x_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
 
+Calculates ⟨m_x(src, τ) m_x(trg, 0)⟩ - ⟨m_x(src, τ)⟩⟨m_x(trg, 0)⟩ with the same 
+definitions for m_x as `mx_kernel`.
+"""
 @inline Base.@propagate_inbounds function reduced_sdc_x_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv)
     return reduced_sdc_x_kernel(mc, model, ij, (G, G, G, G), flv)
 end
@@ -203,7 +262,12 @@ end
 end
 
 
+"""
+    reduced_sdc_y_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
 
+Calculates ⟨m_y(src, τ) m_y(trg, 0)⟩ - ⟨m_y(src, τ)⟩⟨m_y(trg, 0)⟩ with the same 
+definitions for m_y as `my_kernel`.
+"""
 @inline Base.@propagate_inbounds function reduced_sdc_y_kernel(
         mc, model, ij::NTuple{2}, G::GreensMatrix, flv
     )
@@ -231,7 +295,12 @@ end
     return full_sdc_y_kernel(mc, model, ij, packed_greens, flvs)
 end
 
+"""
+    reduced_sdc_z_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
 
+Calculates ⟨m_z(src, τ) m_z(trg, 0)⟩ - ⟨m_z(src, τ)⟩⟨m_z(trg, 0)⟩ with the same 
+definitions for m_z as `mz_kernel`.
+"""
 @inline Base.@propagate_inbounds function reduced_sdc_z_kernel(
         mc, model, ij::NTuple{2}, G::GreensMatrix, flv
     )

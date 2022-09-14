@@ -1,4 +1,20 @@
-# This has lattice_iteratorator = Nothing, because it straight up copies G
+"""
+    greens_measurement(mc, model; kwargs...)
+
+Constructs a measurement of the greens function.
+
+## Optional Keyword Arguments
+
+- `kernel = greens_kernel` sets the function representing the Wicks 
+expanded expectation value of the measurement. In this case the kernel just 
+returns the given greens function.
+- `lattice_iterator = nothing` controls which sites are passed to the kernel 
+and how they are summed. With `nothing` this is left to the kernel.
+- `flavor_iterator = nothing` controls which flavor indices 
+(spins) are passed to the kernel. With `lattice_iterator = nothing` this is is 
+also left to the kernel.
+- kwargs from `DQMCMeasurement`
+"""
 function greens_measurement(
         mc::DQMC, model::Model, greens_iterator = Greens(); 
         lattice_iterator = nothing,
@@ -9,19 +25,16 @@ function greens_measurement(
             LogBinner(zeros(eltype, (N, N)), capacity=capacity)
         end, kwargs...
     )
-    Measurement(
+    DQMCMeasurement(
         mc, model, greens_iterator, lattice_iterator, flavor_iterator, greens_kernel, 
         obs = obs; kwargs...
     )
 end
 
 """
-    greens_kernel(mc, model, G::GreensMatrix)
+    greens_kernel(mc, model, sites_indices, greens_matrix, flavor_indices)
 
 Returns the unprocessed Greens function `greens(mc) = {⟨cᵢcⱼ^†⟩}`.
-
-* Lattice Iterators: `nothing` (zero index)
-* Greens Iterators: `Greens` or `GreensAt`
 """
 greens_kernel(mc, model, ::Nothing, G::GreensMatrix, flv) = G.val
 greens_kernel(mc, model, ij::NTuple{2}, G::GreensMatrix, flv) = G.val[ij[1], ij[2]]

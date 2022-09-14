@@ -6,9 +6,49 @@ function pairing(
         kernel = pc_combined_kernel, kwargs...
     )
     li = wrapper === nothing ? lattice_iterator : wrapper(lattice_iterator)
-    Measurement(dqmc, model, greens_iterator, li, flavor_iterator, kernel; kwargs...)
+    DQMCMeasurement(dqmc, model, greens_iterator, li, flavor_iterator, kernel; kwargs...)
 end
+
+"""
+    pairing_correlation(mc, model; kwargs...)
+
+Generates an equal-time pairing correlation measurement. Note that the 
+measurement needs to be added to the simulation via `mc[:name] = result`.
+
+## Optional Keyword Arguments
+
+- `kernel = pc_combined_kernel` sets the function representing the Wicks expanded 
+expectation value of the measurement. See `pc_combined_kernel`, `pc_alt_kernel`
+ and `pc_alt_kernel`.
+- `lattice_iterator = EachLocalQuadByDistance(1:K)` controls which sites are passed 
+to the kernel and how they are summed. See lattice iterators
+- `K = 1 + nearest_neighbor_count(lattice(mc))` sets the number of directions to
+include in the lattice iteration. This includes onsite as the [0, 0] direction.
+- `flavor_iterator = FlavorIterator(mc, 0)` controls which flavor indices 
+(spins) are passed to the kernel. This should generally not be changed.
+- kwargs from `DQMCMeasurement`
+"""
 pairing_correlation(mc, m; kwargs...) = pairing(mc, m, Greens(); kwargs...)
+
+"""
+    pairing_correlation(mc, model; kwargs...)
+
+Generates an time-integrated pairing susceptibility measurement. Note that the 
+measurement needs to be added to the simulation via `mc[:name] = result`.
+
+## Optional Keyword Arguments
+
+- `kernel = pc_combined_kernel` sets the function representing the Wicks expanded 
+expectation value of the measurement. See `pc_combined_kernel`, `pc_alt_kernel`
+ and `pc_alt_kernel`.
+- `lattice_iterator = EachLocalQuadByDistance(1:K)` controls which sites are passed 
+to the kernel and how they are summed. See lattice iterators
+- `K = 1 + nearest_neighbor_count(lattice(mc))` sets the number of directions to
+include in the lattice iteration. This includes onsite as the [0, 0] direction.
+- `flavor_iterator = FlavorIterator(mc, 0)` controls which flavor indices 
+(spins) are passed to the kernel. This should generally not be changed.
+- kwargs from `DQMCMeasurement`
+"""
 pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, TimeIntegral(mc); kwargs...)
 
 
@@ -18,7 +58,12 @@ pairing_susceptibility(mc, m; kwargs...) = pairing(mc, m, TimeIntegral(mc); kwar
 ################################################################################
 
 
+"""
+    pc_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
 
+Calculates ⟨Δ(src1, trg1)(τ) Δ^†(src2, trg2)(0)⟩ for a given set of indices,
+where Δ(src, trg)(τ) = c_{src, ↑}(τ) c_{trg, ↓}(τ). 
+"""
 @inline Base.@propagate_inbounds function pc_kernel(
         mc, model, sites::NTuple{4}, packed_greens::_GM4, flv
     )
@@ -56,7 +101,12 @@ end
 end
 
 
+"""
+    pc_alt_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
 
+Calculates ⟨Δ^†(src1, trg1)(τ) Δ(src2, trg2)(0)⟩ for a given set of indices,
+where Δ(src, trg)(τ) = c_{src, ↑}(τ) c_{trg, ↓}(τ). 
+"""
 @inline Base.@propagate_inbounds function pc_alt_kernel(
         mc, model, sites::NTuple{4}, packed_greens::_GM4, flv
     )
@@ -97,7 +147,13 @@ end
     (I[src1, src2] * I[G0l.k, G0l.l] - G0l.val.blocks[1][src2, src1])
 end
 
+"""
+    pc_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
 
+Calculates ⟨Δ(src1, trg1)(τ) Δ^†(src2, trg2)(0) + Δ^†(src1, trg1)(τ) Δ(src2, trg2)(0)⟩ 
+for a given set of indices, where Δ(src, trg)(τ) = c_{src, ↑}(τ) c_{trg, ↓}(τ). 
+This is the combination of `pc_kernel` and `pc_alt_kernel`
+"""
 @inline Base.@propagate_inbounds function pc_combined_kernel(mc, model, sites::NTuple{4}, G, flv)
     # Δ^† Δ + Δ Δ^†
     # same as in https://arxiv.org/pdf/1912.08848.pdf

@@ -64,7 +64,28 @@ end
 rebuild(B::LogBinner, capacity) = LogBinner(B, capacity=capacity)
 rebuild(B::T, capacity) where T = T(B, capacity=capacity)
 
-function Measurement(
+"""
+    DQMCMeasurement(
+        mc, model, greens_iterator, lattice_iterator, flavor_iterator, kernel; 
+        kwargs...
+    )
+
+Constructs a `DQMCMeasurement` from the given arguments.
+
+## Optional Keyword Arguments
+
+- `temp` sets up the temporary storage for the measurement. Defaults to 
+`_measurement_buffer(mc, lattice_iterator, eltype)`.
+- `obs` sets the observable for the measurement. By default this is a 
+`LogBinner` from BinningAnalysis.jl. The zero element follows from 
+`_binner_zero_element(mc, lattice_iterator, eltype)`.
+- `capacity` sets the capacity of the default observable. Defaults to 
+`_default_capacity(mc)` which is at least double the number of measurements the 
+simulation is set up to take.
+- `eltype` sets the element type for the temporary storage and observable. By 
+default this follows from element type of the Greens function `geltype(mc)`.
+"""
+function DQMCMeasurement(
         dqmc, _model, greens_iterator, lattice_iterator, 
         flavor_iterator, kernel;
         capacity = _default_capacity(dqmc), eltype = geltype(dqmc),
@@ -77,6 +98,7 @@ function Measurement(
     DQMCMeasurement(greens_iterator, lattice_iterator, flavor_iterator, kernel, obs, temp)
 end
 
+@deprecate Measurement DQMCMeasurement false
 
 
 ################################################################################

@@ -149,7 +149,12 @@ field_hint(m, ::Val) = choose_field(m)
 field_hint(m, ::Val{:AttractiveGHQHubbardModel}) = MagneticGHQField
 field_hint(m, ::Val{:RepulsiveGHQHubbardModel}) = MagneticGHQField
 
+"""
+    interaction_energy_kernel(mc, ::HubbardModel, ::Nothing, greens_matrices, ::Nothing)
 
+Computes the interaction energy - U ⟨(n↑ - 0.5)(n↓ - 0.5)⟩. Note that this is a 
+model specific method.
+"""
 function interaction_energy_kernel(mc, model::HubbardModel, ::Nothing, G::_GM{<: DiagonallyRepeatingMatrix}, flv)
     # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... 
     # = U [G↑↑ G↓↓ - G↓↑ G↑↓ - 0.5 G↑↑ - 0.5 G↓↓ + G↑↓ + 0.25]

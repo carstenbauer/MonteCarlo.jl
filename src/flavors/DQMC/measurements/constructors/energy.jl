@@ -1,8 +1,27 @@
 function boson_energy_measurement(dqmc, model; kwargs...)
-    Measurement(dqmc, model, nothing, nothing, nothing, energy_boson; kwargs...)
+    DQMCMeasurement(dqmc, model, nothing, nothing, nothing, energy_boson; kwargs...)
 end
 
 @deprecate noninteracting_energy kinetic_energy
+
+"""
+    kinetic_energy(mc, model; kwargs...)
+
+Constructs a measurement of the kinetic energy terms of a model. Note that this 
+includes all two-operator terms like hopping, chemical potential,
+magnetic fields, etc.
+
+## Optional Keyword Arguments
+
+- `kernel = kinetic_energy_kernel` sets the function representing the Wicks 
+expanded expectation value of the measurement. See `kinetic_energy_kernel`
+- `lattice_iterator = nothing` controls which sites are passed 
+to the kernel and how they are summed. With `nothing` this is left to the kernel.
+- `flavor_iterator = nothing` controls which flavor indices 
+(spins) are passed to the kernel. With `lattice_iterator = nothing` this is is 
+also left to the kernel.
+- kwargs from `DQMCMeasurement`
+"""
 function kinetic_energy(
         dqmc, model; 
         greens_iterator = Greens(),
@@ -11,13 +30,31 @@ function kinetic_energy(
         kernel = kinetic_energy_kernel,
         kwargs...
     )
-    Measurement(
+    DQMCMeasurement(
         dqmc, model, greens_iterator, lattice_iterator, flavor_iterator, 
         kernel; kwargs...
     )
 end
 
-# These require the model to implement intE_kernel
+# These require the model to implement interaction_energy_kernel
+"""
+    interaction_energy(mc, model; kwargs...)
+
+Constructs a measurement of the interaction energy of the model. Note that this 
+measurement requires `interaction_energy_kernel` to be implemented for the model
+in question.
+
+## Optional Keyword Arguments
+
+- `kernel = interaction_energy_kernel` sets the function representing the Wicks 
+expanded expectation value of the measurement. See `interaction_energy_kernel`
+- `lattice_iterator = nothing` controls which sites are passed 
+to the kernel and how they are summed. With `nothing` this is left to the kernel.
+- `flavor_iterator = nothing` controls which flavor indices 
+(spins) are passed to the kernel. With `lattice_iterator = nothing` this is is 
+also left to the kernel.
+- kwargs from `DQMCMeasurement`
+"""
 function interaction_energy(
         dqmc, model; 
         greens_iterator = Greens(),
@@ -26,12 +63,30 @@ function interaction_energy(
         kernel = interaction_energy_kernel,
         kwargs...
     )
-    Measurement(
+    DQMCMeasurement(
         dqmc, model, greens_iterator, lattice_iterator, flavor_iterator, 
         kernel; kwargs...
     )
 end
 
+"""
+    total_energy(mc, model; kwargs...)
+
+Constructs a measurement of the full energy of the model. Note that this 
+measurement requires `interaction_energy_kernel` to be implemented for the model
+in question.
+
+## Optional Keyword Arguments
+
+- `kernel = total_energy_kernel` sets the function representing the Wicks 
+expanded expectation value of the measurement. See `total_energy_kernel`
+- `lattice_iterator = nothing` controls which sites are passed 
+to the kernel and how they are summed. With `nothing` this is left to the kernel.
+- `flavor_iterator = nothing` controls which flavor indices 
+(spins) are passed to the kernel. With `lattice_iterator = nothing` this is is 
+also left to the kernel.
+- kwargs from `DQMCMeasurement`
+"""
 function total_energy(
         dqmc, model; 
         greens_iterator = Greens(),
@@ -40,7 +95,7 @@ function total_energy(
         kernel = total_energy_kernel,
         kwargs...
     )
-    Measurement(
+    DQMCMeasurement(
         dqmc, model, greens_iterator, lattice_iterator, flavor_iterator, 
         kernel; kwargs...
     )
@@ -55,7 +110,15 @@ end
 @deprecate intE_kernel interaction_energy_kernel false
 @deprecate totalE_kernel total_energy_kernel false
 
-@inline Base.@propagate_inbounds function kinetic_energy_kernel(mc, model, ::Nothing, G::_GM{<: Matrix}, flv)
+# TODO Tij or Tji? I think Tji...?
+"""
+    kinetic_energy_kernel(mc, model, ::Nothing, greens_matrices, ::Nothing)
+
+Computes the kinetic energy ⟨T[j, i] (I[i, j] - G[i, j])⟩ = ⟨tⱼᵢ cⱼ^† cᵢ⟩
+"""
+@inline Base.@propagate_inbounds function kinetic_energy_kernel(
+        mc, model, ::Nothing, G::_GM{<: Matrix}, flv
+    )
     # <T> = \sum Tji * (Iij - Gij) = - \sum Tji * (Gij - Iij)
     T = mc.stack.hopping_matrix
     output = zero(eltype(G.val))
@@ -90,7 +153,12 @@ end
     return output
 end
 
+"""
+    total_energy_kernel(mc, model, ::Nothing, greens_matrices, ::Nothing)
 
+Computes the total energy by adding the results from `kinetic_energy_kernel` and 
+`interaction_energy_kernel`.
+"""
 @inline Base.@propagate_inbounds function total_energy_kernel(mc, model, sites, G, flv)
     kinetic_energy_kernel(mc, model, sites, G, flv) + 
     interaction_energy_kernel(mc, model, sites, G, flv)
