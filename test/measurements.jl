@@ -205,7 +205,7 @@ end
             @test m isa MonteCarlo.DQMCMeasurement
             @test m.lattice_iterator == EachSitePairByDistance()
             @test m.flavor_iterator == fi
-            @test m.kernel == MonteCarlo.cdc_kernel
+            @test m.kernel == MonteCarlo.full_cdc_kernel
             @test m.observable isa LogBinner{Array{Float64, 3}}
             @test m.temp isa Array{Float64, 3}
 
@@ -220,7 +220,7 @@ end
                 end
                 @test m isa MonteCarlo.DQMCMeasurement
                 @test m.lattice_iterator == EachSitePairByDistance()
-                @test m.kernel == Core.eval(MonteCarlo, Symbol(:sdc_, dir, :_kernel))
+                @test m.kernel == Core.eval(MonteCarlo, Symbol(:full_sdc_, dir, :_kernel))
                 @test m.observable isa LogBinner{Array{Float64, 3}}
                 @test m.temp isa Array{Float64, 3}
             end
