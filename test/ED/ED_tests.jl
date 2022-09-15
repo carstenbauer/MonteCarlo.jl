@@ -119,13 +119,13 @@ end
             dqmc[:G]    = greens_measurement(dqmc, model)
             dqmc[:E]    = total_energy(dqmc, model)
             dqmc[:Occs] = occupation(dqmc, model)
-            dqmc[:CDC]  = charge_density_correlation(dqmc, model)
+            dqmc[:CDC]  = charge_density_correlation(dqmc, model, kernel = MonteCarlo.reduced_cdc_kernel)
             dqmc[:Mx]   = magnetization(dqmc, model, :x)
             dqmc[:My]   = magnetization(dqmc, model, :y)
             dqmc[:Mz]   = magnetization(dqmc, model, :z)
-            dqmc[:SDCx] = spin_density_correlation(dqmc, model, :x)
-            dqmc[:SDCy] = spin_density_correlation(dqmc, model, :y)
-            dqmc[:SDCz] = spin_density_correlation(dqmc, model, :z)
+            dqmc[:SDCx] = spin_density_correlation(dqmc, model, :x, kernel = MonteCarlo.reduced_sdc_x_kernel)
+            dqmc[:SDCy] = spin_density_correlation(dqmc, model, :y, kernel = MonteCarlo.reduced_sdc_y_kernel)
+            dqmc[:SDCz] = spin_density_correlation(dqmc, model, :z, kernel = MonteCarlo.reduced_sdc_z_kernel)
             dqmc[:PC]   = pairing_correlation(dqmc, model, K = 4)
 
             # Unequal time
@@ -187,12 +187,14 @@ end
 
                 @testset "Charge Density Correlation" begin
                     CDC = mean(dqmc.measurements[:CDC])
+                    occs = mean(dqmc.measurements[:Occs])
+                    occs = occs[1:N] .+ occs[mod1.(N+1:2N, end)]
                     ED_CDC = zeros(size(CDC))
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:CDC], dqmc)
                         ED_CDC[dir] += expectation_value(
                             charge_density_correlation(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
-                        )
+                        ) - occs[src] * occs[trg] # because reduced CDC
                     end
                     @test check(ED_CDC/N, CDC, atol, rtol)
                 end
@@ -227,34 +229,37 @@ end
 
                 @testset "Spin density correlation x" begin
                     SDCx = mean(dqmc.measurements[:SDCx])
+                    Mx = mean(dqmc.measurements[:Mx])
                     ED_SDCx = zeros(ComplexF64, size(SDCx))
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCx], dqmc)
                         ED_SDCx[dir] += expectation_value(
                             spin_density_correlation_x(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
-                        )
+                        ) - Mx[src] * Mx[trg]
                     end
                     @test check(ED_SDCx/N, SDCx, atol, rtol)
                 end
                 @testset "Spin density correlation y" begin
                     SDCy = mean(dqmc.measurements[:SDCy])
+                    My = mean(dqmc.measurements[:My])
                     ED_SDCy = zeros(ComplexF64, size(SDCy))
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCy], dqmc)
                         ED_SDCy[dir] += expectation_value(
                             spin_density_correlation_y(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
-                        )
+                        ) - My[src] * My[trg]
                     end
                     @test check(ED_SDCy/N, SDCy, atol, rtol)
                 end
                 @testset "Spin density correlation z" begin
                     SDCz = mean(dqmc.measurements[:SDCz])
+                    Mz = mean(dqmc.measurements[:Mz])
                     ED_SDCz = zeros(ComplexF64, size(SDCz))
                     for (dir, src, trg) in MonteCarlo.lattice_iterator(dqmc[:SDCz], dqmc)
                         ED_SDCz[dir] += expectation_value(
                             spin_density_correlation_z(trg, src),
                             H, beta = dqmc.parameters.beta, N_sites = N
-                        )
+                        ) - Mz[src] * Mz[trg]
                     end
                     @test check(ED_SDCz/N, SDCz, atol, rtol)
                 end
