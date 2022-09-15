@@ -263,4 +263,30 @@ end
         @test m.observable isa LogBinner{Array{Float64, 4}}
         @test m.temp isa Array{Float64, 4}
     end
+
+    m = HubbardModel(4, 2)
+    mc = DQMC(m1, beta=1.0, safe_mult=1)
+    add_default_measurements!(mc)
+
+    @test !haskey(mc, :occ) # skipped with :G
+    @test !haskey(mc, :Mx) # skipped with :G
+    @test !haskey(mc, :My) # skipped with :G
+    @test !haskey(mc, :Mz) # skipped with :G
+    @test haskey(mc, :G) && (mc[:G].kernel == MonteCarlo.greens_kernel)
+    @test haskey(mc, :K) && (mc[:K].kernel == MonteCarlo.kinetic_energy_kernel)
+    @test haskey(mc, :V) && (mc[:V].kernel == MonteCarlo.interaction_energy_kernel)
+    @test !haskey(mc, :E) # skipped with :K, :V
+
+    @test haskey(mc, :CDC)  && (mc[:CDC].kernel == MonteCarlo.full_cdc_kernel)
+    @test haskey(mc, :PC)   && (mc[:PC].kernel == MonteCarlo.pc_kernel)
+    @test haskey(mc, :SDCx) && (mc[:SDCx].kernel == MonteCarlo.full_sdc_x_kernel)
+    @test haskey(mc, :SDCy) && (mc[:SDCy].kernel == MonteCarlo.full_sdc_y_kernel)
+    @test haskey(mc, :SDCz) && (mc[:SDCz].kernel == MonteCarlo.full_sdc_z_kernel)
+
+    @test haskey(mc, :CDS)  && (mc[:CDS].kernel == MonteCarlo.full_cdc_kernel)
+    @test haskey(mc, :PS)   && (mc[:PS].kernel == MonteCarlo.pc_kernel)
+    @test haskey(mc, :SDSx) && (mc[:SDSx].kernel == MonteCarlo.full_sdc_x_kernel)
+    @test haskey(mc, :SDSy) && (mc[:SDSy].kernel == MonteCarlo.full_sdc_y_kernel)
+    @test haskey(mc, :SDSz) && (mc[:SDSz].kernel == MonteCarlo.full_sdc_z_kernel)
+    @test haskey(mc, :CCS)  && (mc[:CCS].kernel == MonteCarlo.cc_kernel)
 end
