@@ -41,8 +41,7 @@ macro benchmark_test(name, code)
 end
 
 @testset "All Tests" begin
-    println("Utilities")
-    @time @testset "Utilities" begin
+    @testset "Utilities" begin
         @bm function test1(x, y)
             sleep(x+y)
         end
@@ -68,72 +67,49 @@ end
         disable_benchmarks()
         @test !MonteCarlo.timeit_debug_enabled()
     end
-    # 0.318543 seconds (390.04 k allocations: 21.698 MiB, 99.14% compilation time)
-
-    println("Lattices")
-    @time @testset "Lattices" begin
+    
+    @testset "Lattices" begin
         include("lattices.jl")
     end
-    # 20.743133 seconds (48.56 M allocations: 2.088 GiB, 3.00% gc time, 69.97% compilation time)
 
-    println("Model")
-    @time @testset "Models" begin
+    @testset "Models" begin
         include("modeltests_IsingModel.jl")
         include("modeltests_HubbardModel.jl")
     end
-    # 2.326224 seconds (5.23 M allocations: 297.223 MiB, 3.35% gc time, 98.42% compilation time)
 
-    println("Linear Algebra")
-    @time @testset "Linear Algebra" begin
+    @testset "Linear Algebra" begin
         include("linalg.jl")
     end
-    # 70.500653 seconds (113.03 M allocations: 5.533 GiB, 3.65% gc time, 53.82% compilation time)
 
-    println("Slice Matrices")
-    @time @testset "Slice Matrices" begin
+    @testset "Slice Matrices" begin
         include("slice_matrices.jl")
     end
-    # 6.358704 seconds (10.47 M allocations: 531.320 MiB, 1.75% gc time, 99.56% compilation time)
 
-    println("DQMC")
-    @time @testset "Flavors" begin
+    @testset "Flavors" begin
         include("flavortests_DQMC.jl")
     end
-    # 30.060617 seconds (42.91 M allocations: 2.579 GiB, 2.19% gc time, 70.84% compilation time)
 
-    println("Fields")
-    @time @testset "Fields" begin
+    @testset "Fields" begin
         include("fields.jl")
     end
-    # 31.349194 seconds (38.40 M allocations: 1.924 GiB, 1.51% gc time, 98.22% compilation time)
 
-    println("Scheduler")
-    @time @testset "Scheduler & (DQMC) Updates" begin
+    @testset "Scheduler & (DQMC) Updates" begin
         include("updates.jl")
     end
-    # 17.825457 seconds (28.21 M allocations: 1.522 GiB, 2.02% gc time, 95.81% compilation time)
 
-    println("Measurement")
-    @time @testset "Measurements" begin
+    @testset "Measurements" begin
         include("measurements.jl")
     end
-    # 7.075271 seconds (9.16 M allocations: 505.699 MiB, 2.00% gc time, 98.01% compilation time)
 
-    println("Integration")
-    @time @testset "Integration tests" begin
+    @testset "Integration tests" begin
         include("integration_tests.jl")
     end
-    # 0.731501 seconds (748.57 k allocations: 41.296 MiB, 84.61% compilation time)
 
-    println("ED")
-    @time @testset "Exact Diagonalization" begin
+    @testset "Exact Diagonalization" begin
         include("ED/ED_tests.jl")
     end
-    # 143.648447 seconds (71.89 M allocations: 14.621 GiB, 1.40% gc time, 27.53% compilation time)
 
-    println("File IO")
-    @time @testset "File IO" begin
+    @testset "File IO" begin
         include("FileIO.jl")
     end
-    # 70.228255 seconds (65.91 M allocations: 3.273 GiB, 1.34% gc time, 39.71% compilation time)
 end
