@@ -18,7 +18,7 @@ using MonteCarlo: lattice_vectors
         B_pos = collect(positions(B))
         uc = unitcell(l)
         for (i, p) in enumerate(positions(l))
-            j, b = fldmod1(i, length(uc))
+            b, j = fldmod1(i, prod(l.Ls))
             pos_check = (p ≈ (uc.sites[b] + B_pos[j])) && pos_check
         end
         @test pos_check
@@ -38,7 +38,7 @@ using MonteCarlo: lattice_vectors
         @test eachindex(l) == 1:4
 
         ps = collect(positions(l))
-        @test size(ps) == (1, 4) 
+        @test size(ps) == (4, 1) 
         @test ps[:] == [[1.0], [2.0], [3.0], [4.0]]
 
         bs = collect(bonds(l))
@@ -74,7 +74,7 @@ using MonteCarlo: lattice_vectors
         @test eachindex(l) == 1:9
 
         ps = collect(positions(l))
-        @test size(ps) == (1, 3, 3) 
+        @test size(ps) == (3, 3, 1) 
         @test ps[:] == [[1.0, 1.0], [2.0, 1.0], [3.0, 1.0], [1.0, 2.0], [2.0, 2.0], [3.0, 2.0], [1.0, 3.0], [2.0, 3.0], [3.0, 3.0]]
 
         bs = collect(bonds(l))
@@ -114,7 +114,7 @@ using MonteCarlo: lattice_vectors
         @test eachindex(l) == 1:8
 
         ps = collect(positions(l))
-        @test size(ps) == (1, 2, 2, 2) 
+        @test size(ps) == (2, 2, 2, 1) 
         @test ps[:] == [[1.0, 1.0, 1.0], [2.0, 1.0, 1.0], [1.0, 2.0, 1.0], [2.0, 2.0, 1.0], [1.0, 1.0, 2.0], [2.0, 1.0, 2.0], [1.0, 2.0, 2.0], [2.0, 2.0, 2.0]]
 
         bs = collect(bonds(l))
@@ -155,21 +155,30 @@ using MonteCarlo: lattice_vectors
 
         ps = collect(positions(l))
         @test size(ps) == (2, 2, 2) 
-        @test ps[:] == [[1.7320508075688772, 0.0], [2.309401076758503, 0.0], [2.598076211353316, -0.5], [3.1754264805429413, -0.5], [2.598076211353316, 0.5], [3.1754264805429417, 0.5], [3.4641016151377544, 0.0], [4.04145188432738, 0.0]]
+        @test ps[:] == [
+            [1.7320508075688772, 0.0], 
+            [2.598076211353316, -0.5], 
+            [2.598076211353316, 0.5], 
+            [3.4641016151377544, 0.0], 
+            [2.309401076758503, 0.0], 
+            [3.1754264805429413, -0.5], 
+            [3.1754264805429417, 0.5], 
+            [4.04145188432738, 0.0]
+        ]
 
-        bs = collect(bonds(l))
-        @test MonteCarlo.from.(bs) == [1, 1, 1, 3, 3, 3, 5, 5, 5, 7, 7, 7]
-        @test MonteCarlo.to.(bs) == [2, 4, 6, 4, 2, 8, 6, 8, 2, 8, 6, 4]
+        bs = collect(bonds(l, Val(false)))
+        @test MonteCarlo.from.(bs) == [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4]
+        @test MonteCarlo.to.(bs) == [5, 6, 7, 6, 5, 8, 7, 8, 5, 8, 7, 6]
         @test MonteCarlo.label.(bs) == ones(12)
 
         bs = collect(bonds(l, Val(true)))
-        @test MonteCarlo.from.(bs) == [1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 8, 8, 8]
-        @test MonteCarlo.to.(bs) == [2, 4, 6, 1, 3, 5, 4, 2, 8, 3, 1, 7, 6, 8, 2, 5, 7, 1, 8, 6, 4, 7, 5, 3]
+        @test MonteCarlo.from.(bs) == [1, 1, 1, 5, 5, 5, 2, 2, 2, 6, 6, 6, 3, 3, 3, 7, 7, 7, 4, 4, 4, 8, 8, 8]
+        @test MonteCarlo.to.(bs) == [5, 6, 7, 1, 2, 3, 6, 5, 8, 2, 1, 4, 7, 8, 5, 3, 4, 1, 8, 7, 6, 4, 3, 2]
         @test MonteCarlo.label.(bs) == ones(24)
 
         bs = collect(bonds(l, 3))
         @test MonteCarlo.from.(bs) == [3,3,3]
-        @test MonteCarlo.to.(bs) == [4,2,8]
+        @test MonteCarlo.to.(bs) == [7,8,5]
         @test MonteCarlo.label.(bs) == ones(3)
 
         rs = MonteCarlo.lattice_vectors(l)
@@ -217,11 +226,8 @@ using MonteCarlo: directed_norm
             @test check_dirs
 
             dirs = directions(Bravais(lattice(dqmc)))
-            check_dirs = true
-            for i in 2:length(dirs)
-                check_dirs = check_dirs && (norm(dirs[i-1]) < norm(dirs[i]) + 1e-10)
-            end
-            @test check_dirs
+            pos = collect(positions(Bravais(lattice(dqmc))))
+            @test all(dirs .≈ [pos[i] .- pos[1] for i in eachindex(pos)])
         end
 
         dirs = [[cos(x), sin(x)] for x in range(0, 2pi-10eps(2pi), length=10)]
@@ -296,7 +302,7 @@ using MonteCarlo: directed_norm
             wrap = MonteCarlo.generate_combinations(lattice(dqmc))
             
             B = length(lattice(dqmc).unitcell.sites)
-            ind2sub = CartesianIndices((B, B, length(dirs)))
+            ind2sub = CartesianIndices((length(dirs), B, B))
             iter_dirs = directions(lattice(dqmc), iter.iter)
 
             # Let's summarize these tests...
@@ -306,10 +312,10 @@ using MonteCarlo: directed_norm
 
             for (combined, src, trg) in iter
                 N += 1
-                b1, b2, idx = Tuple(ind2sub[combined])
+                idx, b1, b2 = Tuple(ind2sub[combined])
                 # raw distance between points - wrapped Bravais distance - raw uc distance
                 _d = (dirs[idx] + uc_pos[b2] - uc_pos[b1])
-                check_dirs = check_dirs && (_d ≈ iter_dirs[b1, b2, idx])
+                check_dirs = check_dirs && (_d ≈ iter_dirs[idx, b1, b2])
                 _d = (pos[trg] - pos[src]) - _d
                 
                 # Redo wrapping around periodic bounds. Note that the wrapping
@@ -325,8 +331,10 @@ using MonteCarlo: directed_norm
                     end
                 end
                 
+                
                 # Some slack for float precision
-                check = check && all(d .< 1e-15)
+                x = all(abs.(d) .< 1e-15)
+                check = check && x
             end
 
             @test length(iter) == N
@@ -360,18 +368,18 @@ using MonteCarlo: directed_norm
 
             B = length(lattice(dqmc).unitcell.sites)
             Ndirs = length(iter.iter.directions)
-            idxs = CartesianIndices((B, B, length(dirs), Ndirs, Ndirs))
+            idxs = CartesianIndices((length(dirs), Ndirs, Ndirs, B, B))
             iter_dirs = directions(lattice(dqmc), iter.iter)
             N = 0
 
             for (lin, src1, trg1, src2, trg2) in iter
                 N += 1
-                uc1, uc2, idx12, idx1, idx2 = Tuple(idxs[lin])
+                idx12, idx1, idx2, uc1, uc2 = Tuple(idxs[lin])
 
                 # src1 -- idx12 -- src2
                 # _d = full_pos[src1] - full_pos[src2] - dirs[idx12] + uc_pos[uc2] - uc_pos[uc1]
                 _d = dirs[idx12] + uc_pos[uc2] - uc_pos[uc1]
-                check_dirs = check_dirs && (_d ≈ iter_dirs[1][uc1, uc2, idx12])
+                check_dirs = check_dirs && (_d ≈ iter_dirs[1][idx12, uc1, uc2])
                 _d = full_pos[src2] - full_pos[src1] - _d
 
                 d = _d .+ wrap[1]
@@ -440,17 +448,17 @@ using MonteCarlo: directed_norm
             check_dirs = true
 
             B = length(lattice(dqmc).unitcell.sites)
-            idxs = CartesianIndices((B, B, length(dirs), length(iter.iter.directions)))
+            idxs = CartesianIndices((length(dirs), length(iter.iter.directions), B, B))
             iter_dirs = directions(lattice(dqmc), iter.iter)
             N = 0
 
             for (lin, src1, trg1, src2, trg2) in iter
                 N += 1
-                uc1, uc2, idx12, idx = Tuple(idxs[lin])
+                idx12, idx, uc1, uc2 = Tuple(idxs[lin])
 
                 # src1 -- idx12 -- src2
                 _d = dirs[idx12] + uc_pos[uc2] - uc_pos[uc1]
-                check_dirs = check_dirs && (_d ≈ iter_dirs[1][uc1, uc2, idx12])
+                check_dirs = check_dirs && (_d ≈ iter_dirs[1][idx12, uc1, uc2])
                 _d = full_pos[src2] - full_pos[src1] - _d
                 d = _d .+ wrap[1]
                 for v in wrap[2:end]

@@ -99,7 +99,7 @@ end
 ################################################################################
 
 
-@testset "Exact Greens comparison (ED, tiny systems)" begin
+@testset "Exact Greens comparison (U = 0)" begin
     models = (
         HubbardModel(Honeycomb(2, 1), U = 0.0, t = 1.0),
     )
@@ -399,7 +399,7 @@ end
 ################################################################################
 
 
-@testset "Repulsive/Attractive Hubbard Model (ED)" begin
+@testset "Repulsive/Attractive Hubbard Model (finite U)" begin
     models = (
         HubbardModel(2, 2, U = -1.0, t = 1.0),
         HubbardModel(2, 2, U = 1.0, mu = 1.0, t = 1.0)
@@ -692,7 +692,7 @@ end
 ### Field checks
 ################################################################################
 
-@testset "Repulsive/Attractive Hubbard Model (ED)" begin
+@testset "Repulsive/Attractive Hubbard Model (field U combinations)" begin
     models = (
         HubbardModel(2, 2, U = -1.0, t = 1.0),
         HubbardModel(2, 2, U = 1.0, mu = 1.0, t = 1.0)

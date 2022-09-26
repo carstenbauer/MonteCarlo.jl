@@ -59,6 +59,12 @@ function _apply_wrap!(d, p, p0, wrap, new_d = similar(d), ϵ = 1e-6)
 end
 
 
+function directions(lattice::Bravais)
+    _positions = collect(positions(lattice))
+    return [p - _positions[1] for p in _positions[:]]
+end
+
+
 # """
 #     directions_with_uc(lattice::Lattice)
 
@@ -115,7 +121,7 @@ into composite directions here, using the same indexing.
 function directions(l::Lattice, ::EachSitePairByDistance)
     Bravais_dirs = directions(Bravais(l))
     ps = l.unitcell.sites
-    return [p2 - p1 + dir for p1 in ps, p2 in ps, dir in Bravais_dirs]
+    return [p2 - p1 + dir for dir in Bravais_dirs, p1 in ps, p2 in ps]
 end
 
 """
@@ -149,7 +155,7 @@ function directions(l::Lattice, iter::EachLocalQuadBySyncedDistance)
     sub_dirs = directions(l)[iter.directions]
     Bravais_dirs = directions(Bravais(l))
     ps = l.unitcell.sites
-    return [p2 - p1 + dir for p1 in ps, p2 in ps, dir in Bravais_dirs], sub_dirs
+    return [p2 - p1 + dir for dir in Bravais_dirs, p1 in ps, p2 in ps], sub_dirs
 end
 
 
@@ -157,7 +163,7 @@ function directions(l::Lattice, iter::EachLocalQuadByDistance)
     sub_dirs = directions(l)[last.(iter.directions)]
     Bravais_dirs = directions(Bravais(l))
     ps = l.unitcell.sites
-    return [p2 - p1 + dir for p1 in ps, p2 in ps, dir in Bravais_dirs], sub_dirs
+    return [p2 - p1 + dir for dir in Bravais_dirs, p1 in ps, p2 in ps], sub_dirs
 end
 
 

@@ -55,32 +55,12 @@ end
 Base.empty(l::Lattice) = empty!(l.cache.cache)
 
 construct_dir2srctrg(l::AbstractLattice) =  _dir2srctrg(l)
-function construct_dir2srctrg(b::Bravais)
-    dir2srctrg = _dir2srctrg(b)
-    N = length(b)
-
-    if !(length(dir2srctrg) == N && all(vec -> length(vec) == N, dir2srctrg))
-        throw(AssertionError(
-            "There must be exactly one direction associated with each site " *
-            "pair of a Bravais lattice. This is currently not the case, which " *
-            "means there is a bug in `_dir2srctrg`. \n$dir2srctrg"
-        ))
-    end
-
-    return map(dir2srctrg) do pairs_in_direction
-        out = Vector{Int}(undef, N)
-        for (src, trg) in pairs_in_direction
-            out[src] = trg
-        end
-        return out
-    end
-end
 
 function construct_src2dirtrg(l::AbstractLattice)
     dir2srctrg = _dir2srctrg(l)
     trg_from_src = [Tuple{Int64, Int64}[] for _ in eachindex(l)]
     for dir in eachindex(dir2srctrg)
-        for (src, trg) in dir2srctrg[dir]
+        for (src, trg) in _int_or_pair_to_pair(dir2srctrg[dir])
             push!(trg_from_src[src], (dir, trg))
         end
     end
@@ -91,7 +71,7 @@ function construct_srctrg2dir(l::AbstractLattice)
     dir2srctrg = _dir2srctrg(l)
     srctrg2dir = [-1 for _ in eachindex(l), __ in eachindex(l)]
     for dir in eachindex(dir2srctrg)
-        for (src, trg) in dir2srctrg[dir]
+        for (src, trg) in _int_or_pair_to_pair(dir2srctrg[dir])
             srctrg2dir[src, trg] = dir
         end
     end
@@ -102,13 +82,14 @@ function construct_srcdir2trg(l::AbstractLattice)
     dir2srctrg = _dir2srctrg(l)
     srcdir2trg = zeros(Int, length(l), length(dir2srctrg))
     for dir in eachindex(dir2srctrg)
-        for (src, trg) in dir2srctrg[dir]
+        for (src, trg) in _int_or_pair_to_pair(dir2srctrg[dir])
             srcdir2trg[src, dir] = trg
         end
     end
     return srcdir2trg
 end
 
+# TODO
 function construct_uc2bonddir(l::Lattice)
     dir2srctrg = _dir2srctrg(l)
     B = length(unitcell(l))
@@ -239,3 +220,25 @@ function _dir2srctrg(l::AbstractLattice, ϵ = 1e-6)
     temp = sortperm(directions, by = v -> directed_norm2(v, ϵ))
     return bonds[temp]
 end
+
+
+function _dir2srctrg(B::Bravais)
+    l = B.l
+    N = length(B)
+    output = [Vector{Int}(undef, N) for _ in 1:N]
+
+    for flat_shift in 1:N
+        shift = _ind2sub(B, flat_shift) .- 1
+        for flat_src in 1:N
+            src = _ind2sub(B, flat_src)
+            trg = mod1.(src .+ shift, l.Ls)
+            flat_trg = _sub2ind(B, trg)
+            output[flat_shift][flat_src] = flat_trg
+        end
+    end
+
+    return output
+end
+
+_int_or_pair_to_pair(v::Vector{<: Tuple}) = v
+_int_or_pair_to_pair(v::Vector{<: Integer}) = enumerate(v)

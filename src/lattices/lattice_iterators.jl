@@ -176,60 +176,113 @@ function output_size(::EachSitePairByDistance, l::Lattice)
     # Periodicity allows us to only consider one origin and no two sites are at 
     # the same position, so length(dirs) = length(Bravais_lattice) here
     Ndir = length(Bravais(l)) # on Bravais lattice
-    return (B, B, Ndir)
+    return (Ndir, B, B)
 end
+
+# function _iterate(::EachSitePairByDistance, l::Lattice, state = (0, 1, 1, 1))
+#     B = length(l.unitcell.sites)
+#     dir2srctrg = l[:Bravais_dir2srctrg]::Vector{Vector{Int}}
+#     uc1, uc2, dir, Bravais_src = state
+
+#     #= # IF structure
+#     if uc1 == B
+#         if uc2 == B
+#             if i == length(dir2srctrg[dir])
+#                 if dir == length(dir2srctrg)
+#                     return nothing
+#                 else
+#                     dir += 1
+#                 end
+#                 i = 1
+#             else
+#                 i += 1
+#             end
+#             uc2 = 1
+#         else
+#             uc2 += 1
+#         end
+#         uc1 = 1
+#     else
+#         uc1 += 1
+#     end
+#     =#
+
+#     # branchless version:
+#     b1 = uc1 == B
+#     b2 = b1 && (uc2 == B)
+#     b3 = b2 && (Bravais_src == length(dir2srctrg[dir]))
+#     b4 = b3 && (dir == length(dir2srctrg))
+
+#     b4 && return nothing
+
+#     uc1 = Int(b1 || (uc1 + 1))
+#     uc2 = Int(b2 || (uc2 + b1))
+#     Bravais_src = Int(b3 || (Bravais_src + b2))
+#     dir = Int(dir + b3)
+
+#     # Bravais sites -> lattice sites
+#     Bravais_trg = dir2srctrg[dir][Bravais_src]
+#     src = (Bravais_src-1) * B + uc1
+#     trg = (Bravais_trg-1) * B + uc2
+
+#     # (uc1, uc2, dir) -> flat index
+#     combined_dir = _sub2ind((B, B), (uc1, uc2, dir))
+
+#     return ((combined_dir, src, trg), (uc1, uc2, dir, Bravais_src))
+# end
 
 function _iterate(::EachSitePairByDistance, l::Lattice, state = (0, 1, 1, 1))
+    # This is effectively
+    # for b1 in eachindex(l.unitcell.sites)
+    #     for b2 in eachindex(l.unitcell.sites)
+    #         for dir in 0:N-1
+    #             for i in 1:N
+    #                 combined_dir = _sub2ind((N, B), (dir, uc1, uc2))
+    #                 src = i + (b1-1) * N
+    #                 trg = mod1(i+dir, N) + (b2-1) * N
+    #                 # call
+    #             end
+    #         end
+    #     end
+    # end
+
+
+    N = length(Bravais(l))
     B = length(l.unitcell.sites)
     dir2srctrg = l[:Bravais_dir2srctrg]::Vector{Vector{Int}}
-    uc1, uc2, dir, Bravais_src = state
+    
+    idx, shift, uc1, uc2 = state
 
-    #= # IF structure
-    if uc1 == B
-        if uc2 == B
-            if i == length(dir2srctrg[dir])
-                if dir == length(dir2srctrg)
-                    return nothing
-                else
-                    dir += 1
-                end
-                i = 1
-            else
-                i += 1
-            end
-            uc2 = 1
-        else
-            uc2 += 1
-        end
-        uc1 = 1
-    else
-        uc1 += 1
-    end
-    =#
+    # which indices hit their maximum?
+    b1 = idx == N
+    b2 = b1 && (shift == N)
+    b3 = b2 && (uc1 == B)
+    b4 = b3 && (uc2 == B)
 
-    # branchless version:
-    b1 = uc1 == B
-    b2 = b1 && (uc2 == B)
-    b3 = b2 && (Bravais_src == length(dir2srctrg[dir]))
-    b4 = b3 && (dir == length(dir2srctrg))
-
+    # exit when all hit their maximum
     b4 && return nothing
 
-    uc1 = Int(b1 || (uc1 + 1))
-    uc2 = Int(b2 || (uc2 + b1))
-    Bravais_src = Int(b3 || (Bravais_src + b2))
-    dir = Int(dir + b3)
+    # ifelse(hit_max, 1, ifelse(previous_hit_max, increment_value, keep_value))
+    idx   = Int(b1 || (idx + 1))
+    shift = Int(b2 || (shift + b1))
+    uc1   = Int(b3 || (uc1 + b2))
+    uc2   = Int(b4 || (uc2 + b3))
 
-    # Bravais sites -> lattice sites
-    Bravais_trg = dir2srctrg[dir][Bravais_src]
-    src = (Bravais_src-1) * B + uc1
-    trg = (Bravais_trg-1) * B + uc2
+    # shift needs to apply periodically in x/y/z direction so we can't just use
+    # mod1(trg, N). dir2srctrg caches the correct mapping for us.
+    trg = dir2srctrg[shift][idx]
 
-    # (uc1, uc2, dir) -> flat index
-    combined_dir = _sub2ind((B, B), (uc1, uc2, dir))
+    # Convert from Bravais index to lattice index
+    src = idx + (uc1-1) * N
+    trg = trg + (uc2-1) * N
 
-    return ((combined_dir, src, trg), (uc1, uc2, dir, Bravais_src))
+    # matrix -> flat index
+    combined_dir = _sub2ind((N, B), (shift, uc1, uc2))
+
+    return ((combined_dir, src, trg), (idx, shift, uc1, uc2))
 end
+
+# end
 _length(::EachSitePairByDistance, l::Lattice) = length(l)^2
 _eltype(::EachSitePairByDistance, l::Lattice) = NTuple{3, Int}
 
@@ -274,8 +327,54 @@ function output_size(iter::EachLocalQuadBySyncedDistance, l::Lattice)
     B = length(l.unitcell.sites)
     Ndir = length(Bravais(l)) # on Bravais lattice
     K = length(iter.directions)
-    return (B, B, Ndir, K)
+    return (Ndir, K, B, B)
 end
+
+# function _iterate(iter::EachLocalQuadBySyncedDistance, l::Lattice, state = (1,1,0))
+#     #  sync_idx                sync_idx
+#     #     🡣                       🡣
+#     # (sync_dir, idx1)        (sync_dir, idx2)
+#     #    🡧        🡦             🡧        🡦
+#     # src' <----- src ------> trg -----> trg'
+#     #              🡣  🡦     🡧  🡣        
+#     #             uc1   dir   uc2
+
+#     sync_idx, idx1, idx2 = state
+
+#     # Branchless increments
+#     sync_dir = iter.directions[sync_idx]
+#     dir2srctrg = l[:dir2srctrg]::Vector{Vector{Tuple{Int, Int}}}
+#     Ndir = length(Bravais(l)) # on Bravais lattice
+#     N = length(dir2srctrg[sync_dir])
+#     B = length(l.unitcell.sites)
+
+#     b1 = idx2 == N
+#     b2 = b1 && (idx1 == N)
+#     b3 = b2 && (sync_idx == length(iter.directions))
+
+#     b3 && return nothing
+
+#     idx2 = Int64(b1 || (idx2 + 1))
+#     idx1 = Int64(b2 || (idx1 + b1))
+#     sync_idx = Int64(sync_idx + b2)
+
+#     sync_dir = iter.directions[sync_idx]
+    
+#     # These are lattice indices
+#     src1, trg1 = dir2srctrg[sync_dir][idx1]
+#     src2, trg2 = dir2srctrg[sync_dir][idx2]
+    
+#     # convert to uc idx + Bravais lattice index
+#     Bsrc1, uc1 = fldmod1(src1, B)
+#     Bsrc2, uc2 = fldmod1(src2, B)
+#     dir12 = (l[:Bravais_srctrg2dir]::Matrix{Int})[Bsrc1, Bsrc2]
+
+#     # combine (uc1, uc2, dir12, sync_idx) to linear index
+#     combined_dir = _sub2ind((B, B, Ndir, length(iter.directions)), (uc1, uc2, dir12, sync_idx))
+
+#     # state = (src1 mask index, src2 mask index, filter1 index, filter2 index)
+#     return ((combined_dir, src1, trg1, src2, trg2), (sync_idx, idx1, idx2))
+# end
 
 function _iterate(iter::EachLocalQuadBySyncedDistance, l::Lattice, state = (1,1,0))
     #  sync_idx                sync_idx
@@ -303,7 +402,7 @@ function _iterate(iter::EachLocalQuadBySyncedDistance, l::Lattice, state = (1,1,
 
     idx2 = Int64(b1 || (idx2 + 1))
     idx1 = Int64(b2 || (idx1 + b1))
-    sync_idx = Int64(sync_idx + b2)
+    new_sync_idx = Int64(sync_idx + b2)
 
     sync_dir = iter.directions[sync_idx]
     
@@ -312,15 +411,15 @@ function _iterate(iter::EachLocalQuadBySyncedDistance, l::Lattice, state = (1,1,
     src2, trg2 = dir2srctrg[sync_dir][idx2]
     
     # convert to uc idx + Bravais lattice index
-    Bsrc1, uc1 = fldmod1(src1, B)
-    Bsrc2, uc2 = fldmod1(src2, B)
+    uc1, Bsrc1 = fldmod1(src1, N)
+    uc2, Bsrc2 = fldmod1(src2, N)
     dir12 = (l[:Bravais_srctrg2dir]::Matrix{Int})[Bsrc1, Bsrc2]
 
     # combine (uc1, uc2, dir12, sync_idx) to linear index
-    combined_dir = _sub2ind((B, B, Ndir, length(iter.directions)), (uc1, uc2, dir12, sync_idx))
+    combined_dir = _sub2ind((Ndir, length(iter.directions), B, B), (dir12, sync_idx, uc1, uc2))
 
     # state = (src1 mask index, src2 mask index, filter1 index, filter2 index)
-    return ((combined_dir, src1, trg1, src2, trg2), (sync_idx, idx1, idx2))
+    return ((combined_dir, src1, trg1, src2, trg2), (new_sync_idx, idx1, idx2))
 end
 
 
@@ -379,26 +478,78 @@ end
 
 function output_size(iter::EachLocalQuadByDistance, l::Lattice)
     B = length(l.unitcell.sites)
-    Ndir = length(Bravais(l)) # on Bravais lattice
+    N = length(Bravais(l)) # on Bravais lattice
     K = length(iter.directions)
-    return (B, B, Ndir, K, K)
+    return (N, K, K, B, B,)
 end
-function output_size(iter::EachLocalQuadByDistance{BondDirections}, l::Lattice)
+function output_size(::EachLocalQuadByDistance{BondDirections}, l::Lattice)
     B = length(l.unitcell.sites)
-    Ndir = length(Bravais(l)) # on Bravais lattice
+    N = length(Bravais(l)) # on Bravais lattice
     K = length(hopping_directions(l))
-    return (B, B, Ndir, K, K)
+    return (N, K, K, B, B)
 end
 
-function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1))
-    state == (0,0,0,0) && return nothing
-    src1, src2, sub_idx1, sub_idx2 = state
+# function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1))
+#     state == (0,0,0,0) && return nothing
+#     src1, src2, sub_idx1, sub_idx2 = state
 
-    # convert to uc idx + Bravais lattice index
+#     # convert to uc idx + Bravais lattice index
+#     B = length(l.unitcell.sites)
+#     Bsrc1, uc1 = fldmod1(src1, B)
+#     Bsrc2, uc2 = fldmod1(src2, B)
+#     dir12 = (l[:Bravais_srctrg2dir]::Matrix{Int})[Bsrc1, Bsrc2]
+
+#     # Get src -- trg directions (idx is for the output matrix)
+#     dirs1 = _dir_idxs_uc(l, iter.directions, uc1)
+#     idx1, sub_dir1 = dirs1[sub_idx1]
+#     dirs2 = _dir_idxs_uc(l, iter.directions, uc2)
+#     idx2, sub_dir2 = dirs2[sub_idx2]
+
+#     # target sites
+#     srcdir2trg = l[:srcdir2trg]::Matrix{Int}
+#     trg1 = srcdir2trg[src1, sub_dir1]
+#     trg2 = srcdir2trg[src2, sub_dir2]
+
+#     # Prepare next iteration
+
+#     # fast changing
+#     b1 = sub_idx2 == length(dirs2)
+#     b2 = b1 && (sub_idx1 == length(dirs1))
+#     b3 = b2 && (src2 == length(l))
+#     b4 = b3 && (src1 == length(l))
+#     # slow changing
+
+#     sub_idx2 = Int64(b1 || (sub_idx2 + 1))
+#     sub_idx1 = Int64(b2 || (sub_idx1 + b1))
+#     next_src2 = Int64(b3 || (src2 + b2))
+#     next_src1 = Int64(src1 + b3)
+
+#     next_state = Int(!b4) .* (next_src1, next_src2, sub_idx1, sub_idx2)
+
+#     # Check validity
+#     if trg1 == 0 || trg2 == 0
+#         return _iterate(iter, l, next_state)
+#     end
+
+#     # TODO
+#     subN = _length(l, iter.directions)
+#     Ndir = length(Bravais(l)) # on Bravais lattice
+#     combined_dir = _sub2ind(
+#         (B, B, Ndir, subN, subN), (uc1, uc2, dir12, idx1, idx2)
+#     )
+
+#     return ((combined_dir, src1, trg1, src2, trg2), next_state)
+# end
+
+function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1, 1,1))
+    state == (0,0, 0,0, 0,0) && return nothing
+
+    # This updates states after computing the next set of indices
+    src, shift, sub_idx1, sub_idx2, uc1, uc2= state
+    
     B = length(l.unitcell.sites)
-    Bsrc1, uc1 = fldmod1(src1, B)
-    Bsrc2, uc2 = fldmod1(src2, B)
-    dir12 = (l[:Bravais_srctrg2dir]::Matrix{Int})[Bsrc1, Bsrc2]
+    N = length(Bravais(l))
+    dir2srctrg = l[:Bravais_dir2srctrg]::Vector{Vector{Int}}
 
     # Get src -- trg directions (idx is for the output matrix)
     dirs1 = _dir_idxs_uc(l, iter.directions, uc1)
@@ -406,37 +557,44 @@ function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1))
     dirs2 = _dir_idxs_uc(l, iter.directions, uc2)
     idx2, sub_dir2 = dirs2[sub_idx2]
 
+    # full src sites
+    src1 = src + N * (uc1-1)
+    src2 = dir2srctrg[shift][src] + N * (uc2-1)
+
     # target sites
     srcdir2trg = l[:srcdir2trg]::Matrix{Int}
     trg1 = srcdir2trg[src1, sub_dir1]
     trg2 = srcdir2trg[src2, sub_dir2]
 
-    # Prepare next iteration
+    # boundschecks
+    # fast
+    b1 = src == N
+    b2 = b1 && (shift == N)
+    b3 = b2 && (sub_idx1 == length(dirs1))
+    b4 = b3 && (sub_idx2 == length(dirs2))
+    b5 = b4 && (uc1 == B)
+    b6 = b5 && (uc2 == B)
+    # slow
 
-    # fast changing
-    b1 = sub_idx2 == length(dirs2)
-    b2 = b1 && (sub_idx1 == length(dirs1))
-    b3 = b2 && (src2 == length(l))
-    b4 = b3 && (src1 == length(l))
-    # slow changing
+    next_src = Int(b1 || (src + 1))
+    next_shift = Int(b2 || (shift + b1))
+    next_sub_idx1 = Int64(b3 || (sub_idx1 + b2))
+    next_sub_idx2 = Int64(b4 || (sub_idx2 + b3))
+    next_uc1 = Int64(b5 || (uc1 + b4))
+    next_uc2 = Int64(b6 || (uc2 + b5))
 
-    sub_idx2 = Int64(b1 || (sub_idx2 + 1))
-    sub_idx1 = Int64(b2 || (sub_idx1 + b1))
-    next_src2 = Int64(b3 || (src2 + b2))
-    next_src1 = Int64(src1 + b3)
-
-    next_state = Int(!b4) .* (next_src1, next_src2, sub_idx1, sub_idx2)
+    # setup state to cancel iteration if necessary
+    next_state = Int(!b6) .* (next_src, next_shift, next_sub_idx1, next_sub_idx2, next_uc1, next_uc2)
 
     # Check validity
     if trg1 == 0 || trg2 == 0
         return _iterate(iter, l, next_state)
     end
 
-    # TODO
+    # Matrix index -> Vector index
     subN = _length(l, iter.directions)
-    Ndir = length(Bravais(l)) # on Bravais lattice
     combined_dir = _sub2ind(
-        (B, B, Ndir, subN, subN), (uc1, uc2, dir12, idx1, idx2)
+        (N, subN, subN, B, B), (shift, idx1, idx2, uc1, uc2)
     )
 
     return ((combined_dir, src1, trg1, src2, trg2), next_state)

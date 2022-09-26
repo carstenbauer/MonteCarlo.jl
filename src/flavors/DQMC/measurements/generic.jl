@@ -429,11 +429,11 @@ function apply!(
 
         @inbounds @fastmath for σ in measurement.flavor_iterator
             for src1 in eachindex(l)
-                Bsrc1, uc1 = fldmod1(src1, B)
+                uc1, Bsrc1 = fldmod1(src1, Ndir)
                 dirs1 = _dir_idxs_uc(l, iter.directions, uc1)::Vector{Pair{Int, Int}}
 
                 for src2 in eachindex(l)
-                    Bsrc2, uc2 = fldmod1(src2, B)
+                    uc2, Bsrc2 = fldmod1(src2, Ndir)
                     dir12 = Bsrctrg2dir[Bsrc1, Bsrc2]
                     dirs2 = _dir_idxs_uc(l, iter.directions, uc2)::Vector{Pair{Int, Int}}
                     
@@ -446,8 +446,8 @@ function apply!(
                             trg2 == 0 && continue
                             
                             combined_dir = _sub2ind(
-                                (B, B, Ndir, subN, subN), 
-                                (uc1, uc2, dir12, sub_idx1, sub_idx2)
+                                (Ndir, subN, subN, B, B), 
+                                (dir12, sub_idx1, sub_idx2, uc1, uc2)
                             )
 
                             temp[combined_dir] += weight * measurement.kernel(
@@ -489,14 +489,14 @@ function apply!(
                     dy = mody[1 + s2y - s1y + Ly]
 
                     for (i, b1) in enumerate(bs)
-                        s1 = _sub2ind(l, (from(b1), s1x, s1y))
+                        s1 = _sub2ind(l, (s1x, s1y, from(b1)))
                         x, y = b1.uc_shift
-                        t1 = _sub2ind(l, (to(b1), modx[s1x+x+Lx], mody[s1y+y+Ly]))
+                        t1 = _sub2ind(l, (modx[s1x+x+Lx], mody[s1y+y+Ly], to(b1)))
 
                         for (j, b2) in enumerate(bs)
-                            s2 = _sub2ind(l, (from(b2), s2x, s2y))
+                            s2 = _sub2ind(l, (s2x, s2y, from(b2)))
                             x, y = b2.uc_shift
-                            t2 = _sub2ind(l, (to(b2), modx[s2x+x+Lx], mody[s2y+y+Ly]))
+                            t2 = _sub2ind(l, (modx[s2x+x+Lx], mody[s2y+y+Ly], to(b2)))
 
                             temp[dx, dy, i, j] += weight * measurement.kernel(
                                 mc, mc.model, (s1, t1, s2, t2), packed_greens, σ
@@ -510,6 +510,8 @@ function apply!(
 
     return 
 end
+
+
 
 ################################################################################
 ### LatticeIterator preparation and finalization

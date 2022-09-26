@@ -158,7 +158,6 @@ end
 
 function Lattice(uc, Ls)
     l = Lattice(uc, Ls, LatticeCache())
-    # init!(l.cache, l)
     return l
 end
 
@@ -219,7 +218,7 @@ Base.:(==)(a::Lattice, b::Lattice) = a.Ls == b.Ls && a.unitcell == b.unitcell
 # flat index to tuple
 function _ind2sub(l::Lattice, idx::Int)
     # this is kinda slow
-    map((length(l.unitcell.sites), l.Ls...)) do L
+    map((l.Ls..., length(l.unitcell.sites))) do L
         idx, x = fldmod1(idx, L)
         x
     end
@@ -228,20 +227,40 @@ end
 # tuple to flat index
 function _sub2ind(l::Lattice, t::NTuple)
     # this is very fast
+    # idx = t[end] - 1
+    # for d in length(l.Ls)-1:-1:1
+    #     idx = idx * l.Ls[d] + (t[d+1] - 1)
+    # end
+    # return idx * length(l.unitcell.sites) + t[1]
+
+    # t was (b, x, y, z), now (x, y, z, b)
     idx = t[end] - 1
-    for d in length(l.Ls)-1:-1:1
-        idx = idx * l.Ls[d] + (t[d+1] - 1)
+    for d in length(l.Ls):-1:1
+        idx = idx * l.Ls[d] + (t[d] - 1)
     end
-    return idx * length(l.unitcell.sites) + t[1]
+    return idx + 1
 end
 
 # flat index shifted by change in Bravais indices
 function _shift(l::Lattice{N}, flat::Int, shift::NTuple{N, Int}) where N
     # tested
-    flat_fld, t = fldmod1(flat, length(l.unitcell.sites))
+    # flat_fld, t = fldmod1(flat, length(l.unitcell.sites))
 
-    flat_out = t
-    f = length(l.unitcell.sites)
+    # flat_out = t
+    # f = length(l.unitcell.sites)
+    # for d in eachindex(l.Ls)
+    #     flat_fld, t = fldmod1(flat_fld, l.Ls[d])
+    #     t = mod1(t + shift[d], l.Ls[d])
+    #     flat_out += f * (t - 1)
+    #     f *= l.Ls[d]
+    # end
+
+    # return flat_out
+
+    # new version
+    flat_fld = flat
+    flat_out = 1
+    f = 1
     for d in eachindex(l.Ls)
         flat_fld, t = fldmod1(flat_fld, l.Ls[d])
         t = mod1(t + shift[d], l.Ls[d])
@@ -249,38 +268,37 @@ function _shift(l::Lattice{N}, flat::Int, shift::NTuple{N, Int}) where N
         f *= l.Ls[d]
     end
 
-    return flat_out
+    return flat_out + (flat_fld-1) * f
+
 end
 
 # flat index shifted by bond
 function _shift(l::Lattice{N}, flat::Int, b::Bond{N}) where N
-    @boundscheck begin
-        b1 = 1 <= flat <= length(l) # flat in bounds
-        flat_fld, t = fldmod1(flat, length(l.unitcell.sites)) # b.from correct
-        b2 = b.from == t
-        b1 && b2
-    end
+    # @boundscheck begin
+    #     b1 = 1 <= flat <= length(l) # flat in bounds
+    #     flat_fld, t = fldmod1(flat, length(l.unitcell.sites)) # b.from correct
+    #     b2 = b.from == t
+    #     b1 && b2
+    # end
 
-    flat_out = b.to
-    flat_fld = fld1(flat, length(l.unitcell.sites))
-    f = length(l.unitcell.sites)
-    for d in eachindex(l.Ls)
-        flat_fld, t = fldmod1(flat_fld, l.Ls[d])
-        t = mod1(t + b.uc_shift[d], l.Ls[d])
-        flat_out += f * (t - 1)
-        f *= l.Ls[d]
-    end
+    # flat_out = b.to
+    # flat_fld = fld1(flat, length(l.unitcell.sites))
+    # f = length(l.unitcell.sites)
+    # for d in eachindex(l.Ls)
+    #     flat_fld, t = fldmod1(flat_fld, l.Ls[d])
+    #     t = mod1(t + b.uc_shift[d], l.Ls[d])
+    #     flat_out += f * (t - 1)
+    #     f *= l.Ls[d]
+    # end
 
-    return flat_out
-end
+    # return flat_out
 
-# flat index shifted by bond (flat on Bravais)
-function _shift_Bravais(l::Lattice{N}, flat::Int, b::Bond{N}) where N
+    # mostly the same as _shift
     @boundscheck 1 <= flat <= length(l) # flat in bounds
 
-    flat_out = b.to
-    flat_fld = fld1(flat, length(l.unitcell.sites))
-    f = length(l.unitcell.sites)
+    flat_out = 1
+    flat_fld = flat
+    f = 1
     for d in eachindex(l.Ls)
         flat_fld, t = fldmod1(flat_fld, l.Ls[d])
         t = mod1(t + b.uc_shift[d], l.Ls[d])
@@ -288,7 +306,42 @@ function _shift_Bravais(l::Lattice{N}, flat::Int, b::Bond{N}) where N
         f *= l.Ls[d]
     end
 
-    return Bond{N}(flat + b.from - 1, flat_out, b.label)
+    @boundscheck flat_fld == b.from # b.from matches basis index in flat
+
+    return flat_out + (b.to-1) * f
+end
+
+# flat index that doesn't include basis shifted by bond
+function _shift_Bravais(l::Lattice{N}, flat::Int, b::Bond{N}) where N
+    # @boundscheck 1 <= flat <= length(l) # flat in bounds
+
+    # flat_out = b.to
+    # flat_fld = fld1(flat, length(l.unitcell.sites))
+    # f = length(l.unitcell.sites)
+    # for d in eachindex(l.Ls)
+    #     flat_fld, t = fldmod1(flat_fld, l.Ls[d])
+    #     t = mod1(t + b.uc_shift[d], l.Ls[d])
+    #     flat_out += f * (t - 1)
+    #     f *= l.Ls[d]
+    # end
+
+    # return Bond{N}(flat + b.from - 1, flat_out, b.label)
+
+    @boundscheck 1 <= flat <= length(l) # flat in bounds
+
+    flat_out = 1
+    flat_fld = flat
+    f = 1
+    for d in eachindex(l.Ls)
+        flat_fld, t = fldmod1(flat_fld, l.Ls[d])
+        t = mod1(t + b.uc_shift[d], l.Ls[d])
+        flat_out += f * (t - 1)
+        f *= l.Ls[d]
+    end
+
+    @boundscheck flat_fld == 0
+
+    return Bond{N}(flat + (b.from - 1) * f, flat_out + (b.to - 1) * f, b.label)
 end
 
 """
@@ -302,16 +355,18 @@ bonds(l::AbstractLattice) = bonds(l, Val(false))
 function bonds(l::Lattice{N}, directed::Val{true}) where N
     (
         _shift_Bravais(l, idx, b)
-            for idx in 1:length(l.unitcell.sites):length(l)
+            for idx in 1:prod(l.Ls)
             for b in l.unitcell.bonds
+            # for idx in 1:length(l.unitcell.sites):length(l)
     )
 end
 function bonds(l::Lattice{N}, directed::Val{false}) where {N}
     bonds = l.unitcell.bonds
     (
         _shift_Bravais(l, idx, bonds[j])
-            for idx in 1:length(l.unitcell.sites):length(l)
+            for idx in 1:prod(l.Ls)
             for j in l.unitcell._directed_indices
+            # for idx in 1:length(l.unitcell.sites):length(l)
     )
 end
 
@@ -321,7 +376,7 @@ end
 Returns an iterator over all bonds starting at `source`.
 """
 function bonds(l::Lattice{N}, site::Int) where N
-    uc_idx = mod1(site, length(l.unitcell.sites))
+    uc_idx = div(site-1, prod(l.Ls)) + 1
     (
         Bond{N}(site, _shift(l, site, b), b.label) 
             for b in l.unitcell.bonds if b.from == uc_idx
@@ -342,18 +397,18 @@ this Array are [unitcell_sites, Bravais_x, Bravais_y, ...]. It can also be
 indexed with a linear site index.
 """
 function positions(l::Lattice{1})
-    (o + lattice_vectors(l)[1] * i for o in l.unitcell.sites, i in 1:l.Ls[1] )
+    (o + lattice_vectors(l)[1] * i for i in 1:l.Ls[1], o in l.unitcell.sites)
 end
 function positions(l::Lattice{2})
     origins = l.unitcell.sites
     v1, v2 = lattice_vectors(l)
-    (o + v1 * i + v2 * j for o in origins, i in 1:l.Ls[1], j in 1:l.Ls[2])
+    (o + v1 * i + v2 * j for i in 1:l.Ls[1], j in 1:l.Ls[2], o in origins)
 end
 
 # Arbitrary dimensions
 function positions(l::Lattice{N}) where N
     # this does Bravais lattice positions + positions in unitcell
-    (o + p for o in l.unitcell.sites, p in _positions(l, N))
+    (o + p for p in _positions(l, N), o in l.unitcell.sites)
 end
 function _positions(l::Lattice, N)
     v = lattice_vectors(l)[N]
@@ -371,7 +426,7 @@ Returns the position of a Lattice at a given set of lattice indices. The indices
 are sorted (basis index, x index, y index, z index)
 """
 function position(l::Lattice, idxs...)
-    return l.unitcell.sites[idxs[1]] .+ sum(lattice_vectors(l) .* idxs[2:end])
+    return sum(lattice_vectors(l) .* idxs[1:end-1]) .+ l.unitcell.sites[idxs[end]]
 end
 
 
@@ -409,7 +464,7 @@ end
 
 
 function _save(file::FileLike, entryname::String, l::Lattice)
-    write(file, "$entryname/VERSION", 0)
+    write(file, "$entryname/VERSION", 1)
     write(file, "$entryname/tag", "MonteCarloLattice")
     write(file, "$entryname/Ls", l.Ls)
     write(file, "$entryname/uc/name", l.unitcell.name)
@@ -421,7 +476,12 @@ function _save(file::FileLike, entryname::String, l::Lattice)
 end
 
 function _load(data, ::Val{:MonteCarloLattice})
-    data["VERSION"] == 0 || @warn("Loading Version $(data["VERSION"]) as Version 0.")
+    version = data["VERSION"]
+    if version == 0
+        @warn("Loading a Lattice with index order (Basis, Bravais) as (Bravais, basis)")
+    elseif version != 1
+        @warn("Loading Version $(data["VERSION"]) as Version 1.")
+    end
     Lattice(
         UnitCell(
             data["uc/name"],
@@ -470,6 +530,22 @@ Base.size(b::Bravais) = size(b.l)
 Base.length(b::Bravais) = prod(b.l.Ls)
 Base.eachindex(b::Bravais) = 1:length(b)
 
+function _ind2sub(B::Bravais, idx::Int)
+    # this is kinda slow
+    map(B.l.Ls) do L
+        idx, x = fldmod1(idx, L)
+        x
+    end
+end
+
+function _sub2ind(B::Bravais, t::NTuple)
+    # t was (b, x, y, z), now (x, y, z, b)
+    idx = t[end] - 1
+    for d in length(B.l.Ls)-1:-1:1
+        idx = idx * B.l.Ls[d] + (t[d] - 1)
+    end
+    return idx + 1
+end
 
 
 ################################################################################
@@ -480,11 +556,27 @@ Base.eachindex(b::Bravais) = 1:length(b)
 
 # flat index shifted by bond
 function _shift_Bravais_open(l::Lattice{N}, flat::Int, b::Bond{N}) where N
+    # @boundscheck 1 <= flat <= length(l) # flat in bounds
+
+    # flat_out = b.to
+    # flat_fld = fld1(flat, length(l.unitcell.sites))
+    # f = length(l.unitcell.sites)
+    # for d in eachindex(l.Ls)
+    #     flat_fld, t = fldmod1(flat_fld, l.Ls[d])
+    #     # t = mod1(t + b.uc_shift[d], l.Ls[d])
+    #     t = t + b.uc_shift[d]
+    #     1 <= t <= l.Ls[d] || return Bond{N}(nothing)
+    #     flat_out += f * (t - 1)
+    #     f *= l.Ls[d]
+    # end
+
+    # return Bond{N}(flat + b.from - 1, flat_out, b.label)
+
     @boundscheck 1 <= flat <= length(l) # flat in bounds
 
-    flat_out = b.to
-    flat_fld = fld1(flat, length(l.unitcell.sites))
-    f = length(l.unitcell.sites)
+    flat_out = 1
+    flat_fld = flat
+    f = 1
     for d in eachindex(l.Ls)
         flat_fld, t = fldmod1(flat_fld, l.Ls[d])
         # t = mod1(t + b.uc_shift[d], l.Ls[d])
@@ -494,7 +586,9 @@ function _shift_Bravais_open(l::Lattice{N}, flat::Int, b::Bond{N}) where N
         f *= l.Ls[d]
     end
 
-    return Bond{N}(flat + b.from - 1, flat_out, b.label)
+    @boundscheck flat_fld == 0
+
+    return Bond{N}(flat + (b.from - 1) * f, flat_out + (b.to - 1) * f, b.label)
 end
 
 struct OpenBondIterator{N}
@@ -512,16 +606,16 @@ bonds_open(l::AbstractLattice, directed = false) = OpenBondIterator(l, directed)
 
 function Base.iterate(iter::OpenBondIterator{N}, state = (1, 1)) where N
     flat, bond_idx = state
-    flat > length(iter.l) && return nothing
+    flat > prod(iter.l.Ls) && return nothing
     uc = iter.l.unitcell
 
     if iter.directed
         bond = _shift_Bravais_open(iter.l, flat, uc.bonds[bond_idx])
-        next_flat = flat + (bond_idx == length(uc.bonds)) * length(uc.sites)
+        next_flat = flat + Int(bond_idx == length(uc.bonds))
         next_bond_idx = mod1(bond_idx+1, length(uc.bonds))
     else
         bond = _shift_Bravais_open(iter.l, flat, uc.bonds[uc._directed_indices[bond_idx]])
-        next_flat = flat + (bond_idx == length(uc._directed_indices)) * length(uc.sites)
+        next_flat = flat + Int(bond_idx == length(uc._directed_indices))
         next_bond_idx = mod1(bond_idx+1, length(uc._directed_indices))
     end
 
