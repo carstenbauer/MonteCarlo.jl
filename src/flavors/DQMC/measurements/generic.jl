@@ -55,10 +55,10 @@ function DQMCMeasurement(
         capacity = nothing
     )
     if capacity === nothing
-        DQMCMeasurement(kernel, greens_iterator, lattice_iterator, flavor_iterator, observable, temp)
+        DQMCMeasurement(greens_iterator, lattice_iterator, flavor_iterator, kernel, observable, temp)
     else
         binner = rebuild(observable, capacity)
-        DQMCMeasurement(kernel, greens_iterator, lattice_iterator, flavor_iterator, binner, temp)
+        DQMCMeasurement(greens_iterator, lattice_iterator, flavor_iterator, kernel, binner, temp)
     end
 end
 rebuild(B::LogBinner, capacity) = LogBinner(B, capacity=capacity)

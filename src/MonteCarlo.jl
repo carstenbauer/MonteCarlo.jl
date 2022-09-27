@@ -100,7 +100,7 @@ export charge_density, charge_density_correlation, charge_density_susceptibility
 export spin_density, spin_density_correlation, spin_density_susceptibility
 export pairing, pairing_correlation, pairing_susceptibility
 export current_current_susceptibility, superfluid_density
-export noninteracting_energy, interacting_energy, total_energy
+export kinetic_energy, interaction_energy, total_energy
 export add_default_measurements!
 
 export EmptyScheduler, SimpleScheduler, AdaptiveScheduler
