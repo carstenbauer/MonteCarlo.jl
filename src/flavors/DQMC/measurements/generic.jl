@@ -474,6 +474,7 @@ modcachex(l::Lattice) = collect(mod1.(1:(1+3l.Ls[1]), l.Ls[1]))
 modcachey(l::Lattice) = collect(mod1.(1:(1+3l.Ls[2]), l.Ls[2]))
 
 # #=
+function cc_kernel() end
 
 function apply!(
         temp::Array, iter::EachBondPairByBravaisDistance, 
@@ -556,7 +557,7 @@ function restructure!(mc, G::DiagonallyRepeatingMatrix; kwargs...)
     return
 end
 function restructure!(mc, G::Matrix; target = G, temp = mc.stack.curr_U)
-    N = length(lattice(mc))
+    N = length(Bravais(lattice(mc)))
     K = div(size(G, 1), N)
     dir2srctrg = lattice(mc)[:Bravais_dir2srctrg]::Vector{Vector{Int}}
 
@@ -602,7 +603,8 @@ function apply!(
     # - 2 real flavors
 
     # TODO
-    # - I swapped G00 and Gll for comparison but I think it should be swapped back
+    # - where the fuck are allocations? Also in propagate?
+    #   maybe restructure allocates?
 
     @timeit_debug "apply!(::EachBondPairByBravaisDistance, ::$(typeof(measurement.kernel)))" begin
         l = lattice(mc)
@@ -650,56 +652,26 @@ function apply!(
                     d2 = 1 + dx2 + Lx * dy2 + N * (uc22 - 1)
 
                     for dy in 0:Ly-1, dx in 0:Lx-1
-                        # val = I1 * I2
                         val = T0
 
-                        # d = 1 + dx + Lx * dy # one based
-
-                        # I[i + (dx, dy), i + b1]
-                        # I3 = ifelse(
-                        #     (uc21 == uc12) && (dx == dx1) && (dy == dy1) && (G0l.l == G0l.k),
-                        #     T1, T0
-                        # )
-
                         # Inlined mod1, see comment below
-                        # # -Lx ≤ (px2, py2) = b1 - (dx, dy) ≤ Lx
-                        # px1 = dx1 - dx; px1 = ifelse(px1 < 0, px1 + Lx, px1)
-                        # py1 = dy1 - dy; py1 = ifelse(py1 < 0, py1 + Ly, py1)
-                        # p1 = 1 + px1 + Lx * py1 + N * (uc12 - 1)
-                        # # println((dx, dy, dx1, dy1, px1, py1, p1))
-
-                        # # 1 ≤ (px1, py1) = (dx, dy) + b2 ≤ 2Lx
-                        # px2 = dx + dx2; px2 = ifelse(px2 ≥ Lx, px2 - Lx, px2)
-                        # py2 = dy + dy2; py2 = ifelse(py2 ≥ Ly, py2 - Ly, py2)
-                        # p2 = 1 + px2 + Lx * py2 + N * (uc22 - 1)
-                        # # println((dx, dy, dx2, dy2, px2, py2, p2))
-
+                        # src2 -> trg1
                         # -Lx ≤ (px2, py2) = b1 - (dx, dy) ≤ Lx
                         px1 = dx1 - dx; px1 = ifelse(px1 < 0, px1 + Lx, px1)
                         py1 = dy1 - dy; py1 = ifelse(py1 < 0, py1 + Ly, py1)
                         p1 = 1 + px1 + Lx * py1 + N * (uc12 - 1)
-                        
-  
+
+                        # src1 -> trg2
                         # 1 ≤ (px1, py1) = (dx, dy) + b2 ≤ 2Lx
                         px2 = dx + dx2; px2 = ifelse(px2 ≥ Lx, px2 - Lx, px2)
                         py2 = dy + dy2; py2 = ifelse(py2 ≥ Ly, py2 - Ly, py2)
                         p2 = 1 + px2 + Lx * py2 + N * (uc22 - 1)
-                        # if bi in (1, 2) && bj == 2 && dx == 1 && dy == 0
-                        #     println((dx, dy, dx1, dy1, px1, py1, p1))
-                        #     println((dx, dy, dx2, dy2, px2, py2, p2))
-                        #     println("---")
-                        # end
 
                         I3 = ifelse(
-                            (uc11 == uc22) && (p2 == 1) && (G0l.l == G0l.k),
+                            (uc11 == uc22) && (px2 == 0) && (py2 == 0) && (G0l.l == G0l.k),
                             T1, T0
                         )
 
-                        # TODO permutation loop/iterations
-                        # No, we can do permutations by including all directions
-                        # after the simulation
-                        # hopping matrix as well
-                        # TODO flavor weights
                         @simd for y in 1:Ly
                             # This is a repalcement for mod1(y+dy, Ly). Another 
                             # alternative is explicit loop splitting, which is
@@ -711,25 +683,12 @@ function apply!(
                                 i = x + Lx * (y-1) + N * (uc11 - 1)
                                 i2 = x + dx + Lx * (y2 + dy - 1) + N * (uc21 - 1)
 
-                                # println((dx+1, dy+1, bi, bj, i, i2, d1, d2, p1, p2))
-                                # if bi in (1, 2) && bj == 2 && dx == 1 && dy == 0
-                                #     println(
-                                #         "[1] ($x, $y) -> ($i, $p2) ($i2, $p1) ", 
-                                #         2 * (I3 - G0l.val.val[i, p2]) * Gl0.val.val[i2, p1]
-                                #     )
-                                # end
+                                # initial version:
+                                # 4 * (I1 - Gll.val.val[i, d1]) * (I2 - G00.val.val[i2, d2]) +
+                                # 2 * (I3 - G0l.val.val[i2, p1]) * Gl0.val.val[i, p2]
 
-                                val += begin
-                                    # I1 and I2 are always 0
-
-                                    # initial version:
-                                    # 4 * (I1 - Gll.val.val[i, d1]) * (I2 - G00.val.val[i2, d2]) +
-                                    # 2 * (I3 - G0l.val.val[i2, p1]) * Gl0.val.val[i, p2]
-
-                                    # matched first to old ccs:
-                                    4 * Gll.val.val[i2, d2] * G00.val.val[i, d1] +
-                                    2 * (I3 - G0l.val.val[i, p2]) * Gl0.val.val[i2, p1]
-                                end
+                                val += 4 * Gll.val.val[i2, d2] * G00.val.val[i, d1]
+                                val += 2 * (I3 - G0l.val.val[i, p2]) * Gl0.val.val[i2, p1]
                             end
 
                             # in this loop dx > 0
@@ -737,25 +696,9 @@ function apply!(
                                 i  = x + Lx * (y-1) + N * (uc11 - 1)
                                 # needs a -Lx which is here  ⤵
                                 i2 = x + dx + Lx * (y2 + dy - 2) + N * (uc21 - 1)
-                                # println((dx+1, dy+1, bi, bj, i, i2, d1, d2, p1, p2))
 
-                                # if bi in (1, 2) && bj == 2 && dx == 1 && dy == 0
-                                #     println(
-                                #         "[2] ($x, $y) -> ($i, $p2) ($i2, $p1) ", 
-                                #         2 * (I3 - G0l.val.val[i, p2]) * Gl0.val.val[i2, p1]
-                                #     )
-                                # end
-
-                                val += begin
-                                    # 4 * (I1 - Gll.val.val[i, d1]) * (I2 - G00.val.val[i2, d2]) +
-                                    
-                                    4 * Gll.val.val[i2, d2] * G00.val.val[i, d1] +
-                                    2 * (I3 - G0l.val.val[i, p2]) * Gl0.val.val[i2, p1]
-                                    
-                                    # 2 * Gl0.val.val[i, p1] * (I3 - G0l.val.val[i2, p2])
-                                    # 2 * (I3 - G0l.val.val[i2, p2]) * Gl0.val.val[i, p1]
-                                    # 2 * (I3 - G0l.val.val[i, p1]) * Gl0.val.val[i2, p2]
-                                end
+                                val += 4 * Gll.val.val[i2, d2] * G00.val.val[i, d1]
+                                val += 2 * (I3 - G0l.val.val[i, p2]) * Gl0.val.val[i2, p1]
                             end
                         end # source loops
 

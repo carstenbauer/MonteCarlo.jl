@@ -144,6 +144,16 @@ end
 positions(uc::UnitCell) = uc.sites
 Base.length(uc::UnitCell) = length(uc.sites)
 
+function reverse_bond_map(uc::UnitCell)
+    map(uc.bonds) do b
+        findfirst(uc.bonds) do r
+            r.to == b.from &&
+            r.from == b.to &&
+            all(((x, y),) -> (x == -y), zip(r.uc_shift, b.uc_shift))
+        end::Int
+    end
+end
+
 
 ################################################################################
 ### Lattice
@@ -211,6 +221,8 @@ lattice_vectors(l::Lattice) = l.unitcell.lattice_vectors
 Returns the unitcell of a given lattice.
 """
 unitcell(l::Lattice) = l.unitcell
+
+reverse_bond_map(l::AbstractLattice) = reverse_bond_map(unitcell(l))
 
 
 Base.:(==)(a::Lattice, b::Lattice) = a.Ls == b.Ls && a.unitcell == b.unitcell
