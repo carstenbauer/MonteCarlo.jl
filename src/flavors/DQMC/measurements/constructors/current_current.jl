@@ -119,6 +119,20 @@ end
     # The given G represents [G 0; 0 G]
     # the uncorrelated part always triggers -> flv^2
     # the correlated part only triggers on diagonal -> flv
+    # return flv * flv * (
+        # Gll.val.val[s2, t2] * G00.val.val[s1, t1] #-
+        # Gll.val.val[t2, s2] * G00.val.val[s1, t1] -
+        # Gll.val.val[s2, t2] * G00.val.val[t1, s1] +
+        # Gll.val.val[t2, s2] * G00.val.val[t1, s1]
+    # )
+    # return flv * flv * G00.val.val[s2, t2] * Gll.val.val[s1, t1]
+    # return flv * (id * I[s2, t1] - G0l.val.val[t1, s2]) * Gl0.val.val[t2, s1] 
+
+    # return flv * (id * I[s1, t2] - G0l.val.val[s1, t2]) * Gl0.val.val[s2, t1]
+    # return flv * (id * I[t1, t2] - G0l.val.val[t1, t2]) * Gl0.val.val[s2, s1]
+    # return flv * (id * I[s1, s2] - G0l.val.val[s1, s2]) * Gl0.val.val[t2, t1]
+    # return flv * (id * I[s2, t1] - G0l.val.val[t1, s2]) * Gl0.val.val[t2, s1]
+    
     output = flv * flv * (
         (T2_ts * Gll.val.val[s2, t2] - T2_st * Gll.val.val[t2, s2]) * 
         (T1_st * G00.val.val[t1, s1] - T1_ts * G00.val.val[s1, t1])

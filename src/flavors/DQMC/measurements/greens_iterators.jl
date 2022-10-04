@@ -136,12 +136,19 @@ iterator and the respective results from `greens(...)` is at most `max_delta`.
 Note that this is an experimental feature - the dependence of the error on the 
 state of the simulation has not been thoroughly investigated.
 
-For reference - the iterator uses the stack matrices `tmp1` and `tmp2` as well
-as the `UnequalTimeStack` matrix `greens` as temporary outputs. The UDT
-decompositions are saved in the stack matrices `Ul`, `Dl`, `Tl`, `Ur`, `Dr`, `Tr`
-and the `UnequalTimeStack` matrices `U, `D`, `T`. All of these matrices 
-(not outputs) need to remain valid between iterations. The stack matrix `curr_U`
-and unequal time stack matrix `tmp` are used as temporary storage.
+For reference:
+
+outputs: (do not overwrite)
+`stack.tmp1`, `stack.tmp2`, `uts.greens` 
+`uts.complex_greens_temp1`, `uts.complex_greens_temp2`, `uts.complex_greens_temp3`
+
+storage: (do not overwrite)
+`stack.Ul`, `stack.Dl`, `stack.Tl`
+`stack.Ur`, `stack.Dr`, `stack.Tr`
+`uts.U`, `uts.D`, `uts.T`
+
+temporary: (overwritten here but can be overwritten outside)
+`stack.curr_U`, `uts.tmp`
 """
 struct CombinedGreensIterator <: AbstractUnequalTimeGreensIterator
     recalculate::Int

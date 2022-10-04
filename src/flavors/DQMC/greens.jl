@@ -87,11 +87,11 @@ exponentials from left and right.
 @bm greens(mc::DQMC) = GreensMatrix(0, 0, copy(_greens!(mc)))
 
 """
-    greens!(mc::DQMC[; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.Ur])
+    greens!(mc::DQMC[; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.curr_U])
 
 Inplace version of `greens`.
 """
-@bm function greens!(mc::DQMC; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.Ur)
+@bm function greens!(mc::DQMC; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.curr_U)
     # TODO rework measurements to work well with StructArrays and remove this    
     if isdefined(mc.stack, :complex_greens_temp)
         _greens!(mc, output, input, temp)
@@ -114,7 +114,7 @@ end
 
 function _greens!(
         mc::DQMC_CBFalse, target::AbstractMatrix = mc.stack.greens_temp, 
-        source::AbstractMatrix = mc.stack.greens, temp::AbstractMatrix = mc.stack.Ur
+        source::AbstractMatrix = mc.stack.greens, temp::AbstractMatrix = mc.stack.curr_U
     )
     eThalfminus = mc.stack.hopping_matrix_exp
     eThalfplus = mc.stack.hopping_matrix_exp_inv
@@ -126,7 +126,7 @@ end
 
 function _greens!(
         mc::DQMC_CBTrue, target::AbstractMatrix = mc.stack.greens_temp, 
-        source::AbstractMatrix = mc.stack.greens, temp::AbstractMatrix = mc.stack.Ur
+        source::AbstractMatrix = mc.stack.greens, temp::AbstractMatrix = mc.stack.curr_U
     )
     chkr_hop_half_minus = mc.stack.chkr_hop_half
     chkr_hop_half_plus = mc.stack.chkr_hop_half_inv
