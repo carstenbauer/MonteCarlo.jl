@@ -553,50 +553,50 @@ end
     @bm "compute G" begin
         # [B_{l+1}^-1 B_{l+2}^-1 ⋯ B_k^-1 + B_l ⋯ B_1 B_N ⋯ B_{k+1}]^-1
         # [U D T + Ul (Dl Tl Tr^† Dr) Ur^†]^-1
-        @bm "B1" begin
+        # @bm "B1" begin
             vmul!(s.greens, mc.stack.Tl, adjoint(mc.stack.Tr))
             vmul!(mc.stack.tmp1, s.greens, Diagonal(mc.stack.Dr))
             vmul!(s.greens, Diagonal(mc.stack.Dl), mc.stack.tmp1)
-        end
+        # end
         # [U D T + Ul (G) Ur^†]^-1
-        @bm "udt" begin
+        # @bm "udt" begin
             udt_AVX_pivot!(mc.stack.Tr, mc.stack.Dr, s.greens, mc.stack.pivot, mc.stack.tempv, Val(false))
-        end
+        # end
         # [U D T + (Ul Tr) Dr (G Ur^†)]^-1
-        @bm "B2" begin
+        # @bm "B2" begin
             vmul!(mc.stack.Tl, mc.stack.Ul, mc.stack.Tr)
             # (G Ur^†) = (Ur / G)^-1
             # Ur := Ur / G
             rdivp!(mc.stack.Ur, s.greens, mc.stack.Ul, mc.stack.pivot) 
-        end
+        # end
         # [U D T + Tl Dr Ur^-1]^-1
         # [U (D T Ur + U^† Tl Dr) Ur^-1]^-1
         # [U D_max (D_min T Ur 1/Dr_max + 1/D_max U^† Tl Dr_min) Dr_max Ur^-1]^-1
-        @bm "B3" begin
+        # @bm "B3" begin
             # 1/D_max U^† Tl Dr_min
             vmul!(mc.stack.Tr, adjoint(s.U), mc.stack.Tl)
             vmaxinv!(mc.stack.Dl, s.D) # mc.stack.Dl .= 1.0 ./ max.(1.0, s.D)
             vmul!(mc.stack.tmp1, Diagonal(mc.stack.Dl), mc.stack.Tr)
             vmin!(mc.stack.Dl, mc.stack.Dr) # mc.stack.Dl .= min.(1.0, mc.stack.Dr)
             vmul!(mc.stack.Tr, mc.stack.tmp1, Diagonal(mc.stack.Dl))
-        end
+        # end
         # [U D_max (D_min T Ur 1/Dr_max + Tr) Dr_max Ur^-1]^-1
-        @bm "B4" begin
+        # @bm "B4" begin
             # D_min T Ur 1/Dr_max
             vmul!(mc.stack.Tl, s.T, mc.stack.Ur)
             vmin!(mc.stack.Dl, s.D) # mc.stack.Dl .= min.(1.0, s.D)
             vmul!(mc.stack.tmp1, Diagonal(mc.stack.Dl), mc.stack.Tl)
             vmaxinv!(mc.stack.Dl, mc.stack.Dr) # mc.stack.Dl .= 1.0 ./ max.(1.0, mc.stack.Dr)
             vmul!(mc.stack.Tl, mc.stack.tmp1, Diagonal(mc.stack.Dl))
-        end
+        # end
         # [U D_max (Tl + Tr) Dr_max Ur^-1]^-1
-        @bm "sum, UDT" begin
+        # @bm "sum, UDT" begin
             rvadd!(mc.stack.Tl, mc.stack.Tr)
             udt_AVX_pivot!(mc.stack.Tr, mc.stack.Dl, mc.stack.Tl, mc.stack.pivot, mc.stack.tempv, Val(false))
-        end
+        # end
         # [U D_max (Tr Dl Tl) Dr_max Ur^-1]^-1
         # Ur 1/Dr_max Tl^-1 1/Dl Tr^† D_max U^†
-        @bm "B5" begin
+        # @bm "B5" begin
             # [[((1/Dr_max) / Tl) 1/Dl] Tr^†] D_max
             vmaxinv!(mc.stack.Dr, mc.stack.Dr) # mc.stack.Dr .= 1.0 ./ max.(1.0, mc.stack.Dr)
             copyto!(mc.stack.Ul, Diagonal(mc.stack.Dr))
@@ -606,12 +606,12 @@ end
             vmul!(mc.stack.Ul, mc.stack.tmp1, adjoint(mc.stack.Tr))
             vmaxinv!(mc.stack.Dl, s.D) # mc.stack.Dl .= 1.0 ./ max.(1.0, s.D)
             vmul!(s.greens, mc.stack.Ul, Diagonal(mc.stack.Dl))
-        end
+        # end
         # Ur G U^†
-        @bm "B6" begin
+        # @bm "B6" begin
             vmul!(mc.stack.Tr, s.greens, adjoint(s.U))
             vmul!(s.greens, mc.stack.Ur, mc.stack.Tr)
-        end
+        # end
     end
 
     s.greens
@@ -638,18 +638,18 @@ end
         # [B_{l} B_{l-1} ⋯ B_{k+1} + (B_k ⋯ B_1 B_M ⋯ B_{l+1})^-1]^-1
         # [T^-1 D^-1 U^† + (Ul Dl Tl Tr^† Dr Ur^†)^-1]^-1
         # [T^-1 D^-1 U^† + Ur (Dl Tl Tr^† Dr)^-1 Ul^†]^-1
-        @bm "B1" begin
+        # @bm "B1" begin
             vmul!(s.greens, mc.stack.Tl, adjoint(mc.stack.Tr))
             vmul!(mc.stack.tmp1, Diagonal(mc.stack.Dl), s.greens)
             vmul!(s.greens, mc.stack.tmp1, Diagonal(mc.stack.Dr))
-        end
+        # end
         # [T^-1 D^-1 U^† + Ur G^-1 Ul^†]^-1
-        @bm "udt" begin
+        # @bm "udt" begin
             udt_AVX_pivot!(mc.stack.Tr, mc.stack.Dr, s.greens, mc.stack.pivot, mc.stack.tempv, Val(false))
-        end
+        # end
         # [T^-1 D^-1 U^† + Ur G^-1 Dr^-1 Tr^† Ul^†]^-1
         # [T^-1 D_min^-1 (D_max^-1 U^† (Ul Tr) Dr_min + D_min T Ur G^-1 Dr_max^-1) Dr_min^-1 (Ul Tr)^†]^-1
-        @bm "B2" begin
+        # @bm "B2" begin
             # D_max^-1 U^† (Ul Tr) Dr_min
             vmul!(mc.stack.Tl, mc.stack.Ul, mc.stack.Tr) # keep me alive
             vmul!(mc.stack.Ul, adjoint(s.U), mc.stack.Tl)
@@ -657,9 +657,9 @@ end
             vmul!(s.U, Diagonal(mc.stack.Dl), mc.stack.Ul)
             vmin!(mc.stack.Dl, mc.stack.Dr)
             vmul!(mc.stack.Ul, s.U, Diagonal(mc.stack.Dl))
-        end
+        # end
         # [T^-1 D_min^-1 (Ul + D_min T Ur G^-1 Dr_max^-1) Dr_min^-1 Tl^†]^-1
-        @bm "B3" begin
+        # @bm "B3" begin
             # D_min T Ur G^-1 Dr_max^-1
             vmul!(s.U, s.T, mc.stack.Ur)
             rdivp!(s.U, s.greens, mc.stack.Ur, mc.stack.pivot)
@@ -667,15 +667,15 @@ end
             vmul!(mc.stack.Ur, Diagonal(mc.stack.Dl), s.U)
             vmaxinv!(mc.stack.Dl, mc.stack.Dr)
             vmul!(mc.stack.Tr, mc.stack.Ur, Diagonal(mc.stack.Dl))
-        end
+        # end
         # [T^-1 D_min^-1 (Ul + Tr) Dr_min^-1 Tl^†]^-1
-        @bm "sum, udt" begin
+        # @bm "sum, udt" begin
             rvadd!(mc.stack.Tr, mc.stack.Ul)
             udt_AVX_pivot!(mc.stack.Ul, mc.stack.Dl, mc.stack.Tr, mc.stack.pivot, mc.stack.tempv, Val(false))
-        end
+        # end
         # [T^-1 D_min^-1 Ul Dl Tr Dr_min^-1 Tl^-1]^-1
         # Tl ({[(Dr_min / Tr) Dl^-1] Ul^†} D_min) T
-        @bm "B4" begin
+        # @bm "B4" begin
             vmin!(mc.stack.Dr, mc.stack.Dr)
             copyto!(s.U, Diagonal(mc.stack.Dr))
             rdivp!(s.U, mc.stack.Tr, mc.stack.Ur, mc.stack.pivot)
@@ -684,13 +684,13 @@ end
             vmul!(s.U, mc.stack.Ur, adjoint(mc.stack.Ul))
             vmin!(s.D, s.D)
             vmul!(mc.stack.Ur, s.U, Diagonal(s.D))
-        end
+        # end
         # Tl Ur T
-        @bm "B6" begin
+        # @bm "B6" begin
             vmul!(mc.stack.Tr, mc.stack.Ur, s.T)
             vmul!(s.greens, mc.stack.Tl, mc.stack.Tr)
             rmul!(s.greens, -1.0)
-        end
+        # end
     end
     
     s.greens

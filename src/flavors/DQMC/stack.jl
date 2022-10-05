@@ -586,7 +586,6 @@ end
 end
 
 @bm function propagate(mc::DQMC)
-    flush(stdout)
     @debug(
         '[' * lpad(mc.stack.current_slice, 3, ' ') * " -> " * 
         rpad(mc.stack.current_slice + mc.stack.direction, 3, ' ') * 

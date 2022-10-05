@@ -629,8 +629,11 @@ function apply!(
         @inbounds @fastmath for σ in measurement.flavor_iterator
             # Assuming 2D
             for (bi, b1) in enumerate(bs)
-                uc11 = from(b1)
-                uc12 = to(b1)
+                # Note: 
+                # we can always use this form and we require it when calculating 
+                # flat indices/distances, so we're doing it early here.
+                uc11 = N * (from(b1) - 1)
+                uc12 = N * (to(b1) - 1)
                 dx1, dy1 = b1.uc_shift
 
                 # mod0
@@ -638,18 +641,18 @@ function apply!(
                 dy1 = ifelse(dy1 < 0, Ly + dy1, dy1)
 
                 # one based; direction + target unitcell
-                d1 = 1 + dx1 + Lx * dy1 + N * (uc12 - 1) 
+                d1 = 1 + dx1 + Lx * dy1 + uc12
 
                 for (bj, b2) in enumerate(bs)
-                    uc21 = from(b2)
-                    uc22 = to(b2)
+                    uc21 = N * (from(b2) - 1)
+                    uc22 = N * (to(b2) - 1)
                     dx2, dy2 = b2.uc_shift
 
                     # mod0
                     dx2 = ifelse(dx2 < 0, Lx + dx2, dx2)
                     dy2 = ifelse(dy2 < 0, Ly + dy2, dy2)
 
-                    d2 = 1 + dx2 + Lx * dy2 + N * (uc22 - 1)
+                    d2 = 1 + dx2 + Lx * dy2 + uc22
 
                     for dy in 0:Ly-1, dx in 0:Lx-1
                         val = T0
@@ -659,13 +662,13 @@ function apply!(
                         # -Lx ≤ (px2, py2) = b1 - (dx, dy) ≤ Lx
                         px1 = dx1 - dx; px1 = ifelse(px1 < 0, px1 + Lx, px1)
                         py1 = dy1 - dy; py1 = ifelse(py1 < 0, py1 + Ly, py1)
-                        p1 = 1 + px1 + Lx * py1 + N * (uc12 - 1)
+                        p1 = 1 + px1 + Lx * py1 + uc12
 
                         # src1 -> trg2
                         # 1 ≤ (px1, py1) = (dx, dy) + b2 ≤ 2Lx
                         px2 = dx + dx2; px2 = ifelse(px2 ≥ Lx, px2 - Lx, px2)
                         py2 = dy + dy2; py2 = ifelse(py2 ≥ Ly, py2 - Ly, py2)
-                        p2 = 1 + px2 + Lx * py2 + N * (uc22 - 1)
+                        p2 = 1 + px2 + Lx * py2 + uc22
 
                         I3 = ifelse(
                             (uc11 == uc22) && (px2 == 0) && (py2 == 0) && (G0l.l == G0l.k),
@@ -680,8 +683,8 @@ function apply!(
                             # for x loop splitting is faster.
                             y2 = ifelse(y > Ly - dy, y - Ly, y)
                             for x in 1:Lx-dx
-                                i = x + Lx * (y-1) + N * (uc11 - 1)
-                                i2 = x + dx + Lx * (y2 + dy - 1) + N * (uc21 - 1)
+                                i = x + Lx * (y-1) + uc11
+                                i2 = x + dx + Lx * (y2 + dy - 1) + uc21
 
                                 # initial version:
                                 # 4 * (I1 - Gll.val.val[i, d1]) * (I2 - G00.val.val[i2, d2]) +
@@ -693,9 +696,9 @@ function apply!(
 
                             # in this loop dx > 0
                             for x in Lx-dx+1:Lx
-                                i  = x + Lx * (y-1) + N * (uc11 - 1)
+                                i  = x + Lx * (y-1) + uc11
                                 # needs a -Lx which is here  ⤵
-                                i2 = x + dx + Lx * (y2 + dy - 2) + N * (uc21 - 1)
+                                i2 = x + dx + Lx * (y2 + dy - 2) + uc21
 
                                 val += 4 * Gll.val.val[i2, d2] * G00.val.val[i, d1]
                                 val += 2 * (I3 - G0l.val.val[i, p2]) * Gl0.val.val[i2, p1]
