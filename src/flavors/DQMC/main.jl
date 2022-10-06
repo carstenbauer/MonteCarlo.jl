@@ -138,3 +138,5 @@ include("measurements/greens_iterators.jl")
 include("measurements/generic.jl")
 # coinstructors + Wicks expanded kernels
 include("measurements/constructors/main.jl")
+# distance/direction based Greens functions
+include("measurements/restructuring.jl")

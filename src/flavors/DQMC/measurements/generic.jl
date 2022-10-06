@@ -30,8 +30,9 @@
 =#
 
 
-# TODO
-# try replacing global function rather than creatin new local ones
+struct Restructure{T}
+    wrapped::T
+end
 
 
 struct DQMCMeasurement{F <: Function, GI, LI, FI, OT, T} <: AbstractMeasurement
@@ -314,7 +315,22 @@ end
     G = maybe_repeating(mc, greens!(mc))
     for (lattice_iterator, measurement) in combined
         prepare!(lattice_iterator, measurement, mc)
+    end
+
+    # measure normal Greens order first, then restructure! and measure rest
+    for (lattice_iterator, measurement) in combined
+        measurement.lattice_iterator isa Restructure && continue
         measure!(lattice_iterator, measurement, mc, G)
+    end
+
+    restructure!(mc, G)
+
+    for (lattice_iterator, measurement) in combined
+        measurement.lattice_iterator isa Restructure || continue
+        measure!(lattice_iterator, measurement, mc, G)
+    end
+
+    for (lattice_iterator, measurement) in combined
         finish!(lattice_iterator, measurement, mc)
     end
     nothing
@@ -324,7 +340,22 @@ end
     G = maybe_repeating(mc, greens!(mc, g.k, g.l))
     for (lattice_iterator, measurement) in combined
         prepare!(lattice_iterator, measurement, mc)
+    end
+
+    # measure normal Greens order first, then restructure! and measure rest
+    for (lattice_iterator, measurement) in combined
+        measurement.lattice_iterator isa Restructure && continue
         measure!(lattice_iterator, measurement, mc, G)
+    end
+
+    restructure!(mc, G)
+
+    for (lattice_iterator, measurement) in combined
+        measurement.lattice_iterator isa Restructure || continue
+        measure!(lattice_iterator, measurement, mc, G)
+    end
+
+    for (lattice_iterator, measurement) in combined
         finish!(lattice_iterator, measurement, mc)
     end
     nothing
@@ -335,7 +366,10 @@ end
         prepare!(lattice_iterator, measurement, mc)
     end
 
-    
+    # To avoid doing the very expensive calculation of the G0l, Gl0, Gll 
+    # multiple times we need to restructure in the greens iterator loop.
+    # That also forces us to recalculate G00 every iteration, though that's 
+    # relatively cheap.
     M = nslices(mc)
     for (i, (g0l, gl0, gll)) in enumerate(init(mc, iter))
         weight = ifelse(i in (1, M+1), 0.5, 1.0) * mc.parameters.delta_tau
@@ -343,14 +377,18 @@ end
         G0l = maybe_repeating(mc, g0l)
         Gl0 = maybe_repeating(mc, gl0)
         Gll = maybe_repeating(mc, gll)
+        packed_greens = (G00, G0l, Gl0, Gll)
 
         for (lattice_iterator, measurement) in combined
-            measurement.kernel == temp_kernel && continue
-            measure!(lattice_iterator, measurement, mc, (G00, G0l, Gl0, Gll), weight)
+            measurement.lattice_iterator isa Restructure && continue
+            measure!(lattice_iterator, measurement, mc, packed_greens, weight)
         end
+
+        restructure!(mc, packed_greens)
+
         for (lattice_iterator, measurement) in combined
-            measurement.kernel == temp_kernel || continue
-            measure!(lattice_iterator, measurement, mc, (G00, G0l, Gl0, Gll), weight)
+            measurement.lattice_iterator isa Restructure || continue
+            measure!(lattice_iterator, measurement, mc, packed_greens, weight)
         end
     end
 
@@ -473,14 +511,10 @@ end
 modcachex(l::Lattice) = collect(mod1.(1:(1+3l.Ls[1]), l.Ls[1]))
 modcachey(l::Lattice) = collect(mod1.(1:(1+3l.Ls[2]), l.Ls[2]))
 
-# #=
-function cc_kernel() end
 
 function apply!(
         temp::Array, iter::EachBondPairByBravaisDistance, 
-        measurement::DQMCMeasurement{<: typeof(cc_kernel)}, 
-        mc::DQMC, 
-        packed_greens, weight = 1.0
+        measurement, mc::DQMC, packed_greens, weight = 1.0
     )
     @timeit_debug "apply!(::EachBondPairByBravaisDistance, ::$(typeof(measurement.kernel)))" begin
         l = lattice(mc)
@@ -488,19 +522,8 @@ function apply!(
         bs = view(l.unitcell.bonds, iter.bond_idxs)
         modx = get!(l, :modcachex, modcachex)::Vector{Int}
         mody = get!(l, :modcachey, modcachey)::Vector{Int}
-        
-        # G00 = packed_greens[1].val.val
-        # Gll = packed_greens[4].val.val
-        # println((
-        #     Gll[1, 2] * G00[1, 2],
-        #     Gll[2, 1] * G00[1, 2],
-        #     Gll[1, 2] * G00[2, 1],
-        #     Gll[2, 1] * G00[2, 1],
-        #     Gll[1, 2] * G00[1, 2] - Gll[2, 1] * G00[1, 2] - Gll[1, 2] * G00[2, 1] + Gll[2, 1] * G00[2, 1]
-        # ))
 
-        #@inbounds 
-        @fastmath for σ in measurement.flavor_iterator
+        @inbounds @fastmath for σ in measurement.flavor_iterator
             for s1y in 1:Ly, s1x in 1:Lx
                 for s2y in 1:Ly, s2x in 1:Lx
                     # output "directions"
@@ -528,197 +551,8 @@ function apply!(
             end
         end
     end
-    # error()
     return 
 end
-
-# =#
-
-
-function restructure!(mc, Gs::NTuple{4, GreensMatrix}; kwargs...)
-    restructure!.((mc,), Gs; kwargs...)
-    return
-end
-function restructure!(mc, G::GreensMatrix; kwargs...)
-    restructure!(mc, G.val; kwargs...)
-    return
-end
-function restructure!(mc, G::BlockDiagonal; kwargs...)
-    restructure!.((mc,), G.blocks; kwargs...)
-    return
-end
-function restructure!(mc, G::StructArray; kwargs...)
-    restructure!(mc, G.re; kwargs...)
-    restructure!(mc, G.im; kwargs...)
-    return
-end
-function restructure!(mc, G::DiagonallyRepeatingMatrix; kwargs...)
-    restructure!(mc, G.val; kwargs...)
-    return
-end
-function restructure!(mc, G::Matrix; target = G, temp = mc.stack.curr_U)
-    N = length(Bravais(lattice(mc)))
-    K = div(size(G, 1), N)
-    dir2srctrg = lattice(mc)[:Bravais_dir2srctrg]::Vector{Vector{Int}}
-
-    if target === G
-        for k1 in 0:N:N*K-1, k2 in 0:N:N*K-1 # flv and basis
-            for dir in eachindex(dir2srctrg)
-                for (src, trg) in enumerate(dir2srctrg[dir])
-                    temp[src+k1, dir+k2] = G[src+k1, trg+k2]
-                end
-            end
-        end
-
-        copyto!(target, temp)
-    else
-        for k1 in 0:N:N*K-1, k2 in 0:N:N*K-1 # flv and basis
-            for dir in eachindex(dir2srctrg)
-                for (src, trg) in enumerate(dir2srctrg[dir])
-                    target[src+k1, dir+k2] = G[src+k1, trg+k2]
-                end
-            end
-        end
-    end
-
-    return
-end
-
-# #=
-
-function temp_kernel() end
-
-function apply!(
-        temp::Array, iter::EachBondPairByBravaisDistance, 
-        measurement::DQMCMeasurement{<: typeof(temp_kernel)}, 
-        mc::DQMC, 
-        packed_greens, weight = 1.0
-    )
-
-    # NOTES
-    # this version assumes:
-    # - source and time indepedent hopping matrix (i.e. one constant value per bond)
-    # - all bonds included (so skipping of reverse)
-    # - real matrix with 1 effective flavor
-    # - 2 real flavors
-
-    # TODO
-    # - where the fuck are allocations? Also in propagate?
-    #   maybe restructure allocates?
-
-    @timeit_debug "apply!(::EachBondPairByBravaisDistance, ::$(typeof(measurement.kernel)))" begin
-        l = lattice(mc)
-        Lx, Ly = l.Ls
-        N = Lx * Ly #length(l)
-        bs = view(l.unitcell.bonds, iter.bond_idxs)
-
-        restructure!(mc, packed_greens)        
-        # restructure!(mc, mc.stack.hopping_matrix, target = mc.stack.curr_U)
-
-        #           x, y
-        # trg1 ---- src1 ---- src2 ---- trg2
-        #    dx1, dy1   dx, dy   dx2, dy2
-        #       b1                  b2
-        # uc12      uc11      uc21      uc22
-
-        G00, G0l, Gl0, Gll = packed_greens
-
-        T0 = zero(eltype(temp))
-        T1 = one(eltype(temp))
-
-        @inbounds @fastmath for σ in measurement.flavor_iterator
-            # Assuming 2D
-            for (bi, b1) in enumerate(bs)
-                # Note: 
-                # we can always use this form and we require it when calculating 
-                # flat indices/distances, so we're doing it early here.
-                uc11 = N * (from(b1) - 1)
-                uc12 = N * (to(b1) - 1)
-                dx1, dy1 = b1.uc_shift
-
-                # mod0
-                dx1 = ifelse(dx1 < 0, Lx + dx1, dx1)
-                dy1 = ifelse(dy1 < 0, Ly + dy1, dy1)
-
-                # one based; direction + target unitcell
-                d1 = 1 + dx1 + Lx * dy1 + uc12
-
-                for (bj, b2) in enumerate(bs)
-                    uc21 = N * (from(b2) - 1)
-                    uc22 = N * (to(b2) - 1)
-                    dx2, dy2 = b2.uc_shift
-
-                    # mod0
-                    dx2 = ifelse(dx2 < 0, Lx + dx2, dx2)
-                    dy2 = ifelse(dy2 < 0, Ly + dy2, dy2)
-
-                    d2 = 1 + dx2 + Lx * dy2 + uc22
-
-                    for dy in 0:Ly-1, dx in 0:Lx-1
-                        val = T0
-
-                        # Inlined mod1, see comment below
-                        # src2 -> trg1
-                        # -Lx ≤ (px2, py2) = b1 - (dx, dy) ≤ Lx
-                        px1 = dx1 - dx; px1 = ifelse(px1 < 0, px1 + Lx, px1)
-                        py1 = dy1 - dy; py1 = ifelse(py1 < 0, py1 + Ly, py1)
-                        p1 = 1 + px1 + Lx * py1 + uc12
-
-                        # src1 -> trg2
-                        # 1 ≤ (px1, py1) = (dx, dy) + b2 ≤ 2Lx
-                        px2 = dx + dx2; px2 = ifelse(px2 ≥ Lx, px2 - Lx, px2)
-                        py2 = dy + dy2; py2 = ifelse(py2 ≥ Ly, py2 - Ly, py2)
-                        p2 = 1 + px2 + Lx * py2 + uc22
-
-                        I3 = ifelse(
-                            (uc11 == uc22) && (px2 == 0) && (py2 == 0) && (G0l.l == G0l.k),
-                            T1, T0
-                        )
-
-                        @simd for y in 1:Ly
-                            # This is a repalcement for mod1(y+dy, Ly). Another 
-                            # alternative is explicit loop splitting, which is
-                            # used for the x loop. For the y loop it doesn't 
-                            # seem to matter if we use ifelse or loop splitting,
-                            # for x loop splitting is faster.
-                            y2 = ifelse(y > Ly - dy, y - Ly, y)
-                            for x in 1:Lx-dx
-                                i = x + Lx * (y-1) + uc11
-                                i2 = x + dx + Lx * (y2 + dy - 1) + uc21
-
-                                # initial version:
-                                # 4 * (I1 - Gll.val.val[i, d1]) * (I2 - G00.val.val[i2, d2]) +
-                                # 2 * (I3 - G0l.val.val[i2, p1]) * Gl0.val.val[i, p2]
-
-                                val += 4 * Gll.val.val[i2, d2] * G00.val.val[i, d1]
-                                val += 2 * (I3 - G0l.val.val[i, p2]) * Gl0.val.val[i2, p1]
-                            end
-
-                            # in this loop dx > 0
-                            for x in Lx-dx+1:Lx
-                                i  = x + Lx * (y-1) + uc11
-                                # needs a -Lx which is here  ⤵
-                                i2 = x + dx + Lx * (y2 + dy - 2) + uc21
-
-                                val += 4 * Gll.val.val[i2, d2] * G00.val.val[i, d1]
-                                val += 2 * (I3 - G0l.val.val[i, p2]) * Gl0.val.val[i2, p1]
-                            end
-                        end # source loops
-
-                        temp[dx+1, dy+1, bi, bj] += weight * val
-
-                    end # main distance loop
-
-                end # selected distance
-            end # selected distance
-
-        end # flavor
-    end # benchmark
-    # error()
-    return 
-end
-
-# =#
 
 
 ################################################################################
