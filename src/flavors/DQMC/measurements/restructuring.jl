@@ -144,17 +144,17 @@ function apply!(
                 for cdir in indices
                     # one based: mod1.(l.Ls + 2 - distance, l.Ls) 
                     # maps (1 -> 1, 2 -> L, 3 -> L-1, ...)
-                    @. crev = ifelse(cdir.I > 1, l.Ls + 2 - cdir.I, 1)
+                    crev = @. ifelse(cdir.I > 1, l.Ls + 2 - cdir.I, 1)
 
-                    # map to linear indices
+                    # map to linear indices (1-based)
                     dir = _sub2ind(l.Ls, cdir.I) + uc2
                     rev = _sub2ind(l.Ls, crev) + uc1
 
-                    for csrc in indices
+                    @simd for csrc in indices
                         # cdist is one based so -1
                         # results is 0 < idx < 2L, so we can use ifelse as mod1
                         ctrg = csrc.I .+ cdist.I .- 1
-                        @. ctrg = ifelse(ctrg > l.Ls, ctrg - l.Ls, ctrg)
+                        ctrg = @. ifelse(ctrg > l.Ls, ctrg - l.Ls, ctrg)
 
                         # to linear index
                         src = _sub2ind(l.Ls, csrc.I) + uc1
@@ -173,71 +173,7 @@ function apply!(
     nothing
 end
 
-function _sub2ind0(Ns, idxs)
-    idx = idxs[end]
-    @inbounds for d in length(idxs)-1:-1:1
-        idx = idx * Ns[d] + idxs[d]
-    end
-    return idx
-end
 
-@generated function _sub2ind0(Ns::T, idxs::T) where T
-    if Ns <: NTuple{1}
-        :(@inbounds return idxs[1])
-    elseif Ns <: NTuple{2}
-        :(@inbounds return muladd(Ns[1], idxs[2], idxs[1]))
-    elseif Ns <: NTuple{3}
-        quote
-            @inbounds idx = muladd(Ns[1], idxs[2], idxs[1])
-            @inbounds return muladd(Ns[2], idxs[3], idx)
-        end
-    elseif Ns <: NTuple{4}
-        quote
-            @inbounds idx = muladd(Ns[1], idxs[2], idxs[1])
-            @inbounds idx = muladd(Ns[2], idxs[3], idx)
-            @inbounds return muladd(Ns[3], idxs[4], idx)
-        end
-    else
-        quote
-            idx = idxs[end]
-            @inbounds for d in length(idxs)-1:-1:1
-                idx = idx * Ns[d] + idxs[d]
-            end
-            return idx
-        end
-    end
-end
-
-@generated function _sub2ind(Ns::T, idxs::T) where T
-    if Ns <: NTuple{1}
-        :(@inbounds return idxs[1])
-    elseif Ns <: NTuple{2}
-        :(@inbounds return muladd(Ns[1], idxs[2]-1, idxs[1]))
-    elseif Ns <: NTuple{3}
-        quote
-            @inbounds idx = muladd(Ns[1], idxs[2]-1, idxs[1])
-            @inbounds return muladd(Ns[2], idxs[3]-1, idx)
-        end
-    elseif Ns <: NTuple{4}
-        quote
-            @inbounds idx = muladd(Ns[1], idxs[2]-1, idxs[1])
-            @inbounds idx = muladd(Ns[2], idxs[3]-1, idx)
-            @inbounds return muladd(Ns[3], idxs[4]-1, idx)
-        end
-    else
-        quote
-            #@boundscheck length(idxs)-2 < length(Ns)
-            @inbounds idx = idxs[end]-1
-            @inbounds for d in length(idxs)-1:-1:1
-                idx = muladd(idx, Ns[d], idxs[d]-1)
-            end
-            return idx
-        end
-    end
-end
-
-
-# TODO: generalize to D-dimensional
 function apply!(
         temp::Array, ::Restructure{<: EachBondPairByBravaisDistance}, 
         measurement::DQMCMeasurement, mc::DQMC, packed_greens, weight = 1.0
@@ -245,7 +181,6 @@ function apply!(
 
     @timeit_debug "apply!(::Restructure{EachBondPairByBravaisDistance}, ::$(typeof(measurement.kernel)))" begin
         l = lattice(mc)
-        Lx, Ly = l.Ls
         N = length(Bravais(l))
         bs = l.unitcell.bonds
 
@@ -255,12 +190,10 @@ function apply!(
         #       b1                  b2
         # uc12      uc11      uc21      uc22
 
-        G00, G0l, Gl0, Gll = packed_greens
-
         T0 = zero(eltype(temp))
-        T1 = one(eltype(temp))
         directions = CartesianIndices(map(L -> 0:L-1, l.Ls)) # zero based
         indices = CartesianIndices(l.Ls) # one based
+        cart1 = CartesianIndex(map(_ -> 1, l.Ls))
 
         @inbounds @fastmath for σ in measurement.flavor_iterator
             # Assuming 2D
@@ -270,125 +203,53 @@ function apply!(
                 # flat indices/distances, so we're doing it early here.
                 uc11 = N * (from(b1) - 1)
                 uc12 = N * (to(b1) - 1)
-                # dx1, dy1 = b1.uc_shift
 
-                # mod0
-                # dx1 = ifelse(dx1 < 0, Lx + dx1, dx1)
-                # dy1 = ifelse(dy1 < 0, Ly + dy1, dy1)
+                # mod0(bond.uc_shift, L) to map negative shifts to positive shifts 
                 sub_d1 = @. ifelse(b1.uc_shift < 0, l.Ls + b1.uc_shift, b1.uc_shift)
 
-                # one based; direction + target unitcell
-                # d1 = 1 + dx1 + Lx * dy1 #+ uc12
-                d1 = _sub2ind0(l.Ls, sub_d1) + 1 + uc12 # <--
+                # cartesian 0-based index to linear 1-based index
+                d1 = _sub2ind0(l.Ls, sub_d1) + 1
 
                 for (bj, b2) in enumerate(bs)
                     uc21 = N * (from(b2) - 1)
                     uc22 = N * (to(b2) - 1)
-                    # dx2, dy2 = b2.uc_shift
-
-                    # mod0
-                    # dx2 = ifelse(dx2 < 0, Lx + dx2, dx2)
-                    # dy2 = ifelse(dy2 < 0, Ly + dy2, dy2)
                     sub_d2 = @. ifelse(b2.uc_shift < 0, l.Ls + b2.uc_shift, b2.uc_shift)
+                    d2 = _sub2ind0(l.Ls, sub_d2) + 1
 
-                    # d2 = 1 + dx2 + Lx * dy2 #+ uc22
-                    d2 = _sub2ind0(l.Ls, sub_d2) + 1 + uc22 # <--
-
-                    # for dy in 0:Ly-1, dx in 0:Lx-1
                     for sub_d in directions # zero based
-                        # dx, dy = sub_d.I
                         val = T0
-                        # sub_d = CartesianIndex(dx, dy)
 
                         # Inlined mod1, see comment below
                         # src2 -> trg1
                         # -Lx ≤ (px2, py2) = b1 - (dx, dy) ≤ Lx
-                        # px1 = dx1 - dx; px1 = ifelse(px1 < 0, px1 + Lx, px1)
-                        # py1 = dy1 - dy; py1 = ifelse(py1 < 0, py1 + Ly, py1)
-                        # p1 = 1 + px1 + Lx * py1 #+ uc12
-
-                        # sub_d1 = (dx1, dy1)
                         sub_p1 = @. sub_d1 - sub_d.I
                         sub_p1 = @. ifelse(sub_p1 < 0, sub_p1 + l.Ls, sub_p1) 
-                        p1 = _sub2ind0(l.Ls, sub_p1) + 1 + uc12 # <--
-                        # p1 = _sub2ind(l.Ls, (px1, py1))
+                        p1 = _sub2ind0(l.Ls, sub_p1) + 1
 
                         # src1 -> trg2
                         # 1 ≤ (px1, py1) = (dx, dy) + b2 ≤ 2Lx
-                        # px2 = dx + dx2; px2 = ifelse(px2 ≥ Lx, px2 - Lx, px2)
-                        # py2 = dy + dy2; py2 = ifelse(py2 ≥ Ly, py2 - Ly, py2)
-                        # p2 = 1 + px2 + Lx * py2 #+ uc22
-
-                        # sub_d2 = (dx2, dy2)
-                        # sub_d = CartesianIndex((dx, dy))
                         sub_p2 = @. sub_d2 + sub_d.I
                         sub_p2 = @. ifelse(sub_p2 ≥ l.Ls, sub_p2 - l.Ls, sub_p2) 
-                        p2 = _sub2ind0(l.Ls, sub_p2) + 1 + uc22 # <--
-                        # p2 = 1 + px2 + Lx * py2 #+ uc22
+                        p2 = _sub2ind0(l.Ls, sub_p2) + 1
 
-
-                        I3 = ifelse(
-                            (uc11 == uc22) && (p2 == uc22+1) && (G0l.l == G0l.k),
-                            T1, T0
-                        )
-
-                        # Slow as fuck boiii
                         @simd for sub_src in indices
                             # linear src index
-                            i = _sub2ind(l.Ls, sub_src.I) + uc11 # <--
+                            i = _sub2ind(l.Ls, sub_src.I)
                             # mod1(src + dir, Ls)
                             sub_src2 = @. sub_src.I + sub_d.I
                             sub_src2 = @. ifelse(sub_src2 > l.Ls, sub_src2 - l.Ls, sub_src2)
-                            i2 = _sub2ind(l.Ls, sub_src2) + uc21 # <--
+                            i2 = _sub2ind(l.Ls, sub_src2)
 
-                            val += temp_kernel(packed_greens, (i, i2, d1, d2, p1, p2), I3)
-                            # val += cc_kernel(
-                            #     mc, mc.model, (i, i2), (d1, d2, p1, p2),
-                            #     (uc11, uc12, uc21, uc22),
-                            #     packed_greens, σ
-                            # )
-                        end
+                            val += cc_kernel(
+                                mc, mc.model, (i, i2), (d1, d2, p1, p2),
+                                (uc11, uc12, uc21, uc22),
+                                packed_greens, σ
+                            )
+                        end # source site loop
 
-                        dx, dy = sub_d.I
-
-                        # @simd for y in 1:Ly
-                        #     # This is a repalcement for mod1(y+dy, Ly). Another 
-                        #     # alternative is explicit loop splitting, which is
-                        #     # used for the x loop. For the y loop it doesn't 
-                        #     # seem to matter if we use ifelse or loop splitting,
-                        #     # for x loop splitting is faster.
-                        #     y2 = ifelse(y > Ly - dy, y - Ly, y)
-                        #     for x in 1:Lx-dx
-                        #         i = x + Lx * (y-1) #+ uc11
-                        #         i2 = x + dx + Lx * (y2 + dy - 1) #+ uc21
-
-                        #         # initial version:
-                        #         # 4 * (I1 - Gll.val.val[i, d1]) * (I2 - G00.val.val[i2, d2]) +
-                        #         # 2 * (I3 - G0l.val.val[i2, p1]) * Gl0.val.val[i, p2]
-
-                        #         val += cc_kernel(
-                        #             mc, mc.model, (i, i2), (d1, d2, p1, p2),
-                        #             (uc11, uc12, uc21, uc22),
-                        #             packed_greens, σ
-                        #         )
-                        #     end
-
-                        #     # in this loop dx > 0
-                        #     for x in Lx-dx+1:Lx
-                        #         i  = x + Lx * (y-1) #+ uc11
-                        #         # needs a -Lx which is here  ⤵
-                        #         i2 = x + dx + Lx * (y2 + dy - 2) #+ uc21
-
-                        #         val += cc_kernel(
-                        #             mc, mc.model, (i, i2), (d1, d2, p1, p2),
-                        #             (uc11, uc12, uc21, uc22),
-                        #             packed_greens, σ
-                        #         )
-                        #     end
-                        # end # source loops
-
-                        temp[dx+1, dy+1, bi, bj] += weight * val
-
+                        # 0-based index to 1 based index
+                        # need += for time integrals
+                        temp[sub_d + cart1, bi, bj] += weight * val
                     end # main distance loop
 
                 end # selected distance

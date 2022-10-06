@@ -1,15 +1,3 @@
-# Helpers
-
-# This can be called with one less element in Ns than in idxs (tight left)
-function _sub2ind(Ns, idxs)
-    idx = idxs[end] - 1
-    for d in length(idxs)-1:-1:1
-        idx = idx * Ns[d] + (idxs[d] - 1)
-    end
-    return idx + 1
-end
-
-
 """
     BondDirections()
 

@@ -258,3 +258,102 @@ This affects every function with the `MonteCarlo.@bm` macro as well as any
 [`enable_benchmarks`](@ref)
 """
 disable_benchmarks() = TimerOutputs.disable_debug_timings(MonteCarlo)
+
+
+# map matrix indices to linear indices
+
+# This can be called with one less element in Ns than in idxs (tight left)
+"""
+    _sub2ind(size, indices)
+
+Calculates a flat array index from a set of (1-based) `indices` with the help 
+of the `size` of the array.
+
+Note that only `size[1:N-1]` are need for `N = length(indices)`. Any size values
+beycond that are ignored. Note as well that the methods for tuples are more 
+optimized (up to 4-tuples).
+
+See also: [`_sub2ind0`](@ref)
+"""
+function _sub2ind(Ns, idxs)
+    idx = idxs[end] - 1
+    @inbounds for d in length(idxs)-1:-1:1
+        idx = idx * Ns[d] + (idxs[d] - 1)
+    end
+    return idx + 1
+end
+
+"""
+    _sub2ind0(size, indices)
+
+Calculates a flat 0-based array index from a set of 0-based `indices` with the 
+help of the `size` of the array.
+
+Note that only `size[1:N-1]` are need for `N = length(indices)`. Any size values
+beycond that are ignored. Note as well that the methods for tuples are more 
+optimized (up to 4-tuples).
+
+See also: [`_sub2ind`](@ref)
+"""
+function _sub2ind0(Ns, idxs)
+    idx = idxs[end]
+    @inbounds for d in length(idxs)-1:-1:1
+        idx = idx * Ns[d] + idxs[d]
+    end
+    return idx
+end
+
+@generated function _sub2ind0(Ns::T, idxs::T) where T
+    if Ns <: NTuple{1}
+        :(@inbounds return idxs[1])
+    elseif Ns <: NTuple{2}
+        :(@inbounds return muladd(Ns[1], idxs[2], idxs[1]))
+    elseif Ns <: NTuple{3}
+        quote
+            @inbounds idx = muladd(Ns[1], idxs[2], idxs[1])
+            @inbounds return muladd(Ns[2], idxs[3], idx)
+        end
+    elseif Ns <: NTuple{4}
+        quote
+            @inbounds idx = muladd(Ns[1], idxs[2], idxs[1])
+            @inbounds idx = muladd(Ns[2], idxs[3], idx)
+            @inbounds return muladd(Ns[3], idxs[4], idx)
+        end
+    else
+        quote
+            idx = idxs[end]
+            @inbounds for d in length(idxs)-1:-1:1
+                idx = idx * Ns[d] + idxs[d]
+            end
+            return idx
+        end
+    end
+end
+
+@generated function _sub2ind(Ns::T, idxs::T) where T
+    if Ns <: NTuple{1}
+        :(@inbounds return idxs[1])
+    elseif Ns <: NTuple{2}
+        :(@inbounds return muladd(Ns[1], idxs[2]-1, idxs[1]))
+    elseif Ns <: NTuple{3}
+        quote
+            @inbounds idx = muladd(Ns[1], idxs[2]-1, idxs[1])
+            @inbounds return muladd(Ns[2], idxs[3]-1, idx)
+        end
+    elseif Ns <: NTuple{4}
+        quote
+            @inbounds idx = muladd(Ns[1], idxs[2]-1, idxs[1])
+            @inbounds idx = muladd(Ns[2], idxs[3]-1, idx)
+            @inbounds return muladd(Ns[3], idxs[4]-1, idx)
+        end
+    else
+        quote
+            #@boundscheck length(idxs)-2 < length(Ns)
+            @inbounds idx = idxs[end]-1
+            @inbounds for d in length(idxs)-1:-1:1
+                idx = muladd(idx, Ns[d], idxs[d]-1)
+            end
+            return idx
+        end
+    end
+end
