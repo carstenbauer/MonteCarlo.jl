@@ -229,6 +229,7 @@ end
 ### reduced kernels
 ################################################################################
 
+
 """
     reduced_sdc_x_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
 
@@ -339,4 +340,214 @@ end
 
     (id - G0l.val.blocks[1][j, i]) * Gl0.val.blocks[1][i, j] +
     (id - G0l.val.blocks[2][j, i]) * Gl0.val.blocks[2][i, j]
+end
+
+
+################################################################################
+### Directional kernels
+################################################################################
+
+
+"""
+    full_sdc_x_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
+
+Calculates ⟨m_x(src, τ) m_x(trg, 0)⟩ with the same definitions for m_x as 
+`mx_kernel`.
+"""
+@inline Base.@propagate_inbounds function full_sdc_x_kernel(
+        mc, ::Model, sources, dirs, ucs, G::GreensMatrix, flv
+    )
+    return full_sdc_x_kernel(mc, model, sources, dirs, ucs, (G, G, G, G), flv)
+end
+
+@inline Base.@propagate_inbounds function full_sdc_x_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: Matrix}, flv
+    )
+    N = length(lattice(mc))
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    id = Int((Δij == 1+uc2) && (uc1 == uc2) && (G0l.l == 0))
+
+    # on-site but varying spin
+    Gll.val[i+N, 1+uc1]   * G00.val[j+N, 1+uc2] + 
+    Gll.val[i+N, 1+uc1]   * G00.val[j,   1+uc2+N] + 
+    Gll.val[i,   1+uc1+N] * G00.val[j+N, 1+uc2] + 
+    Gll.val[i,   1+uc1+N] * G00.val[j,   1+uc2+N] + 
+
+    # shifted by distance + varying spin
+    (0  - G0l.val[j,   Δji+N]) * Gl0.val[i+N, Δij] + 
+    (id - G0l.val[j,   Δji])   * Gl0.val[i+N, Δij+N] +
+    (id - G0l.val[j+N, Δji+N]) * Gl0.val[i,   Δij] + 
+    (0  - G0l.val[j+N, Δji])   * Gl0.val[i,   Δij+N]
+end
+
+@inline Base.@propagate_inbounds function full_sdc_x_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: DiagonallyRepeatingMatrix}, flv
+    )
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    id = Int((Δij == 1+uc2) && (uc1 == uc2) && (G0l.l == 0))
+
+    return 2 * (id - G0l.val.val[j, Δji]) * Gl0.val.val[i, Δij]
+end
+
+@inline Base.@propagate_inbounds function full_sdc_x_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: BlockDiagonal}, flv
+    )
+
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    id = Int((Δij == 1+uc2) && (uc1 == uc2) && (G0l.l == 0))
+
+    # similarly:
+    (id - G0l.val.blocks[1][j, Δji]) * Gl0.val.blocks[2][i, Δij] +
+    (id - G0l.val.blocks[2][j, Δji]) * Gl0.val.blocks[1][i, Δij]
+end
+
+
+"""
+    full_sdc_y_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
+
+Calculates ⟨m_y(src, τ) m_y(trg, 0)⟩ with the same definitions for m_y as 
+`my_kernel`.
+"""
+@inline Base.@propagate_inbounds function full_sdc_y_kernel(
+        mc, ::Model, sources, dirs, ucs, G::GreensMatrix, flv
+    )
+    return full_sdc_y_kernel(mc, model, sources, dirs, ucs, (G, G, G, G), flv)
+end
+
+@inline Base.@propagate_inbounds function full_sdc_y_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: Matrix}, flv
+    )
+    N = length(lattice(mc))
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    id = Int((Δij == 1+uc2) && (uc1 == uc2) && (G0l.l == 0))
+
+    # same as x, but with some prefactor
+    - Gll.val[i+N, 1+uc1]   * G00.val[j+N, 1+uc2] 
+    + Gll.val[i+N, 1+uc1]   * G00.val[j,   1+uc2+N] + 
+      Gll.val[i,   1+uc1+N] * G00.val[j+N, 1+uc2] +
+    - Gll.val[i,   1+uc1+N] * G00.val[j,   1+uc2+N] + 
+
+    - (0  - G0l.val[j,   Δji+N]) * Gl0.val[i+N, Δij] + 
+      (id - G0l.val[j,   Δji])   * Gl0.val[i+N, Δij+N] +
+      (id - G0l.val[j+N, Δji+N]) * Gl0.val[i,   Δij]   +
+    - (0  - G0l.val[j+N, Δji])   * Gl0.val[i,   Δij+N]
+end
+
+@inline Base.@propagate_inbounds function full_sdc_y_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: DiagonallyRepeatingMatrix}, flv
+    )
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    id = Int((Δij == 1+uc2) && (uc1 == uc2) && (G0l.l == 0))
+
+    return 2 * (id - G0l.val.val[j, Δji]) * Gl0.val.val[i, Δij]
+end
+
+@inline Base.@propagate_inbounds function full_sdc_y_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: BlockDiagonal}, flv
+    )
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    id = Int((Δij == 1+uc2) && (uc1 == uc2) && (G0l.l == 0))
+
+    return (id - G0l.val.blocks[1][j, Δji]) * Gl0.val.blocks[2][i, Δij] +
+           (id - G0l.val.blocks[2][j, Δji]) * Gl0.val.blocks[1][i, Δij]
+end
+
+
+"""
+    full_sdc_z_kernel(mc, model, site_indices, greens_matrices, flavor_indices)
+
+Calculates ⟨m_z(src, τ) m_z(trg, 0)⟩ with the same definitions for m_z as 
+`mz_kernel`.
+"""
+@inline Base.@propagate_inbounds function full_sdc_z_kernel(
+        mc, ::Model, sources, dirs, ucs, G::GreensMatrix, flv
+    )
+    return full_sdc_z_kernel(mc, model, sources, dirs, ucs, (G, G, G, G), flv)
+end
+
+@inline Base.@propagate_inbounds function full_sdc_z_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: Matrix}, flv
+    )
+    N = length(lattice(mc))
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    id = Int((Δij == 1+uc2) && (uc1 == uc2) && (G0l.l == 0))
+
+    # this is an easy one for flavor iterator
+      (1 - Gll.val[i,   1+uc1])   * (1 - G00.val[j,   1+uc2]) +
+    - (1 - Gll.val[i,   1+uc1])   * (1 - G00.val[j+N, 1+uc2+N]) +
+    - (1 - Gll.val[i+N, 1+uc1+N]) * (1 - G00.val[j,   1+uc2]) +
+      (1 - Gll.val[i+N, 1+uc1+N]) * (1 - G00.val[j+N, 1+uc2+N]) +
+
+      (id - G0l.val[j,   Δji])   * Gl0.val[i,   Δij] +
+    - (0  - G0l.val[j+N, Δji])   * Gl0.val[i,   Δij+N] +
+    - (0  - G0l.val[j,   Δji+N]) * Gl0.val[i+N, Δij] +
+      (id - G0l.val[j+N, Δji+N]) * Gl0.val[i+N, Δij+N]
+end
+
+@inline Base.@propagate_inbounds function full_sdc_z_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: DiagonallyRepeatingMatrix}, flv
+    )
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    id = Int((Δij == 1+uc2) && (uc1 == uc2) && (G0l.l == 0))
+    return 2 * (id - G0l.val.val[j, Δji]) * Gl0.val.val[i, Δij]
+end
+
+@inline Base.@propagate_inbounds function full_sdc_z_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: BlockDiagonal}, flv
+    )
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    id = Int((Δij == 1+uc2) && (uc1 == uc2) && (G0l.l == 0))
+
+      (1 - Gll.val.blocks[1][i, 1+uc1]) * (1 - G00.val.blocks[1][j, 1+uc2]) +
+    - (1 - Gll.val.blocks[1][i, 1+uc1]) * (1 - G00.val.blocks[2][j, 1+uc2]) +
+    - (1 - Gll.val.blocks[2][i, 1+uc1]) * (1 - G00.val.blocks[1][j, 1+uc2]) +
+      (1 - Gll.val.blocks[2][i, 1+uc1]) * (1 - G00.val.blocks[2][j, 1+uc2]) +
+
+      (id - G0l.val.blocks[1][j, Δji]) * Gl0.val.blocks[1][i, Δij] +
+      (id - G0l.val.blocks[2][j, Δji]) * Gl0.val.blocks[2][i, Δij]
 end

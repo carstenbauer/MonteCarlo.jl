@@ -24,7 +24,7 @@ function _load(data, ::Val{:Restructure})
 end
 
 
-output_size(r::Restructure) = output_size(r.wrapped)
+output_size(r::Restructure, l::AbstractLattice) = output_size(r.wrapped, l)
 function output_size(r::Restructure{<: EachBondPairByBravaisDistance}, l::Lattice)
     N = length(Bravais(l))
     B = length(l.unitcell.bonds)
@@ -64,11 +64,11 @@ long as the first indices match the Bravais lattice size.
 This function works with tuples of matrices, `GreensMatrix`, `Matrix` and all 
 the matrix types implemented in MonteCarlo.jl.
 """
-function restructure!(mc, Gs::NTuple; kwargs...)
+@bm function restructure!(mc, Gs::NTuple; kwargs...)
     restructure!.((mc,), Gs; kwargs...)
     return
 end
-function restructure!(mc, G::GreensMatrix; kwargs...)
+@bm function restructure!(mc, G::GreensMatrix; kwargs...)
     restructure!(mc, G.val; kwargs...)
     return
 end
@@ -135,7 +135,7 @@ function apply!(
     @timeit_debug "apply!(::Restructure{EachSitePairByDistance}, ::$(typeof(measurement.kernel)))" begin
         l = lattice(mc)
         N = length(Bravais(l))
-        indices = CartesianIndices(l:Ls) # one based matrix indices
+        indices = CartesianIndices(l.Ls) # one based matrix indices
         
         @inbounds @fastmath for σ in measurement.flavor_iterator
             for b2 in eachindex(l.unitcell.sites), b1 in eachindex(l.unitcell.sites)
@@ -147,13 +147,14 @@ function apply!(
                     crev = @. ifelse(cdir.I > 1, l.Ls + 2 - cdir.I, 1)
 
                     # map to linear indices (1-based)
-                    dir = _sub2ind(l.Ls, cdir.I) + uc2
+                    _dir = _sub2ind(l.Ls, cdir.I)
+                    dir = _dir + uc2
                     rev = _sub2ind(l.Ls, crev) + uc1
 
                     @simd for csrc in indices
-                        # cdist is one based so -1
+                        # cdir is one based so -1
                         # results is 0 < idx < 2L, so we can use ifelse as mod1
-                        ctrg = csrc.I .+ cdist.I .- 1
+                        ctrg = csrc.I .+ cdir.I .- 1
                         ctrg = @. ifelse(ctrg > l.Ls, ctrg - l.Ls, ctrg)
 
                         # to linear index
@@ -161,8 +162,8 @@ function apply!(
                         trg = _sub2ind(l.Ls, ctrg) + uc2
 
                         # measure
-                        temp[dir] += weight * measurement.kernel(
-                            mc, mc.model, (src, trg), (dir, rev), packed_greens, σ
+                        temp[_dir, b1, b2] += weight * measurement.kernel(
+                            mc, mc.model, (src, trg), (dir, rev), (uc1, uc2), packed_greens, σ
                         )
                     end # src loop
                 end # dir loop
@@ -174,21 +175,249 @@ function apply!(
 end
 
 
+function construct_dir2sub(l::AbstractLattice)
+    return map(_dir2srctrg(l)) do srctrgs
+        map(srctrgs) do (src, trg)
+            sub_src = _ind2sub(l, src)
+            sub_trg = _ind2sub(l, trg)
+            dir = sub_trg[1:end-1] .- sub_src[1:end-1]
+            dir = @. ifelse(dir < 0, l.Ls + dir, dir)
+            (dir, sub_src[end], sub_trg[end])
+        end |> unique
+    end
+end
+
+function generate_iterable(dirs::BondDirections, l::Lattice)
+    Iterators.map(l.unitcell.bonds) do b
+        uc1 = from(b)
+        uc2 = to(b)
+        sub_d = @. ifelse(b.uc_shift < 0, l.Ls + b.uc_shift, b.uc_shift)
+        ((sub_d, uc1, uc2),)
+    end |> enumerate
+end
+
+function generate_iterable(dirs::Union{Vector, Tuple}, l::Lattice)
+    D = length(l.Ls)
+    dir2sub = get!(l, :dir2sub, construct_dir2sub)::Vector{Vector{Tuple{NTuple{D, Int}, Int, Int}}}
+    return (idx => dir2sub[dir] for (idx, dir) in dirs)
+end
+
+
+function apply!(
+        temp::Array, iter::Restructure{<: EachLocalQuadByDistance}, 
+        measurement::DQMCMeasurement, mc::DQMC, packed_greens, weight = 1.0
+    )
+
+    #           x, y
+    # trg1 ---- src1 ---- src2 ---- trg2
+    #    dx1, dy1   dx, dy   dx2, dy2
+    #    sub_dir1            sub_dir2
+    # uc12      uc11      uc21      uc22
+
+    @timeit_debug "apply!(::Restructure{EachLocalQuadByDistance}, ::$(typeof(measurement.kernel)))" begin
+        lat = lattice(mc)
+        N = length(Bravais(lat))
+        Ls = lat.Ls
+        dirs = generate_iterable(iter.wrapped.directions, lat) # is this a type problem?
+
+        T0 = zero(eltype(temp))
+        indices0 = CartesianIndices(map(L -> 0:L-1, Ls)) # zero based
+        indices1 = CartesianIndices(Ls) # one based
+
+        @inbounds @fastmath for σ in measurement.flavor_iterator
+            # Assuming 2D
+            for (dir_idx2, sub_dirs2) in dirs
+                for (dir_idx1, sub_dirs1) in dirs
+                    for (sub_d2, uc21, uc22) in sub_dirs2
+                        b2 = uc21
+                        uc21 = N * (uc21 - 1)
+                        uc22 = N * (uc22 - 1)
+                        Δkl = _sub2ind0(Ls, sub_d2) + 1 + uc22
+                        sub_r2 = @. ifelse.(sub_d2 > 0, Ls .- sub_d2, 0)
+                        Δlk = _sub2ind0(Ls, sub_r2) + 1 + uc21
+
+                        for (sub_d1, uc11, uc12) in sub_dirs1
+                            b1 = uc11
+                            uc11 = N * (uc11 - 1)
+                            uc12 = N * (uc12 - 1)
+                            Δij = _sub2ind0(Ls, sub_d1) + 1 + uc12
+                            sub_r1 = @. ifelse.(sub_d1 > 0, Ls .- sub_d1, 0)
+                            Δji = _sub2ind0(Ls, sub_r1) + 1 + uc21
+
+                            for sub_d in indices0 # zero based
+                                val = T0
+
+                                # Inlined mod1, see comment below
+                                # src2 -> trg1
+                                # -Lx ≤ (px2, py2) = b1 - (dx, dy) ≤ Lx
+                                sub_p1 = @. sub_d1 - sub_d.I
+                                sub_p1 = @. ifelse(sub_p1 < 0, sub_p1 + Ls, sub_p1) 
+                                Δkj = _sub2ind0(Ls, sub_p1) + 1 + uc12
+                                sub_r = @. ifelse(sub_p1 > 0, Ls - sub_p1, 0)
+                                Δjk = _sub2ind0(Ls, sub_r) + 1 + uc21
+
+
+                                # src1 -> trg2
+                                # 1 ≤ (px1, py1) = (dx, dy) + b2 ≤ 2Lx
+                                sub_p2 = @. sub_d2 + sub_d.I
+                                sub_p2 = @. ifelse(sub_p2 ≥ Ls, sub_p2 - Ls, sub_p2) 
+                                Δil = _sub2ind0(Ls, sub_p2) + 1 + uc22
+                                sub_r = @. ifelse(sub_p2 > 0, Ls - sub_p2, 0)
+                                Δli = _sub2ind0(Ls, sub_r) + 1 + uc11
+
+                                Δik = _sub2ind0(Ls, sub_d.I) + 1 + uc21
+                                sub_r = @. ifelse(sub_d.I > 0, Ls - sub_d.I, 0)
+                                Δki = _sub2ind0(Ls, sub_r) + 1 + uc11
+
+                                sub = @. sub_p2 - sub_d1
+                                sub = @. ifelse(sub < 0, sub + Ls, sub) 
+                                Δjl = _sub2ind0(Ls, sub) + 1 + uc22
+                                sub_r = @. ifelse(sub > 0, Ls - sub, 0)
+                                Δlj = _sub2ind0(Ls, sub_r) + 1 + uc12
+
+
+                                @simd for sub_src in indices1
+                                    # linear src index
+                                    i = _sub2ind(Ls, sub_src.I) + uc11
+                                    # mod1(src + dir, Ls)
+                                    sub = @. sub_src.I + sub_d1
+                                    sub = @. ifelse(sub > Ls, sub - Ls, sub)
+                                    j = _sub2ind(Ls, sub) + uc12
+
+                                    sub = @. sub_src.I + sub_d.I
+                                    sub = @. ifelse(sub > Ls, sub - Ls, sub)
+                                    k = _sub2ind(Ls, sub) + uc21
+                                    # l follows from k
+                                    sub = @. sub + sub_d2
+                                    sub = @. ifelse(sub > Ls, sub - Ls, sub)
+                                    l = _sub2ind(Ls, sub) + uc22
+
+                                    val += measurement.kernel(
+                                        mc, mc.model, 
+                                        (i, j, k, l), 
+                                        (Δij, Δik, Δil, Δji, Δjk, Δjl, Δki, Δkj, Δkl, Δli, Δlj, Δlk),
+                                        (uc11, uc12, uc21, uc22),
+                                        packed_greens, σ
+                                    )
+                                end # source site loop
+
+                                # 0-based index to 1 based index
+                                # need += for time integrals
+                                temp[Δik - uc21, dir_idx1, dir_idx2, b1, b2] += weight * val
+                            end # main distance loop
+
+                        end # iterate lattice indices in direction
+                    end # iterate lattice indices in direction
+                end # iterate directions
+            end # iterate directions
+
+        end # flavor
+    end # benchmark
+
+    return 
+end
+
+
+function apply!(
+        temp::Array, iter::Restructure{<: EachLocalQuadBySyncedDistance}, 
+        measurement::DQMCMeasurement, mc::DQMC, packed_greens, weight = 1.0
+    )
+
+    #           x, y
+    # trg1 ---- src1 ---- src2 ---- trg2
+    #    dx1, dy1   dx, dy   dx2, dy2
+    #    sub_dir1            sub_dir2
+    # uc12      uc11      uc21      uc22
+
+    @timeit_debug "apply!(::Restructure{EachLocalQuadBySyncedDistance}, ::$(typeof(measurement.kernel)))" begin
+        l = lattice(mc)
+        N = length(Bravais(l))
+        dirs = generate_iterable(iter.directions, l) # is this a type problem?
+
+        T0 = zero(eltype(temp))
+        indices0 = CartesianIndices(map(L -> 0:L-1, l.Ls)) # zero based
+        indices1 = CartesianIndices(l.Ls) # one based
+        cart1 = CartesianIndex(map(_ -> 1, l.Ls))
+
+        @inbounds @fastmath for σ in measurement.flavor_iterator
+            # Assuming 2D
+            for (dir_idx2, sub_dirs2) in enumerate(dirs)
+                for (dir_idx1, sub_dirs1) in enumerate(dirs)
+                    for (sub_d2, uc21, uc22) in sub_dirs2
+                        uc21 = N * (uc21 - 1)
+                        uc22 = N * (uc22 - 1)
+                        d2 = _sub2ind0(l.Ls, sub_d2) + 1
+
+                        for (sub_d1, uc11, uc12) in sub_dirs1
+                            uc11 = N * (uc11 - 1)
+                            uc12 = N * (uc12 - 1)
+                            d1 = _sub2ind0(l.Ls, sub_d1) + 1
+
+
+                            for sub_d in indices0 # zero based
+                                val = T0
+
+                                # Inlined mod1, see comment below
+                                # src2 -> trg1
+                                # -Lx ≤ (px2, py2) = b1 - (dx, dy) ≤ Lx
+                                sub_p1 = @. sub_d1 - sub_d.I
+                                sub_p1 = @. ifelse(sub_p1 < 0, sub_p1 + l.Ls, sub_p1) 
+                                p1 = _sub2ind0(l.Ls, sub_p1) + 1
+
+                                # src1 -> trg2
+                                # 1 ≤ (px1, py1) = (dx, dy) + b2 ≤ 2Lx
+                                sub_p2 = @. sub_d2 + sub_d.I
+                                sub_p2 = @. ifelse(sub_p2 ≥ l.Ls, sub_p2 - l.Ls, sub_p2) 
+                                p2 = _sub2ind0(l.Ls, sub_p2) + 1
+
+                                @simd for sub_src in indices1
+                                    # linear src index
+                                    i = _sub2ind(l.Ls, sub_src.I)
+                                    # mod1(src + dir, Ls)
+                                    sub_src2 = @. sub_src.I + sub_d.I
+                                    sub_src2 = @. ifelse(sub_src2 > l.Ls, sub_src2 - l.Ls, sub_src2)
+                                    i2 = _sub2ind(l.Ls, sub_src2)
+
+                                    val += cc_kernel(
+                                        mc, mc.model, 
+                                        (i, i2), (d1, d2, p1, p2),
+                                        (uc11, uc12, uc21, uc22),
+                                        packed_greens, σ
+                                    )
+                                end # source site loop
+
+                                # 0-based index to 1 based index
+                                # need += for time integrals
+                                temp[sub_d + cart1, dir_idx1, dir_idx2] += weight * val
+                            end # main distance loop
+
+                        end # iterate lattice indices in direction
+                    end # iterate lattice indices in direction
+                end # iterate directions
+            end # iterate directions
+
+        end # flavor
+    end # benchmark
+
+    return 
+end
+
+
 function apply!(
         temp::Array, ::Restructure{<: EachBondPairByBravaisDistance}, 
         measurement::DQMCMeasurement, mc::DQMC, packed_greens, weight = 1.0
     )
 
+    #           x, y
+    # trg1 ---- src1 ---- src2 ---- trg2
+    #    dx1, dy1   dx, dy   dx2, dy2
+    #       b1                  b2
+    # uc12      uc11      uc21      uc22
+
     @timeit_debug "apply!(::Restructure{EachBondPairByBravaisDistance}, ::$(typeof(measurement.kernel)))" begin
         l = lattice(mc)
         N = length(Bravais(l))
         bs = l.unitcell.bonds
-
-        #           x, y
-        # trg1 ---- src1 ---- src2 ---- trg2
-        #    dx1, dy1   dx, dy   dx2, dy2
-        #       b1                  b2
-        # uc12      uc11      uc21      uc22
 
         T0 = zero(eltype(temp))
         directions = CartesianIndices(map(L -> 0:L-1, l.Ls)) # zero based
@@ -208,13 +437,13 @@ function apply!(
                 sub_d1 = @. ifelse(b1.uc_shift < 0, l.Ls + b1.uc_shift, b1.uc_shift)
 
                 # cartesian 0-based index to linear 1-based index
-                d1 = _sub2ind0(l.Ls, sub_d1) + 1
+                d1 = _sub2ind0(l.Ls, sub_d1) + 1 + uc12
 
                 for (bj, b2) in enumerate(bs)
                     uc21 = N * (from(b2) - 1)
                     uc22 = N * (to(b2) - 1)
                     sub_d2 = @. ifelse(b2.uc_shift < 0, l.Ls + b2.uc_shift, b2.uc_shift)
-                    d2 = _sub2ind0(l.Ls, sub_d2) + 1
+                    d2 = _sub2ind0(l.Ls, sub_d2) + 1 + uc22
 
                     for sub_d in directions # zero based
                         val = T0
@@ -224,21 +453,21 @@ function apply!(
                         # -Lx ≤ (px2, py2) = b1 - (dx, dy) ≤ Lx
                         sub_p1 = @. sub_d1 - sub_d.I
                         sub_p1 = @. ifelse(sub_p1 < 0, sub_p1 + l.Ls, sub_p1) 
-                        p1 = _sub2ind0(l.Ls, sub_p1) + 1
+                        p1 = _sub2ind0(l.Ls, sub_p1) + 1 + uc12
 
                         # src1 -> trg2
                         # 1 ≤ (px1, py1) = (dx, dy) + b2 ≤ 2Lx
                         sub_p2 = @. sub_d2 + sub_d.I
                         sub_p2 = @. ifelse(sub_p2 ≥ l.Ls, sub_p2 - l.Ls, sub_p2) 
-                        p2 = _sub2ind0(l.Ls, sub_p2) + 1
+                        p2 = _sub2ind0(l.Ls, sub_p2) + 1 + uc22
 
                         @simd for sub_src in indices
                             # linear src index
-                            i = _sub2ind(l.Ls, sub_src.I)
+                            i = _sub2ind(l.Ls, sub_src.I) + uc11
                             # mod1(src + dir, Ls)
                             sub_src2 = @. sub_src.I + sub_d.I
                             sub_src2 = @. ifelse(sub_src2 > l.Ls, sub_src2 - l.Ls, sub_src2)
-                            i2 = _sub2ind(l.Ls, sub_src2)
+                            i2 = _sub2ind(l.Ls, sub_src2) + uc21
 
                             val += cc_kernel(
                                 mc, mc.model, (i, i2), (d1, d2, p1, p2),
@@ -260,137 +489,3 @@ function apply!(
 
     return 
 end
-
-
-
-################################################################################
-### kernels
-################################################################################
-
-
-
-# Adjust this to take idxs w/o uc, uc_shifts (i.e. N* (uc-1)) and flavor
-# then calculate I3 in here?
-@inline Base.@propagate_inbounds function cc_kernel(
-        mc::DQMC, ::Model, 
-        sources::NTuple{2, Int},
-        directions::NTuple{4, Int},
-        uc_shifts::NTuple{4, Int},
-        packed_greens::_GM4{<: DiagonallyRepeatingMatrix},
-        flavors::NTuple{2, Int},
-    )
-    N = length(lattice(mc))
-    G00, G0l, Gl0, Gll = packed_greens
-    i, k = sources
-    Δij, Δkl, Δkj, Δil = directions
-    uc11, uc12, uc21, uc22 = uc_shifts
-    f1, f2 = flavors
-
-    # I3 = ifelse((Δil == 0) && (uc11 == uc22) && (G0l.l == 0) && (f1 == f2), 1, 0)
-    # 3 ==, 2 &&, 1 cast
-    I3 = Int((Δil == 0) && (uc11 == uc22) && (G0l.l == 0))
-    # I3 = 1
-
-    # uc12 (j)   (l) uc22
-    #       | \ / |
-    #       | / \ |
-    # uc11 (i)---(k) uc21
-
-    # 6 +
-    i += uc11
-    k += uc21
-    Δij += uc12
-    Δkl += uc22
-    Δkj += uc12
-    Δil += uc22
-
-    # 4 *, 2 ±, 4 getindex -> 4x (1 *, 1 +)
-    # 8 *, 6 ±, 4 read
-    4 * Gll.val.val[k, Δkl] * G00.val.val[i, Δij] + 
-    2 * (I3 - G0l.val.val[i, Δil]) * Gl0.val.val[k, Δkj]
-end
-
-@inline Base.@propagate_inbounds function temp_kernel(packed_greens, idxs, I3) 
-    G00, G0l, Gl0, Gll = packed_greens
-    i, i2, d1, d2, p1, p2 = idxs
-    #  (j)   (l)
-    #   | \ / |
-    #   | / \ |
-    #  (i)---(k)
-    # i, k, Δij, Δkl, Δkj, Δil = idxs
-
-    4 * Gll.val.val[i2, d2] * G00.val.val[i, d1] + 
-    2 * (I3 - G0l.val.val[i, p2]) * Gl0.val.val[i2, p1]
-end
-
-
-
-
-
-################################################################################
-### Old prototyping
-################################################################################
-
-
-
-# const restructure_cache = Ref(-1)
-# Bravais_modcache(l::Lattice) = vcat(1:prod(l.Ls), 1:prod(l.Ls))
-
-# """
-#     restructure(output, input, cached_mod)
-#     restructure(output, greens_matrix, l::Lattice)
-
-# Takes a Matrix `input` and reorders it into diagonals, saved in `output`. After 
-# the transformation `output[i, d]` is `input[i, mod1(i+d-1, size(input, 2))]`, 
-# i.e. `d` picks a (periodic) diagonal  and `i` an element of the diagonal. 
-
-# `cached_mod` should be `vcat(1:size(input, 2), 1:size(input, 2))` and is 
-# automatically generated from `l::Lattice`.
-# """
-# function restructure!(Q::AbstractMatrix, G::AbstractMatrix, cached_mod)
-#     @inbounds for j in axes(Q, 2)
-#         @simd for i in axes(Q, 1)
-#             Q[i, j] = G[i, cached_mod[j + i - 1]]
-#         end
-#     end
-#     return Q
-# end
-
-# function restructure!(Q::Matrix, G::Matrix, l::Lattice)
-#     n = length(Bravais(l))
-#     cached_mod = get!(l, :Bravais_modcache, Bravais_modcache)::Vector{Int}
-
-#     if size(G, 1) == n
-#         return restructure!(Q, G, cached_mod)
-#     else
-#         # we want to work on views
-#         # - flv already works as an offsets so restructuring views allows this
-#         #   to continue
-#         # - doing the same for bravais indices would be simple/nice
-#         # - since we transform diagonals to rows, rows 2:end would grab from 
-#         #   multiple basis combinations. That's not what we want?
-#         for i in 1:div(size(G, 1), n), j in 1:div(size(G, 2), n)
-#             xr = (i-1) * n + 1 : i * n
-#             yr = (j-1) * n + 1 : j * n
-#             restructure!(view(Q, xr, yr), view(G, xr, yr), cached_mod)
-#         end
-#     end
-#     return Q
-# end
-
-# function restructure!(Q::GreensMatrix, G::GreensMatrix, l::Lattice)
-#     return restructure!(Q.val, G.val, l)
-# end
-
-# function restructure!(Q::BlockDiagonal, G::BlockDiagonal, l::Lattice)
-#     for i in eachidnex(G.blocks)
-#         restructure!(Q.blocks[i], G.blocks[i], l)
-#     end
-#     return Q
-# end
-
-# function restructure!(Q::CMat64, G::CMat64, l::Lattice)
-#     restructure!(Q.re, G.re, l)
-#     restructure!(Q.im, G.im, l)
-#     return Q
-# end

@@ -337,14 +337,18 @@ end
         :(@inbounds return muladd(Ns[1], idxs[2]-1, idxs[1]))
     elseif Ns <: NTuple{3}
         quote
-            @inbounds idx = muladd(Ns[1], idxs[2]-1, idxs[1])
-            @inbounds return muladd(Ns[2], idxs[3]-1, idx)
+            @inbounds idx = idxs[3] - 1
+            @inbounds idx = muladd(Ns[2], idx, idxs[2]) - 1
+            @inbounds idx = muladd(Ns[1], idx, idxs[1])
+            return idx
         end
     elseif Ns <: NTuple{4}
         quote
-            @inbounds idx = muladd(Ns[1], idxs[2]-1, idxs[1])
-            @inbounds idx = muladd(Ns[2], idxs[3]-1, idx)
-            @inbounds return muladd(Ns[3], idxs[4]-1, idx)
+            @inbounds idx = idxs[4] - 1
+            @inbounds idx = muladd(Ns[3], idx, idxs[3]) - 1
+            @inbounds idx = muladd(Ns[2], idx, idxs[2]) - 1
+            @inbounds idx = muladd(Ns[1], idx, idxs[1])
+            return idx
         end
     else
         quote
@@ -353,7 +357,7 @@ end
             @inbounds for d in length(idxs)-1:-1:1
                 idx = muladd(idx, Ns[d], idxs[d]-1)
             end
-            return idx
+            return idx + 1
         end
     end
 end

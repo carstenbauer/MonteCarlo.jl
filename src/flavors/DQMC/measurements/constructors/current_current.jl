@@ -233,6 +233,90 @@ end
 
 
 
+################################################################################
+### Distance based kernels
+################################################################################
+
+# For reference:
+# uc12 (j)   (l) uc22
+#       | \ / |
+#       | / \ |
+# uc11 (i)---(k) uc21
+# uc jumps in units of length(lattice), starting at 0.
+# uc already included in positions and distances
+# format: (x, y, ..., uc[, flv]) and (dx, dy, ..., uc[, flv])
+
+
+# Basic full Matrix
+@inline Base.@propagate_inbounds function cc_kernel(
+        mc::DQMC, ::Model, 
+        sources::NTuple{2, Int},
+        directions::NTuple{4, Int},
+        uc_shifts::NTuple{4, Int},
+        packed_greens::_GM4{<: Matrix},
+        flavors::NTuple{2, Int}
+    )
+    N = length(lattice(mc))
+    G00, G0l, Gl0, Gll = packed_greens
+    i, k = sources
+    Δij, Δkl, Δkj, Δil = directions
+    uc11, uc12, uc21, uc22 = uc_shifts
+    f1, f2 = N .* (flavors .- 1)
+
+    I3 = Int((Δil == uc22) && (uc11 == uc22) && (G0l.l == 0) && (f1 == f2))
+
+    return 4 * Gll.val[k+f2, Δkl+f2] * G00.val[i+f1, Δij+f1] + 
+           2 * (I3 - G0l.val[i+f1, Δil+f2]) * Gl0.val[k+f2, Δkj+f1]
+end
+
+
+# Repeating Matrix
+@inline Base.@propagate_inbounds function cc_kernel(
+        ::DQMC, ::Model, 
+        sources::NTuple{2, Int},
+        directions::NTuple{4, Int},
+        uc_shifts::NTuple{4, Int},
+        packed_greens::_GM4{<: DiagonallyRepeatingMatrix},
+        flavors,
+    )
+    G00, G0l, Gl0, Gll = packed_greens
+    i, k = sources
+    Δij, Δkl, Δkj, Δil = directions
+    uc11, uc12, uc21, uc22 = uc_shifts
+
+    I3 = Int((Δil == uc22) && (uc11 == uc22) && (G0l.l == 0))
+
+    return 4 * Gll.val.val[k, Δkl] * G00.val.val[i, Δij] + 
+           2 * (I3 - G0l.val.val[i, Δil]) * Gl0.val.val[k, Δkj]
+end
+
+
+# BlockDiagonal Optimization
+@inline Base.@propagate_inbounds function cc_kernel(
+        mc::DQMC, ::Model, 
+        sources::NTuple{2, Int},
+        directions::NTuple{4, Int},
+        uc_shifts::NTuple{4, Int},
+        packed_greens::_GM4{<: BlockDiagonal},
+        flavors::NTuple{2, Int}
+    )
+    G00, G0l, Gl0, Gll = packed_greens
+    i, k = sources
+    Δij, Δkl, Δkj, Δil = directions
+    uc11, uc12, uc21, uc22 = uc_shifts
+    f1, f2 = flavors
+
+    output = 4 * Gll.val.blocks[f2][k, Δkl] * G00.val.blocks[f1][i, Δij]
+
+    # Maybe (f1 == f2) * (...) is better?
+    if f1 == f2
+        I3 = Int((Δil == uc22) && (uc11 == uc22) && (G0l.l == 0))
+        output += 2 * (I3 - G0l.val.blocks[f1][i, Δil]) * Gl0.val.blocks[f1][k, Δkj]
+    end
+
+    return output
+end
+
 
 
 ################################################################################

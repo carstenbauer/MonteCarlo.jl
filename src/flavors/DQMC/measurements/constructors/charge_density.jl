@@ -165,3 +165,73 @@ end
     end
     return output
 end
+
+
+################################################################################
+### Distance based full CDC kernel
+################################################################################
+
+
+
+@inline Base.@propagate_inbounds function full_cdc_kernel(
+        mc, ::Model, sources, directions, uc_shifts,
+        G::GreensMatrix, flavors
+    )
+    return full_cdc_kernel(mc, model, sources, directions, uc_shifts, (G, G, G, G), flavors)
+end
+
+@inline Base.@propagate_inbounds function full_cdc_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: Matrix}, flavors::NTuple{2, Int}
+    )
+    N = length(lattice(mc))
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    f1, f2 = N .* (flavors .- 1)
+    id = Int((Δij == 1+uc2) && (uc1 == uc2) && (G0l.l == 0) && (f1 == f2))
+
+    return flv * flv * (1 - Gll.val[i+f1, 1+uc1+f1]) * (1 - G00.val[j+f2, 1+uc2+f2]) +
+            flv * (id - G0l.val[j+f2, Δji+f1]) * Gl0.val[i+f1, Δij+f2]
+end
+
+
+@inline Base.@propagate_inbounds function full_cdc_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: DiagonallyRepeatingMatrix}, flvs
+    )
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    id = Int((Δji == 1+uc1) && (uc1 == uc2) && (G0l.l == 0))
+    flv = total_flavors(mc.model)
+
+    # println("$sources, $directions $uc_shifts $id")
+
+    return flv * flv * (1 - Gll.val.val[i, 1+uc1]) * (1 - G00.val.val[j, 1+uc2]) +
+            flv * (id - G0l.val.val[j, Δji]) * Gl0.val.val[i, Δij]
+end
+
+
+@inline Base.@propagate_inbounds function full_cdc_kernel(
+        mc, ::Model, sources::NTuple{2}, 
+        directions::NTuple{2, Int}, uc_shifts::NTuple{2, Int},
+        packed_greens::_GM4{<: BlockDiagonal}, flvs
+    )
+    
+    i, j = sources
+    Δij, Δji = directions
+    uc1, uc2 = uc_shifts
+	G00, G0l, Gl0, Gll = packed_greens
+    
+    output = (1 - Gll.val.blocks[f1][i, 1+uc1]) * (1 - G00.val.blocks[f2][j, 1+uc2])
+    if f1 == f2
+        id = Int((Δij == 1+uc2) && (uc1 == uc2) && (G0l.l == 0))
+        output += (id - G0l.val.blocks[f1][j, Δji]) * Gl0.val.blocks[f1][i, Δij]
+    end
+    return output
+end

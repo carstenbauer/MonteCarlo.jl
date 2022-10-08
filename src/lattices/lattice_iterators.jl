@@ -429,7 +429,7 @@ _eltype(::EachLocalQuadBySyncedDistance, ::Lattice) = NTuple{5, Int64}
 Returns a lattice iterator that iterates through combinations of four sites.
 
 In each step the iterator returns `(out_idx, src, src', trg, trg')`. The first
-index combines `(b1, b2, dir, idxs1, idx2)` where `b` refer to site indices
+index combines `(dir, idxs1, idx2, b1, b2)` where `b` refer to site indices
 within the unit cell, `dir` refers to a direction on the Bravais lattice and 
 idx1, idx2 refer to indices into `directions`. This can be visualized as
 
@@ -533,7 +533,7 @@ function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1, 
     state == (0,0, 0,0, 0,0) && return nothing
 
     # This updates states after computing the next set of indices
-    src, shift, sub_idx1, sub_idx2, uc1, uc2= state
+    src, shift, sub_idx1, sub_idx2, uc1, uc2 = state
     
     B = length(l.unitcell.sites)
     N = length(Bravais(l))
@@ -576,6 +576,7 @@ function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1, 
 
     # Check validity
     if trg1 == 0 || trg2 == 0
+        # should probably have a fast forward...
         return _iterate(iter, l, next_state)
     end
 

@@ -116,7 +116,7 @@ end
 
 
 @inline Base.@propagate_inbounds function pc_alt_kernel(
-        mc, ::Model, sites::NTuple{4}, G0l::_GM{<: Matrix}, flv
+        mc, ::Model, sites::NTuple{4}, Gl0::_GM{<: Matrix}, flv
     )
     
     src1, trg1, src2, trg2 = sites
@@ -124,27 +124,27 @@ end
     # Δ_v^†(src1, trg1)(τ) Δ_v(src2, trg2)(0)
     # (I-G)_{j, i}^{↑, ↑}(0, τ) (I-G)_{j+d', i+d}^{↓, ↓}(0, τ) - 
     # (I-G)_{j, i+d}^{↑, ↓}(0, τ) G_{j+d', i}^{↓, ↑}(0, τ)
-    (I[trg1, trg2] * I[G0l.k, G0l.l] - G0l.val[trg2+N, trg1+N]) * 
-    (I[src1, src2] * I[G0l.k, G0l.l] - G0l.val[src2, src1]) -
-    G0l.val[src2, trg1+N] * G0l.val[trg2+N, src1]
+    (I[trg1, trg2] * I[Gl0.k, Gl0.l] - Gl0.val[trg2+N, trg1+N]) * 
+    (I[src1, src2] * I[Gl0.k, Gl0.l] - Gl0.val[src2, src1]) -
+    Gl0.val[src2, trg1+N] * Gl0.val[trg2+N, src1]
 end
 
 @inline Base.@propagate_inbounds function pc_alt_kernel(
-        ::DQMC, ::Model, sites::NTuple{4}, G0l::_GM{<: DiagonallyRepeatingMatrix}, flv
+        ::DQMC, ::Model, sites::NTuple{4}, Gl0::_GM{<: DiagonallyRepeatingMatrix}, flv
     )
 
     src1, trg1, src2, trg2 = sites
-    (I[trg1, trg2] * I[G0l.k, G0l.l] - G0l.val.val[trg2, trg1]) * 
-    (I[src1, src2] * I[G0l.k, G0l.l] - G0l.val.val[src2, src1])
+    (I[trg1, trg2] * I[Gl0.k, Gl0.l] - Gl0.val.val[trg2, trg1]) * 
+    (I[src1, src2] * I[Gl0.k, Gl0.l] - Gl0.val.val[src2, src1])
 end
 
 @inline Base.@propagate_inbounds function pc_alt_kernel(
-        ::DQMC, ::Model, sites::NTuple{4}, G0l::_GM{<: BlockDiagonal}, flv
+        ::DQMC, ::Model, sites::NTuple{4}, Gl0::_GM{<: BlockDiagonal}, flv
     )
 
     src1, trg1, src2, trg2 = sites
-    (I[trg1, trg2] * I[G0l.k, G0l.l] - G0l.val.blocks[2][trg2, trg1]) * 
-    (I[src1, src2] * I[G0l.k, G0l.l] - G0l.val.blocks[1][src2, src1])
+    (I[trg1, trg2] * I[Gl0.k, Gl0.l] - Gl0.val.blocks[2][trg2, trg1]) * 
+    (I[src1, src2] * I[Gl0.k, Gl0.l] - Gl0.val.blocks[1][src2, src1])
 end
 
 """
@@ -162,8 +162,116 @@ end
 
 
 ################################################################################
+### Distance based Methods
+################################################################################
+
+
+@inline Base.@propagate_inbounds function pc_kernel(
+        mc, model, sources, dirs, ucs, packed_greens::_GM4, flv
+    )
+    return pc_kernel(mc, model, sources, dirs, ucs, packed_greens[3], flv)
+end
+
+
+@inline Base.@propagate_inbounds function pc_kernel(
+        mc, ::Model, sources::NTuple{4}, directions::NTuple{12, Int},
+        uc_shifts::NTuple{4, Int}, Gl0::_GM{<: Matrix}, flv
+    )
+    N = length(lattice(mc))
+    i, j, k, l = sources
+    Δij, Δik, Δil, Δji, Δjk, Δjl, Δki, Δkj, Δkl, Δli, Δlj, Δlk = directions
+    
+    Gl0.val[i, Δik] * Gl0.val[j+N, Δjl+N] - 
+    Gl0.val[i, Δil+N] * Gl0.val[j+N, Δjk]
+end
+
+@inline Base.@propagate_inbounds function pc_kernel(
+        mc, ::Model, sources::NTuple{4}, directions::NTuple{12, Int},
+        uc_shifts::NTuple{4, Int}, Gl0::_GM{<: DiagonallyRepeatingMatrix}, flv
+    )
+    i, j, k, l = sources
+    Δij, Δik, Δil, Δji, Δjk, Δjl, Δki, Δkj, Δkl, Δli, Δlj, Δlk = directions
+
+    Gl0.val.val[i, Δik] * Gl0.val.val[j, Δjl]
+end
+
+@inline Base.@propagate_inbounds function pc_kernel(
+        mc, ::Model, sources::NTuple{4}, directions::NTuple{12, Int},
+        uc_shifts::NTuple{4, Int}, Gl0::_GM{<: BlockDiagonal}, flv
+    )
+    i, j, k, l = sources
+    Δij, Δik, Δil, Δji, Δjk, Δjl, Δki, Δkj, Δkl, Δli, Δlj, Δlk = directions
+
+    Gl0.val.blocks[1][i, Δik] * Gl0.val.blocks[2][j, Δjl]
+end
+
+
+@inline Base.@propagate_inbounds function pc_alt_kernel(
+        mc, model, sources, dirs, ucs, packed_greens::_GM4, flv
+    )
+    return pc_alt_kernel(mc, model, sources, dirs, ucs, packed_greens[2], flv)
+end
+
+
+@inline Base.@propagate_inbounds function pc_alt_kernel(
+        mc, ::Model, sources::NTuple{4}, directions::NTuple{12, Int},
+        uc_shifts::NTuple{4, Int}, Gl0::_GM{<: Matrix}, flv
+    )
+    N = length(lattice(mc))
+    i, j, k, l = sources
+    Δij, Δik, Δil, Δji, Δjk, Δjl, Δki, Δkj, Δkl, Δli, Δlj, Δlk = directions
+    uc11, uc12, uc21, uc22 = uc_shifts
+
+    I1 = Int((Δjl == 1+uc22) && (uc12 == uc22) && (Gl0.k == 0))
+    I2 = Int((Δik == 1+uc21) && (uc11 == uc21) && (Gl0.k == 0))
+
+    (I1 - Gl0.val[l+N, Δlj+N]) * (I2 - Gl0.val[k, Δki]) -
+    Gl0.val[k, Δkj+N] * Gl0.val[l+N, Δli]
+end
+
+@inline Base.@propagate_inbounds function pc_alt_kernel(
+        mc, ::Model, sources::NTuple{4}, directions::NTuple{12, Int},
+        uc_shifts::NTuple{4, Int}, Gl0::_GM{<: DiagonallyRepeatingMatrix}, flv
+    )
+    i, j, k, l = sources
+    Δij, Δik, Δil, Δji, Δjk, Δjl, Δki, Δkj, Δkl, Δli, Δlj, Δlk = directions
+    uc11, uc12, uc21, uc22 = uc_shifts
+
+    I1 = Int((Δlj == 1+uc12) && (uc12 == uc22) && (Gl0.k == Gl0.l))
+    I2 = Int((Δki == 1+uc11) && (uc11 == uc21) && (Gl0.k == Gl0.l))
+
+    (I1 - Gl0.val.val[l, Δlj]) * (I2 - Gl0.val.val[k, Δki])
+end
+
+@inline Base.@propagate_inbounds function pc_alt_kernel(
+        mc, ::Model, sources::NTuple{4}, directions::NTuple{12, Int},
+        uc_shifts::NTuple{4, Int}, Gl0::_GM{<: BlockDiagonal}, flv
+    )
+    i, j, k, l = sources
+    Δij, Δik, Δil, Δji, Δjk, Δjl, Δki, Δkj, Δkl, Δli, Δlj, Δlk = directions
+    uc11, uc12, uc21, uc22 = uc_shifts
+
+    I1 = Int((Δlj == 1+uc12) && (uc12 == uc22) && (Gl0.k == 0))
+    I2 = Int((Δki == 1+uc11) && (uc11 == uc21) && (Gl0.k == 0))
+
+    (I1 - Gl0.val.blocks[2][l, Δlj]) * (I2 - Gl0.val.val.blocks[1][k, Δki])
+end
+
+
+# TODO discourage this
+@inline Base.@propagate_inbounds function pc_combined_kernel(
+        mc, model, sources, dirs, ucs, G, flv
+    )
+    pc_kernel(mc, model, sources, dirs, ucs, G, flv) + 
+    pc_alt_kernel(mc, model, sources, dirs, ucs, G, flv)
+end
+
+
+################################################################################
 ### Old Methods
 ################################################################################
+
+
 #=
 
 
