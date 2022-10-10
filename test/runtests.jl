@@ -99,6 +99,7 @@ end
 
     @testset "Measurements" begin
         include("measurements.jl")
+        include("DQMC/measurements.jl")
     end
 
     @testset "Integration tests" begin
