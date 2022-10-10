@@ -227,6 +227,7 @@ end
     Δij, Δji = directions
     uc1, uc2 = uc_shifts
 	G00, G0l, Gl0, Gll = packed_greens
+    f1, f2 = flvs
     
     output = (1 - Gll.val.blocks[f1][i, 1+uc1]) * (1 - G00.val.blocks[f2][j, 1+uc2])
     if f1 == f2

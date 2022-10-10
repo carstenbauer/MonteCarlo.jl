@@ -263,16 +263,16 @@ end
     uc11, uc12, uc21, uc22 = uc_shifts
     f1, f2 = N .* (flavors .- 1)
 
-    I3 = Int((Δil == uc22) && (uc11 == uc22) && (G0l.l == 0) && (f1 == f2))
+    I3 = Int((Δil == 1+uc22) && (uc11 == uc22) && (G0l.l == 0) && (f1 == f2))
 
-    return 4 * Gll.val[k+f2, Δkl+f2] * G00.val[i+f1, Δij+f1] + 
-           2 * (I3 - G0l.val[i+f1, Δil+f2]) * Gl0.val[k+f2, Δkj+f1]
+    return Gll.val[k+f2, Δkl+f2] * G00.val[i+f1, Δij+f1] + 
+           (I3 - G0l.val[i+f1, Δil+f2]) * Gl0.val[k+f2, Δkj+f1]
 end
 
 
 # Repeating Matrix
 @inline Base.@propagate_inbounds function cc_kernel(
-        ::DQMC, ::Model, 
+        ::DQMC, m::Model, 
         sources::NTuple{2, Int},
         directions::NTuple{4, Int},
         uc_shifts::NTuple{4, Int},
@@ -283,11 +283,12 @@ end
     i, k = sources
     Δij, Δkl, Δkj, Δil = directions
     uc11, uc12, uc21, uc22 = uc_shifts
+    flv = total_flavors(m)
 
-    I3 = Int((Δil == uc22) && (uc11 == uc22) && (G0l.l == 0))
+    I3 = Int((Δil == 1+uc22) && (uc11 == uc22) && (G0l.k == G0l.l))
 
-    return 4 * Gll.val.val[k, Δkl] * G00.val.val[i, Δij] + 
-           2 * (I3 - G0l.val.val[i, Δil]) * Gl0.val.val[k, Δkj]
+    return flv*flv * Gll.val.val[k, Δkl] * G00.val.val[i, Δij] + 
+           flv * (I3 - G0l.val.val[i, Δil]) * Gl0.val.val[k, Δkj]
 end
 
 
@@ -306,12 +307,12 @@ end
     uc11, uc12, uc21, uc22 = uc_shifts
     f1, f2 = flavors
 
-    output = 4 * Gll.val.blocks[f2][k, Δkl] * G00.val.blocks[f1][i, Δij]
+    output = Gll.val.blocks[f2][k, Δkl] * G00.val.blocks[f1][i, Δij]
 
     # Maybe (f1 == f2) * (...) is better?
     if f1 == f2
-        I3 = Int((Δil == uc22) && (uc11 == uc22) && (G0l.l == 0))
-        output += 2 * (I3 - G0l.val.blocks[f1][i, Δil]) * Gl0.val.blocks[f1][k, Δkj]
+        I3 = Int((Δil == 1+uc22) && (uc11 == uc22) && (G0l.l == 0))
+        output += (I3 - G0l.val.blocks[f1][i, Δil]) * Gl0.val.blocks[f1][k, Δkj]
     end
 
     return output

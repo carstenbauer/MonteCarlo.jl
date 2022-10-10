@@ -26,9 +26,8 @@ end
 
 output_size(r::Restructure, l::AbstractLattice) = output_size(r.wrapped, l)
 function output_size(r::Restructure{<: EachBondPairByBravaisDistance}, l::Lattice)
-    N = length(Bravais(l))
     B = length(l.unitcell.bonds)
-    return (N, N, B, B)
+    return (l.Ls..., B, B)
 end
 
 prepare!(r::Restructure, m, mc) = prepare!(r.wrapped, m, mc)
@@ -64,7 +63,7 @@ long as the first indices match the Bravais lattice size.
 This function works with tuples of matrices, `GreensMatrix`, `Matrix` and all 
 the matrix types implemented in MonteCarlo.jl.
 """
-@bm function restructure!(mc, Gs::NTuple; kwargs...)
+@bm function restructure!(mc, Gs::Tuple; kwargs...)
     restructure!.((mc,), Gs; kwargs...)
     return
 end
@@ -72,13 +71,15 @@ end
     restructure!(mc, G.val; kwargs...)
     return
 end
-function restructure!(mc, G::BlockDiagonal; kwargs...)
-    restructure!.((mc,), G.blocks; kwargs...)
+function restructure!(mc, G::BlockDiagonal; temp = mc.stack.curr_U, kwargs...)
+    for i in eachindex(G.blocks)
+        restructure!(mc, G.blocks[i]; temp = temp.blocks[i], kwargs...)
+    end
     return
 end
-function restructure!(mc, G::StructArray; kwargs...)
-    restructure!(mc, G.re; kwargs...)
-    restructure!(mc, G.im; kwargs...)
+function restructure!(mc, G::StructArray; temp = mc.stack.curr_U, kwargs...)
+    restructure!(mc, G.re; temp = temp.re, kwargs...)
+    restructure!(mc, G.im; temp = temp.im, kwargs...)
     return
 end
 function restructure!(mc, G::DiagonallyRepeatingMatrix; kwargs...)
@@ -469,7 +470,7 @@ function apply!(
                             sub_src2 = @. ifelse(sub_src2 > l.Ls, sub_src2 - l.Ls, sub_src2)
                             i2 = _sub2ind(l.Ls, sub_src2) + uc21
 
-                            val += cc_kernel(
+                            val += measurement.kernel(
                                 mc, mc.model, (i, i2), (d1, d2, p1, p2),
                                 (uc11, uc12, uc21, uc22),
                                 packed_greens, σ

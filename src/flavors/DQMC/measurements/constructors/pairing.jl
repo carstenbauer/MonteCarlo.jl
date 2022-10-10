@@ -251,10 +251,10 @@ end
     Δij, Δik, Δil, Δji, Δjk, Δjl, Δki, Δkj, Δkl, Δli, Δlj, Δlk = directions
     uc11, uc12, uc21, uc22 = uc_shifts
 
-    I1 = Int((Δlj == 1+uc12) && (uc12 == uc22) && (Gl0.k == 0))
-    I2 = Int((Δki == 1+uc11) && (uc11 == uc21) && (Gl0.k == 0))
+    I1 = Int((Δlj == 1+uc12) && (uc12 == uc22) && (Gl0.k == Gl0.l))
+    I2 = Int((Δki == 1+uc11) && (uc11 == uc21) && (Gl0.k == Gl0.l))
 
-    (I1 - Gl0.val.blocks[2][l, Δlj]) * (I2 - Gl0.val.val.blocks[1][k, Δki])
+    (I1 - Gl0.val.blocks[2][l, Δlj]) * (I2 - Gl0.val.blocks[1][k, Δki])
 end
 
 
