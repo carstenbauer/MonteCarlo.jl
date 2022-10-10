@@ -105,12 +105,14 @@ end
     G2 = MonteCarlo.StructArray(rand(ComplexF64, 4, 4)) # 1 flavor
     G3 = MonteCarlo.BlockDiagonal(rand(4, 4), rand(4,4)) # 1 flavor
     G4 = MonteCarlo.DiagonallyRepeatingMatrix(rand(4, 4)) # 1 flavor
+    G5 = MonteCarlo.BlockDiagonal(MonteCarlo.StructArray(rand(ComplexF64, 4, 4)))
 
-    Q1, Q2, Q3, Q4 = deepcopy((G1, G2, G3, G4))
-    MonteCarlo.restructure!(mc, Q1, temp = similar(Q1))
-    MonteCarlo.restructure!(mc, Q2, temp = similar(Q2))
+    Q1, Q2, Q3, Q4, Q5 = deepcopy((G1, G2, G3, G4, G5))
+    MonteCarlo.restructure!(mc, Q1, temp = deepcopy(Q1.val))
+    MonteCarlo.restructure!(mc, Q2, temp = deepcopy(Q2))
     MonteCarlo.restructure!(mc, (Q3,))
     MonteCarlo.restructure!(mc, Q4, temp = mc.stack.curr_U.blocks[1])
+    MonteCarlo.restructure!(mc, Q5, temp = deepcopy(Q5))
     
     @test Q1 isa GreensMatrix
     @test size(Q1) == (8, 8)

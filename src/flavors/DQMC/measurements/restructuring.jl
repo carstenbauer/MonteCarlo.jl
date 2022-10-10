@@ -71,22 +71,22 @@ end
     restructure!(mc, G.val; kwargs...)
     return
 end
-function restructure!(mc, G::BlockDiagonal; temp = mc.stack.curr_U, kwargs...)
+function restructure!(mc, G::BlockDiagonal; temp = mc.stack.curr_U, target = G)
     for i in eachindex(G.blocks)
-        restructure!(mc, G.blocks[i]; temp = temp.blocks[i], kwargs...)
+        restructure!(mc, G.blocks[i]; temp = temp.blocks[i], target = target.blocks[i])
     end
     return
 end
-function restructure!(mc, G::StructArray; temp = mc.stack.curr_U, kwargs...)
-    restructure!(mc, G.re; temp = temp.re, kwargs...)
-    restructure!(mc, G.im; temp = temp.im, kwargs...)
+function restructure!(mc, G::StructArray; temp = mc.stack.curr_U, target = G)
+    restructure!(mc, G.re; temp = temp.re, target = target.re)
+    restructure!(mc, G.im; temp = temp.im, target = target.im)
     return
 end
 function restructure!(mc, G::DiagonallyRepeatingMatrix; kwargs...)
     restructure!(mc, G.val; kwargs...)
     return
 end
-function restructure!(mc, G::Matrix; target = G, temp = mc.stack.curr_U)
+function restructure!(mc, G::Matrix; temp::Matrix = mc.stack.curr_U, target::Matrix = G)
     N = length(Bravais(lattice(mc)))
     K = div(size(G, 1), N)
     dir2srctrg = lattice(mc)[:Bravais_dir2srctrg]::Vector{Vector{Int}}
