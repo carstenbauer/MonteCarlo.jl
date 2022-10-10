@@ -124,7 +124,7 @@ export reset!
 export run!, resume!, replay!
 export Model, IsingModel
 # export RepulsiveGHQHubbardModel, AttractiveGHQHubbardModel
-export HubbardModel, HubbardModelAttractive, HubbardModelRepulsive
+export HubbardModel, HubbardModelAttractive, HubbardModelRepulsive, AttractiveHubbardModel, RepulsiveHubbardModel
 export MonteCarloFlavor, MC, DQMC
 export greens, greens!, lattice, model, parameters
 export DensityHirschField, MagneticHirschField, DensityGHQField, MagneticGHQField

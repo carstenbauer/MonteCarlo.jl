@@ -51,6 +51,8 @@ function HubbardModelRepulsive(args...; kwargs...)
     d[:U] = - get(d, :U, 1.0)
     HubbardModel(args...; d...)
 end
+RepulsiveHubbardModel(args...; kwargs...) = HubbardModelRepulsive(args...; kwargs...)
+AttractiveHubbardModel(args...; kwargs...) = HubbardModelAttractive(args...; kwargs...)
 
 
 function choose_lattice(::Type{<: HubbardModel}, dims, L)
