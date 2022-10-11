@@ -64,7 +64,7 @@ This function works with tuples of matrices, `GreensMatrix`, `Matrix` and all
 the matrix types implemented in MonteCarlo.jl.
 """
 @bm function restructure!(mc, Gs::Tuple; kwargs...)
-    restructure!.((mc,), Gs; kwargs...)
+    foreach(G -> restructure!(mc, G; kwargs...), Gs)
     return
 end
 @bm function restructure!(mc, G::GreensMatrix; kwargs...)
@@ -111,6 +111,28 @@ function restructure!(mc, G::Matrix; temp::Matrix = mc.stack.curr_U, target::Mat
         end
     end
 
+    return
+end
+
+function restructure!(mc, G::Matrix{ComplexF64}; temp = mc.stack.curr_U, target = G)
+    # TODO 
+    # do something better... 
+    # preferably working with StructArrays in the first place...
+    # maybe bundle StructArray + Complex Matrix
+    if temp isa BlockDiagonal
+        N = size(temp.blocks[1], 1)
+        K = length(temp.blocks)
+        for k in 1:K
+            buffer = mc.stack.greens_temp.blocks[k]
+            copyto!(buffer, view(G, (k-1)*N+1 : k*N, (k-1)*N+1 : k*N))
+            restructure!(mc, buffer, temp = temp.blocks[k], target = buffer)
+            copyto!(view(G, (k-1)*N+1 : k*N, (k-1)*N+1 : k*N), buffer)
+        end
+    else
+        copyto!(mc.stack.greens_temp, G)
+        restructure!(mc, mc.stack.greens_temp, temp = temp, target = mc.stack.greens_temp)
+        copyto!(G, mc.stack.greens_temp)
+    end
     return
 end
 

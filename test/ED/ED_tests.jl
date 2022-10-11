@@ -704,8 +704,9 @@ end
         if field == MonteCarlo.choose_field(model)
             continue
         end
-
-        @testset "$(nameof(typeof(model))) + $(nameof(field))" begin
+        
+        str = model.U >= 0 ? "attractive" : "repulsive"
+        @testset "$(str)$(nameof(typeof(model))) + $(nameof(field))" begin
             dqmc = DQMC(
                 model, beta=1.0, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
                 thermalization = 5_000, sweeps = 5_000, print_rate=1000, field = field,
@@ -713,7 +714,6 @@ end
                     (LocalSweep(10), Adaptive(),), (GlobalShuffle(), GlobalFlip())
                 )
             )
-            str = model.U >= 0 ? "attractive" : "repulsive"
             print(
                 "  Running DQMC ($str $(nameof(field))) " * 
                 "β=$(dqmc.parameters.beta), 5k + 5k sweeps\n    "
