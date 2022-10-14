@@ -370,19 +370,19 @@ end
         model, beta = 1.0, thermalization = 21, sweeps = 117, measure_rate = 1, 
         recorder = BufferedConfigRecorder(DensityHirschField, "testfile.confs", rate = 1)
     )
-    mc[:CDC] = charge_density_correlation(mc, model)
+    mc[:CDC] = charge_density_correlation(mc, model, wrapper = nothing)
+    mc[:rCDC] = charge_density_correlation(mc, model, wrapper = Restructure)
     run!(mc, verbose=false)
 
     save("testfile.jld2", mc)
     x = load("testfile.jld2")
     rm("testfile.jld2")
     @test mc.field.conf == x.field.conf
-
-    # Repeat these tests once with x being replayed rather than loaded
     test_dqmc(mc, x)    
 
     # Check everything again with x being a replayed simulation
-    x[:CDC] = charge_density_correlation(x, model)
+    x[:CDC] = charge_density_correlation(mc, model, wrapper = nothing)
+    x[:rCDC] = charge_density_correlation(mc, model, wrapper = Restructure)
     x.last_sweep = 0
     replay!(x, verbose=false)
     test_dqmc(mc, x)

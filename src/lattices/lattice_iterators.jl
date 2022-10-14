@@ -39,7 +39,8 @@ abstract type DeferredLatticeIterator <: AbstractLatticeIterator end
 
 function _save(file::FileLike, key::String, m::T) where {T <: AbstractLatticeIterator}
     write(file, "$key/VERSION", 1)
-    write(file, "$key/tag", nameof(T))
+    write(file, "$key/tag", "LatticeIterator")
+    write(file, "$key/name", nameof(T))
     write(file, "$key/fields", getfield.((m,), fieldnames(T)))
     return
 end
@@ -47,7 +48,7 @@ end
 function _load(data, ::Val{:LatticeIterator})
     # ifelse maybe long but should be better for compile time than adding a 
     # bunch more _load methods and better for runtime than an eval
-    tag = data["tag"]
+    tag = haskey(data, "name") ? data["name"] : data["tag"]
     fields = data["fields"]
     for T in _all_lattice_iterator_types
         if tag == nameof(T)

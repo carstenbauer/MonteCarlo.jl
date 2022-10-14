@@ -173,7 +173,12 @@ function _load(data, ::Val{:DQMCMeasurement})
         missing_kernel
     end
     gi = _load(data["GI"], Val(:GreensIterator))
-    li = _load(data["LI"], Val(:LatticeIterator))
+    # This should eventually just work as usual
+    li = if data["LI"]["tag"] == "Restructure" 
+        _load(data["LI"], Val(:Restructure))
+    else
+        _load(data["LI"], Val(:LatticeIterator))
+    end
     fi = if haskey(data, "FI")
         data["FI"]
     else
