@@ -459,6 +459,36 @@ function apply!(
 end
 
 function apply!(
+        temp::Array, iter::EachSitePairByDistance, measurement, mc::DQMC, 
+        packed_greens, weight = 1.0
+    )
+    @timeit_debug "apply!(::EachSitePairByDistance, ::$(typeof(measurement.kernel)))" begin
+        l = lattice(mc)
+        Bsrctrg2dir = l[:Bravais_srctrg2dir]::Matrix{Int}
+        B = length(unitcell(l))
+        N = length(Bravais(l))
+
+        @inbounds @fastmath for σ in measurement.flavor_iterator
+            for b2 in 1:B, b1 in 1:B
+                uc1 = N * (b1-1)
+                uc2 = N * (b2-1)
+                for trg in 1:N
+                    @simd for src in 1:N
+                        dir = Bsrctrg2dir[src, trg]
+                        temp[dir, b1, b2] += weight * measurement.kernel(
+                            mc, mc.model, (src + uc1, trg + uc2), packed_greens, σ
+                        )
+                    end
+                end
+            end
+        end
+    end
+
+    return 
+end
+
+
+function apply!(
         temp::Array, iter::EachLocalQuadByDistance, measurement, mc::DQMC, 
         packed_greens, weight = 1.0
     )

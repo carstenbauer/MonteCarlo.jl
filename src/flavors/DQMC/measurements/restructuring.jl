@@ -159,6 +159,7 @@ function apply!(
         l = lattice(mc)
         N = length(Bravais(l))
         indices = CartesianIndices(l.Ls) # one based matrix indices
+        Bsrcdir2trg = l[:Bravais_srcdir2trg]::Matrix{Int}
         
         @inbounds @fastmath for σ in measurement.flavor_iterator
             for b2 in eachindex(l.unitcell.sites), b1 in eachindex(l.unitcell.sites)
@@ -175,14 +176,9 @@ function apply!(
                     rev = _sub2ind(l.Ls, crev) + uc1
 
                     @simd for csrc in indices
-                        # cdir is one based so -1
-                        # results is 0 < idx < 2L, so we can use ifelse as mod1
-                        ctrg = csrc.I .+ cdir.I .- 1
-                        ctrg = @. ifelse(ctrg > l.Ls, ctrg - l.Ls, ctrg)
-
-                        # to linear index
-                        src = _sub2ind(l.Ls, csrc.I) + uc1
-                        trg = _sub2ind(l.Ls, ctrg) + uc2
+                        _src = _sub2ind(l.Ls, csrc.I)
+                        src = _src + uc1
+                        trg = Bsrcdir2trg[_src, _dir] + uc2
 
                         # measure
                         temp[_dir, b1, b2] += weight * measurement.kernel(

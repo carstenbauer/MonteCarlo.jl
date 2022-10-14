@@ -19,6 +19,7 @@ function LatticeCache()
     constructors = Dict{Symbol, Function}(
         :Bravais_dir2srctrg => l -> construct_dir2srctrg(Bravais(l)), # Vector{Vector{Int}}}
         :Bravais_srctrg2dir => l -> construct_srctrg2dir(Bravais(l)), # Matrix{Int}
+        :Bravais_srcdir2trg => l -> construct_srcdir2trg(Bravais(l)), # Matrix{Int}
 
         :dir2srctrg => construct_dir2srctrg, # Vector{Vector{Tuple{Int, Int}}}
         :src2dirtrg => construct_src2dirtrg, # Vector{Vector{Tuple{Int, Int}}}
