@@ -355,7 +355,7 @@ Calculates ⟨m_x(src, τ) m_x(trg, 0)⟩ with the same definitions for m_x as
 `mx_kernel`.
 """
 @inline Base.@propagate_inbounds function full_sdc_x_kernel(
-        mc, ::Model, sources, dirs, ucs, G::GreensMatrix, flv
+        mc, model::Model, sources, dirs, ucs, G::GreensMatrix, flv
     )
     return full_sdc_x_kernel(mc, model, sources, dirs, ucs, (G, G, G, G), flv)
 end
@@ -424,7 +424,7 @@ Calculates ⟨m_y(src, τ) m_y(trg, 0)⟩ with the same definitions for m_y as
 `my_kernel`.
 """
 @inline Base.@propagate_inbounds function full_sdc_y_kernel(
-        mc, ::Model, sources, dirs, ucs, G::GreensMatrix, flv
+        mc, model::Model, sources, dirs, ucs, G::GreensMatrix, flv
     )
     return full_sdc_y_kernel(mc, model, sources, dirs, ucs, (G, G, G, G), flv)
 end
@@ -490,7 +490,7 @@ Calculates ⟨m_z(src, τ) m_z(trg, 0)⟩ with the same definitions for m_z as
 `mz_kernel`.
 """
 @inline Base.@propagate_inbounds function full_sdc_z_kernel(
-        mc, ::Model, sources, dirs, ucs, G::GreensMatrix, flv
+        mc, model::Model, sources, dirs, ucs, G::GreensMatrix, flv
     )
     return full_sdc_z_kernel(mc, model, sources, dirs, ucs, (G, G, G, G), flv)
 end

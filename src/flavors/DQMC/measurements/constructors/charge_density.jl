@@ -174,7 +174,7 @@ end
 
 
 @inline Base.@propagate_inbounds function full_cdc_kernel(
-        mc, ::Model, sources, directions, uc_shifts,
+        mc, model::Model, sources, directions, uc_shifts,
         G::GreensMatrix, flavors
     )
     return full_cdc_kernel(mc, model, sources, directions, uc_shifts, (G, G, G, G), flavors)
