@@ -35,6 +35,12 @@ end
 ### New kernels
 ################################################################################
 
+# These kernels have been checked vs 
+# https://journals.aps.org/prl/pdf/10.1103/PhysRevLett.68.2830 
+# (more direct, simple square lattice, repulsive model)
+# https://arxiv.org/pdf/1912.08848.pdf
+# (less direct, square w/ basis, more bonds, repulsive model)
+
 
 # I didn't think about the index order in this docstring carefully...
 """
@@ -115,23 +121,6 @@ end
     T1_ts = conj(T1_st)
     T2_st = T[s2, t2]
     T2_ts = conj(T2_st)
-
-    # The given G represents [G 0; 0 G]
-    # the uncorrelated part always triggers -> flv^2
-    # the correlated part only triggers on diagonal -> flv
-    # return flv * flv * (
-        # Gll.val.val[s2, t2] * G00.val.val[s1, t1] #-
-        # Gll.val.val[t2, s2] * G00.val.val[s1, t1] -
-        # Gll.val.val[s2, t2] * G00.val.val[t1, s1] +
-        # Gll.val.val[t2, s2] * G00.val.val[t1, s1]
-    # )
-    # return flv * flv * G00.val.val[s2, t2] * Gll.val.val[s1, t1]
-    # return flv * (id * I[s2, t1] - G0l.val.val[t1, s2]) * Gl0.val.val[t2, s1] 
-
-    # return flv * (id * I[s1, t2] - G0l.val.val[s1, t2]) * Gl0.val.val[s2, t1]
-    # return flv * (id * I[t1, t2] - G0l.val.val[t1, t2]) * Gl0.val.val[s2, s1]
-    # return flv * (id * I[s1, s2] - G0l.val.val[s1, s2]) * Gl0.val.val[t2, t1]
-    # return flv * (id * I[s2, t1] - G0l.val.val[t1, s2]) * Gl0.val.val[t2, s1]
     
     output = flv * flv * (
         (T2_ts * Gll.val.val[s2, t2] - T2_st * Gll.val.val[t2, s2]) * 
@@ -317,96 +306,3 @@ end
 
     return output
 end
-
-
-
-################################################################################
-### Old kernels
-################################################################################
-
-
-# These kernels have been checked vs 
-# https://journals.aps.org/prl/pdf/10.1103/PhysRevLett.68.2830 
-# (more direct, simple square lattice, repulsive model)
-# https://arxiv.org/pdf/1912.08848.pdf
-# (less direct, square w/ basis, more bonds, repulsive model)
-
-#=
-@bm function cc_kernel(mc, ::Model, sites::NTuple{4}, packed_greens::NTuple{4}, flv)
-    @warn "Unoptimized cc_kernel" maxlog=1
-    # Computes
-    # ⟨j_{t2-s2}(s2, l) j_{t1-s1}(s1, 0)⟩
-    # where t2-s2 (t1-s1) is usually a NN vector/jump, and
-    # j_{t2-s2}(s2, l) = i \sum_flv [T_{ts} c_t^†(l) c_s(τ) - T_{st} c_s^†(τ) c_t(τ)]
-    src1, trg1, src2, trg2 = sites
-	G00, G0l, Gl0, Gll = packed_greens
-    N = length(lattice(mc))
-    T = mc.stack.hopping_matrix
-    output = zero(eltype(G00))
-    id = I[G0l.k, G0l.l]
-
-    # Iterate through (spin up, spin down)
-    for f1 in (0, N), f2 in (0, N)
-        s1 = src1 + f1; t1 = trg1 + f1
-        s2 = src2 + f2; t2 = trg2 + f2
-
-        # Optimizations
-        # - combine first Wicks terms
-        # - index into T only once, use conj instead of transpose
-        # - use src != trg (i.e. I[s1, t1] = 0)
-        T1_st = T[s1, t1]
-        T1_ts = conj(T1_st)
-        T2_st = T[s2, t2]
-        T2_ts = conj(T2_st)
-
-        # output += (
-        #     (T[s2, t2] * (I[t2, s2] - Gll.val[t2, s2]) - T[t2, s2] * (I[t2, s2] - Gll.val[s2, t2])) * 
-        #     (T[t1, s1] * (I[s1, t1] - G00.val[s1, t1]) - T[s1, t1] * (I[s1, t1] - G00.val[t1, s1])) +
-        #     - T[t2, s2] * T[t1, s1] * (id * I[s1, t2] - G0l.val[s1, t2]) * Gl0.val[s2, t1] +
-        #     + T[t2, s2] * T[s1, t1] * (id * I[t1, t2] - G0l.val[t1, t2]) * Gl0.val[s2, s1] +
-        #     + T[s2, t2] * T[t1, s1] * (id * I[s1, s2] - G0l.val[s1, s2]) * Gl0.val[t2, t1] +
-        #     - T[s2, t2] * T[s1, t1] * (id * I[s2, t1] - G0l.val[t1, s2]) * Gl0.val[t2, s1] 
-        # )
-        output += (
-            (T2_ts * Gll.val[s2, t2] - T2_st * Gll.val[t2, s2]) * 
-            (T1_st * G00.val[t1, s1] - T1_ts * G00.val[s1, t1]) +
-            - T2_ts * T1_ts * (id * I[s1, t2] - G0l.val[s1, t2]) * Gl0.val[s2, t1] +
-            + T2_ts * T1_st * (id * I[t1, t2] - G0l.val[t1, t2]) * Gl0.val[s2, s1] +
-            + T2_st * T1_ts * (id * I[s1, s2] - G0l.val[s1, s2]) * Gl0.val[t2, t1] +
-            - T2_st * T1_st * (id * I[s2, t1] - G0l.val[t1, s2]) * Gl0.val[t2, s1] 
-        )
-    end
-    
-    output
-end
-
-
-@bm function cc_kernel(mc, ::Model, sites::NTuple{4}, pg::NTuple{4}, ::Val{1})
-    @warn "Unoptimized cc_kernel" maxlog=1
-    src1, trg1, src2, trg2 = sites
-    G00, G0l, Gl0, Gll = pg
-    T = mc.stack.hopping_matrix
-    id = I[G0l.k, G0l.l]
-
-    # up-up counts, down-down counts, mixed only on 11s or 22s
-    s1 = src1; t1 = trg1
-    s2 = src2; t2 = trg2
-
-    # See other method
-    T1_st = T[s1, t1]
-    T1_ts = conj(T1_st)
-    T2_st = T[s2, t2]
-    T2_ts = conj(T2_st)
-
-    output = (
-        ( T1_st * Gll[s1, t1] - T1_ts * Gll[t1, s1] ) * 
-        ( T2_ts * G00[t2, s2] - T2_st * G00[s2, t2] ) +
-        - T1_st * T2_st * (id * I[t1, s2] - G0l[s2, t1]) * Gl0[s1, t2] +
-        + T1_ts * T2_st * (id * I[s1, s2] - G0l[s2, s1]) * Gl0[t1, t2] +
-        + T1_st * T2_ts * (id * I[t1, t2] - G0l[t2, t1]) * Gl0[s1, s2] +
-        - T1_ts * T2_ts * (id * I[s1, t2] - G0l[t2, s1]) * Gl0[t1, s2]
-    )
-    
-    output
-end
-=#
