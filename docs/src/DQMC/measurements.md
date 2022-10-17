@@ -18,7 +18,7 @@ The per-site occupation $\langle n_i \rangle$ can be measured via `occupation(dq
 
 The charge density correlation $\langle \sum_r n(r) n(r+\Delta r) \rangle$ can be measured with `charge_density_correlation(dqmc, model)`. The time integral of that, the charge density susceptibility can be measure with `charge_density_susceptibility(mc, model)`.
 
-Note that you can also pass `kernel = MonteCarlo.reduced_cdc_kernel` to measure just the correlated part, i.e. $\langle \sum_r n(r) n(r+\Delta r) \rangle - \langle n(r) \rangle \langle n(r+\Deltar) \rangle$ instead.
+Note that you can also pass `kernel = MonteCarlo.reduced_cdc_kernel` to measure just the correlated part, i.e. $\langle \sum_r n(r) n(r+\Delta r) \rangle - \langle n(r) \rangle \langle n(r+\Delta r) \rangle$ instead.
 
 ### Magnetization
 
