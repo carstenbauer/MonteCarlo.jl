@@ -37,20 +37,22 @@ function _load(data, ::Val{:DQMC})
         data["CB"] ? CheckerboardTrue : CheckerboardFalse
     else CB_type(data["type"]) end
     @assert CB <: Checkerboard
-    parameters = _load(data["Parameters"], Val(:DQMCParameters))
-    analysis = _load(data["Analysis"], Val(:DQMCAnalysis))
+    parameters = _load(data["Parameters"])
+    tag = Val(Symbol(get(data["Analysis"], "tag", :DQMCAnalysis)))
+    analysis = _load(data["Analysis"], tag)
     recorder = _load(data["configs"], to_tag(data["configs"]))
     last_sweep = data["last_sweep"]
     model = load_model(data["Model"], to_tag(data["Model"]))
     if haskey(data, "field")
-        field = _load(data["field"], Val(:Field), parameters, model)
+        tag = Val(Symbol(get(data["field"], "tag", :Field)))
+        field = _load(data["field"], tag, parameters, model)
     else
         conf = data["conf"]
         field = field_hint(model, to_tag(data["Model"]))(parameters, model)
         conf!(field, conf)
     end
     scheduler = if haskey(data, "Scheduler")
-        _load(data["Scheduler"], to_tag(data["Scheduler"]))
+        _load(data["Scheduler"])
     else
         if haskey(data["Parameters"], "global_moves") && Bool(data["Parameters"]["global_moves"])
             rate = get(data["Parameters"], "global_rate", 10)
@@ -61,7 +63,8 @@ function _load(data, ::Val{:DQMC})
         end
     end
 
-    combined_measurements = _load(data["Measurements"], Val(:Measurements))
+    tag = Val(Symbol(data["Measurements"], "tag", :Measurements))
+    combined_measurements = _load(data["Measurements"])
     thermalization_measurements = combined_measurements[:TH]
     measurements = combined_measurements[:ME]
 
@@ -123,6 +126,7 @@ end
 
 function _save(file::FileLike, entryname::String, a::DQMCAnalysis)
     write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/tag", "DQMCAnalysis")
     write(file, entryname * "/type", typeof(a))
 
     write(file, entryname * "/th_runtime", a.th_runtime)

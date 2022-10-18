@@ -297,6 +297,7 @@ Base.length(f::AbstractField) = length(conf(f))
 
 function _save(file::FileLike, entryname::String, field::AbstractField)
     write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/tag", "Field")
     write(file, entryname * "/name", nameof(typeof(field)))
     write(file, entryname * "/conf", conf(field))
 end
