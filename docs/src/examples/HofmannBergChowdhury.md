@@ -33,69 +33,61 @@ The model is defined for a square lattice, however the paper suggests defining i
 
 The nearest neighbors are directed, catching different values for $$\phi_{ij}^\sigma$$ as a result. We need to create two groups, one with directions as indicated in figure 1a) in the paper, and one with the reverse. For second nearest neighbors the prefactor $$s_{\langle i, j \rangle_2}$$ depends on the combination of sublattice and direction. In $$a_1$$ direction the value is positive (negative) on the A (B) sublattice, and in $$a_2$$ it is negative (positive) on the A (B) sublattice. The fifth nearest neighbors always have the same weight and thus do not require special grouping.
 
-We implement the lattice with [LatticePhysics.jl](https://github.com/janattig/LatticePhysics.jl). The package requires us to define a unitcell with all bonds we want to see in the full lattice. 
-
 ```julia
-using LatticePhysics, LatPhysUnitcellLibrary
+using MonteCarlo: UnitCell, Bond, Lattice
 
-function LatPhysUnitcellLibrary.getUnitcellSquare(
-            unitcell_type  :: Type{U},
-            implementation :: Val{17}
-        ) :: U where {LS,LB,S<:AbstractSite{LS,2},B<:AbstractBond{LB,2}, U<:AbstractUnitcell{S,B}}
-
-    # return a new Unitcell
-    return newUnitcell(
-        # Type of the unitcell
-        U,
+function HBCLattice(Lx, Ly = Lx)
+    uc = UnitCell(
+        # name
+        "HBC Square",
 
         # Bravais lattice vectors
-        [[1.0, +1.0], [1.0, -1.0]],
+        ([1.0, +1.0], [1.0, -1.0]),
         
-        # Basis sites
-        S[
-            newSite(S, [0.0, 0.0], getDefaultLabelN(LS, 1)),
-            newSite(S, [0.0, 1.0], getDefaultLabelN(LS, 2))
-        ],
+        # Sites
+        [[0.0, 0.0], [0.0, 1.0]],
 
         # Bonds
-        B[
+        [
             # NN, directed
             # bonds from ref plot, π/4 weight for spin up
-            newBond(B, 1, 2, getDefaultLabelN(LB, 1), (0, 1)),
-            newBond(B, 1, 2, getDefaultLabelN(LB, 1), (-1, 0)),
-            newBond(B, 2, 1, getDefaultLabelN(LB, 1), (+1, -1)),
-            newBond(B, 2, 1, getDefaultLabelN(LB, 1), (0, 0)),
+            Bond(1, 2, ( 0,  1), 1),
+            Bond(1, 2, (-1,  0), 1),
+            Bond(2, 1, (+1, -1), 1),
+            Bond(2, 1, ( 0,  0), 1),
 
             # NN reversal
-            newBond(B, 2, 1, getDefaultLabelN(LB, 2), (0, -1)),
-            newBond(B, 2, 1, getDefaultLabelN(LB, 2), (+1, 0)),
-            newBond(B, 1, 2, getDefaultLabelN(LB, 2), (-1, +1)),
-            newBond(B, 1, 2, getDefaultLabelN(LB, 2), (0, 0)),
+            Bond(2, 1, ( 0, -1), 2),
+            Bond(2, 1, (+1,  0), 2),
+            Bond(1, 2, (-1, +1), 2),
+            Bond(1, 2, ( 0,  0), 2),
             
             # NNN
-            # positive weight (forward and backward facing)
-            newBond(B, 1, 1, getDefaultLabelN(LB, 3), (+1, 0)),
-            newBond(B, 1, 1, getDefaultLabelN(LB, 3), (-1, 0)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 3), (0, +1)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 3), (0, -1)),
+            # positive weight (we need forward and backward facing bonds here too)
+            Bond(1, 1, (+1,  0), 3),
+            Bond(1, 1, (-1,  0), 3),
+            Bond(2, 2, ( 0, +1), 3),
+            Bond(2, 2, ( 0, -1), 3),
             # negative weight
-            newBond(B, 1, 1, getDefaultLabelN(LB, 4), (0, +1)),
-            newBond(B, 1, 1, getDefaultLabelN(LB, 4), (0, -1)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 4), (+1, 0)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 4), (-1, 0)),
+            Bond(1, 1, ( 0, +1), 4),
+            Bond(1, 1, ( 0, -1), 4),
+            Bond(2, 2, (+1,  0), 4),
+            Bond(2, 2, (-1,  0), 4),
             
-            # Fifth nearest neighbors (forward)
-            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (2, 0)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (2, 0)),
-            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (0, 2)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (0, 2)),  
-            # backwards facing bonds (backwards)
-            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (-2, 0)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (-2, 0)),
-            newBond(B, 1, 1, getDefaultLabelN(LB, 5), (0, -2)),
-            newBond(B, 2, 2, getDefaultLabelN(LB, 5), (0, -2)), 
+            # Fifth nearest neighbors
+            Bond(1, 1, (2, 0), 5),
+            Bond(2, 2, (2, 0), 5),
+            Bond(1, 1, (0, 2), 5),
+            Bond(2, 2, (0, 2), 5),
+            # backwards facing bonds
+            Bond(1, 1, (-2,  0), 5),
+            Bond(2, 2, (-2,  0), 5),
+            Bond(1, 1, ( 0, -2), 5),
+            Bond(2, 2, ( 0, -2), 5),
         ]
     )
+
+    return Lattice(uc, (Lx, Ly))
 end
 ```
 
@@ -103,8 +95,7 @@ With this implementation we can then generate a lattice of arbitrary size with
 
 ```julia
 L = 8
-uc = LatticePhysics.getUnitcellSquare(17)
-lpl = getLatticePeriodic(uc, L)
+l = HBCLattice(L)
 ```
 
 where `L` is the linear system size. Note that due to the two basis sites the total number of sites is $$2L^2$$. To verify our lattice implementation it is useful to create a comparable plot. In Makie, for example, we may run
@@ -113,25 +104,24 @@ where `L` is the linear system size. Note that due to the two basis sites the to
 using GLMakie
 
 # get small lattice without periodic bonds
-uc = LatticePhysics.getUnitcellSquare(17)
-lpl = getLatticeOpen(uc, 3)
+l = HBCLattice(3)
 
 # create figure and axis without background grid and stretching
 fig = Figure()
 ax = Axis(fig[1, 1], aspect=DataAspect(), xgridvisible = false, ygridvisible = false)
 
 # collect list of bonds grouped by label
-ps = Point2f.(point.(sites(lpl)))
+ps = Point2f.(positions(l))
 ls = [Point2f[] for _ in 1:5]
-for b in bonds(lpl)
+for b in bonds_open(l, true)
     push!(ls[b.label], ps[b.from], ps[b.to])
 end
 
 # Draw arrows for NN groups
 ds = ls[1][2:2:end] .- ls[1][1:2:end]
-arrows!(ax, ls[1][1:2:end] .+ 0.35 .* ds, 0.55 .* ds, color = :black)
+a = arrows!(ax, ls[1][1:2:end] .+ 0.35 .* ds, 0.55 .* ds, color = :black, arrowsize = 16)
 ds = ls[2][2:2:end] .- ls[2][1:2:end]
-arrows!(ax, ls[2][1:2:end] .+ 0.65 .* ds, 0.25 .* ds, color = :lightgray)
+arrows!(ax, ls[2][1:2:end] .+ 0.65 .* ds, 0.25 .* ds, color = :lightgray, arrowsize = 16)
 
 # NNN
 linesegments!(ax, ls[3], color = :black, linewidth=1)
@@ -141,17 +131,19 @@ linesegments!(ax, ls[4], color = :black, linewidth=1, linestyle = :dash)
 linesegments!(ax, ls[5] .+ Point2f(0, 0.05), color = :red)
 
 # draw A and B sites
-As = [Point2f(point(s)) for s in sites(lpl) if s.label == 1]
-Bs = [Point2f(point(s)) for s in sites(lpl) if s.label == 2]
+As = ps[1, :, :][:]
+Bs = ps[2, :, :][:]
 scatter!(ax, As, color = :black, markersize = 10)
-scatter!(ax, Bs, color = :black, marker='■', markersize = 8)
+scatter!(ax, Bs, color = :black, marker='■', markersize = 16)
 
 # Label A and B sites
-text!(ax, "A", position = Point2f(-0.2, 0), align = (:right, :center))
-text!(ax, "B", position = Point2f(-0.2, 1), align = (:right, :center))
+text!(ax, "A", position = Point2f(2-0.2, 0), align = (:right, :center))
+text!(ax, "B", position = Point2f(2-0.2, 1), align = (:right, :center))
 
 Makie.save("HBC_lattice.png", fig)
 fig
+
+
 ```
 
 ![](assets/HBC/HBC_lattice.png)
@@ -167,7 +159,9 @@ Now that we have the lattice we can generate a fitting hopping matrix. But befor
 [LoopVectorization.jl](https://github.com/JuliaSIMD/LoopVectorization.jl) is a great tool when pushing for peak single threaded/single core linear algebra performance. The linear algebra needed for DQMC is reimplemented in MonteCarlo.jl using it for both `Float64` and `ComplexF64`. The latter uses `MonteCarlo.CMat64` and `MonteCarlo.CVec64` as concrete array types which are based on [StructArrays.jl](https://github.com/JuliaArrays/StructArrays.jl) under the hood. They should be used in this model. Furthermore we can make use of `MonteCarlo.BlockDiagonal` as we have no terms with differing spin indices. Thus we set
 
 ```julia
-MonteCarlo.@with_kw_noshow struct HBCModel{LT<:AbstractLattice} <: Model
+using MonteCarlo: StructArray, BlockDiagonal, CMat64
+
+MonteCarlo.@with_kw_noshow struct HBCModel <: Model
     # parameters with defaults based on paper
     mu::Float64 = 0.0
     U::Float64 = 1.0
@@ -177,19 +171,20 @@ MonteCarlo.@with_kw_noshow struct HBCModel{LT<:AbstractLattice} <: Model
     t5::Float64 = (1 - sqrt(2)) / 4
 
     # lattice
-    l::LT
+    l::Lattice{2}
+    @assert l.unitcell.name == "HBC Square"
 end
 
-MonteCarlo.hoppingeltype(::Type{DQMC}, ::HBCModel) = ComplexF64
+MonteCarlo.hopping_eltype(::Type{DQMC}, ::HBCModel) = ComplexF64
 MonteCarlo.hopping_matrix_type(::Type{DQMC}, ::HBCModel) = BlockDiagonal{ComplexF64, 2, CMat64}
-MonteCarlo.greenseltype(::Type{DQMC}, ::HBCModel) = ComplexF64
+MonteCarlo.greens_eltype(::Type{DQMC}, ::HBCModel) = ComplexF64
 MonteCarlo.greens_matrix_type( ::Type{DQMC}, ::HBCModel) = BlockDiagonal{ComplexF64, 2, CMat64}
 ```
 
 for our model. The definition of the hopping matrix then follows from the various weights in the Hamiltonian as
 
 ```julia
-function MonteCarlo.hopping_matrix(mc::DQMC, m::HBCModel{<: LatPhysLattice})
+function MonteCarlo.hopping_matrix(m::HBCModel)
     # number of sites
     N = length(m.l)
 
@@ -203,7 +198,7 @@ function MonteCarlo.hopping_matrix(mc::DQMC, m::HBCModel{<: LatPhysLattice})
     t2p = + m.t2
     t2m = - m.t2
     
-    for b in bonds(m.l.lattice)
+    for b in bonds(m.l, Val(true))
         # NN paper direction
         if b.label == 1 
             tup[b.from, b.to]   = - t1p
@@ -237,14 +232,20 @@ end
 
 We note that the hermitian conjugates of a hopping $$c_j^\dagger c_i$$ can also be understood as reversing the bond direction. Since we include both directions in our lattice definitions, second and fifth nearest neighbor hermitian conjugates are taken care of. First nearest neighbors get a phase shift from complex conjugation, which is included by swapping `t1p` and `t1m` between group one and two.
 
-To finish off the mandatory model interface we need to provide two more methods. The first is `lattice(model)` which simply return the lattice of the model. The other is `nflavors(model)` which returns the number of "active" flavors of the hopping matrix. This model has two flavors total, spin up and spin down, and both of these have an active effect on the hopping matrix, i.e. the values for spin up and spin down are different. Thus this method should return 2. 
+To finish off the mandatory model interface we need to provide three more methods. The first is `lattice(model)` which simply return the lattice of the model. The other two are `unique_flavors(model)` and `total_flavors(model)`. The latter returns the total number of flavors a model has without making use of any symmetries, i.e. 2 for a spin 1/2 model. The former returns the number of flavors that will result in unique entries in the hopping matrix. For this model we have a hopping directly depending on spin, thus also 2 flavors here.
 
 ```julia
 MonteCarlo.lattice(m::HBCModel) = m.l
-MonteCarlo.nflavors(::HBCModel) = 2
+MonteCarlo.unique_flavors(::HBCModel) = 2
+MonteCarlo.total_flavors(::HBCModel) = 2
 ```
 
-There are a few more methods we can implement for convenience. The most important of these is `choose_field(model)`, which sets a default field for our model. The best choice here should be `DensityHirschField` or `DensityGHQField` as the model uses an attractive interaction. Beyond this we could implement `intE_kernel` to enable energy measurements, `parameters(model)`, `save_model`, `_load_model` and printing.
+There are a few more methods we can implement for convenience. The most important of these is `choose_field(model)`, which sets a default field for our model. The best choice here should be `DensityHirschField` or `DensityGHQField` as the model uses an attractive interaction. Beyond this we could implement `parameters(model)`, `save_model`, `_load_model` and printing.
+
+```julia
+HBCModel(l::MonteCarlo.AbstractLattice; kwargs...) = HBCModel(l = l; kwargs...)
+MonteCarlo.choose_field(::HBCModel) = DensityHirschField
+```
 
 The full code including these convenience functions can be found [here](HBC_model.jl)
 
@@ -256,9 +257,7 @@ The full code including these convenience functions can be found [here](HBC_mode
 To keep the runtime of this crosscheck reasonable we used the smallest linear system size the paper considers, `L = 8`. We also set `U = 1` and the fifth nearest neighbor hopping `t5 = 0`. This corresponds to a flatness ratio $$F = 0.2$$. To be comparable to the paper we will need to tune the chemical potential $$\mu$$ to hit half filling. This can be done through trial and error on a smaller lattice. The optimal $$\mu$$, after running the main simulation with a small set of different values, seems to be $$\mu \approx -2.206$$. Thus the basic setup for our simulation becomes
 
 ```julia
-uc = LatticePhysics.getUnitcellSquare(17)
-lpl = getLatticePeriodic(uc, 8)
-l = LatPhysLattice(lpl)
+l = HBCLattice(8)
 m = HBCModel(l, t5 = 0.0, mu = -2.206) # other defaults match F = 0.2 setup
 mc = DQMC(
     m, beta = beta, thermalization = 1000, sweeps = 5000, 
@@ -319,7 +318,7 @@ The `pairing_suceptibility` constructors from MonteCarlo.jl is written with thes
 
 
 ```julia
-mc[:PS] = pairing_susceptibility(mc, m, 1)
+mc[:PS] = pairing_susceptibility(mc, m, K=1)
 ```
 
 #### Superfluid Stiffness
@@ -329,17 +328,19 @@ The superfluid stiffness is given by $$0.25 [- K_x - \Lambda_{xx}(q = 0)]$$ in t
 The diamagnetic contribution $$K_x$$ is the simpler one. For that we refer to equations 15a - 15j in the paper. The sum of all of these is the $$K_x$$ we seek. Since all terms are quadratic in creation and annihilation operators we do not need to worry about expanding them with Wicks theorem. Instead we can simply measure the Greens matrix during the simulation. If we compare the equations with the Hamiltonian we will also notice that they are (almost) the same as the hopping terms. Thus we can get weights from the hopping matrix and apply them afterwards. We measure
 
 ```julia
-mc[:G] = greens_measurement(mc, model)
+mc[:G] = greens_measurement(mc, m)
 ```
 
-For the current-current correlations we need to measure $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$J_x(r, \tau)$$ is given in equation 14a - 14j. These terms are already implemented by MonteCarlo.jl, but we should briefly discuss them regardless. (We will leave the Fourier transform for later.) 
+For current-current correlations we need to measure $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$J_x(r, \tau)$$ is given in equation 14a - 14j. These terms are partially implemented in MonteCarlo.jl with rest implemented in MonteCarloAnalysis.jl.
 
-Much like $$K_x$$ these terms are closely related to the hopping terms of the Hamiltonian. The index $$\alpha$$ ($$\beta$$) refers to the direction of the hopping. Each term contains a hopping in +x direction weighted by $$i$$ and a hopping in the opposite direction weighted by $$-i$$ via the Hermitian conjugate. The fifth nearest neighbor terms also catch a factor 2. For the measurement we need to apply Wicks theorem to every combination of any two currents $$J^\alpha_x$$ and also take care of an implied spin index. The result can be found in the `cc_kernel` in MonteCarlo.jl.
+Specifically MonteCarlo.jl implements `cc_kernel` as a generic version of the terms 14a - 14j with the directional prefactor $$\langle \hat{x}, \Delta r_\alpha$$ removed. These prefactors are instead introduced in `cached_para_ccc` from MonteCarloAnalysis.jl, which computes $$\Lambda_{xx}(q)$$. The hopping directions considered in `cc_kernel` are set by the lattice iterator. By default, it will consider half the bonds of the lattice, dropping reverse bonds. 
 
-Let's get back to what we need to measure in our simulation. MonteCarlo.jl's `current_current_susceptibility` measures $$\int_0^\beta d \tau \langle J_x^\alpha(r^\prime, \tau) J_x^\beta(r, 0) \rangle$$ where $$\alpha$$ and $$\beta$$ are directions that get passedto the function. Since we set `t5 = 0` we can ignore equations 14g - 14j leaving 6 equations with 3 directions on 2 sublattices. MonteCarlo.jl does not care about sublattices, so we're left with three +x directions `[2, 6, 9]` which need to be passed. You can check these with `directions(mc)[[2, 6, 9]]` against the paper. Our measurement is given by
+The included bonds can be adjusted by passing a `lattice_iterator = EachBondPairByBravaisDistance([1,6,9,11,13,15])` to the measurements. The indices apply to `lattice(mc).unitcell.bonds` and in this case pick the bonds fitting terms 14a - 14f. The remaing terms are 0 with the choice of $t_5 = 0$.
 
 ```julia
-mc[:CCS] = current_current_susceptibility(mc, model, [2, 6, 9])
+mc[:CCS] = current_current_susceptibility(
+    mc, m, lattice_iterator = EachBondPairByBravaisDistance([1,6,9,11,13,15])
+)
 ```
 
 ## Running the simulations
@@ -394,69 +395,21 @@ The pairing susceptibility comes with three directional indices after taking `me
 
 ## Superfluid Stiffness
 
-The superfluid stiffness still requires a good amount of work. Let's start with the diamagnetic contribution $$K_x$$. As mentioned before the prefactors of $$K_x$$ match those of the hoppings in the Hamiltonian (except for 5th nearest neighbors which catch a factor of 4). The expectation values for $$\langle c_j^\dagger c_i \rangle$$ follow from the measured Greens function $$G_{ij} = c_i c_j^\dagger$$ as $$\delta_{ij} - G_{ji}$$ (permutation of operators).
-
-To pick the correct sites we can poke at the backend of the lattice iterator interface. There are a few maps that get cached, one of which returns a list of (source, target) site index pairs given a directional index. It can be fetched (and potentially generated) via `dir2srctrg = mc[Dir2SrcTrg()]`. The relevant directional indices can be determined from `directions(mc)`. Using that we calculate the total diamagnetic contribution $$K_x$$ as
+To compute the superfluid stiffness we make use of the relevant functions from MonteCarloAnalysis.jl. It is given by:
 
 ```julia
-function dia_K_x(mc)
-    # directional indices for K_x (see directions(mc)[idxs]
-    # These correspond to 
-    # K1 & K4, K1 & K4 h.c., K2 & K5, K3 & K6 h.c., K2 & K5 h.c., K3 & K5
-    idxs = [2, 4, 6, 7, 8, 9]
-    
-    # T contains the prefactors used in K_x, G contains ⟨c_i c_j^†⟩
-    T = Matrix(MonteCarlo.hopping_matrix(mc, mc.model))
-    G = mean(mc[:G])
+using MonteCarloAnalysis
 
-    # We use the dir2srctrg map to get all (src, trg) pairs relevant to the 
-    # directions we specified with `idxs` above
-    dir2srctrg = mc[MonteCarlo.Dir2SrcTrg()]
-    N = length(lattice(mc))
-    
-    Kx = ComplexF64(0)
-    for dir_idx in idxs
-        for (src, trg) in dir2srctrg[dir_idx]
-            # c_j^† c_i = δ_ij - G[i, j], but δ always 0 (no onsite)
-            Kx -= T[trg, src] * G[src, trg]         # up-up
-            Kx -= T[trg+N, src+N] * G[src+N, trg+N] # down-down
-        end
-    end
+# The diamagnetic contribution follows from the greens function. We set the 
+# direction of the current response to x = [1, 0] like the reference paper.
+K_x = dia_K(mc, :G, [1, 0])
 
-    # normalize
-    Kx /= N
-end
+# The paramagnetic contribution is calculated in full, i.e. Λxx(q) from the 
+# CCS measurement.
+Λxx = cached_para_ccc(mc, :CCS, [1,0])
+
+# Following the paper the superfluid stiffness becomes
+SFS = 0.25 * (-K_x - Λxx[1, 1])
 ```
-
-For the Fourier transformed current-current correlation $$\Lambda_{xx}(q)$$ the paper uses two summations. The first (eq. 16) runs over positions without offsets from the basis. The second (eq. 17) then resolves those offsets with a shift by $$\hat{e}_y$$ and also translates positions to the centers of the two sites involved with each hopping term. Combining both equations in a MonteCarlo.jl compatible style yields
-
-```math
-\Lambda_{xx}(q) = \sum_{\Delta r_{12}} \sum_{\Delta r_1, \Delta r_2} e^{- i q (\Delta r_{12} + 0.5 (\Delta r_1 - \Delta r_2))}
-                  \int_0^\beta \sum_{r_0} \langle J_x^{\Delta r_1}(r_0 + \Delta r_{12}, \tau) J_x^{\Delta r_2}(r_0, 0) \rangle d\tau
-
-```
-
-Here $$\Delta r_{12}$$ is the distance between any two sites including basis offsets and $$\Delta r_1$$ and $$\Delta r_2$$ are the hopping distances. The integral over imaginary time and the sum over $$r_0$$ are already performed during measuring. This leaves the following to be calculated after measuring:
-
-```julia
-function para_ccc(mc, q)
-    # direction indices for J1 & J4, J2 & J5, J3 & J6 (h.c. included in measurement)
-    idxs = [2, 6, 9]
-
-    CCS = mean(mc[:CCS])
-    dirs = directions(lattice(mc))
-    Λxx = ComplexF64(0)
-
-    for (i, dir) in enumerate(dirs)
-        for j in idxs, k in idxs
-            Λxx += CCS[i, j, k] * cis(-dot(dir + 0.5(dirs[j] .- dirs[k]), q))
-        end
-    end
-    
-    Λxx
-end
-```
-
-To compute the superfluid stiffness we now just calculate $$D_S = \frac{1}{4} [ -K_x - \Lambda_{xx}(q = 0)]$$ (eq. 4).
 
 ![](assets/HBC/DS.png)

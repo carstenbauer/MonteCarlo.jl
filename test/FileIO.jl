@@ -182,6 +182,43 @@
 end
 
 
+@testset "BinningAnalysis" begin
+    import JLD2
+    using BinningAnalysis
+    isfile("testfile.jld2") && rm("testfile.jld2")
+
+    # stable Variance
+    LB = LogBinner(rand(1000), accumulator = BinningAnalysis.Variance)
+    file = JLD2.jldopen("testfile.jld2", "w")
+    MonteCarlo._save(file, "binner", LB)
+    close(file)
+
+    loaded = MonteCarlo._load(MonteCarlo.FileData(JLD2.load("testfile.jld2"), "")["binner"])
+    rm("testfile.jld2")
+    @test LB == loaded
+
+    # fast variance
+    LB = LogBinner(rand(1000), accumulator = BinningAnalysis.FastVariance)
+    file = JLD2.jldopen("testfile.jld2", "w")
+    MonteCarlo._save(file, "binner", LB)
+    close(file)
+
+    loaded = MonteCarlo._load(MonteCarlo.FileData(JLD2.load("testfile.jld2"), "")["binner"])
+    rm("testfile.jld2")
+    @test LB == loaded
+
+    # FullBinner
+    FB = FullBinner(rand(1000))
+    file = JLD2.jldopen("testfile.jld2", "w")
+    MonteCarlo._save(file, "binner", FB)
+    close(file)
+
+    loaded = MonteCarlo._load(MonteCarlo.FileData(JLD2.load("testfile.jld2"), "")["binner"])
+    rm("testfile.jld2")
+    @test FB == loaded
+end
+
+
 
 @time @testset "MC" begin
 
@@ -193,10 +230,7 @@ end
         @test mc.conf == x.conf
         @test mc.model.L == x.model.L
         @test mc.model.dims == x.model.dims
-        for f in fieldnames(typeof(mc.model.l))
-            @test getfield(mc.model.l, f) == getfield(x.model.l, f)
-        end
-        # @test mc.model.neighs == x.model.neighs
+        @test mc.model.l == x.model.l
         @test mc.model.energy[] == x.model.energy[]
         for (k, v) in mc.thermalization_measurements
             for f in fieldnames(typeof(v))
@@ -242,30 +276,30 @@ end
     )
     state = run!(
         mc, verbose = false,
-        safe_before = now() + Second(1),
+        safe_before = now() + Second(2),
         grace_period = Millisecond(0),
-        resumable_filename = "resumable_testfile.jld"
+        resumable_filename = "resumable_testfile.jld2"
     )
 
-    @test state == false
+    @test state == MonteCarlo.CANCELLED_TIME_LIMIT
     cs = deepcopy(mc.configs)
     @assert length(cs) > 1 "No measurements have been taken. Test with more time!"
     L = length(cs)
 
     # Test whether safe file gets overwritten correctly
     mc, state = resume!(
-        "resumable_testfile.jld",
+        "resumable_testfile.jld2",
         verbose = false,
         safe_before = now() + Second(10),
         grace_period = Millisecond(0),
         overwrite = true,
-        resumable_filename = "resumable_testfile.jld"
+        resumable_filename = "resumable_testfile.jld2"
     )
 
-    @test state == false
+    @test state == MonteCarlo.CANCELLED_TIME_LIMIT
     cs = deepcopy(mc.configs)
     @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
-    @test isfile("resumable_testfile.jld")
+    @test isfile("resumable_testfile.jld2")
 
     # Test whether data from resumed simulation is correct
     Random.seed!(123)
@@ -276,13 +310,14 @@ end
         measure_rate=10_000, recorder=ConfigRecorder(MC, IsingModel, 10_000)
     )
     state = run!(mc, verbose = false)
+    @test state == MonteCarlo.SUCCESS
     @test mc.configs.configs == cs.configs
     @test mc.configs.rate == cs.rate
-    rm("resumable_testfile.jld")
+    rm("resumable_testfile.jld2")
 end
 
 for file in readdir()
-    if endswith(file, "jld") || endswith(file, "jld2") || endswith(file, ".confs")
+    if endswith(file, "jld2") || endswith(file, ".confs")
         rm(file)
     end
 end
@@ -299,17 +334,13 @@ end
         @test mc.model.mu == x.model.mu
         @test mc.model.t == x.model.t
         @test mc.model.U == x.model.U
-        for f in fieldnames(typeof(mc.model.l))
-            @test getfield(mc.model.l, f) == getfield(x.model.l, f)
-        end
-        @test MonteCarlo.nflavors(mc.field) == MonteCarlo.nflavors(x.field)
+        @test mc.model.l == x.model.l
+        @test MonteCarlo.unique_flavors(mc.field) == MonteCarlo.unique_flavors(x.field)
         @test mc.scheduler == x.scheduler
         for (k, v) in mc.thermalization_measurements
             for f in fieldnames(typeof(v))
-                r = if getfield(v, f) isa LightObservable
-                    # TODO
-                    # implement == for LightObservable in MonteCarloObservable
-                    getfield(v, f).B == getfield(x.measurements[k], f).B
+                r = if f == :observable
+                    getfield(v, f) ≈ getfield(x.measurements[k], f)
                 else
                     getfield(v, f) == getfield(x.measurements[k], f)
                 end
@@ -321,31 +352,8 @@ end
             for f in fieldnames(typeof(v))
                 v isa MonteCarlo.DQMCMeasurement && f == :temp && continue
                 v isa MonteCarlo.DQMCMeasurement && f == :kernel && continue
-                r = if getfield(v, f) isa LightObservable
-                    # TODO
-                    # implement == for LightObservable in MonteCarloObservable
-                    # TODO: implement ≈ for LightObservable, LogBinner, etc
-                    r = true
-                    a = getfield(v, f)
-                    b = getfield(x.measurements[k], f)
-                    for i in eachindex(getfield(v, f).B.compressors)
-                        r = r && (a.B.compressors[i].value ≈ b.B.compressors[i].value)
-                        r = r && (a.B.compressors[i].switch ≈ b.B.compressors[i].switch)
-                    end
-                    r = r && (a.B.x_sum ≈ b.B.x_sum)
-                    r = r && (a.B.x2_sum ≈ b.B.x2_sum)
-                    r = r && (a.B.count ≈ b.B.count)
-                elseif getfield(v, f) isa LogBinner
-                    r = true
-                    a = getfield(v, f)
-                    b = getfield(x.measurements[k], f)
-                    for i in eachindex(a.compressors)
-                        r = r && (a.compressors[i].value ≈ b.compressors[i].value)
-                        r = r && (a.compressors[i].switch ≈ b.compressors[i].switch)
-                    end
-                    r = r && (a.x_sum ≈ b.x_sum)
-                    r = r && (a.x2_sum ≈ b.x2_sum)
-                    r = r && (a.count ≈ b.count)
+                r = if f == :observable
+                    getfield(v, f) ≈ getfield(x.measurements[k], f)
                 else
                     getfield(v, f) == getfield(x.measurements[k], f)
                 end
@@ -362,19 +370,19 @@ end
         model, beta = 1.0, thermalization = 21, sweeps = 117, measure_rate = 1, 
         recorder = BufferedConfigRecorder(DensityHirschField, "testfile.confs", rate = 1)
     )
-    mc[:CDC] = charge_density_correlation(mc, model)
+    mc[:CDC] = charge_density_correlation(mc, model, wrapper = nothing)
+    mc[:rCDC] = charge_density_correlation(mc, model, wrapper = Restructure)
     run!(mc, verbose=false)
 
-    save("testfile.jld", mc)
-    x = load("testfile.jld")
-    rm("testfile.jld")
+    save("testfile.jld2", mc)
+    x = load("testfile.jld2")
+    rm("testfile.jld2")
     @test mc.field.conf == x.field.conf
-
-    # Repeat these tests once with x being replayed rather than loaded
     test_dqmc(mc, x)    
 
     # Check everything again with x being a replayed simulation
-    x[:CDC] = charge_density_correlation(x, model)
+    x[:CDC] = charge_density_correlation(mc, model, wrapper = nothing)
+    x[:rCDC] = charge_density_correlation(mc, model, wrapper = Restructure)
     x.last_sweep = 0
     replay!(x, verbose=false)
     test_dqmc(mc, x)
@@ -399,7 +407,7 @@ end
         resumable_filename = "resumable_testfile.jld2"
     )
 
-    @test state == false
+    @test state == MonteCarlo.CANCELLED_TIME_LIMIT
     cs = [mc.recorder[i] for i in 1:length(mc.recorder)]
     @assert length(cs) > 1 "No measurements have been taken. Test with more time!"
     L = length(cs)
@@ -414,7 +422,7 @@ end
         resumable_filename = "resumable_testfile.jld2"
     )
 
-    @test state == false
+    @test state == MonteCarlo.CANCELLED_TIME_LIMIT
     cs = [mc.recorder[i] for i in 1:length(mc.recorder)]
     @assert length(cs) - L > 1 "No new measurements have been taken. Test with more time!"
     @test isfile("resumable_testfile.jld2")
@@ -433,6 +441,7 @@ end
         matches = matches && (mc.recorder[i] == cs[i])
     end
     @test matches
+    @test state == MonteCarlo.SUCCESS
     rm("resumable_testfile.jld2")
     isfile("testfile.confs") && rm("testfile.confs")
 end
@@ -448,34 +457,16 @@ function is_file_content_equal(file1, file2)
 end
 
 @testset "DummyModel" begin
+    # See assets/generate.jl
     cp("assets/dummy_in.jld2", "dummy_in.jld2", force = true)
     mc = MonteCarlo.load("dummy_in.jld2")
     @test mc.model isa MonteCarlo.DummyModel
     @test mc.model.data["x"] == 7
     @test mc.model.data["y"] == "foo"
 
-    MonteCarlo.save("dummy_in.jld2", mc, overwrite=true)
+    @test_throws ErrorException MonteCarlo.save("dummy_in.jld2", mc, overwrite=true)
     @test isfile("dummy_in.jld2")
     @test is_file_content_equal("dummy_in.jld2", "assets/dummy_in.jld2")
-
-    #=
-    # Generated with
-    struct TestModel <: MonteCarlo.Model
-        l::AbstractLattice
-        U::Float64
-        x::Int64
-        y::String
-    end
-
-    Base.rand(::Type{DQMC}, ::TestModel, n::Int64) = Base.rand(4, n)
-    MonteCarlo.choose_field(::TestModel) = DensityHirschField
-    MonteCarlo.lattice(m::TestModel) = m.l
-    MonteCarlo.nflavors(::TestModel) = 1
-    MonteCarlo.hopping_matrix(::DQMC, ::TestModel) = ones(4, 4)
-
-    mc = DQMC(TestModel(SquareLattice(2), 1.0, 7, "foo"), beta=1.0, recorder=Discarder())
-    MonteCarlo.save("assets/dummy_in.jld2", mc, overwrite=true)
-    =#
-
+    
     rm("dummy_in.jld2")
 end

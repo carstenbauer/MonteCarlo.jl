@@ -36,7 +36,6 @@ mutable struct DQMC{
     recorder::RT
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
-    lattice_iterator_cache::LatticeIteratorCache
 
     function DQMC{M, CB, FT, RT, Stack, UTStack, US}(args...) where {
             M <: Model, CB <: Checkerboard, FT <: AbstractField, 
@@ -52,7 +51,7 @@ mutable struct DQMC{
         @assert isconcretetype(RT)
         @assert isconcretetype(US)
         
-        new{M, CB, FT, RT, Stack, UTStack, US}(args..., LatticeIteratorCache())
+        new{M, CB, FT, RT, Stack, UTStack, US}(args...)
     end
 end
 
@@ -105,8 +104,7 @@ include("fields.jl")
 # This also contains some functions for calculating greens functions.
 include("stack.jl")
 
-# Contains the `UnequalTimeStack`, related greens calculation methods and 
-# iterators (i.e. CombinedGreens). This is used for unequal time measurements.
+# Contains the `UnequalTimeStack` and code for time displaced greens functions
 include("unequal_time_stack.jl")
 
 # Contains functions for computations using the matrices representing a time 
@@ -134,13 +132,11 @@ include("FileIO.jl")
 include("greens.jl")
 
 # Contains code related to make measurements. Specifically:
+# Greens iterators
+include("measurements/greens_iterators.jl")
 # The overall structure
 include("measurements/generic.jl")
-# Quick constructers and measurement kernels (i.e. applied Wicks theorem)
-include("measurements/measurements.jl")
-# Superfluid stiffness stuff
-include("measurements/superfluid_stiffness.jl")
-# Contains some post processing tools
-include("measurements/extensions.jl")
-# structs and conversions from the old system
-include("measurements/deprecated.jl")
+# coinstructors + Wicks expanded kernels
+include("measurements/constructors/main.jl")
+# distance/direction based Greens functions
+include("measurements/restructuring.jl")

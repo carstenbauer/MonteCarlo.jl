@@ -150,7 +150,7 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
     GreensMatType = gmattype(mc)
     HoppingElType = heltype(mc)
     N = length(lattice(mc))
-    flv = nflavors(mc)
+    flv = unique_flavors(mc)
 
     # Generate safe multiplication chunks
     # - every chunk must have ≤ safe_mult elements
@@ -202,7 +202,7 @@ function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerbo
 end
 function init_hopping_matrix_exp(mc::DQMC, m::Model)
     dtau = mc.parameters.delta_tau
-    T = pad_to_nflavors(mc, hopping_matrix(m))
+    T = pad_to_unique_flavors(mc, hopping_matrix(m))
 
     if !is_approximately_hermitian(T)
         @error(
@@ -236,7 +236,7 @@ rem_eff_zeros!(X::AbstractArray) = map!(e -> abs.(e)<1e-15 ? zero(e) : e,X,X)
 function init_checkerboard_matrices(mc::DQMC, m::Model)
     s = mc.stack
     l = lattice(m)
-    flv = nflavors(mc)
+    flv = unique_flavors(mc)
     H = heltype(mc)
     N = length(l)
     dtau = mc.parameters.delta_tau
@@ -246,7 +246,7 @@ function init_checkerboard_matrices(mc::DQMC, m::Model)
     n_grps = s.n_groups
     cb = s.checkerboard
 
-    T = reshape(pad_to_nflavors(mc, hopping_matrix(m)), (N, flv, N, flv))
+    T = reshape(pad_to_unique_flavors(mc, hopping_matrix(m)), (N, flv, N, flv))
 
     s.chkr_hop_half = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
     s.chkr_hop_half_inv = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
@@ -586,7 +586,6 @@ end
 end
 
 @bm function propagate(mc::DQMC)
-    flush(stdout)
     @debug(
         '[' * lpad(mc.stack.current_slice, 3, ' ') * " -> " * 
         rpad(mc.stack.current_slice + mc.stack.direction, 3, ' ') * 

@@ -168,8 +168,9 @@ end
 """
     run!(mc::MC[; kwargs...])
 
-Runs the given Monte Carlo simulation `mc`. Returns true if the run finished and
-false if it cancelled early to generate a resumable save-file.
+Runs the given Monte Carlo simulation `mc`. Returns `SUCCESS::ExitCode = 0` if 
+the simulation finished normally or various other codes if failed or cancelled. 
+See [`ExitCode`](@ref).
 
 
 ### Keyword Arguments:
@@ -289,7 +290,7 @@ See also: [`resume!`](@ref)
             resumable_filename = save(resumable_filename, mc, overwrite=overwrite)
             verbose && println("\nEarly save finished")
 
-            return false
+            return CANCELLED_TIME_LIMIT
         elseif (now() - last_checkpoint) > safe_every
             verbose && println("Performing scheduled save.")
             last_checkpoint = now()
@@ -308,7 +309,7 @@ See also: [`resume!`](@ref)
         println()
     end
 
-    return true
+    return SUCCESS
 end
 
 """
@@ -365,7 +366,7 @@ function replay!(
     )
     if isempty(configurations)
         println("Nothin to replay (configurations empty). Exiting")    
-        return true
+        return GENERIC_FAILURE
     end
 
     start_time = now()
@@ -423,7 +424,7 @@ function replay!(
             filename = save(filename, mc, overwrite = overwrite)
             verbose && println("\nEarly save finished")
 
-            return false
+            return CANCELLED_TIME_LIMIT
         elseif (now() - last_checkpoint) > safe_every
             verbose && println("Performing scheduled save.")
             last_checkpoint = now()
@@ -436,32 +437,23 @@ function replay!(
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
 
-    return true
+    return SUCCESS
 end
 
 
-#     save_mc(filename, mc, entryname)
-#
-# Saves (minimal) information necessary to reconstruct a given `mc::MC` to a
-# JLD-file `filename` under group `entryname`.
-#
-# When saving a simulation the default `entryname` is `MC`
-function save_mc(file::JLDFile, mc::MC, entryname::String="MC")
+function _save(file::FileLike, entryname::String, mc::MC)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "MC")
     write(file, entryname * "/type", typeof(mc))
-    save_parameters(file, mc.p, entryname * "/parameters")
+    _save(file, entryname * "/parameters", mc.p)
     write(file, entryname * "/conf", mc.conf)
-    _save(file, mc.configs, entryname * "/configs")
+    _save(file, entryname * "/configs", mc.configs)
     write(file, entryname * "/last_sweep", mc.last_sweep)
-    save_measurements(file, mc, entryname * "/Measurements")
-    save_model(file, mc.model, entryname * "/Model")
+    save_measurements(file, entryname * "/Measurements", mc)
+    _save(file, entryname * "/Model", mc.model)
     nothing
 end
 
-#     load_mc(data, ::Type{<: MC})
-#
-# Loads a MC from a given `data` dictionary produced by `JLD.load(filename)`.
 function _load(data, ::Val{:MC})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))
@@ -470,7 +462,7 @@ function _load(data, ::Val{:MC})
     conf = data["conf"]
     configs = _load(data["configs"], to_tag(data["configs"]))
     last_sweep = data["last_sweep"]
-    model = _load_model(data["Model"], to_tag(data["Model"]))
+    model = load_model(data["Model"], to_tag(data["Model"]))
     measurements = _load(data["Measurements"], Val(:Measurements))
     
     MC(
@@ -480,14 +472,7 @@ function _load(data, ::Val{:MC})
     )
 end
 
-
-#   save_parameters(file::JLDFile, p::MCParameters, entryname="Parameters")
-#
-# Saves (minimal) information necessary to reconstruct a given
-# `p::MCParameters` to a JLD-file `filename` under group `entryname`.
-#
-# When saving a simulation the default `entryname` is `MC/Parameters`
-function save_parameters(file::JLDFile, p::MCParameters, entryname::String="Parameters")
+function _save(file::FileLike, entryname::String, p::MCParameters)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "MCParameters")
 
@@ -502,10 +487,6 @@ function save_parameters(file::JLDFile, p::MCParameters, entryname::String="Para
     nothing
 end
 
-#     load_parameters(data, ::Type{<: MCParameters})
-#
-# Loads a MCParameters object from a given `data` dictionary produced by
-# `JLD.load(filename)`.
 function _load(data, ::Val{:MCParameters})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load $T version $(data["VERSION"])"))

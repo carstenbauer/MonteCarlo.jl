@@ -94,7 +94,7 @@ const DQMC_CBTrue = DQMC{M, CheckerboardTrue} where M
 
 @bm function slice_matrix(mc::DQMC_CBTrue, m::Model, slice::Int,
                     power::Float64=1.)
-    N = length(lattice(m)) * nflavors(field(mc))
+    N = length(lattice(m)) * unique_flavors(field(mc)) # TODO mc instead of field?
     M = Matrix{heltype(mc)}(I, N, N)
     if power > 0
         multiply_slice_matrix_left!(mc, m, slice, M)

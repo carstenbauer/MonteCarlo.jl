@@ -26,3 +26,9 @@ Collects relevant parametrs of a model into a named tuple.
 
 # See configurations.jl - compression of configurations
 # compress, decompress
+
+# copy constructor
+function Model(model::T; kwargs...) where {T <: Model}
+    args = (get(kwargs, field, getfield(model, field)) for field in fieldnames(T))
+    return T(args...)
+end

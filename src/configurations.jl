@@ -45,7 +45,7 @@ Base.getindex(c::ConfigRecorder, i) = c.configs[i]
 compress(mc, model, conf) = copy(conf)
 decompress(mc, model, conf) = conf
 
-function _save(file::JLDFile, cs::ConfigRecorder, entryname::String="configs")
+function _save(file::FileLike, entryname::String, cs::ConfigRecorder)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "ConfigRecorder")
     write(file, entryname * "/type", typeof(cs))
@@ -178,7 +178,7 @@ end
 function save_chunk!(cr::BufferedConfigRecorder, chunk = cr.chunk)
     @boundscheck chunk > 0 && (chunk-1) * length(cr.buffer) < cr.total_length
     k = string(chunk)
-    JLD2.jldopen(cr.filename.absolute_path, "a+", compress = true) do file
+    JLD2.jldopen(cr.filename.absolute_path, "a+", compress = CodecLz4.LZ4FrameCompressor()) do file
         if haskey(file, k)
             @debug "Replacing chunk $k"
             delete!(file, k)
@@ -257,7 +257,7 @@ function update_filepath!(cr::BufferedConfigRecorder, parent_path)
 end
 
 
-function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
+function _save(file::FileLike, entryname::String, cr::BufferedConfigRecorder)
     # save link_id
     JLD2.jldopen(cr.filename.absolute_path, "a+") do file
         if !haskey(file, "link_id") 
@@ -273,12 +273,14 @@ function _save(file, cr::BufferedConfigRecorder, entryname::String="configs")
     end
 
     # adjust relative FilePath
-    update_filepath!(cr, file.path)
+    update_filepath!(cr, filepath(file))
 
     # main save information
     write(file, entryname * "/VERSION", 3)
     write(file, entryname * "/tag", "BufferedConfigRecorder")
-    write(file, entryname * "/filename", cr.filename)
+    write(file, entryname * "/filename/is_relative", cr.filename.is_relative)
+    write(file, entryname * "/filename/relative_path", cr.filename.relative_path)
+    write(file, entryname * "/filename/absolute_path", cr.filename.absolute_path)
     write(file, entryname * "/link_id", cr.link_id)
     write(file, entryname * "/buffer", cr.buffer)
     write(file, entryname * "/rate", cr.rate)
@@ -293,14 +295,20 @@ function _load(data, ::Val{:BufferedConfigRecorder})
     end
 
     link_id = get(data, "link_id", "N/A")
+
+    _filepath = FilePath(
+        data["filename/is_relative"],
+        data["filename/relative_path"],
+        data["filename/absolute_path"]
+    )
     
     cr = BufferedConfigRecorder(
-        data["filename"], link_id, data["buffer"], data["rate"], -1, -1, 
+        _filepath, link_id, data["buffer"], data["rate"], -1, -1, 
         data["total_length"], data["save_idx"]
     )
 
     # adjust relative FilePath
-    update_filepath!(cr, data.path)
+    update_filepath!(cr, filepath(data))
 
     # if link_id unknown get it from file or generate new
     if link_id == "N/A" && isfile(cr.filename.absolute_path)
@@ -335,7 +343,7 @@ Base.isempty(::Discarder) = true
 Base.getindex(v::Discarder, i) = BoundsError(v, i)
 Base.iterate(c::Discarder, i=1) = nothing
 
-function _save(file::JLDFile, ::Discarder, entryname::String="configs")
+function _save(file::FileLike, entryname::String, ::Discarder)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "Discarder")
 end

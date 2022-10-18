@@ -49,6 +49,26 @@ end
     return A
 end
 
+# Needed for pivoted as well
+@inline function reflectorApply!(M::StridedArray{<: Real}, τ::Real, k::Int, n::Int)
+    @inbounds for j = k+1:n
+        # dot
+        vAj = M[k, j]
+        @turbo for i = k+1:n
+            vAj += conj(M[i, k]) * M[i, j]
+        end
+
+        vAj = conj(τ)*vAj
+
+        # ger
+        M[k, j] -= vAj
+        @turbo for i = k+1:n
+            M[i, j] -= M[i, k]*vAj
+        end
+    end
+    return M
+end
+
 
 """
     udt_AVX!(U::Matrix, D::Vector, T::Matrix)
@@ -71,7 +91,8 @@ function udt_AVX!(U::AbstractMatrix{C}, D::AbstractVector{C}, input::AbstractMat
             x = LinearAlgebra.view(input, k:n, k)
             τk = reflector!(x)
             D[k] = τk
-            reflectorApply!(x, τk, view(input, k:n, k + 1:n))
+            # reflectorApply!(x, τk, view(input, k:n, k + 1:n))
+            reflectorApply!(input, τk, k, n)
         end
     # end
 
@@ -242,7 +263,8 @@ function udt_AVX_pivot!(
             # @bm "apply" begin
                 # TODO optimize?
                 x = LinearAlgebra.view(input, j:n, j)
-                MonteCarlo.reflectorApply!(x, τj, LinearAlgebra.view(input, j:n, j+1:n))
+                # reflectorApply!(x, τj, LinearAlgebra.view(input, j:n, j+1:n))
+                reflectorApply!(input, τj, j, n)
             # end
         end
     # end
@@ -352,6 +374,24 @@ end
     return A
 end
 
+function reflectorApply!(M::StridedArray, τ::Number, k::Int, n::Int)
+    @inbounds for j = k+1:n
+        # dot
+        vAj = M[k, j]
+        for i = k+1:n
+            vAj += conj(M[i, k]) * M[i, j]
+        end
+
+        vAj = conj(τ)*vAj
+
+        # ger
+        M[k, j] -= vAj
+        for i = k+1:n
+            M[i, j] -= M[i, k]*vAj
+        end
+    end
+    return M
+end
 
 function indmaxcolumn(A::AbstractMatrix{C}, j=1, n=size(A, 1)) where {C <: ComplexF64}
     max = 0.0
@@ -426,7 +466,8 @@ function udt_AVX_pivot!(
             # @bm "apply" begin
                 # TODO optimize?
                 x = LinearAlgebra.view(input, j:n, j)
-                MonteCarlo.reflectorApply!(x, τj, LinearAlgebra.view(input, j:n, j+1:n))
+                # reflectorApply!(x, τj, LinearAlgebra.view(input, j:n, j+1:n))
+                reflectorApply!(input, τj, j, n)
             # end
         end
     # end

@@ -24,6 +24,11 @@ end
 MPIReplicaExchange(target) = MPIReplicaExchange(target)
 MPIReplicaExchange(mc, model, target) = MPIReplicaExchange(target)
 name(::MPIReplicaExchange) = "MPIReplicaExchange"
+function _save(f::FileLike, name::String, update::MPIReplicaExchange)
+    write(f, "$name/tag", :MPIReplicaExchange)
+    write(f, "$name/target", update.target)
+end
+_load(f::FileLike, ::Val{:MPIReplicaExchange}) = MPIReplicaExchange(f["target"])
 
 @bm function update(u::MPIReplicaExchange, mc, model, field)
     c = conf(field); tc = temp_conf(field)

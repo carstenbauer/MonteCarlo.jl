@@ -51,6 +51,8 @@ function HubbardModelRepulsive(args...; kwargs...)
     d[:U] = - get(d, :U, 1.0)
     HubbardModel(args...; d...)
 end
+RepulsiveHubbardModel(args...; kwargs...) = HubbardModelRepulsive(args...; kwargs...)
+AttractiveHubbardModel(args...; kwargs...) = HubbardModelAttractive(args...; kwargs...)
 
 
 function choose_lattice(::Type{<: HubbardModel}, dims, L)
@@ -77,16 +79,17 @@ end
 Base.show(io::IO, m::MIME"text/plain", model::HubbardModel) = print(io, model)
 
 # Convenience
-@inline parameters(m::HubbardModel) = (N = length(m.l), t = m.t, U = m.U, mu = m.mu)
+@inline parameters(m::HubbardModel) = (N = length(m.l), Ls = size(m.l), t = m.t, U = m.U, mu = m.mu)
 choose_field(m::HubbardModel) = m.U < 0.0 ? MagneticHirschField : DensityHirschField
 
 # implement DQMC interface:
 @inline lattice(m::HubbardModel) = m.l
-nflavors(::HubbardModel) = 1
+total_flavors(::HubbardModel) = 2 # 2 spins
+unique_flavors(::HubbardModel) = 1 # spins don't affect values in hopping matrix
 
 hopping_eltype(model::HubbardModel) = typeof(model.t)
 function hopping_matrix_type(field::AbstractField, model::HubbardModel)
-    flv = nflavors(field, model)
+    flv = unique_flavors(field, model)
     T = hopping_eltype(model)
     MT = matrix_type(T)
     if flv == 1
@@ -112,59 +115,69 @@ function hopping_matrix(m::HubbardModel)
 
     # Nearest neighbor hoppings
     @inbounds @views begin
-        for (src, trg) in neighbors(m.l, Val(true))
-            trg == -1 && continue
-            T[trg, src] += -m.t
+        for b in bonds(m.l, Val(true))
+            T[b.to, b.from] += -m.t
         end
     end
 
     return T
 end
 
-function save_model(file::JLDFile, m::HubbardModel, entryname::String = "Model")
+function _save(file::FileLike, entryname::String, m::HubbardModel)
     write(file, entryname * "/VERSION", 1)
     write(file, entryname * "/tag", "HubbardModel")
 
     write(file, entryname * "/mu", m.mu)
     write(file, entryname * "/U", m.U)
     write(file, entryname * "/t", m.t)
-    save_lattice(file, m.l, entryname * "/l")
+    _save(file, entryname * "/l", m.l)
 
     nothing
 end
 
 # compat
-function _load_model(data, ::Val{:HubbardModel})
+function load_model(data, ::Val{:HubbardModel})
     l = _load(data["l"], to_tag(data["l"]))
     HubbardModel(data["t"], data["mu"], data["U"], l)
 end
-_load_model(data, ::Val{:HubbardModelAttractive}) = _load_model(data, Val(:HubbardModel))
-function _load_model(data, ::Val{:HubbardModelRepulsive})
+load_model(data, ::Val{:HubbardModelAttractive}) = load_model(data, Val(:HubbardModel))
+function load_model(data, ::Val{:HubbardModelRepulsive})
     l = _load(data["l"], to_tag(data["l"]))
     HubbardModel(data["t"], 0.0, -data["U"], l)
 end
-_load_model(data, ::Val{:AttractiveGHQHubbardModel}) = _load_model(data, Val(:HubbardModelAttractive))
-_load_model(data, ::Val{:RepulsiveGHQHubbardModel}) = _load_model(data, Val(:HubbardModelRepulsive))
+load_model(data, ::Val{:AttractiveGHQHubbardModel}) = load_model(data, Val(:HubbardModelAttractive))
+load_model(data, ::Val{:RepulsiveGHQHubbardModel}) = load_model(data, Val(:HubbardModelRepulsive))
 field_hint(m, ::Val) = choose_field(m)
 field_hint(m, ::Val{:AttractiveGHQHubbardModel}) = MagneticGHQField
 field_hint(m, ::Val{:RepulsiveGHQHubbardModel}) = MagneticGHQField
 
-function intE_kernel(mc, model::HubbardModel, G::GreensMatrix, ::Val{1})
+"""
+    interaction_energy_kernel(mc, ::HubbardModel, ::Nothing, greens_matrices, ::Nothing)
+
+Computes the interaction energy - U ⟨(n↑ - 0.5)(n↓ - 0.5)⟩. Note that this is a 
+model specific method.
+"""
+function interaction_energy_kernel(mc, model::HubbardModel, ::Nothing, G::_GM{<: DiagonallyRepeatingMatrix}, flv)
     # ⟨U (n↑ - 1/2)(n↓ - 1/2)⟩ = ... 
     # = U [G↑↑ G↓↓ - G↓↑ G↑↓ - 0.5 G↑↑ - 0.5 G↓↓ + G↑↓ + 0.25]
     # = U [(G↑↑ - 1/2)(G↓↓ - 1/2) + G↑↓(1 + G↑↓)]
     # with up-up = down-down and up-down = 0
-    - model.U * sum((diag(G.val) .- 0.5).^2)
+    - model.U * sum((diag(G.val.val) .- 0.5).^2)
 end
-# Technically this only applies to BlockDiagonal
-function intE_kernel(mc, model::HubbardModel, G::GreensMatrix{Float64}, ::Val{2})
-    - model.U * sum((diag(G.val.blocks[1]) .- 0.5) .* (diag(G.val.blocks[2]) .- 0.5))
+
+function interaction_energy_kernel(mc, model::HubbardModel, ::Nothing, G::_GM{<: BlockDiagonal}, flv)
+    output = zero(eltype(G.val.blocks[1]))
+    @inbounds @fastmath for i in axes(G.val.blocks[1], 1)
+        output -= (G.val.blocks[1][i, i] - 0.5) * (G.val.blocks[2][i, i] - 0.5)
+    end
+    return model.U * output
 end
-function intE_kernel(mc, model::HubbardModel, G::GreensMatrix{ComplexF64}, ::Val{2})
+
+function interaction_energy_kernel(mc, model::HubbardModel, ::Nothing, G::_GM{<: Matrix}, flv)
     N = length(lattice(model))
-    output = 0.0 + 0.0im
-    for i in 1:N
+    output = zero(eltype(G.val))
+    @inbounds @fastmath for i in 1:N
         output -= (G.val[i, i] .- 0.5) .* (G.val[N+i, N+i] .- 0.5)
     end
-    output * model.U
+    return output * model.U
 end
