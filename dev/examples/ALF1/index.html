@@ -51,27 +51,35 @@ for i, sim in enumerate(sims):
 
 mcs = []
 @time for beta in [1.0, 6.0, 12.0]
-    m = HubbardModel(4, 2, U = -4)
+    m = HubbardModel(4, 2, U = -4.0)
+    # There are propagation errors on the scale of 10^-7 - 10^-6 which produce
+    # frequent warnings without silent = true
     mc = DQMC(
         m, beta=beta, thermalization=5_000, sweeps=15_000, 
-        print_rate=5_000, delta_tau = 0.05#, measure_rate=5
+        print_rate=5_000, delta_tau = 0.1, measure_rate=1,
+        field = MagneticGHQField, safe_mult = 10, silent = true
     )
     
     # our default versions
     mc[:G] = greens_measurement(mc, m)
     mc[:SDCz] = spin_density_correlation(mc, m, :z)
     mc[:SDSz] = spin_density_susceptibility(mc, m, :z)
-    mc[:T] = noninteracting_energy(mc, m)
-    
+    mc[:T] = kinetic_energy(mc, m)
+    # charge density correlations in ALF only consider the correlated part
+    mc[:DenDen] = charge_density_correlation(mc, m, kernel = MonteCarlo.reduced_cdc_kernel)
+    mc[:DenDenTau] = charge_density_susceptibility(mc, m, kernel = MonteCarlo.reduced_cdc_kernel)
+
     # ALF defines our I - G as the measured Greens function
-    function mygreens(mc, m, ij, G)
-        i, j = ij; N = length(lattice(mc))
-        swapop(G)[i, j] + swapop(G)[i+N, j+N]
+    function mygreens(mc, m, ij, G, flv)
+        i, j = ij
+        return I[i, j] - G.val.blocks[flv][j, i]
     end
-    mc[:Gr] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance(), mygreens)
+    mc[:Gr] = MonteCarlo.Measurement(
+        mc, m, Greens(), EachSitePairByDistance(), 1:2, mygreens
+    )
     
     # The interaction energy needs to be adjusted to ALF&#39;s Hamiltonian
-    function my_intE(mc, m, G)
+    function my_intE(mc, m, idxs, G, flv)
         E = 0.0; N = length(lattice(mc))
         Gup, Gdown = G.val.blocks
         for i in 1:N
@@ -79,31 +87,20 @@ mcs = []
         end
         m.U * E
     end
-    mc[:V] = MonteCarlo.Measurement(mc, m, Greens, nothing, my_intE)
+    mc[:V] = MonteCarlo.Measurement(mc, m, Greens(), nothing, nothing, my_intE)
     
-    # ALF includes 0 and β in the time displaced greens function
-    myGk(mc, m, ij, Gs) = begin G00, G0l, Gl0, Gll = Gs; i, j = ij; Gl0[i, j] end
+    function myGk(mc, m, ij, Gs, flv)
+        G00, G0l, Gl0, Gll = Gs; 
+        i, j = ij
+        0.5 * Gl0.val.blocks[flv][i, j]
+    end
     mc[:IGk] = MonteCarlo.Measurement(
-        mc, m, CombinedGreensIterator, EachSitePairByDistance(), myGk
+        mc, m, TimeIntegral(mc), EachSitePairByDistance(), 1:2, myGk
     )
-        
-    # ALF subtracts the uncorrelated part
-    function myDenDen(mc, m, ij, G)
-        i, j = ij; N = length(lattice(mc))
-        swapop(G)[i, j] * G[i, j] + swapop(G)[i+N, j+N] * G[i+N, j+N]
-    end
-    mc[:DenDen] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance(), myDenDen)
-    
-    function myDenDenTau(mc, m, ij, Gs)
-        i, j = ij; N = length(lattice(mc))
-        G00, G0l, Gl0, Gll = Gs
-        swapop(G0l)[i, j] * Gl0[i, j] + swapop(G0l)[i+N, j+N] * Gl0[i+N, j+N]
-    end
-    mc[:DenDenTau] = MonteCarlo.Measurement(mc, m, CombinedGreensIterator, EachSitePairByDistance(), myDenDenTau)
     
     run!(mc)
     push!(mcs, mc)
-end</code></pre><p>We run our simulations with a small <span>$\Delta\tau$</span> and larger number of sweeps to reduce errors. With the given parameters the simulations will take about 6min.</p><p>A lot of the observables we measure have been adjusted to match ALF. First we have the real space equal time Greens function <code>:Gr</code> which measures <span>$\delta(\Delta r) - G(\Delta r) = \sum_r c_r^\dagger c_{r + \Delta r}$</span>. The MonteCarlo.jl Greens function is given as <span>$c c^\dagger$</span>, so we need to swap the operators with <code>swapop</code>. We also need to explicitly sum the spin up and spin down channels.</p><p>Next we have the interaction energy <code>:V</code> which needs adjustments to the different pre-transformation term. We calculate <span>$\langle V \rangle = \frac{U}{2} \sum_i \langle V_i \rangle$</span> where </p><div>\[\langle V_i \rangle = \langle
+end</code></pre><p>With the given parameters the simulations will take about 6min. This can be reduced further by cutting down on the number of sweeps or the measure_rate at the cost of accuracy.</p><p>A few observables we measure have been adjusted to match ALF. First we have the real space equal time Greens function <code>:Gr</code> which measures <span>$\delta(\Delta r) - G(\Delta r) = \sum_r c_r^\dagger c_{r + \Delta r}$</span>. The MonteCarlo.jl Greens function is given as <span>$c c^\dagger$</span>, so we need to swap the operator order. This can be done with <code>swapop(G)[i + (flv-1)*N, j + (flv-1)*N]</code> or more efficiently with <code>I[i, j] - G.val.blocks[flv][j, i]</code>. The former works for any matrix type, but calls slow custom indexing. The latter is specialized for <code>BlockDiagonal</code> matrices, which we have in this case. <code>flv</code> represents the spin index which results in a shift by N (number of sites) in the first case and access to the second block in the latter.</p><p>Next we have the interaction energy <code>:V</code> which needs adjustments to the different pre-transformation term ALF uses. We calculate <span>$\langle V \rangle = \frac{U}{2} \sum_i \langle V_i \rangle$</span> where </p><div>\[\langle V_i \rangle = \langle
 \hat{c}^{\dagger}_{{i}, \uparrow} \hat{c}^{\phantom\dagger}_{{i}, \uparrow} \hat{c}^{\dagger}_{{i}, \uparrow} \hat{c}^{\phantom\dagger}_{{i}, \uparrow}
 - \hat{c}^{\dagger}_{{i}, \uparrow} \hat{c}^{\phantom\dagger}_{{i}, \uparrow} \hat{c}^{\dagger}_{{i}, \downarrow} \hat{c}^{\phantom\dagger}_{{i}, \downarrow}
 - \hat{c}^{\dagger}_{{i}, \downarrow} \hat{c}^{\phantom\dagger}_{{i}, \downarrow} \hat{c}^{\dagger}_{{i}, \uparrow} \hat{c}^{\phantom\dagger}_{{i}, \uparrow}
@@ -146,7 +143,7 @@ end</code></pre><p>We run our simulations with a small <span>$\Delta\tau$</span>
 \frac{1}{2} \langle V_i \rangle &amp;= (1 - G_{ii}^{\uparrow \uparrow}) (1 - G_{ii}^{\downarrow \downarrow}) \\
 &amp;= 1 - G_{ii}^{\uparrow \uparrow} - G_{ii}^{\downarrow \downarrow}
 + G_{ii}^{\uparrow \uparrow} G_{ii}^{\downarrow \downarrow}
-\end{aligned}\]</div><p>which is implemented above. After that we have the Fourier transformed time displaced Greens function <code>:IGk</code> which calculates the Fourier transform of <span>$G^\prime(\Delta r) = \sum_{\tau = \Delta\tau}^{\beta} \Delta\tau \sum_r c_r(\tau) c_{r + \Delta r}^\dagger(0)$</span>. Finally we have the charge density correlation <code>:DenDen</code> and susceptibility <code>:DenDenTau</code> which implement <span>$\sum_r \langle \langle n_r n_{r - \Delta r} \rangle - \langle n_r \rangle \langle n_{r + \Delta r} \rangle \rangle_{MC}$</span>. We note here that the subtraction happens before taking the Monte Carlo average denoted by <span>$\langle \cdot \rangle_{MC}$</span>.</p><h2 id="Loading-ALF-Data-1"><a class="docs-heading-anchor" href="#Loading-ALF-Data-1">Loading ALF Data</a><a class="docs-heading-anchor-permalink" href="#Loading-ALF-Data-1" title="Permalink"></a></h2><p>ALF will generate a folder with multiple files for each measurement. You should find these in your pyALF directory under <code>ALF_data</code>. To load everything you need to compare results we run</p><pre><code class="language-julia">using Statistics
+\end{aligned}\]</div><p>which is implemented above. Finally that we have the Fourier transformed time displaced Greens function <code>:IGk</code> which calculates the Fourier transform of <span>$G^\prime(\Delta r) = \int_0^\beta \sum_r c_r(\tau) c_{r + \Delta r}^\dagger(0) d\tau$</span>. </p><h2 id="Loading-ALF-Data-1"><a class="docs-heading-anchor" href="#Loading-ALF-Data-1">Loading ALF Data</a><a class="docs-heading-anchor-permalink" href="#Loading-ALF-Data-1" title="Permalink"></a></h2><p>ALF will generate a folder with multiple files for each measurement. You should find these in your pyALF directory under <code>ALF_data</code>. To load everything you need to compare results we run</p><pre><code class="language-julia">using Statistics
 p = &quot;path/to/ALF_data&quot;
 folders = [
     &quot;Hubbard_Square_L1=4_L2=4_Checkerboard=False_Symm=True_T=1.0_U=4.0_Tperp=0.0_beta=1.0_Dtau=0.1_Mz=True&quot;,
@@ -291,9 +288,10 @@ for folder in folders
     push!(dEs, de)
 end
 
-mc_drs = MonteCarlo.directions(mcs[1])
+mc_drs = MonteCarlo.directions(mcs[1] |&gt; lattice)
 idxs = map(v -&gt; findfirst(isequal(v), dirs[1]), mc_drs)
-idxs[end-1] = 13</code></pre><p>The only thing worth mentioning here is the order of offset vectors <span>$\Delta r$</span>. The order of observable values is linked to these vectors, whose order differs between MonteCarlo.jl and ALF. To adjust the order we compute <code>idxs</code> here. Note that because we work with periodic lattices there are multiple valid options for some of these vectors. Because of this we set one index explicitly. </p><h2 id="Comparing-the-results-1"><a class="docs-heading-anchor" href="#Comparing-the-results-1">Comparing the results</a><a class="docs-heading-anchor-permalink" href="#Comparing-the-results-1" title="Permalink"></a></h2><p>To compare the results we will plot points over each other. Most observables have the same layout, i.e. values vs either spatial or reciprocal distance vectors. We will plot these with the following functions.</p><pre><code class="language-julia">using CairoMakie
+idxs[end-1] = 13</code></pre><p>The only thing worth mentioning here is the order of offset vectors <span>$\Delta r$</span>. The order of observable values is linked to these vectors, whose order differs between MonteCarlo.jl and ALF. To adjust the order we compute <code>idxs</code> here. Note that because we work with periodic lattices there are multiple valid options for some of these vectors. Because of this we set one index explicitly. </p><h2 id="Comparing-the-results-1"><a class="docs-heading-anchor" href="#Comparing-the-results-1">Comparing the results</a><a class="docs-heading-anchor-permalink" href="#Comparing-the-results-1" title="Permalink"></a></h2><p>To compare the results we will plot points over each other. Most observables have the same layout, i.e. values vs either spatial or reciprocal distance vectors. We will plot these with the following functions.</p><pre><code class="language-julia">using CairoMakie, LaTeXStrings, LinearAlgebra
+import MonteCarloAnalysis # fourier transform
 
 function plot_by_distance(
         ys, dys, key; 
@@ -302,17 +300,17 @@ function plot_by_distance(
     )
 
     fig = Figure(figure_padding = (10, 20, 10, 10))
-    ax = Axis(fig[1, 1])
+    ax = Axis(fig[1, 1], xlabel = L&quot;Distance $\Delta r$&quot;, ylabel = ylabel)
 
     cs = (:blue, :purple, :red)
     for l in 1:3 # temperature index
         band!(ax, xs, ys[l][idxs] .- dys[l][idxs], ys[l][idxs] .+ dys[l][idxs], color = (cs[l], 0.1))
         scatter!(ax, xs, ys[l][idxs], color = cs[l], marker=&#39;+&#39;, markersize=12)
 
-        low = mean(mcs[l][key]) .- std_error(mcs[l][key])
-        high = mean(mcs[l][key]) .+ std_error(mcs[l][key])
-        band!(ax, xs, low, high, color = (cs[l], 0.1))
-        scatter!(ax, xs, mean(mcs[l][key]), color = cs[l], marker=&#39;x&#39;, markersize=12)
+        low  = real(mean(mcs[l][key]) .- try std_error(mcs[l][key]) catch e; 0.0 end)
+        high = real(mean(mcs[l][key]) .+ try std_error(mcs[l][key]) catch e; 0.0 end)
+        band!(ax, xs[:], low[:], high[:], color = (cs[l], 0.1))
+        scatter!(ax, xs, mean(mcs[l][key])[:], color = cs[l], marker=&#39;x&#39;, markersize=12)
     end
 
     lbls = [
@@ -322,9 +320,7 @@ function plot_by_distance(
     ]
     axislegend(ax, ax.scene.plots[3:2:end], lbls, &quot;  ALF    MonteCarlo.jl&quot;, nbanks=2, position = legend_pos)
 
-    ax.ylabel[] = ylabel
     ax.xticks[] = (xs, xticks)
-    ax.xlabel[] = &quot;Distance Δr&quot;
     ax.xticklabelrotation[] = -0.7
 
     # to fix bad spacing, likely unnecessary in the near future
@@ -350,7 +346,7 @@ function plot_reciprocal(
     )
 
     fig = Figure(figure_padding = (10, 20, 10, 10))
-    ax = Axis(fig[1, 1])
+    ax = Axis(fig[1, 1], xlabel = L&quot;Reciprocal Vector $\Delta k$&quot;, ylabel = ylabel)
 
     cs = (:blue, :purple, :red)
     for l in 1:3 # temperature index
@@ -359,16 +355,13 @@ function plot_reciprocal(
         band!(ax, xs, low, high, color = (cs[l], 0.1))
         scatter!(ax, xs, real(ys[l]), color = cs[l], marker=&#39;+&#39;, markersize=12)
 
-        _ys = map(1:16) do j
-            MonteCarlo.fourier_transform(
-                ks[1][j:j], 
-                directions(mcs[l]), 
-                mcs[l][key] |&gt; mean
-            )[1]
+        _ys = let
+            m = mcs[l][key]
+            fourier(ks[1], directions(lattice(mcs[l]), m.lattice_iterator), mean(m))
         end
         _dys = map(1:16) do j
-            vals = std_error(mcs[l][key])
-            dirs = directions(mcs[l])
+            vals = std_error(mcs[l][key])[:]
+            dirs = directions(lattice(mcs[l]))
             q = ks[1][j]
             sum((cis(dot(q, v)) * o)^2 for (v, o) in zip(dirs, vals)) |&gt; mean |&gt; sqrt
         end
@@ -386,9 +379,7 @@ function plot_reciprocal(
     ]
     axislegend(ax, ax.scene.plots[3:2:end], lbls, &quot;  ALF    MonteCarlo.jl&quot;, nbanks=2, position = legend_pos)
 
-    ax.ylabel[] = ylabel
     ax.xticks[] = (xs, xticks)
-    ax.xlabel[] = &quot;Reciprocal Vector Δk&quot;
     ax.xticklabelrotation[] = -0.7
 
     # to fix bad spacing, likely unnecessary in the near future
@@ -420,4 +411,4 @@ fig, ax = plot_reciprocal(
     ylabel = lbl
 )
 Makie.save(&quot;spin_density_susceptibility.png&quot;, fig)
-display(fig)</code></pre><p><img src="../assets/ALF/spin_density_susceptibility.png" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../triangular_Hubbard/">« Triangular Attractive Hubbard</a><a class="docs-footer-nextpage" href="../HofmannBergChowdhury/">Topological Flat Band Model »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Thursday 24 February 2022 15:53">Thursday 24 February 2022</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+display(fig)</code></pre><p><img src="../assets/ALF/spin_density_susceptibility.png" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../triangular_Hubbard/">« Triangular Attractive Hubbard</a><a class="docs-footer-nextpage" href="../HofmannBergChowdhury/">Topological Flat Band Model »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 18 October 2022 15:19">Tuesday 18 October 2022</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
