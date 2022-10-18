@@ -46,7 +46,7 @@ function _load_to_dict(data::FileLike)
     output = Dict{String, Any}()
     for key in keys(data)
         try
-            push!(output, key => _load(data[key], to_tag(data[key])))
+            push!(output, key => _load(data[key]))
         catch e
             push!(output, key => _load_to_dict(data[key]))
         end

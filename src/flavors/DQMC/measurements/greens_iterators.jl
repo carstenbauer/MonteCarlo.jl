@@ -18,7 +18,8 @@ verify(it::AbstractUnequalTimeGreensIterator, maxerror=1e-6) = maximum(accuracy(
 
 function _save(file::FileLike, key::String, m::T) where {T <: Union{AbstractGreensIterator, Nothing}}
     write(file, "$key/VERSION", 1)
-    write(file, "$key/tag", nameof(T))
+    write(file, "$key/tag", "GreensIterator")
+    write(file, "$key/name", nameof(T))
     write(file, "$key/fields", getfield.((m,), fieldnames(T)))
     return
 end
@@ -26,7 +27,7 @@ end
 function _load(data, ::Val{:GreensIterator})
     # ifelse maybe long but should be better for compile time than adding a 
     # bunch more _load methods and better for runtime than an eval
-    tag = data["tag"]
+    tag = haskey(data, "name") ? data["name"] : data["tag"]
     fields = data["fields"]
     for T in _all_greens_iterator_types
         if tag == nameof(T)

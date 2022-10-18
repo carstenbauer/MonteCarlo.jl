@@ -143,7 +143,7 @@ _default_capacity(mc::DQMC) = 2 * ceil(Int, mc.parameters.sweeps / mc.parameters
 # though maybe that's a good thing - changing function definitions doesn't
 # break stuff this way
 function _save(file::FileLike, key::String, m::DQMCMeasurement)
-    write(file, "$key/VERSION", 2)
+    write(file, "$key/VERSION", 3)
     write(file, "$key/tag", "DQMCMeasurement")
     _save(file, "$key/GI", m.greens_iterator)
     _save(file, "$key/LI", m.lattice_iterator)
@@ -172,12 +172,12 @@ function _load(data, ::Val{:DQMCMeasurement})
         @warn "Failed to load kernel in module MonteCarlo." exception=e
         missing_kernel
     end
-    gi = _load(data["GI"], Val(:GreensIterator))
-    # This should eventually just work as usual
-    li = if data["LI"]["tag"] == "Restructure" 
-        _load(data["LI"], Val(:Restructure))
-    else
-        _load(data["LI"], Val(:LatticeIterator))
+    if data["VERSION"] > 2
+        gi = _load(data["GI"])
+        li = _load(data["LI"])
+    else # this makes it harder to adjust things...
+        gi = _load(data["GI"], Val(:GreensIterator))
+        li = _load(data["LI"], Val(:LatticeIterator))
     end
     fi = if haskey(data, "FI")
         data["FI"]

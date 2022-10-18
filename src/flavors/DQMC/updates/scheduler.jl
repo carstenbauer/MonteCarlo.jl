@@ -118,9 +118,7 @@ function _save(file::FileLike, name::String, update::AcceptanceStatistics)
     return
 end
 function _load(f::FileLike, ::Val{:AcceptanceStatistics})
-    AcceptanceStatistics(
-        f["accepted"], f["total"], _load(f["update"], Val(f["update/tag"]))
-    )
+    AcceptanceStatistics(f["accepted"], f["total"], _load(f["update"]))
 end
 
 
