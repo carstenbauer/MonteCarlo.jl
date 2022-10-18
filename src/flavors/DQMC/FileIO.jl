@@ -44,7 +44,7 @@ function _load(data, ::Val{:DQMC})
     last_sweep = data["last_sweep"]
     model = load_model(data["Model"], to_tag(data["Model"]))
     if haskey(data, "field")
-        tag = Val(Symbol(get(data["field"], "tag", Val(:Field))))
+        tag = Val(Symbol(get(data["field"], "tag", :Field)))
         field = _load(data["field"], tag, parameters, model)
     else
         conf = data["conf"]
@@ -63,7 +63,7 @@ function _load(data, ::Val{:DQMC})
         end
     end
 
-    tag = Val(Symbol(data["Measurements"], "tag", Val(:Measurements)))
+    tag = Val(Symbol(data["Measurements"], "tag", :Measurements))
     combined_measurements = _load(data["Measurements"])
     thermalization_measurements = combined_measurements[:TH]
     measurements = combined_measurements[:ME]
