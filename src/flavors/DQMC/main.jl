@@ -18,7 +18,7 @@ include("parameters.jl")
 # a ::DQMC to figure out how large a bunch of matrices need to be, but 
 # logically fits in `stack.jl`.
 mutable struct DQMC{
-        M <: Model, CB <: Checkerboard, FT <: AbstractField, RT <: AbstractRecorder, 
+        M <: Model, FT <: AbstractField, RT <: AbstractRecorder, 
         Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack,
         US <: AbstractUpdateScheduler
     } <: MonteCarloFlavor
@@ -37,8 +37,8 @@ mutable struct DQMC{
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
 
-    function DQMC{M, CB, FT, RT, Stack, UTStack, US}(args...) where {
-            M <: Model, CB <: Checkerboard, FT <: AbstractField, 
+    function DQMC{M, FT, RT, Stack, UTStack, US}(args...) where {
+            M <: Model, FT <: AbstractField, 
             RT <: AbstractRecorder, 
             Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack,
             US <: AbstractUpdateScheduler
@@ -51,20 +51,20 @@ mutable struct DQMC{
         @assert isconcretetype(RT)
         @assert isconcretetype(US)
         
-        new{M, CB, FT, RT, Stack, UTStack, US}(args...)
+        new{M, FT, RT, Stack, UTStack, US}(args...)
     end
 end
 
 # Simplified constructor
 function DQMC(
-        CB, model::M, field::FT, last_sweep,
+        model::M, field::FT, last_sweep,
         stack::Stack, ut_stack::UTStack, scheduler::US,
         parameters, analysis,
         recorder::RT,
         thermalization_measurements, measurements
     ) where {M, FT, RT, Stack, UTStack, US}
 
-    DQMC{M, CB, FT, RT, Stack, UTStack, US}(
+    DQMC{M, FT, RT, Stack, UTStack, US}(
         model, field, last_sweep, stack, ut_stack, 
         scheduler, parameters, analysis, recorder,
         thermalization_measurements, measurements
@@ -74,17 +74,17 @@ end
 
 # copy constructor
 function DQMC(
-        mc::DQMC{x, CBT};
-        CB = CBT, model::M = mc.model, field::FT = mc.field, 
+        mc::DQMC{x};
+        model::M = mc.model, field::FT = mc.field, 
         last_sweep = mc.last_sweep,
         stack::Stack = mc.stack, ut_stack::UTStack = mc.ut_stack, 
         scheduler::US = mc.scheduler, parameters = mc.parameters, 
         analysis = mc.analysis, recorder::RT = mc.recorder,
         thermalization_measurements = mc.thermalization_measurements, 
         measurements = mc.measurements
-    ) where {x, CBT, M, FT, RT, Stack, UTStack, US}
+    ) where {x, M, FT, RT, Stack, UTStack, US}
 
-    DQMC{M, CB, FT, RT, Stack, UTStack, US}(
+    DQMC{M, FT, RT, Stack, UTStack, US}(
         model, field, last_sweep, stack, ut_stack, 
         scheduler, parameters, analysis, recorder,
         thermalization_measurements, measurements

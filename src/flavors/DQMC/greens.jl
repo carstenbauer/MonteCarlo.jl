@@ -104,7 +104,6 @@ end
 
 
 
-# Implementations with and without checkerboards. 
 # Note that we use the Trotter decomposition 
 # `exp(-Δτ(V + T)) = exp(-0.5 Δτ T) exp(-Δτ V) exp(-0.5 Δτ T)`
 # alongside the cyclic property of determinants 
@@ -113,7 +112,7 @@ end
 # reverse the cyclic permutation, which happens here.
 
 function _greens!(
-        mc::DQMC_CBFalse, target::AbstractMatrix = mc.stack.greens_temp, 
+        mc::DQMC, target::AbstractMatrix = mc.stack.greens_temp, 
         source::AbstractMatrix = mc.stack.greens, temp::AbstractMatrix = mc.stack.curr_U
     )
     eThalfminus = mc.stack.hopping_matrix_exp
@@ -123,27 +122,6 @@ function _greens!(
     return target
 end
 
-
-function _greens!(
-        mc::DQMC_CBTrue, target::AbstractMatrix = mc.stack.greens_temp, 
-        source::AbstractMatrix = mc.stack.greens, temp::AbstractMatrix = mc.stack.curr_U
-    )
-    chkr_hop_half_minus = mc.stack.chkr_hop_half
-    chkr_hop_half_plus = mc.stack.chkr_hop_half_inv
-    copyto!(target, source)
-
-    @inbounds @views begin
-        for i in reverse(1:mc.stack.n_groups)
-            vmul!(temp, target, chkr_hop_half_minus[i])
-            copyto!(target, temp)
-        end
-        for i in reverse(1:mc.stack.n_groups)
-            vmul!(temp, chkr_hop_half_plus[i], target)
-            copyto!(target, temp)
-        end
-    end
-    return target
-end
 
 
 # Same stuff with a specified time slice.

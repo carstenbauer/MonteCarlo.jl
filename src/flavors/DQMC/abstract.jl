@@ -1,9 +1,5 @@
 abstract type AbstractDQMCStack end
 
-abstract type Checkerboard end
-struct CheckerboardTrue <: Checkerboard end
-struct CheckerboardFalse <: Checkerboard end
-
 abstract type AbstractUpdateScheduler end
 init!(s::AbstractUpdateScheduler, mc, model) = s
 
@@ -34,7 +30,7 @@ The methods returns
     * `n_groups::Int`: number of checkerboard groups.
 """
 function build_checkerboard(l::AbstractLattice)
-    _bonds = collect(bonds(l))
+    _bonds = collect(bonds(l, Val(true)))
     n_bonds = length(_bonds)
 
     groups = UnitRange[]

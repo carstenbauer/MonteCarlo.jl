@@ -7,11 +7,9 @@ to_tag(::Type{<: DQMCParameters}) = Val(:DQMCParameters)
 to_tag(::Type{<: DQMCAnalysis}) = Val(:DQMCAnalysis)
 to_tag(::Type{<: MagnitudeStats}) = Val(:MagnitudeStats)
 
-
 function _save(file::FileLike, entryname::String, mc::DQMC)
-    write(file, entryname * "/VERSION", 2)
+    write(file, entryname * "/VERSION", 3)
     write(file, entryname * "/tag", "DQMC")
-    write(file, entryname * "/CB", mc isa DQMC_CBTrue)
     _save(file, entryname * "/Parameters", mc.parameters)
     _save(file, entryname * "/Analysis", mc.analysis)
     _save(file, entryname * "/field", mc.field)
@@ -24,20 +22,16 @@ function _save(file::FileLike, entryname::String, mc::DQMC)
 end
 
 
-CB_type(T::UnionAll) = T.body.parameters[2]
-CB_type(T::DataType) = T.parameters[2]
-
-
 function _load(data, ::Val{:DQMC})
-    if data["VERSION"] > 2
+    if data["VERSION"] > 3
         throw(ErrorException("Failed to load DQMC version $(data["VERSION"])"))
     end
 
-    CB = if haskey(data, "CB")
-        data["CB"] ? CheckerboardTrue : CheckerboardFalse
-    else CB_type(data["type"]) end
-    @assert CB <: Checkerboard
+    
     parameters = _load(data["Parameters"])
+    if haskey(data, "CB")
+        parameters = DQMCParameters(parameters, data["CB"])
+    end
     tag = Val(Symbol(get(data["Analysis"], "tag", :DQMCAnalysis)))
     analysis = _load(data["Analysis"], tag)
     recorder = _load(data["configs"], to_tag(data["configs"]))
@@ -72,7 +66,6 @@ function _load(data, ::Val{:DQMC})
     ut_stack = UnequalTimeStack{geltype(stack), gmattype(stack)}()
     
     DQMC(
-        CB, 
         model, field, last_sweep, 
         stack, ut_stack, scheduler,
         parameters, analysis, 
@@ -82,7 +75,7 @@ end
 
 
 function _save(file::FileLike, entryname::String, p::DQMCParameters)
-    write(file, entryname * "/VERSION", 2)
+    write(file, entryname * "/VERSION", 3)
     write(file, entryname * "/tag", "DQMCParameters")
 
     write(file, entryname * "/thermalization", p.thermalization)
@@ -96,13 +89,14 @@ function _save(file::FileLike, entryname::String, p::DQMCParameters)
     write(file, entryname * "/slices", p.slices)
     write(file, entryname * "/measure_rate", p.measure_rate)
     write(file, entryname * "/print_rate", p.print_rate)
+    write(file, entryname * "/checkerboard", p.checkerboard)
 
     nothing
 end
 
 
 function _load(data, ::Val{:DQMCParameters})
-    if !(data["VERSION"] in (1, 2))
+    if !(data["VERSION"] in (1, 2, 3))
         throw(ErrorException("Failed to load DQMCParameters version $(data["VERSION"])"))
     end
 
@@ -121,6 +115,7 @@ function _load(data, ::Val{:DQMCParameters})
 
         data["measure_rate"],
         haskey(data, "print_rate") ? data["print_rate"] : 10,
+        haskey(data, "checkerboard") ? data["checkerboard"] : false,
     )
 end
 
