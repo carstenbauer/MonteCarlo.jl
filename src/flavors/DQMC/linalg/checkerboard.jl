@@ -3,8 +3,8 @@
 struct SparseCBMatrix{T} <: AbstractMatrix{T}
     vals::Vector{T}
     # M[i, j]
-    ij::Vector{Pair{Int, Int}}
-    ji::Vector{Pair{Int, Int}}
+    is::Vector{Int}
+    js::Vector{Int}
 end
 
 struct CheckerboardDecomposed{T} <: AbstractMatrix{T}
@@ -45,8 +45,8 @@ function CheckerboardDecomposed(M::Matrix, lattice, transform, is_squared)
         # through the magic of math and sparsity, exp(temp) = I + temp
         # So we introduce a type for it
         vals = Vector{eltype(M)}(undef, flv*flv*length(group))
-        ij = Vector{Pair{Int, Int}}(undef, flv*flv*length(group))
-        ji = Vector{Pair{Int, Int}}(undef, flv*flv*length(group))
+        is = Vector{Int}(undef, flv*flv*length(group))
+        js = Vector{Int}(undef, flv*flv*length(group))
         idx = 1
 
         for id in group
@@ -55,16 +55,16 @@ function CheckerboardDecomposed(M::Matrix, lattice, transform, is_squared)
             for f1 in 0:N:(flv-1)*N, f2 in 0:N:(flv-1)*N
                 # transform should now just do -0.5 * dtau * temp
                 vals[idx] = transform(M[trg+f1, src+f2]) 
-                ij[idx] = src => trg
-                ji[idx] = trg => src
+                is[idx] = src
+                js[idx] = trg
                 idx += 1
             end
         end
 
         # hopefully this helps with cache coherence?
-        _sort_by_ij!(vals, ij, ji)
+        _sort_by_ij!(vals, is, js)
 
-        push!(parts, SparseCBMatrix(vals, ij, ji))
+        push!(parts, SparseCBMatrix(vals, is, js))
     end
 
     # squared Checkerboard matrices come together as Tn ... T1 T1 ... eTn
@@ -77,16 +77,16 @@ function CheckerboardDecomposed(M::Matrix, lattice, transform, is_squared)
     return CheckerboardDecomposed(D, parts, is_squared)
 end
 
-function _sort_by_ij!(vals, ij, ji)
-    perm = sortperm(ij, by = last)
+function _sort_by_ij!(vals, is, js)
+    perm = sortperm(js)
     permute!(vals, perm)
-    permute!(ij, perm)
-    permute!(ji, perm)
+    permute!(is, perm)
+    permute!(js, perm)
 
-    perm = sortperm(ij, by = first)
+    perm = sortperm(is)
     permute!(vals, perm)
-    permute!(ij, perm)
-    permute!(ji, perm)
+    permute!(is, perm)
+    permute!(js, perm)
     return
 end
 
@@ -102,16 +102,16 @@ function Base.:(*)(A::SparseCBMatrix{T}, B::SparseCBMatrix{T}) where T
 
     # I + P_1
     vals = copy(A.vals)
-    ijs = copy(A.ij)
-    jis = copy(A.ji)
+    is = copy(A.is)
+    js = copy(A.js)
 
     for k in eachindex(B.vals)
         # + P_2
-        idx = findfirst(isequal(B.ij[k]), ijs)
+        idx = findfirst(isequal((B.is[k], B.js[k])), collect(zip(is, js)))
         if idx === nothing
             push!(vals, B.vals[k])
-            push!(ijs, B.ij[k])
-            push!(jis, B.ji[k])
+            push!(is, B.is[k])
+            push!(js, B.js[k])
         else
             vals[idx] += B.vals[k]
         end
@@ -119,14 +119,14 @@ function Base.:(*)(A::SparseCBMatrix{T}, B::SparseCBMatrix{T}) where T
         # + P_1 * P_2
         for m in eachindex(A.vals)
             # A[i, j] B[j, k]
-            if A.ij[m][2] == B.ij[k][1]
-                i = A.ij[m][1]
-                j = B.ij[k][2]
-                idx = findfirst(isequal(i => j), ijs)
+            if A.js[m] == B.is[k]
+                i = A.is[m]
+                j = B.js[k]
+                idx = findfirst(isequal((i, j)), collect(zip(is, js)))
                 if idx === nothing
                     push!(vals, A.vals[m] * B.vals[k])
-                    push!(ijs, i => j)
-                    push!(jis, j => i)
+                    push!(is, i)
+                    push!(js, j)
                 else
                     vals[idx] += A.vals[m] * B.vals[k]
                 end
@@ -134,9 +134,9 @@ function Base.:(*)(A::SparseCBMatrix{T}, B::SparseCBMatrix{T}) where T
         end
     end
 
-    _sort_by_ij!(vals, ijs, jis)
+    _sort_by_ij!(vals, is, js)
 
-    return SparseCBMatrix(vals, ijs, jis)
+    return SparseCBMatrix(vals, is, js)
 end
 
 function vmul!(trg::Matrix{T}, S::SparseCBMatrix{T}, D::Diagonal{T}) where T
@@ -146,7 +146,8 @@ function vmul!(trg::Matrix{T}, S::SparseCBMatrix{T}, D::Diagonal{T}) where T
         trg[i] = zero(T)
     end
     # P * D
-    for (k, (i, j)) in enumerate(S.ij)
+    for k in eachindex(S.is)
+        i = S.is[k]; j = S.js[k]
         trg[i, j] = S.vals[k] * D.diag[j]
     end
     # I * D
@@ -169,10 +170,10 @@ function lvmul!(S::SparseCBMatrix{T}, M::Matrix{T}) where T
     # O(N^2/2)
     # I * M done automatically
     # P * M
-    @inbounds for k in axes(M, 2)
-        @simd for n in eachindex(S.ij)
-            j, i = S.ij[n]
-            M[i, k] = muladd(conj(S.vals[n]), M[j, k], M[i, k])
+    @inbounds @fastmath for k in axes(M, 2)
+        @simd for n in eachindex(S.is)
+            i = S.is[n]; j = S.js[n]
+            M[i, k] = muladd(S.vals[n], M[j, k], M[i, k])
         end
     end
     return M
@@ -183,9 +184,9 @@ function lvmul!(S::Adjoint{T, SparseCBMatrix{T}}, M::Matrix{T}) where T
     # I * M done automatically
     # P * M
     @inbounds for k in axes(M, 2)
-        @simd for n in eachindex(S.parent.ij)
-            i, j = S.parent.ij[n]
-            M[i, k] = muladd(S.parent.vals[n], M[j, k], M[i, k])
+        @simd for n in eachindex(S.parent.is)
+            j = S.parent.is[n]; i = S.parent.js[n] # transpose
+            M[i, k] = muladd(conj(S.parent.vals[n]), M[j, k], M[i, k])
         end
     end
     return M
@@ -198,7 +199,8 @@ function vmul!(trg::Matrix{T}, M::Matrix{T}, S::SparseCBMatrix{T}) where T
 end
 
 function rvmul!(M::Matrix{T}, S::SparseCBMatrix{T}) where T
-    @inbounds for (n, (j, k)) in enumerate(S.ij)
+    @inbounds for n in eachindex(S.is)
+        j = S.is[n]; k = S.js[n]
         @turbo for i in axes(M, 1) # fast loop :)
             M[i, k] = muladd(M[i, j], S.vals[n], M[i, k])
         end
