@@ -1,11 +1,15 @@
-# Note: (general)
-# This is not optimized at all. This first version is straight up just what 
-# Carsten had originally, moved into a type
-
+# Representing M = I + P where P[i, j] != 0 => P[i, !j] = P[j, :] = 0
+# These could actually be StaticArrays I think. Or tuples I guess
+struct SparseCBMatrix{T}
+    vals::Vector{T}
+    # M[i, j]
+    ij::Vector{Pair{Int, Int}}
+    ji::Vector{Pair{Int, Int}}
+end
 
 struct CheckerboardDecomposed{T} <: AbstractMatrix{T}
     diag::Diagonal{T, Vector{T}}
-    parts::Vector{SparseMatrixCSC{T, Int64}}
+    parts::Vector{SparseCBMatrix{T}}
 
     # need this to identify squared vs non-squared the way Carsten implemented it
     squared::Bool
@@ -29,31 +33,38 @@ end
 #     )
 # end
 function CheckerboardDecomposed(M::Matrix, lattice, transform, is_squared)
-    D = Diagonal(transform.(diag(M)))
 
     N = length(lattice)
     flv = div(size(M, 1), N)
     checkerboard, groups, n_grps = build_checkerboard(lattice)
 
-    T0 = zero(eltype(M))
-    temp = Matrix{eltype(M)}(undef, size(M))
-    parts = SparseMatrixCSC{eltype(M), Int64}[]
+    D = Diagonal(exp.(transform.(diag(M))))
+    parts = SparseCBMatrix{eltype(M)}[]
 
     for group in groups
-        # write hoppings from group to temp
-        temp .= T0
+        # through the magic of math and sparsity, exp(temp) = I + temp
+        # So we introduce a type for it
+        vals = Vector{eltype(M)}(undef, flv*flv*length(group))
+        ij = Vector{Pair{Int, Int}}(undef, flv*flv*length(group))
+        ji = Vector{Pair{Int, Int}}(undef, flv*flv*length(group))
+        idx = 1
+
         for id in group
             @views src, trg = checkerboard[1:2, id]
 
             for f1 in 0:N:(flv-1)*N, f2 in 0:N:(flv-1)*N
-                temp[trg+f1, src+f2] = M[trg+f1, src+f2]
+                # transform should now just do -0.5 * dtau * temp
+                vals[idx] = transform(M[trg+f1, src+f2]) 
+                ij[idx] = src => trg
+                ji[idx] = trg => src
+                idx += 1
             end
         end
 
-        # apply transformations, e.g. exp(-0.5 * dtau * temp), and add to parts
-        T_group = transform(temp)
-        rem_eff_zeros!(T_group)
-        push!(parts, T_group)
+        # hopefully this helps with cache coherence?
+        _sort_by_ij!(vals, ij, ji)
+
+        push!(parts, SparseCBMatrix(vals, ij, ji))
     end
 
     # squared Checkerboard matrices come together as Tn ... T1 T1 ... eTn
@@ -66,75 +77,159 @@ function CheckerboardDecomposed(M::Matrix, lattice, transform, is_squared)
     return CheckerboardDecomposed(D, parts, is_squared)
 end
 
+function _sort_by_ij!(vals, ij, ji)
+    perm = sortperm(ij, by = last)
+    permute!(vals, perm)
+    permute!(ij, perm)
+    permute!(ji, perm)
+
+    perm = sortperm(ij, by = first)
+    permute!(vals, perm)
+    permute!(ij, perm)
+    permute!(ji, perm)
+    return
+end
+
 rem_eff_zeros!(X::AbstractArray) = map!(e -> abs.(e)<1e-15 ? zero(e) : e,X,X)
 
 # Note
 # getindex and Matrix() are not well defined... Depending on the transform we 
 # used we may need to add or multiple the internal matrices
 
+# not for performant code
+function Base.:(*)(A::SparseCBMatrix{T}, B::SparseCBMatrix{T}) where T
+    # (I * P_1) (I + P_2) = I + P_1 + P_2 + P_1 * P_2
+
+    # I + P_1
+    vals = copy(A.vals)
+    ijs = copy(A.ij)
+    jis = copy(A.ji)
+
+    for k in eachindex(B.vals)
+        # + P_2
+        idx = findfirst(isequal(B.ij[k]), ijs)
+        if idx === nothing
+            push!(vals, B.vals[k])
+            push!(ijs, B.ij[k])
+            push!(jis, B.ji[k])
+        else
+            vals[idx] += B.vals[k]
+        end
+
+        # + P_1 * P_2
+        for m in eachindex(A.vals)
+            # A[i, j] B[j, k]
+            if A.ij[m][2] == B.ij[k][1]
+                i = A.ij[m][1]
+                j = B.ij[k][2]
+                idx = findfirst(isequal(i => j), ijs)
+                if idx === nothing
+                    push!(vals, A.vals[m] * B.vals[k])
+                    push!(ijs, i => j)
+                    push!(jis, j => i)
+                else
+                    vals[idx] += A.vals[m] * B.vals[k]
+                end
+            end
+        end
+    end
+
+    _sort_by_ij!(vals, ijs, jis)
+
+    return SparseCBMatrix(vals, ijs, jis)
+end
+
+function vmul!(trg::Matrix{T}, S::SparseCBMatrix{T}, D::Diagonal{T}) where T
+    # could also try dense ij as in j = ij[i] with zeros in vals?
+    # O(N^2 + N/2 + N)
+    for i in eachindex(trg)
+        trg[i] = zero(T)
+    end
+    # P * D
+    for (k, (i, j)) in enumerate(S.ij)
+        trg[i, j] = S.vals[k] * D.diag[j]
+    end
+    # I * D
+    for i in axes(trg, 1)
+        trg[i, i] = D.diag[i]
+    end
+    return trg
+end
+
+function vmul!(trg::Matrix{T}, S::SparseCBMatrix{T}, M::Matrix{T}) where T
+    # O(N^2 + N^2/2)
+    # I * M
+    copyto!(trg, M)
+    # P * M
+    lvmul!(S, trg)
+    return trg
+end
+
+function lvmul!(S::SparseCBMatrix{T}, M::Matrix{T}) where T
+    # O(N^2/2)
+    # I * M done automatically
+    # P * M
+    @inbounds for k in axes(M, 2)
+        @simd for n in eachindex(S.ij)
+            i, j = S.ij[n]
+            M[i, k] = muladd(S.vals[n], M[j, k], M[i, k])
+        end
+    end
+    return M
+end
+
+function vmul!(trg::Matrix{T}, M::Matrix{T}, S::SparseCBMatrix{T}) where T
+    copyto!(trg, M)
+    rvmul!(trg, S)
+    return trg
+end
+
+function rvmul!(M::Matrix{T}, S::SparseCBMatrix{T}) where T
+    @inbounds for (n, (j, k)) in enumerate(S.ij)
+        @turbo for i in axes(M, 1) # fast loop :)
+            M[i, k] = muladd(M[i, j], S.vals[n], M[i, k])
+        end
+    end
+    return M
+end
+
+
+
 # Note
 # These are rather specialized in what they calculate.
 # With squared = false they calculate P1 P2 ⋯ PN * D
 # With squared = true: PN ⋯ P1 ⋯ PN * D (where P1 and D is already squared beforehand)
 function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}) where T
-    # vmulskip! always swaps outputs, so we have a total double swap here
-    mul!(trg, cb.diag, src)
+    vmul!(trg, cb.diag, src)
 
-    tmp_src = trg
-    tmp_trg = src
-
-    # N operations
     for P in reverse(cb.parts)
-        mul!(tmp_trg, P, tmp_src)
-        x = tmp_src 
-        tmp_src = tmp_trg
-        tmp_trg = x
+        lvmul!(P, trg)
     end
 
     # This if should be resolved at compile time I think...
-    if cb.squared || isodd(length(cb.parts))
-        # N-1 multiplications -> 2N-1 total -> tmp_trg == trg
-        for i in 2:length(cb.parts)
-            P = cb.parts[i]
-            mul!(tmp_trg, P, tmp_src)
-            x = tmp_src 
-            tmp_src = tmp_trg
-            tmp_trg = x
+    if cb.squared
+        @inbounds for i in 2:length(cb.parts)
+            lvmul!(cb.parts[i], trg)
         end
-
-        # total even number of multiplications, fix target
-        copyto!(trg, src)
     end
     
     return trg
 end
 
 function vmul!(trg::Matrix{T}, src::Matrix{T}, cb::CheckerboardDecomposed{T}) where T
-    tmp_src = src
-    tmp_trg = trg
-    
+    copyto!(trg, src)
+
     for P in reverse(cb.parts)
-        mul!(tmp_trg, tmp_src, P)
-        x = tmp_src 
-        tmp_src = tmp_trg
-        tmp_trg = x
+        rvmul!(trg, P)
     end
     
-    if cb.squared || isodd(length(cb.parts))
-        for i in 2:length(cb.parts)
-            P = cb.parts[i]
-            mul!(tmp_trg, tmp_src, P)
-            x = tmp_src 
-            tmp_src = tmp_trg
-            tmp_trg = x
+    if cb.squared
+        @inbounds for i in 2:length(cb.parts)
+            rvmul!(trg, cb.parts[i])
         end
-
-        # one more multiplication to do so we're currently on trg but need to be
-        # on src to end at trg
-        copyto!(src, trg)
     end
 
-    mul!(trg, src, cb.diag)
+    rvmul!(trg, cb.diag)
 
     return trg
 end
