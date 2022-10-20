@@ -66,6 +66,7 @@ function vmul!(C::Matrix{T}, X1::Adjoint{T}, X2::Adjoint{T}) where {T <: Real}
         C[m,n] = Cmn
     end
 end
+
 function vmul!(C::MT, D::Adjoint{<: Real, <:Diagonal}, B::MT) where {MT <: AbstractMatrix}
     vmul!(C, D.parent, B)
 end

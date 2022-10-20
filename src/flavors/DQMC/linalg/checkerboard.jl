@@ -214,8 +214,6 @@ end
 # With squared = true: PN ⋯ P1 ⋯ PN * D (where P1 and D is already squared beforehand)
 function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}) where T
     # P ⋯ P D M
-    # maybe worth doing (I P) ⋯ P D
-    # can't do that with only two matrices. need third as temp, so do outside?
     vmul!(trg, cb.diag, src)
 
     for P in reverse(cb.parts)
