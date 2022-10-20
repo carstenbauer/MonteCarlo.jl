@@ -117,7 +117,7 @@ end
 
     # constructors
     mc = DQMC{
-        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.field),
+        typeof(dqmc.model), typeof(dqmc.field),
         typeof(dqmc.recorder), typeof(dqmc.stack), typeof(dqmc.ut_stack), 
         typeof(dqmc.scheduler)
     }(
@@ -131,7 +131,7 @@ end
     end
 
     mc = DQMC(
-        MonteCarlo.CheckerboardFalse, dqmc.model, dqmc.field, 
+        dqmc.model, dqmc.field, 
         dqmc.last_sweep, dqmc.stack, dqmc.ut_stack, dqmc.scheduler, 
         dqmc.parameters, dqmc.analysis, dqmc.recorder, 
         dqmc.thermalization_measurements, dqmc.measurements
@@ -159,7 +159,7 @@ end
         end
     end
     @test mc isa DQMC{
-        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.field),
+        typeof(dqmc.model), typeof(dqmc.field),
         Discarder, typeof(dqmc.stack), typeof(dqmc.ut_stack), 
         typeof(dqmc.scheduler)
     }
@@ -282,7 +282,7 @@ end
 
     # generic checkerboard
     sq = MonteCarlo.SquareLattice(4);
-    @test MonteCarlo.build_checkerboard(sq) == ([1.0 3.0 5.0 7.0 9.0 11.0 13.0 15.0 1.0 2.0 4.0 6.0 9.0 10.0 12.0 14.0 2.0 3.0 4.0 5.0 8.0 10.0 11.0 16.0 6.0 7.0 8.0 12.0 13.0 14.0 15.0 16.0; 2.0 4.0 6.0 8.0 10.0 12.0 14.0 16.0 5.0 3.0 8.0 7.0 13.0 11.0 16.0 15.0 6.0 7.0 1.0 9.0 12.0 14.0 15.0 13.0 10.0 11.0 5.0 9.0 1.0 2.0 3.0 4.0; 1.0 5.0 9.0 13.0 17.0 21.0 25.0 29.0 2.0 3.0 8.0 11.0 18.0 19.0 24.0 27.0 4.0 6.0 7.0 10.0 16.0 20.0 22.0 31.0 12.0 14.0 15.0 23.0 26.0 28.0 30.0 32.0], UnitRange[1:8, 9:16, 17:24, 25:32], 4)
+    @test MonteCarlo.build_checkerboard(sq) == ([1 3 5 7 9 11 13 15 1 2 4 6 9 10 12 14 1 2 3 5 8 10 11 13 1 2 3 4 5 6 7 9 2 4 6 8 10 12 14 16 3 4 7 8 11 12 15 16 5 6 7 8 13 14 15 16 9 10 11 12 13 14 15 16; 2 4 6 8 10 12 14 16 5 3 8 7 13 11 16 15 4 6 7 9 12 14 15 16 13 14 15 16 8 10 11 12 1 3 5 7 9 11 13 15 2 1 6 5 10 9 14 13 1 2 3 4 9 10 11 12 5 6 7 8 1 2 3 4; 1 9 17 25 33 41 49 57 2 5 14 21 34 37 46 53 3 6 10 18 30 38 42 51 4 8 12 16 19 22 26 35 7 15 23 31 39 47 55 63 11 13 27 29 43 45 59 61 20 24 28 32 52 56 60 64 36 40 44 48 50 54 58 62], UnitRange[1:8, 9:16, 17:24, 25:32, 33:40, 41:48, 49:56, 57:64], 8)
 
     m = HubbardModel(8, 2, mu=0.5)
     mc1 = DQMC(m, beta=5.0)
@@ -294,14 +294,19 @@ end
     MonteCarlo.init_hopping_matrices(mc2, m)
     MonteCarlo.build_stack(mc1, mc1.stack)
     MonteCarlo.build_stack(mc2, mc2.stack)
-    @test MonteCarlo.slice_matrix(mc1, m, 1, 1.) == MonteCarlo.slice_matrix(mc2, m, 1, 1.)
 
     mc = DQMC(m, beta=5.0, checkerboard=true, delta_tau=0.1)
-    MonteCarlo.init_hopping_matrices(mc, m)
-    hop_mat_exp_chkr = foldl(*,mc.stack.chkr_hop_half) * sqrt.(mc.stack.chkr_mu)
-    r = MonteCarlo.effreldiff(mc.stack.hopping_matrix_exp,hop_mat_exp_chkr)
-    r[findall(x -> x==zero(x), hop_mat_exp_chkr)] .= 0.
-    @test maximum(MonteCarlo.absdiff(mc.stack.hopping_matrix_exp,hop_mat_exp_chkr)) <= mc.parameters.delta_tau
+    MonteCarlo.init!(mc)
+
+    trg = similar(mc.stack.greens)
+    src = Matrix{Float64}(I, size(trg))
+    for name in (:hopping_matrix, :hopping_matrix_exp_inv, :hopping_matrix_exp_squared, :hopping_matrix_exp_inv_squared)
+        MonteCarlo.vmul!(trg, getfield(mc.stack, name), src)
+        err = mc.parameters.delta_tau^2
+        @test check(getfield(mc2.stack, name), trg, err, err)
+        MonteCarlo.vmul!(trg, src, getfield(mc.stack, name))
+        @test check(getfield(mc2.stack, name), trg, err, err)
+    end
 
     # initial greens test
     mc = DQMC(m, beta=5.0, safe_mult=1)

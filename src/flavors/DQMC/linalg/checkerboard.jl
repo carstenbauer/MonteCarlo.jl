@@ -1,6 +1,6 @@
 # Representing M = I + P where P[i, j] != 0 => P[i, !j] = P[j, :] = 0
 # These could actually be StaticArrays I think. Or tuples I guess
-struct SparseCBMatrix{T}
+struct SparseCBMatrix{T} <: AbstractMatrix{T}
     vals::Vector{T}
     # M[i, j]
     ij::Vector{Pair{Int, Int}}
@@ -183,9 +183,9 @@ function lvmul!(S::Adjoint{T, SparseCBMatrix{T}}, M::Matrix{T}) where T
     # I * M done automatically
     # P * M
     @inbounds for k in axes(M, 2)
-        @simd for n in eachindex(S.ij)
-            i, j = S.ij[n]
-            M[i, k] = muladd(S.vals[n], M[j, k], M[i, k])
+        @simd for n in eachindex(S.parent.ij)
+            i, j = S.parent.ij[n]
+            M[i, k] = muladd(S.parent.vals[n], M[j, k], M[i, k])
         end
     end
     return M
@@ -248,19 +248,18 @@ function vmul!(trg::Matrix{T}, src::Matrix{T}, cb::CheckerboardDecomposed{T}) wh
     return trg
 end
 
-function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::Matrix{T}) where T
+function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::Matrix{T}) where {T <: Real}
     # D' P' ⋯ P' M
-   
-    vmul!(trg, adjoint(cb.diag), src)
+    vmul!(trg, adjoint(cb.parent.diag), src)
 
-    for P in reverse(cb.parts)
+    for P in reverse(cb.parent.parts)
         lvmul!(adjoint(P), trg)
     end
 
     # This if should be resolved at compile time I think...
-    if cb.squared
-        @inbounds for i in 2:length(cb.parts)
-            lvmul!(adjoint(cb.parts[i]), trg)
+    if cb.parent.squared
+        @inbounds for i in 2:length(cb.parent.parts)
+            lvmul!(adjoint(cb.parent.parts[i]), trg)
         end
     end
     

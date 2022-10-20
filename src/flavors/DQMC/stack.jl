@@ -241,7 +241,7 @@ function init_hopping_matrices(mc::DQMC, m::Model)
         mc.stack.hopping_matrix_exp = CheckerboardDecomposed(T, l, T -> -0.5 * dtau * T, false)
         mc.stack.hopping_matrix_exp_inv = CheckerboardDecomposed(T, l, T -> 0.5 * dtau * T, false)
         mc.stack.hopping_matrix_exp_squared = CheckerboardDecomposed(T, l, T -> -0.5 * dtau * T, true)
-        mc.stack.hopping_matrix_exp_inv_squared = CheckerboardDecomposed(T, l, T -> 0.5 * dtau * T, false)
+        mc.stack.hopping_matrix_exp_inv_squared = CheckerboardDecomposed(T, l, T -> 0.5 * dtau * T, true)
     end
 
     nothing

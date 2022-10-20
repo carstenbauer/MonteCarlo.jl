@@ -67,7 +67,7 @@ function vmul!(C::Matrix{T}, X1::Adjoint{T}, X2::Adjoint{T}) where {T <: Real}
     end
 end
 
-function vmul!(C::MT, D::Adjoint{<: Real, <:Diagonal}, B::MT) where {MT <: AbstractMatrix}
+function vmul!(C::MT, D::Adjoint{T, <: Diagonal}, B::MT) where {T <: Real, MT <: Matrix{T}}
     vmul!(C, D.parent, B)
 end
 
