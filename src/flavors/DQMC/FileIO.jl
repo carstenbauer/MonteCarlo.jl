@@ -30,7 +30,7 @@ function _load(data, ::Val{:DQMC})
     
     parameters = _load(data["Parameters"])
     if haskey(data, "CB")
-        parameters = DQMCParameters(parameters, data["CB"])
+        parameters = DQMCParameters(parameters, checkerboard = data["CB"])
     end
     tag = Val(Symbol(get(data["Analysis"], "tag", :DQMCAnalysis)))
     analysis = _load(data["Analysis"], tag)
@@ -62,7 +62,7 @@ function _load(data, ::Val{:DQMC})
     thermalization_measurements = combined_measurements[:TH]
     measurements = combined_measurements[:ME]
 
-    stack = DQMCStack(field, model)
+    stack = DQMCStack(field, model, parameters.checkerboard)
     ut_stack = UnequalTimeStack{geltype(stack), gmattype(stack)}()
     
     DQMC(

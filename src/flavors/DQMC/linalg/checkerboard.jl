@@ -171,6 +171,19 @@ function lvmul!(S::SparseCBMatrix{T}, M::Matrix{T}) where T
     # P * M
     @inbounds for k in axes(M, 2)
         @simd for n in eachindex(S.ij)
+            j, i = S.ij[n]
+            M[i, k] = muladd(conj(S.vals[n]), M[j, k], M[i, k])
+        end
+    end
+    return M
+end
+
+function lvmul!(S::Adjoint{T, SparseCBMatrix{T}}, M::Matrix{T}) where T
+    # O(N^2/2)
+    # I * M done automatically
+    # P * M
+    @inbounds for k in axes(M, 2)
+        @simd for n in eachindex(S.ij)
             i, j = S.ij[n]
             M[i, k] = muladd(S.vals[n], M[j, k], M[i, k])
         end
@@ -200,6 +213,9 @@ end
 # With squared = false they calculate P1 P2 ⋯ PN * D
 # With squared = true: PN ⋯ P1 ⋯ PN * D (where P1 and D is already squared beforehand)
 function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}) where T
+    # P ⋯ P D M
+    # maybe worth doing (I P) ⋯ P D
+    # can't do that with only two matrices. need third as temp, so do outside?
     vmul!(trg, cb.diag, src)
 
     for P in reverse(cb.parts)
@@ -231,5 +247,24 @@ function vmul!(trg::Matrix{T}, src::Matrix{T}, cb::CheckerboardDecomposed{T}) wh
 
     rvmul!(trg, cb.diag)
 
+    return trg
+end
+
+function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::Matrix{T}) where T
+    # D' P' ⋯ P' M
+   
+    vmul!(trg, adjoint(cb.diag), src)
+
+    for P in reverse(cb.parts)
+        lvmul!(adjoint(P), trg)
+    end
+
+    # This if should be resolved at compile time I think...
+    if cb.squared
+        @inbounds for i in 2:length(cb.parts)
+            lvmul!(adjoint(cb.parts[i]), trg)
+        end
+    end
+    
     return trg
 end

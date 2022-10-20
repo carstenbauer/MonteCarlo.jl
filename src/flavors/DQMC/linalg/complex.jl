@@ -205,6 +205,13 @@ end
     vmuladd!(C.im, adjoint(A.im), adjoint(B.re), -1.0)
 end
 
+function vmul!(C::CMat64, D::Adjoint{<: Complex, <:Diagonal}, B::CMat64)
+    vmul!(   C.re, Diagonal(D.parent.diag.re), B.re)
+    vmuladd!(C.re, Diagonal(D.parent.diag.im), B.im)
+    vmul!(   C.im, Diagonal(D.parent.diag.re), B.im)
+    vmuladd!(C.im, Diagonal(D.parent.diag.im), B.re, -1.0)
+end
+
 # tested
 @inline function rvmul!(A::CMat64, B::Diagonal{T}) where {T <: Real}
     rvmul!(A.re, B)
