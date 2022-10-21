@@ -1,10 +1,20 @@
 # Representing M = I + P where P[i, j] != 0 => P[i, !j] = P[j, :] = 0
 # These could actually be StaticArrays I think. Or tuples I guess
+# TODO: try flv x flv values maybe?
 struct SparseCBMatrix{T} <: AbstractMatrix{T}
     vals::Vector{T}
     # M[i, j]
     is::Vector{Int}
     js::Vector{Int}
+end
+
+# printing
+function Base.display(x::SparseCBMatrix{T}) where T
+    println(stdout, "SparseCBMatrix{$T}:")
+    for (i, j, v) in zip(x.is, x.js, x.vals)
+        println(stdout, "    [$i, $j] -> $v")
+    end
+    return
 end
 
 struct CheckerboardDecomposed{T} <: AbstractMatrix{T}
@@ -15,6 +25,11 @@ struct CheckerboardDecomposed{T} <: AbstractMatrix{T}
     squared::Bool
 end
 
+# printing
+function Base.display(x::CheckerboardDecomposed{T}) where T
+    println(stdout, "CheckerboardDecomposed{$T} with 1+$(length(x.parts)) parts")
+    return
+end
 
 ################################################################################
 ### Constructor
@@ -208,6 +223,26 @@ function rvmul!(M::Matrix{T}, S::SparseCBMatrix{T}) where T
     return M
 end
 
+function rvmulc!(M::Matrix{T}, S::SparseCBMatrix{T}) where T
+    @inbounds for n in eachindex(S.is)
+        j = S.is[n]; k = S.js[n]
+        @turbo for i in axes(M, 1) # fast loop :)
+            M[i, k] = muladd(M[i, j], conj(S.vals[n]), M[i, k])
+        end
+    end
+    return M
+end
+
+function rvmul!(M::Matrix{T}, S::Transpose{T, SparseCBMatrix{T}}) where T
+    @inbounds for n in eachindex(S.parent.is)
+        k = S.parent.is[n]; j = S.parent.js[n] # transpose
+        @turbo for i in axes(M, 1) # fast loop :)
+            M[i, k] = muladd(M[i, j], S.parent.vals[n], M[i, k])
+        end
+    end
+    return M
+end
+
 
 
 # Note
@@ -252,7 +287,7 @@ end
 
 function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::Matrix{T}) where {T <: Real}
     # D' P' ⋯ P' M
-    vmul!(trg, adjoint(cb.parent.diag), src)
+    copyto!(trg, src)
 
     for P in reverse(cb.parent.parts)
         lvmul!(adjoint(P), trg)
@@ -264,6 +299,70 @@ function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::M
             lvmul!(adjoint(cb.parent.parts[i]), trg)
         end
     end
+
+    lvmul!(adjoint(cb.parent.diag), trg)
+    
+    return trg
+end
+
+
+# What's better than A*B? That'S right, it's (B^T A^T)^T because 
+# LoopVectorization is just that good
+
+vmul!(trg, A, B, tmp) = vmul!(trg, A, B)
+function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}, tmp::Matrix{T}) where T
+    # PN ⋯ P1 ⋯ PN D M = ((D M)^T PN^T ⋯ P1^T ⋯ PN^T)^T
+    vmul!(trg, cb.diag, src)
+
+    @turbo for i in axes(trg, 1), j in axes(trg, 2)
+        tmp[i, j] = trg[j, i]
+    end
+
+    # rvmul!(tmp, cb.diag)
+
+    for P in reverse(cb.parts)
+        rvmul!(tmp, transpose(P))
+    end
+
+    # This if should be resolved at compile time I think...
+    if cb.squared
+        @inbounds for i in 2:length(cb.parts)
+            rvmul!(tmp, transpose(cb.parts[i]))
+        end
+    end
+    
+    @turbo for i in axes(trg, 1), j in axes(trg, 2)
+        trg[i, j] = tmp[j, i]
+    end
+
+    return trg
+end
+
+function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::Matrix{T}, tmp::Matrix{T}) where {T <: Real}
+    # D' PN' ⋯ P1' ⋯ PBN' M = D' (M^T conj(PN) ⋯ conj(P1) ⋯ conj(PN) )^T
+    # TODO conj
+
+    @turbo for i in axes(trg, 1), j in axes(trg, 2)
+        trg[i, j] = src[j, i]
+    end
+
+    for P in reverse(cb.parent.parts)
+        rvmulc!(trg, P)
+    end
+
+    # This if should be resolved at compile time I think...
+    if cb.parent.squared
+        @inbounds for i in 2:length(cb.parent.parts)
+            rvmulc!(trg, cb.parent.parts[i])
+        end
+    end
+    
+    @turbo for i in axes(trg, 1), j in axes(trg, 2)
+        tmp[i, j] = trg[j, i]
+    end
+
+    vmul!(trg, adjoint(cb.parent.diag), tmp)
+
     
     return trg
 end
