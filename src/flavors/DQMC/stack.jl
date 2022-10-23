@@ -96,7 +96,7 @@ imattype(mc::DQMC) = imattype(mc.stack)
 # end
 
 function to_checkerboard_type(::Type{Matrix{T}}) where {T <: Union{ComplexF64, Float64}}
-    CheckerboardDecomposed{T}
+    CheckerboardDecomposed2{T}
 end
 function to_checkerboard_type(::Type{BlockDiagonal{T, N, MT}}) where {T, N, MT}
     BlockDiagonal{T, N, to_checkerboard_type(MT)}
@@ -104,7 +104,7 @@ end
 function to_checkerboard_type(::Type{CMat64})
     StructArray{
         ComplexF64, 2, 
-        NamedTuple{(:re, :im), Tuple{CheckerboardDecomposed{Float64}, CheckerboardDecomposed{Float64}}}, 
+        NamedTuple{(:re, :im), Tuple{CheckerboardDecomposed2{Float64}, CheckerboardDecomposed2{Float64}}}, 
         Int64
     }
 end
@@ -238,10 +238,15 @@ function init_hopping_matrices(mc::DQMC, m::Model)
         mc.stack.hopping_matrix_exp_inv_squared = mc.stack.hopping_matrix_exp_inv * mc.stack.hopping_matrix_exp_inv
     else
         l = lattice(mc)
-        mc.stack.hopping_matrix_exp = CheckerboardDecomposed(T, l, T -> -0.5 * dtau * T, false)
-        mc.stack.hopping_matrix_exp_inv = CheckerboardDecomposed(T, l, T -> 0.5 * dtau * T, false)
-        mc.stack.hopping_matrix_exp_squared = CheckerboardDecomposed(T, l, T -> -0.5 * dtau * T, true)
-        mc.stack.hopping_matrix_exp_inv_squared = CheckerboardDecomposed(T, l, T -> 0.5 * dtau * T, true)
+        mc.stack.hopping_matrix_exp = CheckerboardDecomposed2(T, l, -0.5 * dtau, false)
+        mc.stack.hopping_matrix_exp_inv = CheckerboardDecomposed2(T, l, 0.5 * dtau, false)
+        mc.stack.hopping_matrix_exp_squared = CheckerboardDecomposed2(T, l, -0.5 * dtau, true)
+        mc.stack.hopping_matrix_exp_inv_squared = CheckerboardDecomposed2(T, l, 0.5 * dtau, true)
+        
+        # mc.stack.hopping_matrix_exp = CheckerboardDecomposed(T, l, T -> -0.5 * dtau * T, false)
+        # mc.stack.hopping_matrix_exp_inv = CheckerboardDecomposed(T, l, T -> 0.5 * dtau * T, false)
+        # mc.stack.hopping_matrix_exp_squared = CheckerboardDecomposed(T, l, T -> -0.5 * dtau * T, true)
+        # mc.stack.hopping_matrix_exp_inv_squared = CheckerboardDecomposed(T, l, T -> 0.5 * dtau * T, true)
     end
 
     nothing

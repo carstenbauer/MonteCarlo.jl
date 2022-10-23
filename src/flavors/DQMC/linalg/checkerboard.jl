@@ -1,6 +1,8 @@
 # Representing M = I + P where P[i, j] != 0 => P[i, !j] = P[j, :] = 0
 # These could actually be StaticArrays I think. Or tuples I guess
 # TODO: try flv x flv values maybe?
+
+# Note: This may not be completely up to date anymore...
 struct SparseCBMatrix{T} <: AbstractMatrix{T}
     vals::Vector{T}
     # M[i, j]
@@ -27,8 +29,18 @@ end
 
 # printing
 function Base.display(x::CheckerboardDecomposed{T}) where T
-    println(stdout, "CheckerboardDecomposed{$T} with 1+$(length(x.parts)) parts")
+    println(stdout, "CheckerboardDecomposed{$T} with 1+$(length(x.parts)) parts representing:")
+    display(Matrix(x))
     return
+end
+
+function Base.Matrix(x::CheckerboardDecomposed{T}) where T
+    N = length(x.diag.diag)
+    output = Matrix{T}(undef, N, N)
+    id = Matrix{T}(I, N, N)
+    tmp = similar(output)
+    vmul!(output, id, x, tmp)
+    return output
 end
 
 ################################################################################
@@ -36,9 +48,9 @@ end
 ################################################################################
 
 
-function CheckerboardDecomposed(B::BlockDiagonal, lattice, transform, is_squared)
+function CheckerboardDecomposed(B::BlockDiagonal, args...)
     return BlockDiagonal(map(
-        b -> CheckerboardDecomposed(b, lattice, transform, is_squared), B.blocks
+        b -> CheckerboardDecomposed(b, args...), B.blocks
     ))
 end
 # function CheckerboardDecomposed(C::CMat64, lattice, transform, is_squared)
@@ -47,13 +59,14 @@ end
 #         CheckerboardDecomposed(C.im, lattice, transform, is_squared)
 #     )
 # end
-function CheckerboardDecomposed(M::Matrix, lattice, transform, is_squared)
+
+function CheckerboardDecomposed(M::Matrix, lattice, factor, is_squared)
 
     N = length(lattice)
     flv = div(size(M, 1), N)
     checkerboard, groups, n_grps = build_checkerboard(lattice)
 
-    D = Diagonal(exp.(transform.(diag(M))))
+    D = Diagonal(exp.(factor .* diag(M)))
     parts = SparseCBMatrix{eltype(M)}[]
 
     for group in groups
@@ -69,7 +82,7 @@ function CheckerboardDecomposed(M::Matrix, lattice, transform, is_squared)
 
             for f1 in 0:N:(flv-1)*N, f2 in 0:N:(flv-1)*N
                 # transform should now just do -0.5 * dtau * temp
-                vals[idx] = transform(M[trg+f1, src+f2]) 
+                vals[idx] = factor * M[trg+f1, src+f2]
                 is[idx] = src
                 js[idx] = trg
                 idx += 1
@@ -85,8 +98,12 @@ function CheckerboardDecomposed(M::Matrix, lattice, transform, is_squared)
     # squared Checkerboard matrices come together as Tn ... T1 T1 ... eTn
     # Don't ask me why though
     if is_squared
-        parts[1] = parts[1] * parts[1]
+        # parts[1] = parts[1] * parts[1]
         D = D * D
+    end
+
+    if factor > 0.0
+        reverse(parts)
     end
 
     return CheckerboardDecomposed(D, parts, is_squared)
@@ -110,6 +127,10 @@ rem_eff_zeros!(X::AbstractArray) = map!(e -> abs.(e)<1e-15 ? zero(e) : e,X,X)
 # Note
 # getindex and Matrix() are not well defined... Depending on the transform we 
 # used we may need to add or multiple the internal matrices
+
+################################################################################
+### SparseCBMatrix
+################################################################################
 
 # not for performant code
 function Base.:(*)(A::SparseCBMatrix{T}, B::SparseCBMatrix{T}) where T
@@ -243,7 +264,9 @@ function rvmul!(M::Matrix{T}, S::Transpose{T, SparseCBMatrix{T}}) where T
     return M
 end
 
-
+################################################################################
+### CheckerboardDecomposed
+################################################################################
 
 # Note
 # These are rather specialized in what they calculate.
@@ -253,14 +276,14 @@ function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}) wh
     # P ⋯ P D M
     vmul!(trg, cb.diag, src)
 
-    for P in reverse(cb.parts)
+    for P in cb.parts
         lvmul!(P, trg)
     end
 
     # This if should be resolved at compile time I think...
     if cb.squared
-        @inbounds for i in 2:length(cb.parts)
-            lvmul!(cb.parts[i], trg)
+        @inbounds for P in cb.parts
+            lvmul!(P, trg)
         end
     end
     
@@ -270,13 +293,13 @@ end
 function vmul!(trg::Matrix{T}, src::Matrix{T}, cb::CheckerboardDecomposed{T}) where T
     copyto!(trg, src)
 
-    for P in reverse(cb.parts)
+    for P in cb.parts
         rvmul!(trg, P)
     end
     
     if cb.squared
-        @inbounds for i in 2:length(cb.parts)
-            rvmul!(trg, cb.parts[i])
+        @inbounds for P in cb.parts
+            rvmul!(trg, P)
         end
     end
 
@@ -289,14 +312,14 @@ function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::M
     # D' P' ⋯ P' M
     copyto!(trg, src)
 
-    for P in reverse(cb.parent.parts)
+    for P in cb.parent.parts
         lvmul!(adjoint(P), trg)
     end
 
     # This if should be resolved at compile time I think...
     if cb.parent.squared
-        @inbounds for i in 2:length(cb.parent.parts)
-            lvmul!(adjoint(cb.parent.parts[i]), trg)
+        @inbounds for P in cb.parent.parts
+            lvmul!(adjoint(P), trg)
         end
     end
 
@@ -320,14 +343,14 @@ function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}, tm
 
     # rvmul!(tmp, cb.diag)
 
-    for P in reverse(cb.parts)
+    for P in cb.parts
         rvmul!(tmp, transpose(P))
     end
 
     # This if should be resolved at compile time I think...
     if cb.squared
-        @inbounds for i in 2:length(cb.parts)
-            rvmul!(tmp, transpose(cb.parts[i]))
+        @inbounds for P in cb.parts
+            rvmul!(tmp, transpose(P))
         end
     end
     
@@ -346,14 +369,14 @@ function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::M
         trg[i, j] = src[j, i]
     end
 
-    for P in reverse(cb.parent.parts)
+    for P in cb.parent.parts
         rvmulc!(trg, P)
     end
 
     # This if should be resolved at compile time I think...
     if cb.parent.squared
-        @inbounds for i in 2:length(cb.parent.parts)
-            rvmulc!(trg, cb.parent.parts[i])
+        @inbounds for P in cb.parent.parts
+            rvmulc!(trg, P)
         end
     end
     

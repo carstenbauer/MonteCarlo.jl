@@ -91,14 +91,14 @@ exponentials from left and right.
 
 Inplace version of `greens`.
 """
-@bm function greens!(mc::DQMC; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.curr_U)
+@bm function greens!(mc::DQMC; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.curr_U, temp2 = mc.stack.tmp2)
     # TODO rework measurements to work well with StructArrays and remove this    
     if isdefined(mc.stack, :complex_greens_temp)
-        _greens!(mc, output, input, temp)
+        _greens!(mc, output, input, temp, temp2)
         copyto!(mc.stack.complex_greens_temp, output)
         GreensMatrix(0, 0, mc.stack.complex_greens_temp)
     else
-        GreensMatrix(0, 0, _greens!(mc, output, input, temp))
+        GreensMatrix(0, 0, _greens!(mc, output, input, temp, temp2))
     end
 end
 
@@ -113,12 +113,14 @@ end
 
 function _greens!(
         mc::DQMC, target::AbstractMatrix = mc.stack.greens_temp, 
-        source::AbstractMatrix = mc.stack.greens, temp::AbstractMatrix = mc.stack.curr_U
+        source::AbstractMatrix = mc.stack.greens, 
+        temp::AbstractMatrix = mc.stack.curr_U,
+        temp2::AbstractMatrix = mc.stack.tmp2
     )
     eThalfminus = mc.stack.hopping_matrix_exp
     eThalfplus = mc.stack.hopping_matrix_exp_inv
-    vmul!(temp, source, eThalfminus)
-    vmul!(target, eThalfplus, temp)
+    vmul!(temp, source, eThalfminus, temp2)
+    vmul!(target, eThalfplus, temp, temp2)
     return target
 end
 

@@ -19,7 +19,7 @@ include("updates.jl")
 include("repeating.jl")
 
 # Checkerboard decomposition
-include("checkerboard.jl")
+include("checkerboard2.jl")
 
 # There is some additional glue code here
 

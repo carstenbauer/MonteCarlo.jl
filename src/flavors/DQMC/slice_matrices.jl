@@ -13,7 +13,7 @@ end
     )
     # M eT^2 eV
     interaction_matrix_exp!(mc, m, field, mc.stack.eV, slice, 1.0)
-    vmul!(mc.stack.tmp1, M, mc.stack.hopping_matrix_exp_squared)
+    vmul!(mc.stack.tmp1, M, mc.stack.hopping_matrix_exp_squared, mc.stack.tmp2)
     vmul!(M, mc.stack.tmp1, mc.stack.eV)
     nothing
 end
@@ -24,7 +24,7 @@ end
     # M * eV^-1 eT2^-1 
     interaction_matrix_exp!(mc, m, field, mc.stack.eV, slice, -1.0)
     vmul!(mc.stack.tmp1, M, mc.stack.eV)
-    vmul!(M, mc.stack.tmp1, mc.stack.hopping_matrix_exp_inv_squared)
+    vmul!(M, mc.stack.tmp1, mc.stack.hopping_matrix_exp_inv_squared, mc.stack.tmp2)
     nothing
 end
 

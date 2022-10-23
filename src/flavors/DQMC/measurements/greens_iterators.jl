@@ -231,7 +231,7 @@ Base.length(it::_CombinedGreensIterator) = length(it.spec)
 
         if it.spec.start == 0
             # return for G00 iteration
-            Gll = _greens!(it.mc, uts.greens, s.tmp1, s.tmp2)
+            Gll = _greens!(it.mc, uts.greens, s.tmp1, s.tmp2, uts.tmp)
             Gl0 = copyto!(s.tmp1, uts.greens)
             G0l = copyto!(s.tmp2, uts.greens)
             if it.copy_to_array
@@ -259,16 +259,20 @@ Base.length(it::_CombinedGreensIterator) = length(it.spec)
         copyto!(uts.tmp, uts.greens)
         calculate_greens_full1!(it.mc, it.mc.ut_stack, it.spec.start, it.spec.start)
 
+        # keep alive: curr_U, uts.tmp + all T
         copyto!(uts.T, uts.greens)
-        Gll = _greens!(it.mc, uts.greens, uts.T, s.tmp2) 
-        udt_AVX_pivot!(uts.U, uts.D, uts.T, s.pivot, s.tempv)
-
-        Gl0 = _greens!(it.mc, s.tmp1, s.curr_U, s.tmp2)
-        copyto!(s.Tl, s.curr_U)
-        udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, s.pivot, s.tempv)
+        Gll = _greens!(it.mc, uts.greens, uts.T, s.tmp1, uts.U)  # (trg, src, tmp, tmp2)
         
-        G0l = _greens!(it.mc, s.tmp2, uts.tmp, s.curr_U)
+        # keep alive: uts.greens, curr_U, uts.tmp + all T
+        Gl0 = _greens!(it.mc, s.tmp1, s.curr_U, s.tmp2, uts.U)
+        copyto!(s.Tl, s.curr_U)
+        
+        # keep alive: uts.greens, s.tmp1, uts.tmp + all T
+        G0l = _greens!(it.mc, s.tmp2, uts.tmp, s.curr_U, uts.U)
         copyto!(s.Tr, uts.tmp)
+
+        udt_AVX_pivot!(uts.U, uts.D, uts.T, s.pivot, s.tempv)
+        udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, s.pivot, s.tempv)
         udt_AVX_pivot!(s.Ur, s.Dr, s.Tr, s.pivot, s.tempv)
 
         if it.copy_to_array
@@ -312,17 +316,17 @@ end
         calculate_greens_full1!(it.mc, it.mc.ut_stack, l, l)
 
         # input and output can be the same here
+        # keep alive: all T
         copyto!(uts.T, uts.greens)
-        Gll = _greens!(it.mc, uts.greens, uts.T, s.tmp2) 
-        udt_AVX_pivot!(uts.U, uts.D, uts.T, s.pivot, s.tempv)
-
-        Gl0 = _greens!(it.mc, s.tmp1, s.curr_U, s.tmp2)
+        Gll = _greens!(it.mc, uts.greens, uts.T, s.tmp2, uts.U) 
         copyto!(s.Tl, s.curr_U)
-        udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, s.pivot, s.tempv)
-        
-        G0l = _greens!(it.mc, s.tmp2, uts.tmp, s.curr_U)
+        Gl0 = _greens!(it.mc, s.tmp1, s.curr_U, s.tmp2, uts.U)        
         copyto!(s.Tr, uts.tmp)
-        udt_AVX_pivot!(s.Ur, s.Dr, s.Tr, s.pivot, s.tempv)
+        G0l = _greens!(it.mc, s.tmp2, uts.tmp, s.curr_U, uts.U)
+
+        udt_AVX_pivot!(uts.U,  uts.D,  uts.T,  s.pivot, s.tempv)
+        udt_AVX_pivot!(  s.Ul,   s.Dl,   s.Tl, s.pivot, s.tempv)
+        udt_AVX_pivot!(  s.Ur,   s.Dr,   s.Tr, s.pivot, s.tempv)
 
         if it.copy_to_array
             return ((
@@ -346,13 +350,15 @@ end
         multiply_slice_matrix_left!(it.mc, it.mc.model, l, uts.U)
         multiply_slice_matrix_inv_right!(it.mc, it.mc.model, l, uts.T)
 
+        # keep alive: all U D T
+
         # Gl0
         vmul!(s.tmp1, s.Ul, Diagonal(s.Dl))
         vmul!(s.tmp2, s.tmp1, s.Tl)
         udt_AVX_pivot!(s.Ul, s.Dl, s.tmp1, s.pivot, s.tempv)
         vmul!(s.curr_U, s.tmp1, s.Tl)
         copyto!(s.Tl, s.curr_U)
-        Gl0 = _greens!(it.mc, s.tmp1, s.tmp2, s.curr_U)
+        Gl0 = _greens!(it.mc, s.tmp1, s.tmp2, s.curr_U, uts.tmp)
         # tmp1 must not change anymore
         
         # G0l
@@ -362,7 +368,7 @@ end
         udt_AVX_pivot!(s.tmp2, s.Dr, s.Tr, s.pivot, s.tempv)
         vmul!(s.curr_U, s.Ur, s.tmp2)
         copyto!(s.Ur, s.curr_U)
-        G0l = _greens!(it.mc, s.tmp2, uts.greens, s.curr_U)
+        G0l = _greens!(it.mc, s.tmp2, uts.greens, s.curr_U, uts.tmp)
         # tmp1, tmp2 must not change anymore
         
         # Gll
@@ -373,7 +379,7 @@ end
         vmul!(uts.T, Diagonal(uts.D), uts.U)
         udt_AVX_pivot!(uts.tmp, uts.D, uts.T, it.mc.stack.pivot, it.mc.stack.tempv)
         vmul!(uts.U, s.curr_U, uts.tmp)
-        Gll = _greens!(it.mc, uts.greens, uts.greens, s.curr_U)
+        Gll = _greens!(it.mc, uts.greens, uts.greens, s.curr_U, uts.tmp)
 
         if it.copy_to_array
             return ((
@@ -400,17 +406,17 @@ end
         # Gl0
         vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
         vmul!(s.tmp2, s.curr_U, s.Tl)
-        Gl0 = _greens!(it.mc, s.tmp1, s.tmp2, s.curr_U)
+        Gl0 = _greens!(it.mc, s.tmp1, s.tmp2, s.curr_U, uts.tmp)
 
         # G0l
         vmul!(s.curr_U, s.Ur, Diagonal(s.Dr))
         vmul!(uts.greens, s.curr_U, s.Tr)
-        G0l = _greens!(it.mc, s.tmp2, uts.greens, s.curr_U)
+        G0l = _greens!(it.mc, s.tmp2, uts.greens, s.curr_U, uts.tmp)
 
         # Gll
         vmul!(s.curr_U, uts.U, Diagonal(uts.D))
         vmul!(uts.greens, s.curr_U, uts.T)
-        Gll = _greens!(it.mc, uts.greens, uts.greens, s.curr_U)
+        Gll = _greens!(it.mc, uts.greens, uts.greens, s.curr_U, uts.tmp)
 
         if it.copy_to_array
             return ((
