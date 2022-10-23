@@ -117,7 +117,6 @@ function CheckerboardDecomposed2(M::Matrix, lattice, factor, is_squared)
     # i.e. for inverted matrices the order needs to swap
     # I have also not checked if the current order is correct...
     if factor > 0.0 # inverted
-        @info "reversing"
         reverse!(parts)
     end
     
