@@ -1,12 +1,18 @@
+abstract type AbstractDQMCStack end
+
+abstract type AbstractUpdateScheduler end
+init!(s::AbstractUpdateScheduler, mc, model) = s
+
+abstract type AbstractField end
+abstract type AbstractFieldCache end
+
+
 # Optimized math and matrix types
 include("linalg/main.jl")
 
 # Statistics for the DQMC simulation runtime. This has nothin to do with 
 # measurements/observables.
 include("statistics.jl")
-
-# Some tapes, checkerboard stuff (which has been neglected a lot)
-include("abstract.jl")
 
 # contains `DQMCParameters` which holds parameters relevant to DQMC and the 
 # general simulation. 
