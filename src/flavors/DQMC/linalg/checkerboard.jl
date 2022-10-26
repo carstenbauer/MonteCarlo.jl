@@ -10,8 +10,7 @@ they are always present.
 function build_checkerboard(l::AbstractLattice)
     # @assert all(l.Ls .> 2) "Error become very large for tiny system sizes"
     bs = view(unitcell(l).bonds, unitcell(l)._directed_indices)
-
-    # TODO filtering doesn't work yet
+    
     # Unit cell bonds can match up with the Bravais lattice size to create 
     # duplicate pairs. For example a bond with uc_shift = (2, 0) on a L = 4 
     # lattice can generate src = (2, 0) -> trg = (4, 0) and it's reverse 
@@ -21,11 +20,27 @@ function build_checkerboard(l::AbstractLattice)
     # filter them out here.
 
     base_groups = map(bs) do uc_bond
-        map(eachindex(Bravais(l))) do src
+        group = map(eachindex(Bravais(l))) do src
             global_bond = MonteCarlo._shift_Bravais(l, src, uc_bond)
             MonteCarlo.from(global_bond) => MonteCarlo.to(global_bond)
-        end |> unique
-        # unique to avoid duplicates
+        end
+
+        # remove dublicates
+        i = 1
+        while i < length(group)
+            j = i+1
+            src, trg = group[i]
+            while j <= length(group)
+                if (Pair(src, trg) == group[j]) || (Pair(trg, src) == group[j])
+                    deleteat!(group, j)
+                else
+                    j += 1
+                end
+            end
+            i += 1
+        end
+
+        return group
     end
 
     # avoid duplicates across groups
@@ -37,9 +52,10 @@ function build_checkerboard(l::AbstractLattice)
         end
     end
 
-    # I'm guessing either every src becomes a trg or none does...
-    # this seems to do the trick for even lattice sizes
-    # I guess for uneven L we need a rest group
+    # split groups like [(i, j), (j, k), (k, l), ...]
+    # into two groups [(i, j), (k, l), ...], [(j, k), (l, ...), ...]
+    # for uneven lattices we need a third group. 
+    # For example 3 sites (i, j) (j, k), (k, i) need to split into 3 groups
     groups = Vector{Pair{Int, Int}}[]
     for base_group in base_groups
         src, trg = base_group[1]
@@ -83,6 +99,7 @@ end
 Reduced Representation of M[i, j] with M[j, i] implied in multiplications
 """
 struct SparseCBMatrix{T} <: AbstractMatrix{T}
+    # switching this to a single value seems oddly irrelevant... maybe test again later
     vals::Vector{T}
     is::Vector{Int}
     js::Vector{Int}
