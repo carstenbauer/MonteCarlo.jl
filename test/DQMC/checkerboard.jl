@@ -79,6 +79,10 @@ using BinningAnalysis
                 vals2 = mc2[key].observable.x
                 if Base.Sys.isapple()
                     println(key)
+                    println(vals1)
+                    println("---")
+                    println(vals2)
+                    println("---")
                     for delta in vals1 .- vals2
                         println(extrema(abs.(delta)))
                     end
