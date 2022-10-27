@@ -353,16 +353,16 @@ function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}, tm
     if cb.squared
         # 2N part products 
         vmul!(trg, cb.diag, src)
-        tmp_trg = tmp
         tmp_src = trg
-    elseif iseven(length(cb.diag))
+        tmp_trg = tmp
+    elseif iseven(length(cb.parts))
         vmul!(trg, cb.diag, src)
-        tmp_trg = tmp
         tmp_src = trg
+        tmp_trg = tmp
     else
         vmul!(tmp, cb.diag, src)
-        tmp_trg = trg
         tmp_src = tmp
+        tmp_trg = trg
     end
 
     # transpose
@@ -396,7 +396,7 @@ function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}, tm
         tmp_trg[i, j] = tmp_src[j, i]
     end
 
-    @assert tmp_trg === trg
+    @assert tmp_trg === trg "$(length(cb.parts)) $(cb.squared)"
 
     return trg
 end
