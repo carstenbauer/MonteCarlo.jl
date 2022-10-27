@@ -17,7 +17,7 @@ using BinningAnalysis
         TriangularLattice(7),
         Honeycomb(4)
     ]
-    rtols = (1e-12, 1e-3, 1e-14, 1e-15, 1e-3, 1e-3, 1e-3)
+    rtols = (1e-11, 1e-3, 1e-14, 1e-15, 1e-3, 1e-3, 1e-3)
     for (rtol, l) in zip(rtols, lattices)
         @testset "$l" begin
             pos = collect(MonteCarlo.positions(l))
