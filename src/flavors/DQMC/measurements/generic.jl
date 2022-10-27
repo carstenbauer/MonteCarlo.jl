@@ -384,6 +384,15 @@ end
         Gll = maybe_repeating(mc, gll)
         packed_greens = (G00, G0l, Gl0, Gll)
 
+        if any(isnan, G00.val) || any(isnan, G0l.val) || any(isnan, Gl0.val) || any(isnan, Gll.val)
+            println(G00.val)
+            println(Gl0.val)
+            println(G0l.val)
+            println(Gll.val)
+            println(mc.stack.greens)
+            error("Why though?")
+        end
+
         for (lattice_iterator, measurement) in combined
             measurement.lattice_iterator isa Restructure && continue
             measure!(lattice_iterator, measurement, mc, packed_greens, weight)

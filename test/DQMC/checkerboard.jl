@@ -10,14 +10,14 @@ using BinningAnalysis
     # - [] no staggering within a group
     lattices = [
         SquareLattice(2),
-        SquareLattice(3),
-        SquareLattice(4),
-        Honeycomb(2),
-        SquareLattice(6),
-        TriangularLattice(5),
-        Honeycomb(4)
+        # SquareLattice(3),
+        # SquareLattice(4),
+        # Honeycomb(2),
+        # SquareLattice(6),
+        # TriangularLattice(5),
+        # Honeycomb(4)
     ]
-    rtols = (1e-11, 1e-3, 1e-14, 1e-15, 1e-3, 1e-3, 1e-3)
+    rtols = (1e-11,)# 1e-3, 1e-14, 1e-15, 1e-3, 1e-3, 1e-3)
     for (rtol, l) in zip(rtols, lattices)
         @testset "$l" begin
             pos = collect(MonteCarlo.positions(l))
