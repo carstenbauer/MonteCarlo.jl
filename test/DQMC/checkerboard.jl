@@ -13,8 +13,8 @@ using BinningAnalysis
         SquareLattice(3),
         SquareLattice(4),
         Honeycomb(2),
-        SquareLattice(8),
-        TriangularLattice(7),
+        SquareLattice(6),
+        TriangularLattice(5),
         Honeycomb(4)
     ]
     rtols = (1e-11, 1e-3, 1e-14, 1e-15, 1e-3, 1e-3, 1e-3)
