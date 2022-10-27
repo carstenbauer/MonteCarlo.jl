@@ -77,6 +77,12 @@ using BinningAnalysis
             for key in (:G, :CDC, :CCS)
                 vals1 = mc1[key].observable.x
                 vals2 = mc2[key].observable.x
+                if Base.Sys.isapple()
+                    println(key)
+                    for delta in vals1 .- vals2
+                        println(extrema(abs.(delta)))
+                    end
+                end
                 @test all(isapprox.(vals1, vals2, atol = 1e-6, rtol = rtol))
             end
         end
