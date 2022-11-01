@@ -390,6 +390,16 @@ end
             println(G0l.val.val)
             println(Gll.val.val)
             println(mc.stack.greens)
+            println("--- --- --- ---")
+            println(mc.ut_stack.U)
+            println(mc.ut_stack.D)
+            println(mc.ut_stack.T)
+            println("---")
+            println(mc.ut_stack.tmp)
+            println(mc.ut_stack.greens)
+            println("---")
+            println(mc.stack.tpm1)
+            println(mc.stack.tpm2)
             error("Why though?")
         end
 
