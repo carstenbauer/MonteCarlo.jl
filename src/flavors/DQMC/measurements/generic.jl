@@ -391,15 +391,14 @@ end
             println(Gll.val.val)
             println(mc.stack.greens)
             println("--- --- --- ---")
-            println(mc.ut_stack.U)
-            println(mc.ut_stack.D)
-            println(mc.ut_stack.T)
-            println("---")
-            println(mc.ut_stack.tmp)
-            println(mc.ut_stack.greens)
-            println("---")
-            println(mc.stack.tpm1)
-            println(mc.stack.tpm2)
+            println("ut_stack")
+            for field in fieldnames(mc.ut_stack)
+                println("$field -> $(getfield(mc.ut_stack, field))")
+            end
+            println("stack")
+            for field in fieldnames(mc.ut_stack)
+                println("$field -> $(getfield(mc.stack, field))")
+            end
             error("Why though?")
         end
 
