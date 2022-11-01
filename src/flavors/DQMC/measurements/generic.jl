@@ -392,11 +392,11 @@ end
             println(mc.stack.greens)
             println("--- --- --- ---")
             println("ut_stack")
-            for field in fieldnames(mc.ut_stack)
+            for field in fieldnames(typeof(mc.ut_stack))
                 println("$field -> $(getfield(mc.ut_stack, field))")
             end
             println("stack")
-            for field in fieldnames(mc.ut_stack)
+            for field in fieldnames(typeof(mc.stack))
                 println("$field -> $(getfield(mc.stack, field))")
             end
             error("Why though?")
