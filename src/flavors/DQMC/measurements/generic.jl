@@ -385,6 +385,7 @@ end
         packed_greens = (G00, G0l, Gl0, Gll)
 
         if any(isnan, G00.val) || any(isnan, G0l.val) || any(isnan, Gl0.val) || any(isnan, Gll.val)
+            println(i)
             println(G00.val.val)
             println(Gl0.val.val)
             println(G0l.val.val)
@@ -393,11 +394,19 @@ end
             println("--- --- --- ---")
             println("ut_stack")
             for field in fieldnames(typeof(mc.ut_stack))
-                println("$field -> $(getfield(mc.ut_stack, field))")
+                if isdefined(mc.ut_stack, field)
+                    println("$field -> $(getfield(mc.ut_stack, field))")
+                else
+                    println("$field -> UNDEFINED")
+                end
             end
             println("stack")
             for field in fieldnames(typeof(mc.stack))
-                println("$field -> $(getfield(mc.stack, field))")
+                if isdefined(mc.stack, field)
+                    println("$field -> $(getfield(mc.stack, field))")
+                else
+                    println("$field -> UNDEFINED")
+                end
             end
             error("Why though?")
         end
