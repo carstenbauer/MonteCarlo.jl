@@ -71,6 +71,35 @@ end
     return M
 end
 
+@inline function reflectorApply_tracked!(M::StridedArray{<: Real}, τ::Real, k::Int, n::Int)
+    @info "reflectorApply!"
+    display(M)
+    println(M)
+    @inbounds for j = k+1:n
+        # dot
+        vAj = M[k, j]
+        #@turbo 
+        for i = k+1:n
+            vAj += conj(M[i, k]) * M[i, j]
+        end
+
+        @info τ, vAj
+        vAj = conj(τ)*vAj
+        @info vAj
+
+        # ger
+        M[k, j] -= vAj
+        #@turbo 
+        for i = k+1:n
+            M[i, j] -= M[i, k]*vAj
+        end
+    end
+    display(M)
+    println(M)
+    @info "---"
+    return M
+end
+
 
 """
     udt_AVX!(U::Matrix, D::Vector, T::Matrix)
@@ -341,8 +370,9 @@ function udt_AVX_pivot!(
             display(input)
         
             # x = LinearAlgebra.view(input, j:n, j)
-            reflectorApply!(input, τj, j, n)
+            reflectorApply_tracked!(input, τj, j, n)
             display(input)
+            println(input)
         end
 
         @info "input -> T:"
