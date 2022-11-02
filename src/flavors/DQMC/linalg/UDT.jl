@@ -302,10 +302,10 @@ function udt_AVX_pivot!(
     # end
 
     if _isnan(input)
-        println("NaN in UDT")
+        @info "NaN in UDT"
 
         copyto!(input, _temp)
-        println("Intial input:")
+        @info "Intial input:"
         println(input)
         display(input)
         
@@ -316,7 +316,9 @@ function udt_AVX_pivot!(
         end
         
         @inbounds for j = 1:n
+            @info input[:, j]
             jm, maxval = indmaxcolumn(input, j, n)
+            @info jm, maxval
 
             if jm != j
                 tmpp = pivot[jm]
@@ -329,15 +331,19 @@ function udt_AVX_pivot!(
                     input[i,j] = tmp
                 end
             end
-        
+            @info input[:, j]
+
             τj = reflector!(input, maxval, j, n)
             temp[j] = τj
+            @info τj
+            display(input)
         
             x = LinearAlgebra.view(input, j:n, j)
             reflectorApply!(input, τj, j, n)
+            display(input)
         end
 
-        println("input -> T:")
+        @info "input -> T:"
         display(input)
         
         copyto!(U, I)
@@ -358,23 +364,23 @@ function udt_AVX_pivot!(
             end
         end
         
-        println("U (calc Q):")
+        @info "U (calc Q):"
         display(U)
         
         @inbounds for i in 1:n
             D[i] = abs(input[i, i])
         end
         
-        println("strip D:")
+        @info "strip D:"
         display(D)
         
         _apply_pivot!(input, D, temp, pivot, apply_pivot)
 
-        println("U:")
+        @info "U:"
         display(U)
-        println("D:")
+        @info "D:"
         display(D)
-        println("T:")
+        @info "T:"
         display(input)
     end
 
