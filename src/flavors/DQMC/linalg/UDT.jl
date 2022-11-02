@@ -306,6 +306,7 @@ function udt_AVX_pivot!(
 
         copyto!(input, _temp)
         println("Intial input:")
+        println(input)
         display(input)
         
 
