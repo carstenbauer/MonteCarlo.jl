@@ -366,6 +366,12 @@ end
     nothing
 end
 
+_isnan(x::Matrix) = any(_isnan, x)
+_isnan(x::Vector) = any(_isnan, x)
+_isnan(x::Tuple) = any(_isnan, x)
+_isnan(x::Number) = isnan(x)
+_isnan(x) = false
+
 @bm function apply!(iter::TimeIntegral, combined::Vector{<: Tuple}, mc::DQMC)
     for (lattice_iterator, measurement) in combined
         prepare!(lattice_iterator, measurement, mc)
@@ -384,7 +390,29 @@ end
         Gll = maybe_repeating(mc, gll)
         packed_greens = (G00, G0l, Gl0, Gll)
 
-        if any(isnan, G00.val) || any(isnan, G0l.val) || any(isnan, Gl0.val) || any(isnan, Gll.val)
+        foundnan = false
+        for field in fieldnames(typeof(mc.ut_stack))
+            if isdefined(mc.ut_stack, field)
+                if _isnan(getfield(mc.ut_stack, field))
+                    foundnan = true
+                    break
+                end
+            end
+        end
+        for field in fieldnames(typeof(mc.stack))
+            try
+                if isdefined(mc.stack, field)
+                    if _isnan(getfield(mc.stack, field))
+                        foundnan = true
+                        break
+                    end
+                end
+            catch e
+                println("error: $e")
+            end
+        end
+
+        if foundnan #any(isnan, G00.val) || any(isnan, G0l.val) || any(isnan, Gl0.val) || any(isnan, Gll.val)
             println(i)
             println(G00.val.val)
             println(Gl0.val.val)
@@ -402,10 +430,14 @@ end
             end
             println("stack")
             for field in fieldnames(typeof(mc.stack))
-                if isdefined(mc.stack, field)
-                    println("$field -> $(getfield(mc.stack, field))")
-                else
-                    println("$field -> UNDEFINED")
+                try
+                    if isdefined(mc.stack, field)
+                        println("$field -> $(getfield(mc.stack, field))")
+                    else
+                        println("$field -> UNDEFINED")
+                    end
+                catch e
+                    println("error: $e")
                 end
             end
             error("Why though?")
