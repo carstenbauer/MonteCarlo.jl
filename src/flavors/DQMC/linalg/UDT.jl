@@ -72,7 +72,7 @@ end
 end
 
 @inline function reflectorApply_tracked!(M::StridedArray{<: Real}, τ::Real, k::Int, n::Int)
-    @info "reflectorApply!"
+    @info "reflectorApply!(M, $τ, $k, $n)"
     display(M)
     println(M)
     @inbounds for j = k+1:n
@@ -422,7 +422,7 @@ end
 function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{true}) where {C <: Real}
     n = size(input, 1)
     @inbounds for i in 1:n
-        d = 1.0 / D[i]
+        d = 1.0 / ifelse(D[i] == 0, 1.0, D[i])
         @inbounds for j in 1:i-1
             temp[pivot[j]] = zero(C)
         end
@@ -437,7 +437,7 @@ end
 function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{false}) where {C <: Real}
     n = size(input, 1)
     @inbounds for i in 1:n
-        d = 1.0 / D[i]
+        d = 1.0 / ifelse(D[i] == 0, 1.0, D[i]) # D[i]
         @turbo for j in i:n
             input[i, j] = d * input[i, j]
         end
