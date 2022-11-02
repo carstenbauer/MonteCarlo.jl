@@ -54,8 +54,7 @@ end
     @inbounds for j = k+1:n
         # dot
         vAj = M[k, j]
-        #@turbo 
-        for i = k+1:n
+        @turbo for i = k+1:n
             vAj += conj(M[i, k]) * M[i, j]
         end
 
@@ -63,42 +62,13 @@ end
 
         # ger
         M[k, j] -= vAj
-        #@turbo 
-        for i = k+1:n
+        @turbo for i = k+1:n
             M[i, j] -= M[i, k]*vAj
         end
     end
     return M
 end
 
-@inline function reflectorApply_tracked!(M::StridedArray{<: Real}, τ::Real, k::Int, n::Int)
-    @info "reflectorApply!(M, $τ, $k, $n)"
-    display(M)
-    println(M)
-    @inbounds for j = k+1:n
-        # dot
-        vAj = M[k, j]
-        #@turbo 
-        for i = k+1:n
-            vAj += conj(M[i, k]) * M[i, j]
-        end
-
-        @info τ, vAj
-        vAj = conj(τ)*vAj
-        @info vAj
-
-        # ger
-        M[k, j] -= vAj
-        #@turbo 
-        for i = k+1:n
-            M[i, j] -= M[i, k]*vAj
-        end
-    end
-    display(M)
-    println(M)
-    @info "---"
-    return M
-end
 
 
 """
@@ -253,7 +223,6 @@ function udt_AVX_pivot!(
     # Assumptions:
     # - all matrices same size
     # - input can be mutated (input becomes T)
-    _temp = copy(input)
 
     # @bm "reset pivot" begin
         n = size(input, 1)
@@ -332,97 +301,13 @@ function udt_AVX_pivot!(
         _apply_pivot!(input, D, temp, pivot, apply_pivot)
     # end
 
-    if _isnan(input)
-        @info "NaN in UDT"
-
-        copyto!(input, _temp)
-        @info "Intial input:"
-        println(input)
-        display(input)
-        
-
-        n = size(input, 1)
-        @inbounds for i in 1:n
-            pivot[i] = i
-        end
-        
-        @inbounds for j = 1:n
-            @info input[:, j]
-            jm, maxval = indmaxcolumn(input, j, n)
-            @info jm, maxval
-
-            if jm != j
-                tmpp = pivot[jm]
-                pivot[jm] = pivot[j]
-                pivot[j] = tmpp
-
-                @turbo for i = 1:n
-                    tmp = input[i,jm]
-                    input[i,jm] = input[i,j]
-                    input[i,j] = tmp
-                end
-            end
-            @info input[:, j]
-
-            τj = reflector!(input, maxval, j, n)
-            temp[j] = τj
-            @info τj
-            display(input)
-        
-            # x = LinearAlgebra.view(input, j:n, j)
-            reflectorApply_tracked!(input, τj, j, n)
-            display(input)
-            println(input)
-        end
-
-        @info "input -> T:"
-        display(input)
-        
-        copyto!(U, I)
-        @inbounds begin
-            U[n, n] -= temp[n]
-            for k = n-1:-1:1
-                for j = k:n
-                    vBj = U[k,j]
-                    @turbo for i = k+1:n
-                        vBj += conj(input[i,k]) * U[i,j]
-                    end
-                    vBj = temp[k]*vBj
-                    U[k,j] -= vBj
-                    @turbo for i = k+1:n
-                        U[i,j] -= input[i,k]*vBj
-                    end
-                end
-            end
-        end
-        
-        @info "U (calc Q):"
-        display(U)
-        
-        @inbounds for i in 1:n
-            D[i] = abs(input[i, i])
-        end
-        
-        @info "strip D:"
-        display(D)
-        
-        _apply_pivot!(input, D, temp, pivot, apply_pivot)
-
-        @info "U:"
-        display(U)
-        @info "D:"
-        display(D)
-        @info "T:"
-        display(input)
-    end
-
     nothing
 end
 
 function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{true}) where {C <: Real}
     n = size(input, 1)
     @inbounds for i in 1:n
-        d = 1.0 / ifelse(D[i] == 0, 1.0, D[i])
+        d = ifelse(D[i] == 0, 1.0, 1.0 / D[i])
         @inbounds for j in 1:i-1
             temp[pivot[j]] = zero(C)
         end
@@ -437,7 +322,7 @@ end
 function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{false}) where {C <: Real}
     n = size(input, 1)
     @inbounds for i in 1:n
-        d = 1.0 / ifelse(D[i] == 0, 1.0, D[i]) # D[i]
+        d = ifelse(D[i] == 0, 1.0, 1.0 / D[i])
         @turbo for j in i:n
             input[i, j] = d * input[i, j]
         end
@@ -625,7 +510,7 @@ end
 function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{true}) where {C <: Complex}
     n = size(input, 1)
     @inbounds for i in 1:n
-        d = 1.0 / D[i]
+        d = ifelse(D[i] == 0, 1.0, 1.0 / D[i])
         @inbounds for j in 1:i-1
             temp[pivot[j]] = zero(C)
         end
@@ -640,7 +525,7 @@ end
 function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{false}) where {C <: Complex}
     n = size(input, 1)
     @inbounds for i in 1:n
-        d = 1.0 / D[i]
+        d = ifelse(D[i] == 0, 1.0, 1.0 / D[i])
         for j in i:n
             input[i, j] = d * input[i, j]
         end
