@@ -303,10 +303,78 @@ function udt_AVX_pivot!(
 
     if _isnan(input)
         println("NaN in UDT")
-        println("U = $U")
-        println("D = $D")
-        println("T = $input")
-        println("from $_temp")
+
+        copyto!(input, _temp)
+        println("Intial input:")
+        display(input)
+        
+
+        n = size(input, 1)
+        @inbounds for i in 1:n
+            pivot[i] = i
+        end
+        
+        @inbounds for j = 1:n
+            jm, maxval = indmaxcolumn(input, j, n)
+
+            if jm != j
+                tmpp = pivot[jm]
+                pivot[jm] = pivot[j]
+                pivot[j] = tmpp
+
+                @turbo for i = 1:n
+                    tmp = input[i,jm]
+                    input[i,jm] = input[i,j]
+                    input[i,j] = tmp
+                end
+            end
+        
+            τj = reflector!(input, maxval, j, n)
+            temp[j] = τj
+        
+            x = LinearAlgebra.view(input, j:n, j)
+            reflectorApply!(input, τj, j, n)
+        end
+
+        println("input -> T:")
+        display(input)
+        
+        copyto!(U, I)
+        @inbounds begin
+            U[n, n] -= temp[n]
+            for k = n-1:-1:1
+                for j = k:n
+                    vBj = U[k,j]
+                    @turbo for i = k+1:n
+                        vBj += conj(input[i,k]) * U[i,j]
+                    end
+                    vBj = temp[k]*vBj
+                    U[k,j] -= vBj
+                    @turbo for i = k+1:n
+                        U[i,j] -= input[i,k]*vBj
+                    end
+                end
+            end
+        end
+        
+        println("U (calc Q):")
+        display(U)
+        
+        @inbounds for i in 1:n
+            D[i] = abs(input[i, i])
+        end
+        
+        println("strip D:")
+        display(D)
+        
+        _apply_pivot!(input, D, temp, pivot, apply_pivot)
+
+        println("U:")
+        display(U)
+        println("D:")
+        display(D)
+        println("T:")
+        display(input)
     end
 
     nothing
