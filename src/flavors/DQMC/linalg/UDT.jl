@@ -222,6 +222,7 @@ function udt_AVX_pivot!(
     # Assumptions:
     # - all matrices same size
     # - input can be mutated (input becomes T)
+    _temp = copy(input)
 
     # @bm "reset pivot" begin
         n = size(input, 1)
@@ -292,13 +293,21 @@ function udt_AVX_pivot!(
 
     # @bm "Calculate D" begin
         @inbounds for i in 1:n
-            D[i] = abs(real(input[i, i]))
+            D[i] = abs(input[i, i])
         end
     # end
 
     # @bm "pivoted zeroed T w/ inv(D)" begin
         _apply_pivot!(input, D, temp, pivot, apply_pivot)
     # end
+
+    if _isnan(input)
+        println("NaN in UDT")
+        println("U = $U")
+        println("D = $D")
+        println("T = $input")
+        println("from $_temp")
+    end
 
     nothing
 end

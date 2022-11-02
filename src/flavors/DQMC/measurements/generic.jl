@@ -369,7 +369,7 @@ end
 _isnan(x::Matrix) = any(_isnan, x)
 _isnan(x::Vector) = any(_isnan, x)
 _isnan(x::Tuple) = any(_isnan, x)
-_isnan(x::Number) = isnan(x)
+_isnan(x::Number) = isnan(x) || isinf(x)
 _isnan(x) = false
 
 @bm function apply!(iter::TimeIntegral, combined::Vector{<: Tuple}, mc::DQMC)
