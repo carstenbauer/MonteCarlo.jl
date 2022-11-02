@@ -54,7 +54,8 @@ end
     @inbounds for j = k+1:n
         # dot
         vAj = M[k, j]
-        @turbo for i = k+1:n
+        #@turbo 
+        for i = k+1:n
             vAj += conj(M[i, k]) * M[i, j]
         end
 
@@ -62,7 +63,8 @@ end
 
         # ger
         M[k, j] -= vAj
-        @turbo for i = k+1:n
+        #@turbo 
+        for i = k+1:n
             M[i, j] -= M[i, k]*vAj
         end
     end
@@ -338,7 +340,7 @@ function udt_AVX_pivot!(
             @info τj
             display(input)
         
-            x = LinearAlgebra.view(input, j:n, j)
+            # x = LinearAlgebra.view(input, j:n, j)
             reflectorApply!(input, τj, j, n)
             display(input)
         end
