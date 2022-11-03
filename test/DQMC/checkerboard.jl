@@ -1,34 +1,29 @@
 using BinningAnalysis
 
 @testset "Square lattice" begin
-    # TODO:
-    # make these test properties for different lattices:
-    # - [x] no duplication (first can have both src -> trg and trg -> src though)
-    # - [] no missing bonds
-    # - [x] no douplicate attachments to the same site
-    # - [x] equal bond direction within a group
-    # - [] no staggering within a group
     lattices = [
-        SquareLattice(2),
-        SquareLattice(3),
-        SquareLattice(4),
-        Honeycomb(2),
-        SquareLattice(6),
-        TriangularLattice(5),
+        SquareLattice(2), # check case where reverse bond = bond in second grou
+        SquareLattice(3), # check odd
+        SquareLattice(4), # check standard
+        Honeycomb(2),     # check basis
+        SquareLattice(6),     # check larger lattices
+        TriangularLattice(5), # (where this becomes an approximation)
         Honeycomb(4)
     ]
     rtols = (1e-11, 1e-3, 1e-14, 1e-15, 1e-3, 1e-3, 1e-3)
     for (rtol, l) in zip(rtols, lattices)
         @testset "$l" begin
             pos = collect(MonteCarlo.positions(l))
-            
             groups = MonteCarlo.build_checkerboard(l)
             wrap = MonteCarlo.generate_combinations(l)
+            bs = map(b -> (b.from, b.to), bonds(l, Val(true)))
+            checklist = fill(false, length(bs))
+            
             for group in groups
                 # no more than one bond per site in each group
                 sites = vcat(first.(group), last.(group))
                 @test allunique(sites)
-
+                
                 # check if all bond directions match
                 src, trg = first(group)
                 dir = pos[trg] .- pos[src]
@@ -42,7 +37,21 @@ using BinningAnalysis
                     end
                     return false
                 end
+                
+                x0, y0 = MonteCarlo._ind2sub(l, src)
+                for (src, trg) in group
+                    # mark bond as used
+                    idx = findfirst(p -> p == (src, trg), bs)::Int
+                    @assert !checklist[idx]
+                    checklist[idx] = true
+                    idx = findfirst(p -> p == (trg, src), bs)::Int
+                    @assert !checklist[idx]
+                    checklist[idx] = true
+                end
             end
+
+            # all bonds used
+            @test all(checklist)
 
             # no duplicates
             all_pairs = vcat(groups...)
