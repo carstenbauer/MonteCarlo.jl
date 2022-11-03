@@ -74,37 +74,39 @@ let
 
 
         @testset "UDT transformations + rdivp! ($type)" begin
-            U = Matrix{Float64}(undef, 8, 8)
-            D = Vector{Float64}(undef, 8)
-            T = rand(8, 8)
-            X = copy(T)
-            MonteCarlo.udt_AVX!(U, D, T)
-            @test U * Diagonal(D) * T ≈ X
-
-            U = Matrix{type}(undef, 8, 8)
-            T = rand(type, 8, 8)
-            X = copy(T)
-            pivot = Vector{Int64}(undef, 8)
-            tempv = Vector{type}(undef, 8)
-            udt_AVX_pivot!(U, D, T)
-            @test U * Diagonal(D) * T ≈ X
-
-            copyto!(T, X)
-            pivot = Vector{Int64}(undef, 8)
-            tempv = Vector{type}(undef, 8)
-            udt_AVX_pivot!(U, D, T, pivot, tempv, Val(false))
-            # pivoting matrix
-            P = zeros(length(pivot), length(pivot))
-            for (i, j) in enumerate(pivot)
-                P[i, j] = 1.0
+            for X in (X = rand(8, 8), kron(rand(8), rand(8)))
+                U = Matrix{Float64}(undef, 8, 8)
+                D = Vector{Float64}(undef, 8)
+                T = copy(X)
+                MonteCarlo.udt_AVX!(U, D, T)
+                @test U * Diagonal(D) * T ≈ X
             end
-            @test U * Diagonal(D) * UpperTriangular(T) * P ≈ X
 
-            u = copy(U)
-            t = copy(T)
-            tmp = similar(T)
-            rdivp!(u, t, tmp, pivot)
-            @test u ≈ U * P' / UpperTriangular(T)
+            for X in (X = rand(type, 8, 8), kron(rand(type, 8), rand(type, 8)))
+                U = Matrix{type}(undef, 8, 8)
+                T = copy(X)
+                pivot = Vector{Int64}(undef, 8)
+                tempv = Vector{type}(undef, 8)
+                udt_AVX_pivot!(U, D, T)
+                @test U * Diagonal(D) * T ≈ X
+
+                copyto!(T, X)
+                pivot = Vector{Int64}(undef, 8)
+                tempv = Vector{type}(undef, 8)
+                udt_AVX_pivot!(U, D, T, pivot, tempv, Val(false))
+                # pivoting matrix
+                P = zeros(length(pivot), length(pivot))
+                for (i, j) in enumerate(pivot)
+                    P[i, j] = 1.0
+                end
+                @test U * Diagonal(D) * UpperTriangular(T) * P ≈ X
+
+                u = copy(U)
+                t = copy(T)
+                tmp = similar(T)
+                rdivp!(u, t, tmp, pivot)
+                @test u ≈ U * P' / UpperTriangular(T)
+            end
         end
 
 
