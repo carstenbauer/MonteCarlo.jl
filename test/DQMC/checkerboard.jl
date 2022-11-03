@@ -10,14 +10,14 @@ using BinningAnalysis
     # - [] no staggering within a group
     lattices = [
         SquareLattice(2),
-        # SquareLattice(3),
-        # SquareLattice(4),
-        # Honeycomb(2),
-        # SquareLattice(6),
-        # TriangularLattice(5),
-        # Honeycomb(4)
+        SquareLattice(3),
+        SquareLattice(4),
+        Honeycomb(2),
+        SquareLattice(6),
+        TriangularLattice(5),
+        Honeycomb(4)
     ]
-    rtols = (1e-11,)# 1e-3, 1e-14, 1e-15, 1e-3, 1e-3, 1e-3)
+    rtols = (1e-11, 1e-3, 1e-14, 1e-15, 1e-3, 1e-3, 1e-3)
     for (rtol, l) in zip(rtols, lattices)
         @testset "$l" begin
             pos = collect(MonteCarlo.positions(l))
@@ -77,16 +77,6 @@ using BinningAnalysis
             for key in (:G, :CDC, :CCS)
                 vals1 = mc1[key].observable.x
                 vals2 = mc2[key].observable.x
-                if Base.Sys.isapple()
-                    println(key)
-                    println(vals1)
-                    println("---")
-                    println(vals2)
-                    println("---")
-                    for delta in vals1 .- vals2
-                        println(extrema(abs.(delta)))
-                    end
-                end
                 @test all(isapprox.(vals1, vals2, atol = 1e-6, rtol = rtol))
             end
         end
