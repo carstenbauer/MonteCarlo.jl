@@ -307,6 +307,13 @@ end
 function _apply_pivot!(input::Matrix{C}, D, temp, pivot, ::Val{true}) where {C <: Real}
     n = size(input, 1)
     @inbounds for i in 1:n
+        # With checkerboard it apparently can happen that the input matrix 
+        # takes the form [a[1] * v   a[2] * v   a[3] * v   ...]
+        # In this case we should get zeros on the diagonal which would cause 
+        # div 0 issues here. To avoid those, we have this ifelse
+        # (I have only seen div 0s on the least relevant entry which does 
+        # one operation here. So ifelse probably beats continues either way)
+        # See #169
         d = ifelse(D[i] == 0, 1.0, 1.0 / D[i])
         @inbounds for j in 1:i-1
             temp[pivot[j]] = zero(C)
