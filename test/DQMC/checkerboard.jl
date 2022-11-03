@@ -16,7 +16,7 @@ using BinningAnalysis
             pos = collect(MonteCarlo.positions(l))
             groups = MonteCarlo.build_checkerboard(l)
             wrap = MonteCarlo.generate_combinations(l)
-            bs = map(b -> (b.from, b.to), bonds(l, Val(true)))
+            bs = unique(map(b -> (b.from, b.to), bonds(l, Val(true))))
             checklist = fill(false, length(bs))
             
             for group in groups

@@ -74,7 +74,7 @@ let
 
 
         @testset "UDT transformations + rdivp! ($type)" begin
-            for X in (X = rand(8, 8), kron(rand(8), rand(8)))
+            for X in (rand(8, 8), kron(rand(8), rand(8)'))
                 U = Matrix{Float64}(undef, 8, 8)
                 D = Vector{Float64}(undef, 8)
                 T = copy(X)
@@ -82,8 +82,9 @@ let
                 @test U * Diagonal(D) * T ≈ X
             end
 
-            for X in (X = rand(type, 8, 8), kron(rand(type, 8), rand(type, 8)))
+            for X in (rand(type, 8, 8), kron(rand(type, 8), rand(type, 8)'))
                 U = Matrix{type}(undef, 8, 8)
+                D = Vector{Float64}(undef, 8)
                 T = copy(X)
                 pivot = Vector{Int64}(undef, 8)
                 tempv = Vector{type}(undef, 8)
