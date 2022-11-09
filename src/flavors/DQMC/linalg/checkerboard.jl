@@ -117,9 +117,6 @@ end
 struct CheckerboardDecomposed{T} <: AbstractMatrix{T}
     diag::Diagonal{T, Vector{T}}
     parts::Vector{SparseCBMatrix{T}}
-
-    # need this to identify squared vs non-squared the way Carsten implemented it
-    squared::Bool
 end
 
 # printing
@@ -139,7 +136,7 @@ function Base.Matrix(x::CheckerboardDecomposed{T}) where T
 end
 
 
-function CheckerboardDecomposed(M::Matrix, lattice, factor, is_squared)
+function CheckerboardDecomposed(M::Matrix, lattice, factor)
     N = length(lattice)
     flv = div(size(M, 1), N)
     groups = build_checkerboard(lattice)
@@ -185,9 +182,6 @@ function CheckerboardDecomposed(M::Matrix, lattice, factor, is_squared)
     end
 
     D.diag .*= x
-    if is_squared
-        D = D * D # also only ok with constant diagonal
-    end
 
     # TODO: 
     # this only works with constant diagonal part
@@ -198,7 +192,7 @@ function CheckerboardDecomposed(M::Matrix, lattice, factor, is_squared)
         reverse!(parts)
     end
 
-    return CheckerboardDecomposed(D, parts, is_squared)
+    return CheckerboardDecomposed(D, parts)
 end
 
 function _sort_by_ij!(vals, is, js)
@@ -283,38 +277,22 @@ end
 
 function vmul!(trg::Matrix{T}, src::Matrix{T}, cb::CheckerboardDecomposed{T}, tmp::Matrix{T}) where T
     # M P1 ⋯ PN P1 ⋯ PN D
-    if cb.squared
-        # 2N parts mults, diag mult inline
-        vmul!(tmp, src, cb.parts[1])
+    # N parts mults, diag mult inline
+    if iseven(length(cb.parts))
         tmp_trg = trg
         tmp_src = tmp
-    else
-        # N parts mults, diag mult inline
-        if iseven(length(cb.parts))
-            tmp_trg = trg
-            tmp_src = tmp
-        else # odd - same tmp_trg as above after vmul!
-            tmp_trg = tmp
-            tmp_src = trg
-        end
-
-        vmul!(tmp_src, src, cb.parts[1])
+    else # odd - same tmp_trg as above after vmul!
+        tmp_trg = tmp
+        tmp_src = trg
     end
+
+    vmul!(tmp_src, src, cb.parts[1])
     
     @inbounds for i in 2:length(cb.parts)
         vmul!(tmp_trg, tmp_src, cb.parts[i])
         x = tmp_trg
         tmp_trg = tmp_src
         tmp_src = x
-    end
-    
-    if cb.squared
-        @inbounds for P in cb.parts
-            vmul!(tmp_trg, tmp_src, P)
-            x = tmp_trg
-            tmp_trg = tmp_src
-            tmp_src = x
-        end
     end
 
     rvmul!(tmp_src, cb.diag)
@@ -323,26 +301,6 @@ function vmul!(trg::Matrix{T}, src::Matrix{T}, cb::CheckerboardDecomposed{T}, tm
     return trg
 end
 
-# function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::Matrix{T}, tmp::MAtrix{T}) where {T <: Real}
-#     # D' P' ⋯ P' M
-#     copyto!(trg, src)
-
-#     for P in reverse(cb.parent.parts)
-#         lvmul!(adjoint(P), trg)
-#     end
-
-#     # This if should be resolved at compile time I think...
-#     if cb.parent.squared
-#         @inbounds for i in 2:length(cb.parent.parts)
-#             lvmul!(adjoint(cb.parent.parts[i]), trg)
-#         end
-#     end
-
-#     lvmul!(adjoint(cb.parent.diag), trg)
-    
-#     return trg
-# end
-
 
 # What's better than A*B? That'S right, it's (B^T A^T)^T because 
 # LoopVectorization is just that good
@@ -350,12 +308,7 @@ end
 vmul!(trg, A, B, tmp) = vmul!(trg, A, B)
 function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}, tmp::Matrix{T}) where T
     # P1 ⋯ PN P1 ⋯ PN D M = ((D M)^T P1^T ⋯ PN^T P1^T ⋯ PN^T)^T
-    if cb.squared
-        # 2N part products 
-        vmul!(trg, cb.diag, src)
-        tmp_src = trg
-        tmp_trg = tmp
-    elseif iseven(length(cb.parts))
+    if iseven(length(cb.parts))
         vmul!(trg, cb.diag, src)
         tmp_src = trg
         tmp_trg = tmp
@@ -380,23 +333,13 @@ function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}, tm
         tmp_trg = tmp_src
         tmp_src = x
     end
-
-    # This if should be resolved at compile time I think...
-    if cb.squared
-        @inbounds for P in cb.parts
-            vmul!(tmp_trg, tmp_src, transpose(P))
-            x = tmp_trg
-            tmp_trg = tmp_src
-            tmp_src = x
-        end
-    end
     
     # tranpose
     @turbo for i in axes(trg, 1), j in axes(trg, 2)
         tmp_trg[i, j] = tmp_src[j, i]
     end
 
-    @assert tmp_trg === trg "$(length(cb.parts)) $(cb.squared)"
+    @assert tmp_trg === trg "$(length(cb.parts))"
 
     return trg
 end
@@ -406,11 +349,7 @@ function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::M
     # (P1 ⋯ PN P1 ⋯ PN D)' M = D' PN' ⋯ P1^T PN' ⋯ P1' M
     #                        = D' (M^T P1* ⋯ PN* P1* ⋯ PN*)^T
 
-    if cb.parent.squared
-        # 2N part products + diag product + 2 transpose
-        tmp_trg = trg
-        tmp_src = tmp
-    elseif iseven(length(cb.parent.diag))
+    if iseven(length(cb.parent.diag))
         tmp_trg = trg
         tmp_src = tmp
     else
@@ -433,16 +372,6 @@ function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::M
         tmp_src = x
     end
 
-    # This if should be resolved at compile time I think...
-    if cb.parent.squared
-        @inbounds for P in cb.parent.parts
-            vmulc!(tmp_trg, tmp_src, P)
-            x = tmp_trg
-            tmp_trg = tmp_src
-            tmp_src = x
-        end
-    end
-    
     @turbo for i in axes(trg, 1), j in axes(trg, 2)
         tmp_trg[i, j] = tmp_src[j, i]
     end

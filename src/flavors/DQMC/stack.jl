@@ -211,7 +211,7 @@ function init_hopping_matrices(mc::DQMC, m::Model)
     T = pad_to_unique_flavors(mc, hopping_matrix(m))
 
     if !is_approximately_hermitian(T)
-        @error(
+        error(
             "The hopping matrix from `hopping_matrix(::DQMC, ::$(typeof(m)))`" *
             " is not approximately Hermitian. Since the Hamiltonian is a" * 
             " Hermitian operator, the hopping matrix should also be Hermitian." *
@@ -228,20 +228,21 @@ function init_hopping_matrices(mc::DQMC, m::Model)
         )
     end
 
+    # Assuming T is Hermitian we have e^T/2 e^T/2 e^V = e^T e^V as e^aA e^bA = e^(a+b)A
     mc.stack.hopping_matrix = T
     if !mc.parameters.checkerboard
         # greens
         mc.stack.hopping_matrix_exp = fallback_exp(-0.5 * dtau * T)
-        mc.stack.hopping_matrix_exp_inv = fallback_exp(0.5 * dtau * T)
+        mc.stack.hopping_matrix_exp_inv = fallback_exp(+0.5 * dtau * T)
         # slice matrix multiplications
-        mc.stack.hopping_matrix_exp_squared = mc.stack.hopping_matrix_exp * mc.stack.hopping_matrix_exp
-        mc.stack.hopping_matrix_exp_inv_squared = mc.stack.hopping_matrix_exp_inv * mc.stack.hopping_matrix_exp_inv
+        mc.stack.hopping_matrix_exp_squared = fallback_exp(-dtau * T)
+        mc.stack.hopping_matrix_exp_inv_squared = fallback_exp(+dtau * T)
     else
         l = lattice(mc)
-        mc.stack.hopping_matrix_exp = CheckerboardDecomposed(T, l, -0.5 * dtau, false)
-        mc.stack.hopping_matrix_exp_inv = CheckerboardDecomposed(T, l, 0.5 * dtau, false)
-        mc.stack.hopping_matrix_exp_squared = CheckerboardDecomposed(T, l, -0.5 * dtau, true)
-        mc.stack.hopping_matrix_exp_inv_squared = CheckerboardDecomposed(T, l, 0.5 * dtau, true)
+        mc.stack.hopping_matrix_exp = CheckerboardDecomposed(T, l, -0.5 * dtau)
+        mc.stack.hopping_matrix_exp_inv = CheckerboardDecomposed(T, l, +0.5 * dtau)
+        mc.stack.hopping_matrix_exp_squared = CheckerboardDecomposed(T, l, -dtau)
+        mc.stack.hopping_matrix_exp_inv_squared = CheckerboardDecomposed(T, l, +dtau)
     end
 
     nothing
