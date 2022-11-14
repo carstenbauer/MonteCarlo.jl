@@ -276,7 +276,8 @@ end
 
 
 function vmul!(trg::Matrix{T}, src::Matrix{T}, cb::CheckerboardDecomposed{T}, tmp::Matrix{T}) where T
-    # M P1 ⋯ PN P1 ⋯ PN D
+    #M P1 ⋯ PN D
+
     # N parts mults, diag mult inline
     if iseven(length(cb.parts))
         tmp_trg = trg
@@ -307,7 +308,8 @@ end
 
 vmul!(trg, A, B, tmp) = vmul!(trg, A, B)
 function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}, tmp::Matrix{T}) where T
-    # P1 ⋯ PN P1 ⋯ PN D M = ((D M)^T P1^T ⋯ PN^T P1^T ⋯ PN^T)^T
+    # # PN ⋯ P1 D M = PN ⋯ P1 M D = ((D M)' P1' ⋯ PN')'
+    # P1 ⋯ PN D M = P1 ⋯ PN M D = ((D M)' PN' ⋯ P1')'
     if iseven(length(cb.parts))
         vmul!(trg, cb.diag, src)
         tmp_src = trg
@@ -327,8 +329,8 @@ function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}, tm
     tmp_trg = tmp_src
     tmp_src = x
 
-    for P in cb.parts
-        vmul!(tmp_trg, tmp_src, transpose(P))
+    for i in length(cb.parts):-1:1
+        vmul!(tmp_trg, tmp_src, transpose(cb.parts[i]))
         x = tmp_trg
         tmp_trg = tmp_src
         tmp_src = x
@@ -345,9 +347,7 @@ function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}, tm
 end
 
 function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::Matrix{T}, tmp::Matrix{T}) where {T <: Real}
-    # D' PN' ⋯ P1' ⋯ PBN' M = D' (M^T conj(PN) ⋯ conj(P1) ⋯ conj(PN) )^T
-    # (P1 ⋯ PN P1 ⋯ PN D)' M = D' PN' ⋯ P1^T PN' ⋯ P1' M
-    #                        = D' (M^T P1* ⋯ PN* P1* ⋯ PN*)^T
+    # (P1 ⋯ PN D)' M = D' PN' ⋯ P1' M = D' (M' P1 ⋯ PN)'
 
     if iseven(length(cb.parent.diag))
         tmp_trg = trg
@@ -357,6 +357,7 @@ function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::M
         tmp_src = trg
     end
 
+    # transpose
     @turbo for i in axes(trg, 1), j in axes(trg, 2)
         tmp_trg[i, j] = src[j, i]
     end
