@@ -114,6 +114,11 @@ function Base.display(x::SparseCBMatrix{T}) where T
     return
 end
 
+Base.show(io::IO, x::SparseCBMatrix) = show(io, MIME"text/plain"(), x)
+function Base.show(io::IO, ::MIME"text/plain", x::SparseCBMatrix{T}) where T
+    print(io, "SparseCBMatrix{$T} with $(length(x.vals)) elements (mime)")
+end
+
 struct CheckerboardDecomposed{T} <: AbstractMatrix{T}
     diag::Diagonal{T, Vector{T}}
     parts::Vector{SparseCBMatrix{T}}
@@ -134,6 +139,8 @@ function Base.Matrix(x::CheckerboardDecomposed{T}) where T
     vmul!(output, id, x, tmp)
     return output
 end
+
+Base.size(x::CheckerboardDecomposed) = (length(x.diag), length(x.diag))
 
 
 function CheckerboardDecomposed(M::Matrix, lattice, factor)
@@ -349,7 +356,7 @@ end
 function vmul!(trg::Matrix{T}, cb::Adjoint{T, <: CheckerboardDecomposed}, src::Matrix{T}, tmp::Matrix{T}) where {T <: Real}
     # (P1 ⋯ PN D)' M = D' PN' ⋯ P1' M = D' (M' P1 ⋯ PN)'
 
-    if iseven(length(cb.parent.diag))
+    if iseven(length(cb.parent.parts))
         tmp_trg = trg
         tmp_src = tmp
     else
