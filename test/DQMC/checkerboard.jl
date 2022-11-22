@@ -71,12 +71,11 @@ using BinningAnalysis
             mc2[:CCS] = current_current_susceptibility(mc2, m, obs = FullBinner(Array{Float64, 4}))
             replay!(mc2, mc1.recorder, verbose = false)
 
-            # All of these should work with float precision 10^-15 ~ 10^-17 diff
-
             # verify hopping matrices
             for name in (Symbol(), :_inv, :_squared, :_inv_squared)
                 fullname = Symbol(:hopping_matrix_exp, name)
                 @test getfield(mc1.stack, fullname) ≈ Matrix(getfield(mc2.stack, fullname)) atol = 1e-14 rtol = rtol
+                @test getfield(mc1.stack, fullname) ≈ Matrix(getfield(mc2.stack, fullname)) atol = 1e-6 rtol = rtol
             end
 
             # verify working greens matrix
