@@ -378,14 +378,7 @@ end
             N = length(lattice(model))
 
             # Direct calculation similar to what DQMC should be doing
-            T = Matrix(dqmc.stack.hopping_matrix)
-            # Doing an eigenvalue decomposition makes this pretty stable
-            vals, U = eigen(exp(-T))
-            D = Diagonal(vals)^(dqmc.parameters.beta)
-
-            # Don't believe "Quantum Monte Carlo Methods", this is the right
-            # formula (believe dos Santos DQMC review instead)
-            G = U * inv(I + D) * adjoint(U)
+            G = analytic_greens(dqmc)(0)
 
             @test check(mean(dqmc[:G]), G, atol, rtol)
         end

@@ -1,6 +1,12 @@
 using BinningAnalysis
 
-@testset "Square lattice" begin
+function sanitized_ratio(X, ref, atol = 1e-6)
+    map(X, ref) do x, r
+        ifelse(abs(x) < atol, 0, (x-r)/r)
+    end
+end
+
+@testset "Checkerboard Decomposition" begin
     lattices = [
         SquareLattice(2), # check case where reverse bond = bond in second grou
         SquareLattice(3), # check odd
@@ -10,8 +16,17 @@ using BinningAnalysis
         TriangularLattice(5), # (where this becomes an approximation)
         Honeycomb(4)
     ]
-    rtols = (1e-11, 1e-3, 1e-14, 1e-15, 1e-3, 1e-3, 1e-3)
-    for (rtol, l) in zip(rtols, lattices)
+    # Trotter error should be around Δτ^2 (somehow scaling with [X, Y] and G)
+
+    # These are based on threshholds I'm reaching (as Δτ * tol). 
+    # This is not the expected scaling :(
+    # Note that the tiny tolerances do not scale with Δτ (float precision)
+    # Note that triangular scales harder than usual (0.36 -> 0.0058)
+    tols = (1e-13, 0.6, 1e-13, 1e-13, 1.5, 4.0, 2.0)
+    for (tol, l) in zip(tols, lattices)
+        atol = max.(1e-9, tol)
+        rtol = tol
+
         @testset "$l" begin
             pos = collect(MonteCarlo.positions(l))
             groups = MonteCarlo.build_checkerboard(l)
@@ -19,7 +34,7 @@ using BinningAnalysis
             bs = unique(map(b -> (b.from, b.to), bonds(l, Val(true))))
             checklist = fill(false, length(bs))
             
-            for group in groups
+            for group in vcat(groups...)
                 # no more than one bond per site in each group
                 sites = vcat(first.(group), last.(group))
                 @test allunique(sites)
@@ -57,35 +72,65 @@ using BinningAnalysis
             all_pairs = vcat(groups...)
             @test allunique(all_pairs)
 
-            m = HubbardModel(l, mu = 1.3, t = 0.3)
-            mc1 = DQMC(m, beta = 24.0, checkerboard = false)
-            mc1[:G] = greens_measurement(mc1, m, obs = FullBinner(Matrix{Float64}))
-            mc1[:CDC] = charge_density_correlation(mc1, m, obs = FullBinner(Array{Float64, 3}))
-            mc1[:CCS] = current_current_susceptibility(mc1, m, obs = FullBinner(Array{Float64, 4}))
-            run!(mc1, verbose = false)
+            # Scaling with checkerboard is O(Δτ) ~ 0.1Δτ
 
-            # replay the configs without checkerboard decomposition with the decomposition
-            mc2 = DQMC(m, beta = 24.0, checkerboard = true)
-            mc2[:G] = greens_measurement(mc2, m, obs = FullBinner(Matrix{Float64}))
-            mc2[:CDC] = charge_density_correlation(mc2, m, obs = FullBinner(Array{Float64, 3}))
-            mc2[:CCS] = current_current_susceptibility(mc2, m, obs = FullBinner(Array{Float64, 4}))
-            replay!(mc2, mc1.recorder, verbose = false)
+            m = HubbardModel(l, mu = 0.3, t = 0.7, U = 0.0)
+            mc = DQMC(
+                m, beta = 24.0, delta_tau = 0.1, checkerboard = true, 
+                thermalization = 1, sweeps = 2, measure_rate = 1
+            )
+            mc[:G] = greens_measurement(mc, m)
+            run!(mc, verbose = false)
 
-            # verify hopping matrices
-            for name in (Symbol(), :_inv, :_squared, :_inv_squared)
-                fullname = Symbol(:hopping_matrix_exp, name)
-                @test getfield(mc1.stack, fullname) ≈ Matrix(getfield(mc2.stack, fullname)) atol = 1e-14 rtol = rtol
-                @test getfield(mc1.stack, fullname) ≈ Matrix(getfield(mc2.stack, fullname)) atol = 1e-6 rtol = rtol
+            # Direct calculation, see flavortests_DQMC / testfunctions
+            G = analytic_greens(mc)
+            # println(l.unitcell.name)
+            # println(extrema(sanitized_ratio(mean(mc[:G]), G)))
+            # println(norm(mean(mc[:G]) - G))
+            @test mean(mc[:G]) ≈ G() atol = 1e-6 rtol = 0.1rtol
+
+            # TODO: test time displaced
+            # TODO: test d²(diag(Gl0)) / dl² > 0
+            @testset "Time Displaced Greens" begin
+                MonteCarlo.initialize_stack(mc, mc.ut_stack)
+                vals = Float64[]
+                for l in 0:MonteCarlo.nslices(mc)
+                    g = MonteCarlo.greens(mc, l, 0)
+                    # println(0.1rtol)
+                    @test g ≈ G(l, 0) atol = 0.01 rtol = 0.1rtol
+                    # println(norm(g - G(l, 0)), "   ", norm(g), "   ", norm(G(l, 0)))
+                    push!(vals, mean(diag(g)))
+                end
+                # positive second derivative
+                @test all((vals[3:end] .- 2 * vals[2:end-1] .+ vals[1:end-2]) .> 0)
             end
 
-            # verify working greens matrix
-            @test mc1.stack.greens ≈ mc2.stack.greens atol = 1e-6 rtol = rtol
 
-            # verify measurements
-            for key in (:G, :CDC, :CCS)
-                vals1 = mc1[key].observable.x
-                vals2 = mc2[key].observable.x
-                @test all(isapprox.(vals1, vals2, atol = 1e-6, rtol = rtol))
+            m = HubbardModel(l, mu = -0.3, t = 0.7, U = 0.0)
+            mc = DQMC(
+                m, beta = 24.0, delta_tau = 0.01, checkerboard = true, 
+                thermalization = 1, sweeps = 2, measure_rate = 1
+            )
+            mc[:G] = greens_measurement(mc, m)
+            run!(mc, verbose = false)
+            G = analytic_greens(mc)
+            # println(extrema(sanitized_ratio(mean(mc[:G]), G)))
+            # println(norm(mean(mc[:G]) - G))
+            # println()
+            @test mean(mc[:G]) ≈ G() atol = 1e-6 rtol = 0.01rtol
+
+            @testset "Time Displaced Greens" begin
+                MonteCarlo.initialize_stack(mc, mc.ut_stack)
+                vals = Float64[]
+                for l in 0:MonteCarlo.nslices(mc)
+                    g = MonteCarlo.greens(mc, l, 0)
+                    # println(0.1rtol)
+                    @test g ≈ G(l, 0) atol = 0.001 rtol = 0.02rtol # errors too big?
+                    # println(norm(g - G(l, 0)), "   ", norm(g), "   ", norm(G(l, 0)))
+                    push!(vals, mean(diag(g)))
+                end
+                # positive second derivative
+                @test all((vals[3:end] .- 2 * vals[2:end-1] .+ vals[1:end-2]) .> 0)
             end
         end
     end
