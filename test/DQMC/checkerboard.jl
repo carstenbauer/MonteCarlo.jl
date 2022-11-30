@@ -94,7 +94,7 @@ end
             @testset "Time Displaced Greens" begin
                 MonteCarlo.initialize_stack(mc, mc.ut_stack)
                 vals = Float64[]
-                for l in 0:MonteCarlo.nslices(mc)
+                for l in 0:10:MonteCarlo.nslices(mc)
                     g = MonteCarlo.greens(mc, l, 0)
                     # println(0.1rtol)
                     @test g ≈ G(l, 0) atol = 0.01 rtol = 0.1rtol
@@ -122,7 +122,7 @@ end
             @testset "Time Displaced Greens" begin
                 MonteCarlo.initialize_stack(mc, mc.ut_stack)
                 vals = Float64[]
-                for l in 0:MonteCarlo.nslices(mc)
+                for l in 0:100:MonteCarlo.nslices(mc)
                     g = MonteCarlo.greens(mc, l, 0)
                     # println(0.1rtol)
                     @test g ≈ G(l, 0) atol = 0.001 rtol = 0.02rtol # errors too big?
