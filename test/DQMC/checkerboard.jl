@@ -6,6 +6,14 @@ function sanitized_ratio(X, ref, atol = 1e-6)
     end
 end
 
+function random_subset(max, N)
+    vals = collect(0:max)
+    shuffle!(vals)
+    subset = vals[1:min(N, end)]
+    sort!(subset)
+    return subset
+end
+
 @testset "Checkerboard Decomposition" begin
     lattices = [
         SquareLattice(2), # check case where reverse bond = bond in second grou
@@ -94,7 +102,8 @@ end
             @testset "Time Displaced Greens" begin
                 MonteCarlo.initialize_stack(mc, mc.ut_stack)
                 vals = Float64[]
-                for l in 0:10:MonteCarlo.nslices(mc)
+                ls = random_subset(MonteCarlo.nslices(mc), 100)
+                for l in ls
                     g = MonteCarlo.greens(mc, l, 0)
                     # println(0.1rtol)
                     @test g ≈ G(l, 0) atol = 0.01 rtol = 0.1rtol
@@ -102,7 +111,13 @@ end
                     push!(vals, mean(diag(g)))
                 end
                 # positive second derivative
-                @test all((vals[3:end] .- 2 * vals[2:end-1] .+ vals[1:end-2]) .> 0)
+                # xs = 0.5 .* (ls[3:end] .+ ls[1:end-2])
+                deriv = map(2:length(vals)-1) do i
+                    d1 = (vals[i+1] - vals[i]) / (ls[i+1] - ls[i])
+                    d2 = (vals[i] - vals[i-1]) / (ls[i] - ls[i-1])
+                    2 * (d1 - d2) / (ls[i+1] - ls[i-1])
+                end
+                @test all(deriv .> 0)
             end
 
 
@@ -122,7 +137,8 @@ end
             @testset "Time Displaced Greens" begin
                 MonteCarlo.initialize_stack(mc, mc.ut_stack)
                 vals = Float64[]
-                for l in 0:100:MonteCarlo.nslices(mc)
+                ls = random_subset(MonteCarlo.nslices(mc), 100)
+                for l in ls 
                     g = MonteCarlo.greens(mc, l, 0)
                     # println(0.1rtol)
                     @test g ≈ G(l, 0) atol = 0.001 rtol = 0.02rtol # errors too big?
@@ -130,7 +146,12 @@ end
                     push!(vals, mean(diag(g)))
                 end
                 # positive second derivative
-                @test all((vals[3:end] .- 2 * vals[2:end-1] .+ vals[1:end-2]) .> 0)
+                deriv = map(2:length(vals)-1) do i
+                    d1 = (vals[i+1] - vals[i]) / (ls[i+1] - ls[i])
+                    d2 = (vals[i] - vals[i-1]) / (ls[i] - ls[i-1])
+                    2 * (d1 - d2) / (ls[i+1] - ls[i-1])
+                end
+                @test all(deriv .> 0)
             end
         end
     end
