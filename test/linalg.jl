@@ -3,7 +3,7 @@ let
 
     function check_vmul!(C, A, B, atol)
         vmul!(C, A, B)
-        @test A * B ≈ C atol = atol
+        return isapprox(A * B, C, atol = atol)
     end
 
     # Complex and Real Matrix mults, BlockDiagonal, UDT
@@ -23,23 +23,23 @@ let
             type == ComplexF64 && (atol *= sqrt(2))
 
             # Adjoints
-            check_vmul!(C, A, B, atol)
-            check_vmul!(C, A, B', atol)
-            check_vmul!(C, A', B, atol)
-            check_vmul!(C, A', B', atol)
+            @test check_vmul!(C, A, B, atol)
+            @test check_vmul!(C, A, B', atol)
+            @test check_vmul!(C, A', B, atol)
+            @test check_vmul!(C, A', B', atol)
 
             # Hermitian forwards
-            check_vmul!(C, A, H, atol)
-            check_vmul!(C, H, A, atol)
-            check_vmul!(C, A, H', atol)
-            check_vmul!(C, H', A', atol)
+            @test check_vmul!(C, A, H, atol)
+            @test check_vmul!(C, H, A, atol)
+            @test check_vmul!(C, A, H', atol)
+            @test check_vmul!(C, H', A', atol)
             # incomplete but these are just forwards
-            check_vmul!(C, A', H, atol)
-            check_vmul!(C, H', D, atol)
+            @test check_vmul!(C, A', H, atol)
+            @test check_vmul!(C, H', D, atol)
 
             # Diagonal
-            check_vmul!(C, A, D, atol)
-            check_vmul!(C, A', D, atol)
+            @test check_vmul!(C, A, D, atol)
+            @test check_vmul!(C, A', D, atol)
 
             copyto!(C, A)
             rvmul!(C, D)
@@ -82,13 +82,13 @@ let
             else
                 # real adjoint + complex for Hermitian
                 R = rand(Float64, N, N)
-                check_vmul!(C, A, R', atol)
-                check_vmul!(C, A', R, atol)
-                check_vmul!(C, A', R', atol)
+                @test check_vmul!(C, A, R', atol)
+                @test check_vmul!(C, A', R, atol)
+                @test check_vmul!(C, A', R', atol)
 
-                check_vmul!(C, R, A', atol)
-                check_vmul!(C, R', A, atol)
-                check_vmul!(C, R', A', atol)
+                @test check_vmul!(C, R, A', atol)
+                @test check_vmul!(C, R', A, atol)
+                @test check_vmul!(C, R', A', atol)
             end
         end
 
@@ -250,6 +250,10 @@ let
     end
 
 
+    function check_vmul!(C, A, B, X, Y, atol)
+        vmul!(C, A, B)
+        return isapprox(X * Y, C, atol = atol)
+    end
         
     @testset "Complex StructArray" begin
         M1 = rand(ComplexF64, N, N)    
@@ -258,6 +262,13 @@ let
         C2 = StructArray(M2)
         M3 = rand(ComplexF64, N, N)    
         C3 = StructArray(M3)
+
+        MH = Hermitian(M3 + M3')
+        CH = Hermitian(StructArray(M3 + M3'))
+
+        D = Diagonal(rand(N))
+        DC = Diagonal(rand(ComplexF64, N))
+        DCSA = Diagonal(StructArray(DC.diag))
 
         # taylor exp
         E = exp(Matrix(M1))
@@ -268,35 +279,29 @@ let
         @test C1 isa CMat64
         @test M1 == C1
 
-        # Test avx multiplications (adjoint)
-        vmul!(C1, C2, C3)
-        vmul!(M1, M2, M3)
-        @test M1 ≈ C1
-
-        vmul!(C1, C2, adjoint(C3))
-        vmul!(M1, M2, adjoint(M3))
-        @test M1 ≈ C1
-
-        vmul!(C1, adjoint(C2), C3)
-        vmul!(M1, adjoint(M2), M3)
-        @test M1 ≈ C1
-
-        vmul!(C1, adjoint(C2), adjoint(C3))
-        vmul!(M1, adjoint(M2), adjoint(M3))
-        @test M1 ≈ C1
-
+        # Adjoints
+        @test check_vmul!(C1, C2, C3, M2, M3, atol)
+        @test check_vmul!(C1, C2, C3', M2, M3', atol)
+        @test check_vmul!(C1, C2', C3, M2', M3, atol)
+        @test check_vmul!(C1, C2', C3', M2', M3', atol)
+        
+        # Hermitian forwards
+        @test check_vmul!(C1, C2, CH, M2, MH, atol)
+        @test check_vmul!(C1, CH, C2, MH, M2, atol)
+        @test check_vmul!(C1, C2, CH', M2, MH', atol)
+        @test check_vmul!(C1, CH', C2', MH', M2', atol)
+        # incomplete but these are just forwards
+        @test check_vmul!(C1, C2', CH, M2', MH, atol)
+        @test check_vmul!(C1, CH', D, MH', D, atol)
+        
         # Diagonal
-        D = Diagonal(rand(N))
-        vmul!(C1, C2, D)
-        vmul!(M1, M2, D)
-        @test M1 == C1
+        @test check_vmul!(C1, C2, D, M2, D, atol)
+        @test check_vmul!(C1, C2', D, M2', D, atol)
 
-        DC = Diagonal(rand(ComplexF64, N))
-        DCSA = Diagonal(StructArray(DC.diag))
-        vmul!(C1, C2, DCSA)
-        vmul!(M1, M2, DC)
-        @test M1 ≈ C1
+        @test check_vmul!(C1, C2, DCSA, M2, DC, atol)
+        @test check_vmul!(C1, C2', DCSA, M2', DC, atol)
 
+        copyto!(M1, C1)
         rvmul!(C1, D)
         rvmul!(M1, D)
         @test M1 ≈ C1
