@@ -113,7 +113,7 @@ function DQMCStack(field::AbstractField, model::Model)
     GET = greens_eltype(field, model)
     
     IMT = interaction_matrix_type(field, model)
-    HMT = hopping_matrix_type(field, model)
+    HMT = Hermitian{HET, hopping_matrix_type(field, model)}
     GMT = greens_matrix_type(field, model)
 
     DQMCStack{GET, HET, GMT, HMT, IMT}(FieldCache(field, model))
@@ -223,10 +223,10 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
     end
 
     mc.stack.hopping_matrix = T
-    mc.stack.hopping_matrix_exp = fallback_exp(-0.5 * dtau * T)
-    mc.stack.hopping_matrix_exp_inv = fallback_exp(0.5 * dtau * T)
-    mc.stack.hopping_matrix_exp_squared = mc.stack.hopping_matrix_exp * mc.stack.hopping_matrix_exp
-    mc.stack.hopping_matrix_exp_inv_squared = mc.stack.hopping_matrix_exp_inv * mc.stack.hopping_matrix_exp_inv
+    mc.stack.hopping_matrix_exp = Hermitian(fallback_exp(-0.5 * dtau * T))
+    mc.stack.hopping_matrix_exp_inv = Hermitian(fallback_exp(0.5 * dtau * T))
+    mc.stack.hopping_matrix_exp_squared = Hermitian(fallback_exp(dtau * T))
+    mc.stack.hopping_matrix_exp_inv_squared = Hermitian(fallback_exp(dtau * T))
     nothing
 end
 

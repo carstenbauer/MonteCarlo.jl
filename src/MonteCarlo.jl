@@ -1,6 +1,6 @@
 module MonteCarlo
 
-using LinearAlgebra: AbstractMatrix
+using LinearAlgebra: AbstractMatrix, Hermitian
 using Reexport
 # Loading the RNG will fail if Random is nto exported
 @reexport using Random, BinningAnalysis
