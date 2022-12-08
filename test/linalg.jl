@@ -298,6 +298,9 @@ let
         # Diagonal
         @test check_vmul!(C1, C2, D, M2, D, atol)
         @test check_vmul!(C1, C2', D, M2', D, atol)
+        @test check_vmul!(C1, R, D, R, D, atol)
+        @test check_vmul!(C1, R', D, R', D, atol)
+
         @test check_vmul!(C1, D, C2, D, M2, atol)
         @test check_vmul!(C1, D, C2', D, M2', atol)
         @test check_vmul!(C1, D, R, D, R, atol)
