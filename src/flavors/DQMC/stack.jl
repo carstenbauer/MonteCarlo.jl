@@ -2,6 +2,7 @@ mutable struct DQMCStack{
         GreensElType <: Number, 
         HoppingElType <: Number, 
         GreensMatType <: AbstractArray{GreensElType},
+        HoppingMatBaseType <: AbstractArray{HoppingElType},
         HoppingMatType <: AbstractArray{HoppingElType},
         InteractionMatType <: AbstractArray,
         FieldCacheType <: AbstractFieldCache
@@ -44,7 +45,7 @@ mutable struct DQMCStack{
     eV::InteractionMatType
 
     # hopping matrices (mu included)
-    hopping_matrix::HoppingMatType
+    hopping_matrix::HoppingMatBaseType
     hopping_matrix_exp::HoppingMatType
     hopping_matrix_exp_inv::HoppingMatType
     hopping_matrix_exp_squared::HoppingMatType
@@ -66,31 +67,32 @@ mutable struct DQMCStack{
     chkr_mu_inv::SparseMatrixCSC{HoppingElType, Int64}
 
 
-    function DQMCStack{GET, HET, GMT, HMT, IMT}(field_cache::FCT) where {
-            GET<:Number, HET<:Number, 
-            GMT<:AbstractArray{GET}, HMT<:AbstractArray{HET}, IMT<:AbstractArray,
-            FCT<:AbstractFieldCache
+    function DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}(field_cache::FCT) where {
+            GET<:Number, HET<:Number, GMT<:AbstractArray{GET}, 
+            HMBT<:AbstractArray{HET}, HMT<:AbstractArray{HET}, 
+            IMT<:AbstractArray, FCT<:AbstractFieldCache
         }
         @assert isconcretetype(FCT);
         @assert isconcretetype(GET);
         @assert isconcretetype(HET);
         @assert isconcretetype(GMT);
+        @assert isconcretetype(HMBT);
         @assert isconcretetype(HMT);
         @assert isconcretetype(IMT);
         @assert eltype(GMT) == GET;
         @assert eltype(HMT) == HET;
-        stack = new{GET, HET, GMT, HMT, IMT, FCT}()
+        stack = new{GET, HET, GMT, HMBT, HMT, IMT, FCT}()
         stack.field_cache = field_cache
         return stack
     end
 end
 
 # type helpers
-geltype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = GET
-heltype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = HET
-gmattype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = GMT
-hmattype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = HMT
-imattype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = IMT
+geltype(::DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}) where {GET, HET, GMT, HMBT, HMT, IMT} = GET
+heltype(::DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}) where {GET, HET, GMT, HMBT, HMT, IMT} = HET
+gmattype(::DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}) where {GET, HET, GMT, HMBT, HMT, IMT} = GMT
+hmattype(::DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}) where {GET, HET, GMT, HMBT, HMT, IMT} = HMT
+imattype(::DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}) where {GET, HET, GMT, HMBT, HMT, IMT} = IMT
 
 geltype(mc::DQMC) = geltype(mc.stack)
 heltype(mc::DQMC) = heltype(mc.stack)
@@ -113,10 +115,10 @@ function DQMCStack(field::AbstractField, model::Model)
     GET = greens_eltype(field, model)
     
     IMT = interaction_matrix_type(field, model)
-    HMT = Hermitian{HET, hopping_matrix_type(field, model)}
+    HMT = hopping_matrix_type(field, model)
     GMT = greens_matrix_type(field, model)
 
-    DQMCStack{GET, HET, GMT, HMT, IMT}(FieldCache(field, model))
+    DQMCStack{GET, HET, GMT, HMT, Hermitian{HET, HMT}, IMT}(FieldCache(field, model))
 end
 
 
@@ -225,7 +227,7 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
     mc.stack.hopping_matrix = T
     mc.stack.hopping_matrix_exp = Hermitian(fallback_exp(-0.5 * dtau * T))
     mc.stack.hopping_matrix_exp_inv = Hermitian(fallback_exp(0.5 * dtau * T))
-    mc.stack.hopping_matrix_exp_squared = Hermitian(fallback_exp(dtau * T))
+    mc.stack.hopping_matrix_exp_squared = Hermitian(fallback_exp(-dtau * T))
     mc.stack.hopping_matrix_exp_inv_squared = Hermitian(fallback_exp(dtau * T))
     nothing
 end
