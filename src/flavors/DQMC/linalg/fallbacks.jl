@@ -66,9 +66,3 @@ end
 # Hermitian optimization
 vmul!(C::AbstractArray, A::AbstractArray, B::Hermitian) = vmul!(C, A, adjoint(B.data)) # slightly faster
 vmul!(C::AbstractArray, A::Hermitian, B::AbstractArray) = vmul!(C, adjoint(A.data), B) # lots faster
-function vmul!(C::AbstractArray, A::AbstractArray, B::Adjoint{<: Any, <: Hermitian})
-    vmul!(C, A, adjoint(B.parent.data))
-end
-function vmul!(C::AbstractArray, A::Adjoint{<: Any, <: Hermitian}, B::AbstractArray)
-    vmul!(C, adjoint(A.parent.data), B)
-end

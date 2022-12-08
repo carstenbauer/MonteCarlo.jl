@@ -220,31 +220,31 @@ end
 function vmul!(C::BD{N}, A::Adjoint, B::Diagonal) where {N}
     n = size(C.blocks[1], 1)
     @inbounds for i in 1:N
-        vmul!(C.blocks[i], Adjoint(A.parent.blocks[i]), B, (i-1)*n+1 : i*n)
+        vmul!(C.blocks[i], adjoint(A.parent.blocks[i]), B, (i-1)*n+1 : i*n)
     end
     nothing
 end
 function vmul!(C::BD{N}, A::Diagonal, B::Adjoint) where {N}
     n = size(C.blocks[1], 1)
     @inbounds for i in 1:N
-        vmul!(C.blocks[i], A, Adjoint(B.parent.blocks[i]), (i-1)*n+1 : i*n)
+        vmul!(C.blocks[i], A, adjoint(B.parent.blocks[i]), (i-1)*n+1 : i*n)
     end
     nothing
 end
 
 function vmul!(C::BD{N}, A::BD{N}, B::Adjoint) where {N}
     @inbounds for i in 1:N
-        vmul!(C.blocks[i], A.blocks[i], Adjoint(B.parent.blocks[i]))
+        vmul!(C.blocks[i], A.blocks[i], adjoint(B.parent.blocks[i]))
     end
 end
 function vmul!(C::BD{N}, A::Adjoint, B::BD{N}) where {N}
     @inbounds for i in 1:N
-        vmul!(C.blocks[i], Adjoint(A.parent.blocks[i]), B.blocks[i])
+        vmul!(C.blocks[i], adjoint(A.parent.blocks[i]), B.blocks[i])
     end
 end
 function vmul!(C::BD{N}, A::Adjoint, B::Adjoint) where {N}
     @inbounds for i in 1:N
-        vmul!(C.blocks[i], Adjoint(A.parent.blocks[i]), Adjoint(B.parent.blocks[i]))
+        vmul!(C.blocks[i], adjoint(A.parent.blocks[i]), adjoint(B.parent.blocks[i]))
     end
 end
 function rvmul!(A::BD{N}, B::Diagonal) where {N}

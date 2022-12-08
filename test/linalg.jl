@@ -263,6 +263,7 @@ let
         M3 = rand(ComplexF64, N, N)    
         C3 = StructArray(M3)
 
+        R = rand(Float64, N, N)
         MH = Hermitian(M3 + M3')
         CH = Hermitian(StructArray(M3 + M3'))
 
@@ -297,9 +298,21 @@ let
         # Diagonal
         @test check_vmul!(C1, C2, D, M2, D, atol)
         @test check_vmul!(C1, C2', D, M2', D, atol)
+        @test check_vmul!(C1, D, C2, D, M2, atol)
+        @test check_vmul!(C1, D, C2', D, M2', atol)
+        @test check_vmul!(C1, D, R, D, R, atol)
+        @test check_vmul!(C1, D, R', D, R', atol)
 
         @test check_vmul!(C1, C2, DCSA, M2, DC, atol)
         @test check_vmul!(C1, C2', DCSA, M2', DC, atol)
+        @test check_vmul!(C1, DCSA, C2, DC, M2, atol)
+        @test check_vmul!(C1, DCSA, C2', DC, M2', atol)
+
+        # GHQ
+        @test check_vmul!(C1, R, DCSA, R, DC, atol)
+        @test check_vmul!(C1, DCSA, R, DC, R, atol)
+        @test check_vmul!(C1, C2, R, M2, R, atol)
+        @test check_vmul!(C1, R, C2, R, M2, atol)
 
         copyto!(M1, C1)
         rvmul!(C1, D)
@@ -376,7 +389,6 @@ let
         @test Matrix(C1) * Diagonal(D) * Matrix(C2) ≈ M2
 
         # real adjoint + complex for Hermitian
-        R = rand(Float64, N, N)
         copyto!(M2, C2) # just in case
         vmul!(C1, C2, R')
         @test C1 ≈ M2 * R' atol = atol
