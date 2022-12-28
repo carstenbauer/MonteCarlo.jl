@@ -337,19 +337,18 @@ let
         @test check_vmul!(C1, DCSA, R', DCSA, R', atol)
 
         # ranges
-        n = div(N, 2)
-        d = Diagonal(D.diag[1:n])
-        dc = Diagonal(DC.diag[1:n])
+        d = Diagonal(vcat(D.diag, D.diag))
+        dc = Diagonal(vcat(DC.diag, DC.diag))
         dcsa = Diagonal(StructArray(dc.diag))
 
-        vmul!(C1, C2, DCSA, 1:n)
-        @test isapprox(M2[1:n, 1:n] * dcsa, C1[1:n, 1:n], atol = atol)
+        vmul!(C1, C2, dcsa, 1:N)
+        @test isapprox(M2 * DCSA, C1, atol = atol)
         
-        vmul!(C1, R', DCSA, 1:n)
-        @test isapprox(R'[1:n, 1:n] * dcsa, C1[1:n, 1:n], atol = atol)
+        vmul!(C1, R', dcsa, 1:N)
+        @test isapprox(R' * DCSA, C1, atol = atol)
 
-        vmul!(C1, DCSA, R', 1:n)
-        @test isapprox(R'[1:n, 1:n] * dcsa, C1[1:n, 1:n], atol = atol)
+        vmul!(C1, dcsa, R', 1:N)
+        @test isapprox(DCSA * R', C1, atol = atol)
 
 
         copyto!(M1, C1)

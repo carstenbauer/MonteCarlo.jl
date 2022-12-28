@@ -22,16 +22,18 @@ function vmuladd!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}, factor::T = T(1)) 
     vmuladd!(C, A, B, axes(A, 2), factor)
 end
 function vmuladd!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}, range::AbstractVector, factor::T = T(1)) where {T <: Real}
-    @turbo for m in 1:size(A, 1), n in range
-        C[m,n] += factor * A[m,n] * B.diag[n]
+    @views d = B.diag[range]
+    @turbo for m in 1:size(A, 1), n in axes(A, 2)
+        C[m,n] += factor * A[m,n] * d[n]
     end
 end
 function vmuladd!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}, factor::T = T(1)) where {T <: Real}
     vmuladd!(C, A, B, axes(A, 1), factor)
 end
 function vmuladd!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}, range::AbstractVector, factor::T = T(1)) where {T <: Real}
-    @turbo for m in range, n in 1:size(A, 2)
-        C[m,n] += factor * A.diag[m] * B[m,n]
+    @views d = A.diag[range]
+    @turbo for m in axes(A, 1), n in 1:size(A, 2)
+        C[m,n] += factor * d[m] * B[m,n]
     end
 end
 
@@ -39,16 +41,18 @@ function vmuladd!(C::Matrix{T}, A::Adjoint{T}, B::Diagonal{T}, factor::T = T(1))
     vmuladd!(C, A, B, axes(A, 2), factor)
 end
 function vmuladd!(C::Matrix{T}, A::Adjoint{T}, B::Diagonal{T}, range::AbstractVector, factor::T = T(1)) where {T <: Real}
-    @turbo for m in 1:size(A, 1), n in range
-        C[m,n] += factor * A.parent[n,m] * B.diag[n]
+    @views d = B.diag[range]
+    @turbo for m in 1:size(A, 1), n in axes(A, 2)
+        C[m,n] += factor * A.parent[n,m] * d[n]
     end
 end
 function vmuladd!(C::Matrix{T}, A::Diagonal{T}, B::Adjoint{T}, factor::T = T(1)) where {T <: Real}
     vmuladd!(C, A, B, axes(A, 1), factor)
 end
 function vmuladd!(C::Matrix{T}, A::Diagonal{T}, B::Adjoint{T}, range::AbstractVector, factor::T = T(1)) where {T <: Real}
-    @turbo for m in range, n in 1:size(A, 2)
-        C[m,n] += factor * A.diag[m] * B.parent[n,m]
+    @views d = A.diag[range]
+    @turbo for m in axes(A, 1), n in 1:size(A, 2)
+        C[m,n] += factor * d[m] * B.parent[n,m]
     end
 end
 
