@@ -321,9 +321,9 @@ let
         @test check_vmul!(C1, R, C2, R, M2, atol)
 
         # remaining untested
-        @test check_vmul!(C1, DC', C2, DC', M2)
-        @test check_vmul!(C1, R', DCSA, R', DCSA)
-        @test check_vmul!(C1, DCSA, R', DCSA, R')
+        @test check_vmul!(C1, DC', C2, DC', M2, atol)
+        @test check_vmul!(C1, R', DCSA, R', DCSA, atol)
+        @test check_vmul!(C1, DCSA, R', DCSA, R', atol)
 
 
         copyto!(M1, C1)
