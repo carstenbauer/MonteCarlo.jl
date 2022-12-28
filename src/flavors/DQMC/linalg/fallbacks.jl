@@ -62,3 +62,7 @@ function rdivp!(A::Matrix{<: Complex}, T::Matrix{<: Complex}, O::Matrix{<: Compl
     end
     A
 end
+
+# Hermitian optimization
+vmul!(C::AbstractArray, A::AbstractArray, B::Hermitian) = vmul!(C, A, adjoint(B.data)) # slightly faster
+vmul!(C::AbstractArray, A::Hermitian, B::AbstractArray) = vmul!(C, adjoint(A.data), B) # lots faster

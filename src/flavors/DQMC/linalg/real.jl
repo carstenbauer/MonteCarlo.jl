@@ -35,6 +35,40 @@ function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}, range) where {T <: Re
         C[m,n] = d[m] * B[m,n]
     end
 end
+
+function vmul!(C::Matrix{T}, A::Adjoint, B::Diagonal{T}) where {T <: Real}
+    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+        C[m,n] = A.parent[n,m] * B.diag[n]
+    end
+end
+function vmul!(C::Matrix{T}, A::Adjoint, B::Diagonal{T}, factor::Real) where {T <: Real}
+    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+        C[m,n] = factor * A.parent[n,m] * B.diag[n]
+    end
+end
+function vmul!(C::Matrix{T}, A::Adjoint, B::Diagonal{T}, range) where {T <: Real}
+    @views d = B.diag[range]
+    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+        C[m,n] = A.parent[n,m] * d[n]
+    end
+end
+function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Adjoint) where {T <: Real}
+    @turbo for m in 1:size(C, 1), n in 1:size(C, 2)
+        C[m,n] = A.diag[m] * B.parent[n,m]
+    end
+end
+function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Adjoint, factor::Real) where {T <: Real}
+    @turbo for m in 1:size(C, 1), n in 1:size(C, 2)
+        C[m,n] = factor * A.diag[m] * B.parent[n,m]
+    end
+end
+function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Adjoint, range) where {T <: Real}
+    @views d = A.diag[range]
+    @turbo for m in 1:size(C, 1), n in 1:size(C, 2)
+        C[m,n] = d[m] * B.parent[n,m]
+    end
+end
+
 function vmul!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}) where {T <: Real}
     B = X.parent
     @turbo for m in 1:size(A, 1), n in 1:size(B, 2)

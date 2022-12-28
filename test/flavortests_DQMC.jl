@@ -270,13 +270,13 @@ end
     @test MonteCarlo.geltype(dqmc.stack) == Float64
     @test MonteCarlo.heltype(dqmc.stack) == Float64
     @test MonteCarlo.gmattype(dqmc.stack) == Matrix{Float64}
-    @test MonteCarlo.hmattype(dqmc.stack) == Matrix{Float64}
+    @test MonteCarlo.hmattype(dqmc.stack) == Hermitian{Float64, Matrix{Float64}}
     @test MonteCarlo.imattype(dqmc.stack) == Diagonal{Float64, Vector{Float64}}
     
     @test MonteCarlo.geltype(dqmc) == Float64
     @test MonteCarlo.heltype(dqmc) == Float64
     @test MonteCarlo.gmattype(dqmc) == Matrix{Float64}
-    @test MonteCarlo.hmattype(dqmc) == Matrix{Float64}
+    @test MonteCarlo.hmattype(dqmc) == Hermitian{Float64, Matrix{Float64}}
     @test MonteCarlo.imattype(dqmc) == Diagonal{Float64, Vector{Float64}}
 
     # initial greens test

@@ -1,34 +1,45 @@
 let
+    N = 6
+
+    function check_vmul!(C, A, B, atol)
+        vmul!(C, A, B)
+        return isapprox(A * B, C, atol = atol)
+    end
 
     # Complex and Real Matrix mults, BlockDiagonal, UDT
     for type in (Float64, ComplexF64)
-        M = rand(type, 8, 8)
+        M = rand(type, N, N)
         E = exp(M)
         T = MonteCarlo.taylor_exp(M)
         @test all(abs.(T .- E) .< 10_000eps.(abs.(E)))
 
         @testset "avx multiplications ($type)" begin
-            A = rand(type, 8, 8)
-            B = rand(type, 8, 8)
-            C = rand(type, 8, 8)
+            A = rand(type, N, N)
+            B = rand(type, N, N)
+            C = rand(type, N, N)
+            H = Hermitian(B + B')
+            D = Diagonal(rand(N))
             atol = 100eps(Float64)
             type == ComplexF64 && (atol *= sqrt(2))
 
-            vmul!(C, A, B)
-            @test A * B ≈ C atol = atol
+            # Adjoints
+            @test check_vmul!(C, A, B, atol)
+            @test check_vmul!(C, A, B', atol)
+            @test check_vmul!(C, A', B, atol)
+            @test check_vmul!(C, A', B', atol)
 
-            vmul!(C, A, B')
-            @test A * B' ≈ C atol = atol
+            # Hermitian forwards
+            @test check_vmul!(C, A, H, atol)
+            @test check_vmul!(C, H, A, atol)
+            @test check_vmul!(C, A, H', atol)
+            @test check_vmul!(C, H', A', atol)
+            # incomplete but these are just forwards
+            @test check_vmul!(C, A', H, atol)
+            @test check_vmul!(C, H', D, atol)
 
-            vmul!(C, A', B)
-            @test A' * B ≈ C atol = atol
-
-            vmul!(C, A', B')
-            @test A' * B' ≈ C atol = atol
-
-            D = Diagonal(rand(8))
-            vmul!(C, A, D)
-            @test A * D ≈ C atol = atol
+            # Diagonal
+            @test check_vmul!(C, A, D, atol)
+            @test check_vmul!(C, A', D, atol)
 
             copyto!(C, A)
             rvmul!(C, D)
@@ -50,7 +61,7 @@ let
             @test A - I ≈ C atol = atol
 
             if type == Float64
-                v = rand(8) .+ 0.5
+                v = rand(N) .+ 0.5
                 w = copy(v)
                 
                 vmin!(v, w)
@@ -68,6 +79,16 @@ let
                 v = copy(w)
                 vinv!(w)
                 @test w ≈ 1.0 ./ v atol = atol
+            else
+                # real adjoint + complex for Hermitian
+                R = rand(Float64, N, N)
+                @test check_vmul!(C, A, R', atol)
+                @test check_vmul!(C, A', R, atol)
+                @test check_vmul!(C, A', R', atol)
+
+                @test check_vmul!(C, R, A', atol)
+                @test check_vmul!(C, R', A, atol)
+                @test check_vmul!(C, R', A', atol)
             end
         end
 
@@ -113,31 +134,32 @@ let
 
 
         @testset "BlockDiagonal ($type)" begin
+            n = div(N, 2)
             # setindex!
-            B = BlockDiagonal(zeros(4, 4), zeros(4, 4))
-            for i in 1:8, j in 1:8
-                if div(i, 5) == div(j, 5) # cause 5 / 5 = 1 is where we need to jump
-                    B[i, j] = 8i+j
-                    @test B[i, j] == 8i+j
+            B = BlockDiagonal(zeros(n, n), zeros(n, n))
+            for i in 1:N, j in 1:N
+                if div(i, n+1) == div(j, n+1) # cause 5 / 5 = 1 is where we need to jump
+                    B[i, j] = N*i+j
+                    @test B[i, j] == N*i+j
                 else
-                    @test_throws BoundsError B[i, j] = 8i+j
+                    @test_throws BoundsError B[i, j] = N*i+j
                 end
             end
 
             # typing
-            b1 = rand(type, 4, 4)
-            b2 = rand(type, 4, 4)
+            b1 = rand(type, n, n)
+            b2 = rand(type, n, n)
             atol = 100eps(Float64)
         
             B = BlockDiagonal(b1, b2)
             @test B isa BlockDiagonal{type, 2, Matrix{type}}
 
             # getindex
-            for i in 1:4, j in 1:4
+            for i in 1:n, j in 1:n
                 @test B[i, j] == b1[i, j]
-                @test B[4+i, 4+j] == b2[i, j]
-                @test B[4+i, j] == 0.0
-                @test B[i, 4+j] == 0.0
+                @test B[n+i, n+j] == b2[i, j]
+                @test B[n+i, j] == 0.0
+                @test B[i, n+j] == 0.0
             end
         
             # Matrix()
@@ -145,9 +167,9 @@ let
             M1 = Matrix(B1)
             @test M1 == B1
         
-            B2 = BlockDiagonal(rand(type, 4, 4), rand(type, 4, 4))
+            B2 = BlockDiagonal(rand(type, n, n), rand(type, n, n))
             M2 = Matrix(B2)
-            B3 = BlockDiagonal(rand(type, 4, 4), rand(type, 4, 4))
+            B3 = BlockDiagonal(rand(type, n, n), rand(type, n, n))
             M3 = Matrix(B3)
         
             # taylor exp
@@ -155,7 +177,7 @@ let
             T = MonteCarlo.taylor_exp(B)
             @test all(abs.(T .- E) .< 10_000eps.(abs.(E)))
 
-            # Test (avx) multiplications
+            # Test (avx) multiplications ---------------------------------------
             vmul!(B1, B2, B3)
             vmul!(M1, M2, M3)
             @test M1 ≈ B1 atol = atol
@@ -168,7 +190,7 @@ let
             vmul!(M1, adjoint(M2), M3)
             @test M1 ≈ B1 atol = atol
         
-            D = Diagonal(rand(8))
+            D = Diagonal(rand(N))
             vmul!(B1, B2, D)
             vmul!(M1, M2, D)
             @test M1 ≈ B1 atol = atol
@@ -207,9 +229,9 @@ let
         
             # Test UDT and rdivp!
             M2 = Matrix(B2)
-            D = rand(8)
-            pivot = Vector{Int64}(undef, 8)
-            tempv = Vector{type}(undef, 8)
+            D = rand(N)
+            pivot = Vector{Int64}(undef, N)
+            tempv = Vector{type}(undef, N)
             udt_AVX_pivot!(B1, D, B2, pivot, tempv, Val(false))
             
             P = zeros(length(pivot), length(pivot))
@@ -231,52 +253,74 @@ let
     end
 
 
+    function check_vmul!(C, A, B, X, Y, atol)
+        vmul!(C, A, B)
+        return isapprox(X * Y, C, atol = atol)
+    end
         
     @testset "Complex StructArray" begin
-        M1 = rand(ComplexF64, 8, 8)    
+        M1 = rand(ComplexF64, N, N)    
         C1 = StructArray(M1)
-        M2 = rand(ComplexF64, 8, 8)    
+        M2 = rand(ComplexF64, N, N)    
         C2 = StructArray(M2)
-        M3 = rand(ComplexF64, 8, 8)    
+        M3 = rand(ComplexF64, N, N)    
         C3 = StructArray(M3)
+
+        R = rand(Float64, N, N)
+        MH = Hermitian(M3 + M3')
+        CH = Hermitian(StructArray(M3 + M3'))
+
+        D = Diagonal(rand(N))
+        DC = Diagonal(rand(ComplexF64, N))
+        DCSA = Diagonal(StructArray(DC.diag))
 
         # taylor exp
         E = exp(Matrix(M1))
         T = MonteCarlo.taylor_exp(C1)
+        atol = 100eps(Float64)
         @test all(abs.(T .- E) .< 10_000eps.(abs.(E)))
 
         @test C1 isa CMat64
         @test M1 == C1
 
-        # Test avx multiplications (adjoint)
-        vmul!(C1, C2, C3)
-        vmul!(M1, M2, M3)
-        @test M1 ≈ C1
-
-        vmul!(C1, C2, adjoint(C3))
-        vmul!(M1, M2, adjoint(M3))
-        @test M1 ≈ C1
-
-        vmul!(C1, adjoint(C2), C3)
-        vmul!(M1, adjoint(M2), M3)
-        @test M1 ≈ C1
-
-        vmul!(C1, adjoint(C2), adjoint(C3))
-        vmul!(M1, adjoint(M2), adjoint(M3))
-        @test M1 ≈ C1
-
+        # Adjoints
+        @test check_vmul!(C1, C2, C3, M2, M3, atol)
+        @test check_vmul!(C1, C2, C3', M2, M3', atol)
+        @test check_vmul!(C1, C2', C3, M2', M3, atol)
+        @test check_vmul!(C1, C2', C3', M2', M3', atol)
+        
+        # Hermitian forwards
+        @test check_vmul!(C1, C2, CH, M2, MH, atol)
+        @test check_vmul!(C1, CH, C2, MH, M2, atol)
+        @test check_vmul!(C1, C2, CH', M2, MH', atol)
+        @test check_vmul!(C1, CH', C2', MH', M2', atol)
+        # incomplete but these are just forwards
+        @test check_vmul!(C1, C2', CH, M2', MH, atol)
+        @test check_vmul!(C1, CH', D, MH', D, atol)
+        
         # Diagonal
-        D = Diagonal(rand(8))
-        vmul!(C1, C2, D)
-        vmul!(M1, M2, D)
-        @test M1 == C1
+        @test check_vmul!(C1, C2, D, M2, D, atol)
+        @test check_vmul!(C1, C2', D, M2', D, atol)
+        @test check_vmul!(C1, R, D, R, D, atol)
+        @test check_vmul!(C1, R', D, R', D, atol)
 
-        DC = Diagonal(rand(ComplexF64, 8))
-        DCSA = Diagonal(StructArray(DC.diag))
-        vmul!(C1, C2, DCSA)
-        vmul!(M1, M2, DC)
-        @test M1 ≈ C1
+        @test check_vmul!(C1, D, C2, D, M2, atol)
+        @test check_vmul!(C1, D, C2', D, M2', atol)
+        @test check_vmul!(C1, D, R, D, R, atol)
+        @test check_vmul!(C1, D, R', D, R', atol)
 
+        @test check_vmul!(C1, C2, DCSA, M2, DC, atol)
+        @test check_vmul!(C1, C2', DCSA, M2', DC, atol)
+        @test check_vmul!(C1, DCSA, C2, DC, M2, atol)
+        @test check_vmul!(C1, DCSA, C2', DC, M2', atol)
+
+        # GHQ
+        @test check_vmul!(C1, R, DCSA, R, DC, atol)
+        @test check_vmul!(C1, DCSA, R, DC, R, atol)
+        @test check_vmul!(C1, C2, R, M2, R, atol)
+        @test check_vmul!(C1, R, C2, R, M2, atol)
+
+        copyto!(M1, C1)
         rvmul!(C1, D)
         rvmul!(M1, D)
         @test M1 ≈ C1
@@ -328,11 +372,11 @@ let
 
         # Test UDT's, rdivp!
 
-        M2 = rand(ComplexF64, 8, 8)
+        M2 = rand(ComplexF64, N, N)
         C2 = StructArray(M2)
-        D = rand(Float64, 8)
-        pivot = Vector{Int64}(undef, 8)
-        tempv = Vector{ComplexF64}(undef, 8)
+        D = rand(Float64, N)
+        pivot = Vector{Int64}(undef, N)
+        tempv = Vector{ComplexF64}(undef, N)
         udt_AVX_pivot!(C1, D, C2, pivot, tempv, Val(false))
         P = zeros(length(pivot), length(pivot))
         for (i, j) in enumerate(pivot)
@@ -350,5 +394,20 @@ let
         udt_AVX_pivot!(C1, D, C2, pivot, tempv, Val(true))
         @test Matrix(C1) * Diagonal(D) * Matrix(C2) ≈ M2
 
+        # real adjoint + complex for Hermitian
+        copyto!(M2, C2) # just in case
+        vmul!(C1, C2, R')
+        @test C1 ≈ M2 * R' atol = atol
+        vmul!(C1, C2', R)
+        @test C1 ≈ M2' * R atol = atol
+        vmul!(C1, C2', R')
+        @test C1 ≈ M2' * R' atol = atol
+        
+        vmul!(C1, R, C2')
+        @test C1 ≈ R * M2' atol = atol
+        vmul!(C1, R', C2)
+        @test C1 ≈ R' * M2 atol = atol
+        vmul!(C1, R', C2')
+        @test C1 ≈ R' * M2' atol = atol
     end
 end

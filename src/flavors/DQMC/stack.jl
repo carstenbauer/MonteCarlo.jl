@@ -52,11 +52,11 @@ mutable struct DQMCStack{
     hopping_matrix_exp_inv_squared::HoppingMatType
 
 
+
     function DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}(field_cache::FCT) where {
-            GET<:Number, HET<:Number, 
-            GMT<:AbstractArray{GET}, HMBT <: AbstractArray{HET}, 
-            HMT<:AbstractArray{HET}, IMT<:AbstractArray,
-            FCT<:AbstractFieldCache
+            GET<:Number, HET<:Number, GMT<:AbstractArray{GET}, 
+            HMBT<:AbstractArray{HET}, HMT<:AbstractArray{HET}, 
+            IMT<:AbstractArray, FCT<:AbstractFieldCache
         }
         @assert isconcretetype(FCT);
         @assert isconcretetype(GET);
@@ -125,7 +125,7 @@ function DQMCStack(field::AbstractField, model::Model, checkerboard::Bool)
         # StructArray -> ... dunno yet
         HMT = to_checkerboard_type(HMBT)
     else
-        HMT = HMBT
+        HMT = Hermitian{HET, HMBT}
     end
 
     DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}(FieldCache(field, model))
@@ -232,11 +232,11 @@ function init_hopping_matrices(mc::DQMC, m::Model)
     mc.stack.hopping_matrix = T
     if !mc.parameters.checkerboard
         # greens
-        mc.stack.hopping_matrix_exp = fallback_exp(-0.5 * dtau * T)
-        mc.stack.hopping_matrix_exp_inv = fallback_exp(+0.5 * dtau * T)
+        mc.stack.hopping_matrix_exp = Hermitian(fallback_exp(-0.5 * dtau * T))
+        mc.stack.hopping_matrix_exp_inv = Hermitian(fallback_exp(+0.5 * dtau * T))
         # slice matrix multiplications
-        mc.stack.hopping_matrix_exp_squared = fallback_exp(-dtau * T)
-        mc.stack.hopping_matrix_exp_inv_squared = fallback_exp(+dtau * T)
+        mc.stack.hopping_matrix_exp_squared = Hermitian(fallback_exp(-dtau * T))
+        mc.stack.hopping_matrix_exp_inv_squared = Hermitian(fallback_exp(+dtau * T))
     else
         l = lattice(mc)
         mc.stack.hopping_matrix_exp = CheckerboardDecomposed(T, l, -0.5 * dtau)
