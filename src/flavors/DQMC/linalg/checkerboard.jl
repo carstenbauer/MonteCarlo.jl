@@ -394,7 +394,7 @@ end
 # What's better than A*B? That'S right, it's (B^T A^T)^T because 
 # LoopVectorization is just that good
 
-vmul!(trg, A, B, tmp) = vmul!(trg, A, B)
+vmul!(trg::AbstractArray, A::AbstractArray, B::AbstractArray, tmp::AbstractArray) = vmul!(trg, A, B)
 function vmul!(trg::Matrix{T}, cb::CheckerboardDecomposed{T}, src::Matrix{T}, tmp::Matrix{T}) where T
     # # PN ⋯ P1 D M = PN ⋯ P1 M D = ((D M)' P1' ⋯ PN')'
     # P1 ⋯ PN D M = P1 ⋯ PN M D = ((D M)' PN' ⋯ P1')'

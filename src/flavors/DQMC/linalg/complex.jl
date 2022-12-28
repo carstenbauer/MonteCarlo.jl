@@ -19,23 +19,35 @@ function vmuladd!(C::Matrix{T}, A::Matrix{T}, B::Matrix{T}, factor::T = T(1)) wh
 end
 
 function vmuladd!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}, factor::T = T(1)) where {T <: Real}
-    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+    vmuladd!(C, A, B, axes(A, 2), factor)
+end
+function vmuladd!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}, range::AbstractVector, factor::T = T(1)) where {T <: Real}
+    @turbo for m in 1:size(A, 1), n in range
         C[m,n] += factor * A[m,n] * B.diag[n]
     end
 end
 function vmuladd!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}, factor::T = T(1)) where {T <: Real}
-    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+    vmuladd!(C, A, B, axes(A, 1), factor)
+end
+function vmuladd!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}, range::AbstractVector, factor::T = T(1)) where {T <: Real}
+    @turbo for m in range, n in 1:size(A, 2)
         C[m,n] += factor * A.diag[m] * B[m,n]
     end
 end
 
 function vmuladd!(C::Matrix{T}, A::Adjoint{T}, B::Diagonal{T}, factor::T = T(1)) where {T <: Real}
-    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+    vmuladd!(C, A, B, axes(A, 2), factor)
+end
+function vmuladd!(C::Matrix{T}, A::Adjoint{T}, B::Diagonal{T}, range::AbstractVector, factor::T = T(1)) where {T <: Real}
+    @turbo for m in 1:size(A, 1), n in range
         C[m,n] += factor * A.parent[n,m] * B.diag[n]
     end
 end
 function vmuladd!(C::Matrix{T}, A::Diagonal{T}, B::Adjoint{T}, factor::T = T(1)) where {T <: Real}
-    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+    vmuladd!(C, A, B, axes(A, 1), factor)
+end
+function vmuladd!(C::Matrix{T}, A::Diagonal{T}, B::Adjoint{T}, range::AbstractVector, factor::T = T(1)) where {T <: Real}
+    @turbo for m in range, n in 1:size(A, 2)
         C[m,n] += factor * A.diag[m] * B.parent[n,m]
     end
 end
@@ -100,6 +112,16 @@ function vmul!(C::Matrix{T}, X1::Adjoint{T}, X2::Adjoint{T}, factor::T) where {T
         C[m,n] = factor * Cmn
     end
 end
+function vmul!(C::Matrix{T}, X1::Adjoint{T}, B::Matrix{T}, factor::T) where {T <: Real}
+    A = X1.parent
+    @turbo for m in 1:size(A, 1), n in 1:size(B, 2)
+        Cmn = zero(eltype(C))
+        for k in 1:size(A, 2)
+            Cmn += A[k,m] * B[k, n]
+        end
+        C[m,n] = factor * Cmn
+    end
+end
 
 
 
@@ -155,9 +177,9 @@ end
     vmul!(C.re, A.re, B)
     vmul!(C.im, A.im, B)
 end
-@inline function vmul!(C::CMat64, A::CMat64, B::Diagonal{<: Real}, range)
-    @views vmul!(C.re, A.re, Diagonal(B.diag[range]))
-    @views vmul!(C.im, A.im, Diagonal(B.diag[range]))
+@inline function vmul!(C::CMat64, A::CMat64, B::Diagonal{<: Real}, range::AbstractVector)
+    vmul!(C.re, A.re, Diagonal(B.diag), range)
+    vmul!(C.im, A.im, Diagonal(B.diag), range)
 end
 
 #tested
@@ -167,20 +189,20 @@ end
     vmul!(   C.im, A.re, Diagonal(D.diag.im))
     vmuladd!(C.im, A.im, Diagonal(D.diag.re))
 end
-@inline function vmul!(C::CMat64, A::CMat64, D::Diagonal{ComplexF64, <: CVec64}, range)
-    @views vmul!(   C.re, A.re, Diagonal(D.diag.re[range]))
-    @views vmuladd!(C.re, A.im, Diagonal(D.diag.im[range]), -1.0)
-    @views vmul!(   C.im, A.re, Diagonal(D.diag.im[range]))
-    @views vmuladd!(C.im, A.im, Diagonal(D.diag.re[range]))
+@inline function vmul!(C::CMat64, A::CMat64, D::Diagonal{ComplexF64, <: CVec64}, range::AbstractVector)
+    vmul!(   C.re, A.re, Diagonal(D.diag.re), range)
+    vmuladd!(C.re, A.im, Diagonal(D.diag.im), range, -1.0)
+    vmul!(   C.im, A.re, Diagonal(D.diag.im), range)
+    vmuladd!(C.im, A.im, Diagonal(D.diag.re), range)
 end
 
 @inline function vmul!(C::CMat64, A::Diagonal{<: Real}, B::CMat64)
     vmul!(C.re, A, B.re)
     vmul!(C.im, A, B.im)
 end
-@inline function vmul!(C::CMat64, A::Diagonal{<: Real}, B::CMat64, range)
-    @views vmul!(C.re, A, B.re, range)
-    @views vmul!(C.im, A, B.im, range)
+@inline function vmul!(C::CMat64, A::Diagonal{<: Real}, B::CMat64, range::AbstractVector)
+    vmul!(C.re, A, B.re, range)
+    vmul!(C.im, A, B.im, range)
 end
 @inline function vmul!(C::CMat64, A::Diagonal{ComplexF64, <: CVec64}, B::CMat64)
     vmul!(   C.re, Diagonal(A.diag.re), B.re)
@@ -189,10 +211,10 @@ end
     vmuladd!(C.im, Diagonal(A.diag.im), B.re)
 end
 # @inline function vmul!(C::CMat64, A::Diagonal{ComplexF64, <: CVec64}, B::CMat64, range)
-#     @views vmul!(   C.re, Diagonal(A.diag.re[range]), B.re)
-#     @views vmuladd!(C.re, Diagonal(A.diag.im[range]), B.im, -1.0)
-#     @views vmul!(   C.im, Diagonal(A.diag.re[range]), B.im)
-#     @views vmuladd!(C.im, Diagonal(A.diag.im[range]), B.re)
+#     vmul!(   C.re, Diagonal(A.diag.re), B.re, range)
+#     vmuladd!(C.re, Diagonal(A.diag.im), B.im, range, -1.0)
+#     vmul!(   C.im, Diagonal(A.diag.re), B.im, range)
+#     vmuladd!(C.im, Diagonal(A.diag.im), B.re, range)
 # end
 
 # tested
@@ -668,26 +690,46 @@ end
 ################################################################################
 
 
-@inline function vmul!(C::CMat64, A::Matrix{<: Float64}, D::Diagonal{ComplexF64, <: CVec64})
+@inline function vmul!(C::CMat64, A::Matrix{Float64}, D::Diagonal{Float64, FVec64})
+    vmul!(C.re, A, D)
+    C.im .= 0
+    return
+end
+@inline function vmul!(C::CMat64, A::Matrix{Float64}, D::Diagonal{ComplexF64, <: CVec64})
     vmul!(C.re, A, Diagonal(D.diag.re))
     vmul!(C.im, A, Diagonal(D.diag.im))
 end
 # @inline function vmul!(C::CMat64, A::Matrix{<: Float64}, D::Diagonal{ComplexF64, <: CVec64}, range)
-#     @views vmul!(C.re, A, Diagonal(D.diag.re[range]))
-#     @views vmul!(C.im, A, Diagonal(D.diag.im[range]))
+#     vmul!(C.re, A, Diagonal(D.diag.re[range]))
+#     vmul!(C.im, A, Diagonal(D.diag.im[range]))
 # end
-@inline function vmul!(C::CMat64, D::Diagonal{ComplexF64, <: CVec64}, B::Matrix{<: Float64})
+
+@inline function vmul!(C::CMat64, D::Diagonal{Float64, FVec64}, B::Matrix{Float64})
+    vmul!(C.re, D, B)
+    C.im .= 0.0
+    return
+end
+@inline function vmul!(C::CMat64, D::Diagonal{ComplexF64, <: CVec64}, B::Matrix{Float64})
     vmul!(C.re, Diagonal(D.diag.re), B)
     vmul!(C.im, Diagonal(D.diag.im), B)
 end
 # @inline function vmul!(C::CMat64, D::Diagonal{ComplexF64, <: CVec64}, B::Matrix{<: Float64}, range)
-#     @views vmul!(C.re, Diagonal(D.diag.re[range]), B)
-#     @views vmul!(C.im, Diagonal(D.diag.im[range]), B)
+#     vmul!(C.re, Diagonal(D.diag.re[range]), B)
+#     vmul!(C.im, Diagonal(D.diag.im[range]), B)
 # end
 
+@inline function vmul!(C::CMat64, A::Adjoint{ComplexF64, CMat64}, B::Matrix{Float64})
+    vmul!(C.re, adjoint(A.parent.re), B)
+    vmul!(C.im, adjoint(A.parent.im), B, -1.0)
+end
 @inline function vmul!(C::CMat64, A::CMat64, B::Matrix{Float64})
     vmul!(C.re, A.re, B)
     vmul!(C.im, A.im, B)
+end
+
+@inline function vmul!(C::CMat64, A::Matrix{Float64}, B::Adjoint{ComplexF64, CMat64})
+    vmul!(C.re, A, adjoint(B.parent.re))
+    vmul!(C.im, A, adjoint(B.parent.im), -1.0)
 end
 @inline function vmul!(C::CMat64, A::Matrix{Float64}, B::CMat64)
     vmul!(C.re, A, B.re)
@@ -705,8 +747,8 @@ end
     vmul!(C.im, adjoint(A.parent.im), B, -1.0)
 end
 # @inline function vmul!(C::CMat64, A::Adjoint{ComplexF64, <: CMat64}, B::Diagonal{<: Real}, range)
-#     @views vmul!(C.re, adjoint(A.parent.re), Diagonal(B.diag[range]))
-#     @views vmul!(C.im, adjoint(A.parent.im), Diagonal(B.diag[range]), -1.0)
+#     vmul!(C.re, adjoint(A.parent.re), Diagonal(B.diag), range)
+#     vmul!(C.im, adjoint(A.parent.im), Diagonal(B.diag), range, -1.0)
 # end
 
 @inline function vmul!(C::CMat64, A::Adjoint{ComplexF64, <: CMat64}, D::Diagonal{ComplexF64, <: CVec64})
@@ -716,10 +758,10 @@ end
     vmuladd!(C.im, adjoint(A.parent.im), Diagonal(D.diag.re), -1.0)
 end
 # @inline function vmul!(C::CMat64, A::Adjoint{ComplexF64, <: CMat64}, D::Diagonal{ComplexF64, <: CVec64}, range)
-#     @views vmul!(   C.re, adjoint(A.parent.re), Diagonal(D.diag.re[range]))
-#     @views vmuladd!(C.re, adjoint(A.parent.im), Diagonal(D.diag.im[range]))
-#     @views vmul!(   C.im, adjoint(A.parent.re), Diagonal(D.diag.im[range]))
-#     @views vmuladd!(C.im, adjoint(A.parent.im), Diagonal(D.diag.re[range]), -1.0)
+#     vmul!(   C.re, adjoint(A.parent.re), Diagonal(D.diag.re), range)
+#     vmuladd!(C.re, adjoint(A.parent.im), Diagonal(D.diag.im), range)
+#     vmul!(   C.im, adjoint(A.parent.re), Diagonal(D.diag.im), range)
+#     vmuladd!(C.im, adjoint(A.parent.im), Diagonal(D.diag.re), range, -1.0)
 # end
 
 @inline function vmul!(C::CMat64, A::Diagonal{<: Real}, B::Adjoint{ComplexF64, <: CMat64})
@@ -727,8 +769,8 @@ end
     vmul!(C.im, A, adjoint(B.parent.im), -1.0)
 end
 # @inline function vmul!(C::CMat64, A::Diagonal{<: Real}, B::Adjoint{ComplexF64, <: CMat64}, range)
-#     @views vmul!(C.re, A, adjoint(B.parent.re), range)
-#     @views vmul!(C.im, A, adjoint(B.parent.im), range, -1.0)
+#     vmul!(C.re, A, adjoint(B.parent.re), range)
+#     vmul!(C.im, A, adjoint(B.parent.im), range, -1.0)
 # end
 @inline function vmul!(C::CMat64, A::Diagonal{ComplexF64, <: CVec64}, B::Adjoint{ComplexF64, <: CMat64})
     vmul!(   C.re, Diagonal(A.diag.re), adjoint(B.parent.re))
@@ -737,10 +779,10 @@ end
     vmuladd!(C.im, Diagonal(A.diag.re), adjoint(B.parent.im), -1.0)
 end
 # @inline function vmul!(C::CMat64, A::Diagonal{ComplexF64, <: CVec64}, B::Adjoint{ComplexF64, <: CMat64}, range)
-#     @views vmul!(   C.re, Diagonal(A.diag.re[range]), adjoint(B.parent.re))
-#     @views vmuladd!(C.re, Diagonal(A.diag.im[range]), adjoint(B.parent.im))
-#     @views vmul!(   C.im, Diagonal(A.diag.im[range]), adjoint(B.parent.re))
-#     @views vmuladd!(C.im, Diagonal(A.diag.re[range]), adjoint(B.parent.im), -1.0)
+#     vmul!(   C.re, Diagonal(A.diag.re), adjoint(B.parent.re), range)
+#     vmuladd!(C.re, Diagonal(A.diag.im), adjoint(B.parent.im), range)
+#     vmul!(   C.im, Diagonal(A.diag.im), adjoint(B.parent.re), range)
+#     vmuladd!(C.im, Diagonal(A.diag.re), adjoint(B.parent.im), range, -1.0)
 # end
 
 @inline function vmul!(C::CMat64, A::Adjoint{Float64}, B::Diagonal{<: Real})
@@ -748,17 +790,17 @@ end
     copyto!(C.im, 0)
 end
 # @inline function vmul!(C::CMat64, A::Adjoint{Float64}, B::Diagonal{<: Real}, range)
-#     @views vmul!(C.re, A, Diagonal(B.diag[range]))
-#     @views copyto!(C.im, 0)
+#     vmul!(C.re, A, B, range)
+#     copyto!(C.im, 0)
 # end
 
 @inline function vmul!(C::CMat64, A::Adjoint{Float64}, D::Diagonal{ComplexF64, <: CVec64})
     vmul!(C.re, A, Diagonal(D.diag.re))
     vmul!(C.im, A, Diagonal(D.diag.im))
 end
-@inline function vmul!(C::CMat64, A::Adjoint{Float64}, D::Diagonal{ComplexF64, <: CVec64}, range)
-    @views vmul!(C.re, A, Diagonal(D.diag.re[range]))
-    @views vmul!(C.im, A, Diagonal(D.diag.im[range]))
+@inline function vmul!(C::CMat64, A::Adjoint{Float64}, D::Diagonal{ComplexF64, <: CVec64}, range::AbstractVector)
+    vmul!(C.re, A, Diagonal(D.diag.re), range)
+    vmul!(C.im, A, Diagonal(D.diag.im), range)
 end
 
 @inline function vmul!(C::CMat64, A::Diagonal{<: Real}, B::Adjoint{Float64})
@@ -766,16 +808,16 @@ end
     copyto!(C.im, 0)
 end
 # @inline function vmul!(C::CMat64, A::Diagonal{<: Real}, B::Adjoint{Float64}, range)
-#     @views vmul!(C.re, A, B, range)
+#     vmul!(C.re, A, B, range)
 #     copyto!(C.im, 0)
 # end
 @inline function vmul!(C::CMat64, A::Diagonal{ComplexF64, <: CVec64}, B::Adjoint{Float64})
     vmul!(C.re, Diagonal(A.diag.re), B)
     vmul!(C.im, Diagonal(A.diag.im), B)
 end
-@inline function vmul!(C::CMat64, A::Diagonal{ComplexF64, <: CVec64}, B::Adjoint{Float64}, range)
-    @views vmul!(C.re, Diagonal(A.diag.re[range]), B)
-    @views vmul!(C.im, Diagonal(A.diag.im[range]), B)
+@inline function vmul!(C::CMat64, A::Diagonal{ComplexF64, <: CVec64}, B::Adjoint{Float64}, range::AbstractVector)
+    vmul!(C.re, Diagonal(A.diag.re), B, range)
+    vmul!(C.im, Diagonal(A.diag.im), B, range)
 end
 
 @inline function vmul!(C::CMat64, A::CMat64, X::Adjoint{Float64})
