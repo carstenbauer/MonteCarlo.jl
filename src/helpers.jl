@@ -23,17 +23,6 @@ end
 
 
 """
-    sparsity(A)
-
-Calculates the sparsity of the given array.
-The sparsity is defined as number of zero-valued elements divided by
-total number of elements.
-"""
-function sparsity(A::AbstractArray{T}) where T<:Number
-    (length(A)-countnz(A))/length(A)
-end
-
-"""
     reldiff(A, B)
 
 Relative difference of absolute values of `A` and `B` defined as
@@ -70,66 +59,6 @@ Difference of absolute values of `A` and `B`.
 """
 function absdiff(A::AbstractArray{T}, B::AbstractArray{S}) where {T<:Number, S<:Number}
     return abs.(A-B)
-end
-
-
-"""
-    compare(A, B)
-
-Compares two matrices `A` and `B`, prints out the maximal absolute and relative differences
-and returns a boolean indicating wether `isapprox(A,B)`.
-"""
-function compare(A::AbstractArray{T}, B::AbstractArray{S}) where {T<:Number, S<:Number}
-    @printf("max absdiff: %.1e\n", maximum(absdiff(A,B)))
-    @printf("mean absdiff: %.1e\n", mean(absdiff(A,B)))
-    @printf("max reldiff: %.1e\n", maximum(reldiff(A,B)))
-    @printf("mean reldiff: %.1e\n", mean(reldiff(A,B)))
-
-    r = effreldiff(A,B)
-    @printf("effective max reldiff: %.1e\n", maximum(r))
-    @printf("effective mean reldiff: %.1e\n", mean(r))
-
-    return isapprox(A,B)
-end
-
-
-# Taken from Base
-if !isdefined(Base, :splitpath)
-    splitpath(p::AbstractString) = splitpath(String(p))
-
-    if Sys.isunix()
-        const path_dir_splitter = r"^(.*?)(/+)([^/]*)$"
-    elseif Sys.iswindows()
-        const path_dir_splitter = r"^(.*?)([/\\]+)([^/\\]*)$"
-    else
-        error("path primitives for this OS need to be defined")
-    end
-
-    _splitdir_nodrive(path::String) = _splitdir_nodrive("", path)
-    function _splitdir_nodrive(a::String, b::String)
-        m = match(path_dir_splitter,b)
-        m === nothing && return (a,b)
-        a = string(a, isempty(m.captures[1]) ? m.captures[2][1] : m.captures[1])
-        a, String(m.captures[3])
-    end
-
-    function splitpath(p::String)
-        drive, p = splitdrive(p)
-        out = String[]
-        isempty(p) && (pushfirst!(out,p))  # "" means the current directory.
-        while !isempty(p)
-            dir, base = _splitdir_nodrive(p)
-            dir == p && (pushfirst!(out, dir); break)  # Reached root node.
-            if !isempty(base)  # Skip trailing '/' in basename
-                pushfirst!(out, base)
-            end
-            p = dir
-        end
-        if !isempty(drive)  # Tack the drive back on to the first element.
-            out[1] = drive*out[1]  # Note that length(out) is always >= 1.
-        end
-        return out
-    end
 end
 
 

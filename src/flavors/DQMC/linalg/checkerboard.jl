@@ -104,7 +104,7 @@ function build_checkerboard(l::AbstractLattice)
     # Debug/Crosscheck for different group configuration sin 8x8 Square lattice
     # default is no stagger X X Y Y
 
-    # X Y X Y, no stagger (irrlevant)
+    # X Y X Y, no stagger (irrelevant)
     # groups = [[groups[1][1], groups[2][1]], [groups[1][2], groups[2][2]]]
 
     # X X Y Y all staggered
