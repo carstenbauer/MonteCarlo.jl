@@ -320,6 +320,12 @@ let
         @test check_vmul!(C1, C2, R, M2, R, atol)
         @test check_vmul!(C1, R, C2, R, M2, atol)
 
+        # remaining untested
+        @test check_vmul!(C1, DC', C2, DC', M2)
+        @test check_vmul!(C1, R', DCSA, R', DCSA)
+        @test check_vmul!(C1, DCSA, R', DCSA, R')
+
+
         copyto!(M1, C1)
         rvmul!(C1, D)
         rvmul!(M1, D)
