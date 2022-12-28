@@ -226,7 +226,17 @@ let
         
             vmul!(B1, B2', B3')
             @test B1 ≈ M2' * M3' atol = atol
-        
+
+            # leftovers
+            # real with ranges
+            vmul!(B1, B2', D)
+            vmul!(M1, M2', D)
+            @test M1 ≈ B1 atol = atol
+
+            vmul!(B1, D', B2)
+            vmul!(M1, D', M2)
+            @test M1 ≈ B1 atol = atol
+
             # Test UDT and rdivp!
             M2 = Matrix(B2)
             D = rand(N)
@@ -324,6 +334,21 @@ let
         @test check_vmul!(C1, DC', C2, DC', M2, atol)
         @test check_vmul!(C1, R', DCSA, R', DCSA, atol)
         @test check_vmul!(C1, DCSA, R', DCSA, R', atol)
+
+        # ranges
+        n = div(N, 2)
+        d = Diagonal(vcat(D.diag[1:n], ones(n)))
+        dc = Diagonal(vcat(DC.diag[1:n], ones(n)))
+        dcsa = Diagonal(StructArray(dc.diag))
+
+        vmul!(C1, DC', C3, 1:n)
+        @test isapprox(dc' * M3, C1, atol = atol)
+        
+        vmul!(C1, R', DCSA, 1:n)
+        @test isapprox(R' * dcsa, C1, atol = atol)
+
+        vmul!(C1, DCSA, R', 1:n)
+        @test isapprox(R' * dcsa, C1, atol = atol)
 
 
         copyto!(M1, C1)
