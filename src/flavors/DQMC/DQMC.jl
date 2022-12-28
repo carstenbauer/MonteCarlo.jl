@@ -31,7 +31,6 @@ will start with sweep `last_sweep + 1`.
 """
 function DQMC(model::M;
         seed::Int=-1,
-        checkerboard::Bool=false,
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
         measurements = Dict{Symbol, AbstractMeasurement}(),
         last_sweep = 0,
@@ -50,14 +49,13 @@ function DQMC(model::M;
     field_data = field(parameters, model)
     rand!(field_data)
 
-    stack = DQMCStack(field_data, model)
+    stack = DQMCStack(field_data, model, parameters.checkerboard)
     ut_stack = UnequalTimeStack{geltype(stack), gmattype(stack)}()
 
     analysis = DQMCAnalysis()
-    CB = checkerboard ? CheckerboardTrue : CheckerboardFalse
 
     mc = DQMC(
-        CB, model, field_data, last_sweep, stack, ut_stack, scheduler,
+        model, field_data, last_sweep, stack, ut_stack, scheduler,
         parameters, analysis, recorder, thermalization_measurements, measurements
     )
     

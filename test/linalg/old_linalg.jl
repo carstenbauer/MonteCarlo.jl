@@ -14,7 +14,7 @@ end
 
 #### QR, i.e. UDT decomposition
 function decompose_udt(A::AbstractMatrix{C}) where C<:Number
-    F = qr(A, Val(true))
+    F = qr(A, ColumnNorm())
     p = F.p
     @views p[p] = collect(1:length(p))
     # D = abs.(real(diag(triu(R))))

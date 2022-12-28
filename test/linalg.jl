@@ -95,37 +95,40 @@ let
 
 
         @testset "UDT transformations + rdivp! ($type)" begin
-            U = Matrix{Float64}(undef, N, N)
-            D = Vector{Float64}(undef, N)
-            T = rand(N, N)
-            X = copy(T)
-            MonteCarlo.udt_AVX!(U, D, T)
-            @test U * Diagonal(D) * T ≈ X
-
-            U = Matrix{type}(undef, N, N)
-            T = rand(type, N, N)
-            X = copy(T)
-            pivot = Vector{Int64}(undef, N)
-            tempv = Vector{type}(undef, N)
-            udt_AVX_pivot!(U, D, T)
-            @test U * Diagonal(D) * T ≈ X
-
-            copyto!(T, X)
-            pivot = Vector{Int64}(undef, N)
-            tempv = Vector{type}(undef, N)
-            udt_AVX_pivot!(U, D, T, pivot, tempv, Val(false))
-            # pivoting matrix
-            P = zeros(length(pivot), length(pivot))
-            for (i, j) in enumerate(pivot)
-                P[i, j] = 1.0
+            for X in (rand(8, 8), kron(rand(8), rand(8)'))
+                U = Matrix{Float64}(undef, 8, 8)
+                D = Vector{Float64}(undef, 8)
+                T = copy(X)
+                MonteCarlo.udt_AVX!(U, D, T)
+                @test U * Diagonal(D) * T ≈ X
             end
-            @test U * Diagonal(D) * UpperTriangular(T) * P ≈ X
 
-            u = copy(U)
-            t = copy(T)
-            tmp = similar(T)
-            rdivp!(u, t, tmp, pivot)
-            @test u ≈ U * P' / UpperTriangular(T)
+            for X in (rand(type, 8, 8), kron(rand(type, 8), rand(type, 8)'))
+                U = Matrix{type}(undef, 8, 8)
+                D = Vector{Float64}(undef, 8)
+                T = copy(X)
+                pivot = Vector{Int64}(undef, 8)
+                tempv = Vector{type}(undef, 8)
+                udt_AVX_pivot!(U, D, T)
+                @test U * Diagonal(D) * T ≈ X
+
+                copyto!(T, X)
+                pivot = Vector{Int64}(undef, 8)
+                tempv = Vector{type}(undef, 8)
+                udt_AVX_pivot!(U, D, T, pivot, tempv, Val(false))
+                # pivoting matrix
+                P = zeros(length(pivot), length(pivot))
+                for (i, j) in enumerate(pivot)
+                    P[i, j] = 1.0
+                end
+                @test U * Diagonal(D) * UpperTriangular(T) * P ≈ X
+
+                u = copy(U)
+                t = copy(T)
+                tmp = similar(T)
+                rdivp!(u, t, tmp, pivot)
+                @test u ≈ U * P' / UpperTriangular(T)
+            end
         end
 
 
@@ -223,7 +226,17 @@ let
         
             vmul!(B1, B2', B3')
             @test B1 ≈ M2' * M3' atol = atol
-        
+
+            # leftovers
+            # real with ranges
+            vmul!(B1, B2', D)
+            vmul!(M1, M2', D)
+            @test M1 ≈ B1 atol = atol
+
+            vmul!(B1, D', B2)
+            vmul!(M1, D', M2)
+            @test M1 ≈ B1 atol = atol
+
             # Test UDT and rdivp!
             M2 = Matrix(B2)
             D = rand(N)
@@ -316,6 +329,27 @@ let
         @test check_vmul!(C1, DCSA, R, DC, R, atol)
         @test check_vmul!(C1, C2, R, M2, R, atol)
         @test check_vmul!(C1, R, C2, R, M2, atol)
+
+        # remaining untested
+        @test check_vmul!(C1, DC', C2, DC', M2, atol)
+        @test check_vmul!(C1, DCSA', C2, DCSA', M2, atol)
+        @test check_vmul!(C1, R', DCSA, R', DCSA, atol)
+        @test check_vmul!(C1, DCSA, R', DCSA, R', atol)
+
+        # ranges
+        d = Diagonal(vcat(D.diag, D.diag))
+        dc = Diagonal(vcat(DC.diag, DC.diag))
+        dcsa = Diagonal(StructArray(dc.diag))
+
+        vmul!(C1, C2, dcsa, 1:N)
+        @test isapprox(M2 * DCSA, C1, atol = atol)
+        
+        vmul!(C1, R', dcsa, 1:N)
+        @test isapprox(R' * DCSA, C1, atol = atol)
+
+        vmul!(C1, dcsa, R', 1:N)
+        @test isapprox(DCSA * R', C1, atol = atol)
+
 
         copyto!(M1, C1)
         rvmul!(C1, D)

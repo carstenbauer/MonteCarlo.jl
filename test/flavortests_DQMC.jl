@@ -117,7 +117,7 @@ end
 
     # constructors
     mc = DQMC{
-        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.field),
+        typeof(dqmc.model), typeof(dqmc.field),
         typeof(dqmc.recorder), typeof(dqmc.stack), typeof(dqmc.ut_stack), 
         typeof(dqmc.scheduler)
     }(
@@ -131,7 +131,7 @@ end
     end
 
     mc = DQMC(
-        MonteCarlo.CheckerboardFalse, dqmc.model, dqmc.field, 
+        dqmc.model, dqmc.field, 
         dqmc.last_sweep, dqmc.stack, dqmc.ut_stack, dqmc.scheduler, 
         dqmc.parameters, dqmc.analysis, dqmc.recorder, 
         dqmc.thermalization_measurements, dqmc.measurements
@@ -159,7 +159,7 @@ end
         end
     end
     @test mc isa DQMC{
-        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.field),
+        typeof(dqmc.model), typeof(dqmc.field),
         Discarder, typeof(dqmc.stack), typeof(dqmc.ut_stack), 
         typeof(dqmc.scheduler)
     }
@@ -279,30 +279,6 @@ end
     @test MonteCarlo.hmattype(dqmc) == Hermitian{Float64, Matrix{Float64}}
     @test MonteCarlo.imattype(dqmc) == Diagonal{Float64, Vector{Float64}}
 
-
-    # generic checkerboard
-    sq = MonteCarlo.SquareLattice(4);
-    @test MonteCarlo.build_checkerboard(sq) == ([1.0 3.0 5.0 7.0 9.0 11.0 13.0 15.0 1.0 2.0 4.0 6.0 9.0 10.0 12.0 14.0 2.0 3.0 4.0 5.0 8.0 10.0 11.0 16.0 6.0 7.0 8.0 12.0 13.0 14.0 15.0 16.0; 2.0 4.0 6.0 8.0 10.0 12.0 14.0 16.0 5.0 3.0 8.0 7.0 13.0 11.0 16.0 15.0 6.0 7.0 1.0 9.0 12.0 14.0 15.0 13.0 10.0 11.0 5.0 9.0 1.0 2.0 3.0 4.0; 1.0 5.0 9.0 13.0 17.0 21.0 25.0 29.0 2.0 3.0 8.0 11.0 18.0 19.0 24.0 27.0 4.0 6.0 7.0 10.0 16.0 20.0 22.0 31.0 12.0 14.0 15.0 23.0 26.0 28.0 30.0 32.0], UnitRange[1:8, 9:16, 17:24, 25:32], 4)
-
-    m = HubbardModel(8, 2, mu=0.5)
-    mc1 = DQMC(m, beta=5.0)
-    mc2 = DQMC(m, beta=5.0, checkerboard=false)
-    mc2.field.conf .= deepcopy(mc1.field.conf)
-    MonteCarlo.initialize_stack(mc1, mc1.stack)
-    MonteCarlo.initialize_stack(mc2, mc2.stack)
-    MonteCarlo.init_hopping_matrices(mc1, m)
-    MonteCarlo.init_hopping_matrices(mc2, m)
-    MonteCarlo.build_stack(mc1, mc1.stack)
-    MonteCarlo.build_stack(mc2, mc2.stack)
-    @test MonteCarlo.slice_matrix(mc1, m, 1, 1.) == MonteCarlo.slice_matrix(mc2, m, 1, 1.)
-
-    mc = DQMC(m, beta=5.0, checkerboard=true, delta_tau=0.1)
-    MonteCarlo.init_hopping_matrices(mc, m)
-    hop_mat_exp_chkr = foldl(*,mc.stack.chkr_hop_half) * sqrt.(mc.stack.chkr_mu)
-    r = MonteCarlo.effreldiff(mc.stack.hopping_matrix_exp,hop_mat_exp_chkr)
-    r[findall(x -> x==zero(x), hop_mat_exp_chkr)] .= 0.
-    @test maximum(MonteCarlo.absdiff(mc.stack.hopping_matrix_exp,hop_mat_exp_chkr)) <= mc.parameters.delta_tau
-
     # initial greens test
     mc = DQMC(m, beta=5.0, safe_mult=1)
     MonteCarlo.init_hopping_matrices(mc, m)
@@ -371,6 +347,10 @@ end
     include("DQMC/unequal_time_stack.jl")
 end
 
+@testset "Checkerboard Decomposition" begin
+    include("DQMC/checkerboard.jl")
+end
+
 
 @testset "Exact Greens comparison (Analytic, medium systems)" begin
     # These are theoretically the same but their implementation differs on
@@ -398,14 +378,7 @@ end
             N = length(lattice(model))
 
             # Direct calculation similar to what DQMC should be doing
-            T = Matrix(dqmc.stack.hopping_matrix)
-            # Doing an eigenvalue decomposition makes this pretty stable
-            vals, U = eigen(exp(-T))
-            D = Diagonal(vals)^(dqmc.parameters.beta)
-
-            # Don't believe "Quantum Monte Carlo Methods", this is the right
-            # formula (believe dos Santos DQMC review instead)
-            G = U * inv(I + D) * adjoint(U)
+            G = analytic_greens(dqmc)(0)
 
             @test check(mean(dqmc[:G]), G, atol, rtol)
         end

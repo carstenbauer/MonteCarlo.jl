@@ -70,6 +70,7 @@ end
 end
 
 
+
 """
     udt_AVX!(U::Matrix, D::Vector, T::Matrix)
 
@@ -127,7 +128,8 @@ function udt_AVX!(U::AbstractMatrix{C}, D::AbstractVector{C}, input::AbstractMat
 
     # @bm "Calculate D" begin
         @inbounds for i in 1:n
-            D[i] = abs(real(input[i, i]))
+            x = abs(real(input[i, i]))
+            D[i] = ifelse(x == 0, 1.0, x)
         end
     # end
 
@@ -261,9 +263,6 @@ function udt_AVX_pivot!(
 
             # Update trailing submatrix with reflector
             # @bm "apply" begin
-                # TODO optimize?
-                x = LinearAlgebra.view(input, j:n, j)
-                # reflectorApply!(x, τj, LinearAlgebra.view(input, j:n, j+1:n))
                 reflectorApply!(input, τj, j, n)
             # end
         end
@@ -292,7 +291,13 @@ function udt_AVX_pivot!(
 
     # @bm "Calculate D" begin
         @inbounds for i in 1:n
-            D[i] = abs(real(input[i, i]))
+            # With checkerboard it apparently can happen that the input matrix 
+            # takes the form [a[1] * v   a[2] * v   a[3] * v   ...]
+            # In this case we should get zeros on the diagonal which would cause 
+            # div 0 issues in apply_pivot. To avoid those, we have this ifelse.
+            # See #169
+            x = abs(input[i, i])
+            D[i] = ifelse(x == 0, 1.0, x)
         end
     # end
 
@@ -464,9 +469,6 @@ function udt_AVX_pivot!(
 
             # Update trailing submatrix with reflector
             # @bm "apply" begin
-                # TODO optimize?
-                x = LinearAlgebra.view(input, j:n, j)
-                # reflectorApply!(x, τj, LinearAlgebra.view(input, j:n, j+1:n))
                 reflectorApply!(input, τj, j, n)
             # end
         end
@@ -495,7 +497,8 @@ function udt_AVX_pivot!(
 
     # @bm "Calculate D" begin
         @inbounds for i in 1:n
-            D[i] = abs(real(input[i, i]))
+            x = abs(real(input[i, i]))
+            D[i] = ifelse(x == 0, 1.0, x)
         end
     # end
 

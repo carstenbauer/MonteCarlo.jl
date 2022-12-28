@@ -40,7 +40,7 @@ macro benchmark_test(name, code)
     TimerOutputs.timer_expr(MonteCarlo, true, name, code)
 end
 
-@testset "All Tests" begin
+@testset "All Tests" verbose = true begin
     @testset "Utilities" begin
         @bm function test1(x, y)
             sleep(x+y)

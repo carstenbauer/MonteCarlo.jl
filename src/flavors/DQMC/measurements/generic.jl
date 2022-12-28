@@ -378,7 +378,7 @@ end
     M = nslices(mc)
     for (i, (g0l, gl0, gll)) in enumerate(init(mc, iter))
         weight = ifelse(i in (1, M+1), 0.5, 1.0) * mc.parameters.delta_tau
-        G00 = maybe_repeating(mc, greens!(mc))
+        G00 = maybe_repeating(mc, greens!(mc, temp2 = mc.ut_stack.tmp))
         G0l = maybe_repeating(mc, g0l)
         Gl0 = maybe_repeating(mc, gl0)
         Gll = maybe_repeating(mc, gll)

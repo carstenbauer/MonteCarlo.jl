@@ -91,20 +91,19 @@ exponentials from left and right.
 
 Inplace version of `greens`.
 """
-@bm function greens!(mc::DQMC; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.curr_U)
+@bm function greens!(mc::DQMC; output=mc.stack.greens_temp, input=mc.stack.greens, temp=mc.stack.curr_U, temp2 = mc.stack.tmp2)
     # TODO rework measurements to work well with StructArrays and remove this    
     if isdefined(mc.stack, :complex_greens_temp)
-        _greens!(mc, output, input, temp)
+        _greens!(mc, output, input, temp, temp2)
         copyto!(mc.stack.complex_greens_temp, output)
         GreensMatrix(0, 0, mc.stack.complex_greens_temp)
     else
-        GreensMatrix(0, 0, _greens!(mc, output, input, temp))
+        GreensMatrix(0, 0, _greens!(mc, output, input, temp, temp2))
     end
 end
 
 
 
-# Implementations with and without checkerboards. 
 # Note that we use the Trotter decomposition 
 # `exp(-Δτ(V + T)) = exp(-0.5 Δτ T) exp(-Δτ V) exp(-0.5 Δτ T)`
 # alongside the cyclic property of determinants 
@@ -113,37 +112,18 @@ end
 # reverse the cyclic permutation, which happens here.
 
 function _greens!(
-        mc::DQMC_CBFalse, target::AbstractMatrix = mc.stack.greens_temp, 
-        source::AbstractMatrix = mc.stack.greens, temp::AbstractMatrix = mc.stack.curr_U
+        mc::DQMC, target::AbstractMatrix = mc.stack.greens_temp, 
+        source::AbstractMatrix = mc.stack.greens, 
+        temp::AbstractMatrix = mc.stack.curr_U,
+        temp2::AbstractMatrix = mc.stack.tmp2
     )
     eThalfminus = mc.stack.hopping_matrix_exp
     eThalfplus = mc.stack.hopping_matrix_exp_inv
-    vmul!(temp, source, eThalfminus)
-    vmul!(target, eThalfplus, temp)
+    vmul!(temp, source, eThalfminus, temp2)
+    vmul!(target, eThalfplus, temp, temp2)
     return target
 end
 
-
-function _greens!(
-        mc::DQMC_CBTrue, target::AbstractMatrix = mc.stack.greens_temp, 
-        source::AbstractMatrix = mc.stack.greens, temp::AbstractMatrix = mc.stack.curr_U
-    )
-    chkr_hop_half_minus = mc.stack.chkr_hop_half
-    chkr_hop_half_plus = mc.stack.chkr_hop_half_inv
-    copyto!(target, source)
-
-    @inbounds @views begin
-        for i in reverse(1:mc.stack.n_groups)
-            vmul!(temp, target, chkr_hop_half_minus[i])
-            copyto!(target, temp)
-        end
-        for i in reverse(1:mc.stack.n_groups)
-            vmul!(temp, chkr_hop_half_plus[i], target)
-            copyto!(target, temp)
-        end
-    end
-    return target
-end
 
 
 # Same stuff with a specified time slice.
