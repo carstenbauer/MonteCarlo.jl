@@ -332,23 +332,24 @@ let
 
         # remaining untested
         @test check_vmul!(C1, DC', C2, DC', M2, atol)
+        @test check_vmul!(C1, DCSA', C2, DCSA', M2, atol)
         @test check_vmul!(C1, R', DCSA, R', DCSA, atol)
         @test check_vmul!(C1, DCSA, R', DCSA, R', atol)
 
         # ranges
         n = div(N, 2)
-        d = Diagonal(vcat(D.diag[1:n], ones(n)))
-        dc = Diagonal(vcat(DC.diag[1:n], ones(n)))
+        d = Diagonal(D.diag[1:n])
+        dc = Diagonal(DC.diag[1:n])
         dcsa = Diagonal(StructArray(dc.diag))
 
-        vmul!(C1, DC', C3, 1:n)
-        @test isapprox(dc' * M3, C1, atol = atol)
+        vmul!(C1, C2, DCSA, 1:n)
+        @test isapprox(M2[1:n, 1:n] * dcsa, C1[1:n, 1:n], atol = atol)
         
         vmul!(C1, R', DCSA, 1:n)
-        @test isapprox(R' * dcsa, C1, atol = atol)
+        @test isapprox(R'[1:n, 1:n] * dcsa, C1[1:n, 1:n], atol = atol)
 
         vmul!(C1, DCSA, R', 1:n)
-        @test isapprox(R' * dcsa, C1, atol = atol)
+        @test isapprox(R'[1:n, 1:n] * dcsa, C1[1:n, 1:n], atol = atol)
 
 
         copyto!(M1, C1)
