@@ -4,7 +4,7 @@
 
 
 ################################################################################
-### Utility updates
+### Interface Utility updates
 ################################################################################
 
 
@@ -12,7 +12,7 @@
 """
     AbstractUpdate
 
-A update should be a struct inhereting from AbstractUpdate or one of its 
+An update should be a struct inhereting from AbstractUpdate or one of its 
 abstract children `AbstractLocalUpdate`, `AbstractGlobalUpdate` or 
 `AbstractParallelUpdate`. 
 
@@ -22,51 +22,126 @@ struct MyGlobalUpdate <: MonteCarlo.AbstractGlobalUpdate
 end
 ```
 
-It should implement the methods
+It must implement: 
+- `update(update, mc, model, field_or_conf)` to perform the update
+- `_load(f::FileLike, ::Val{name})` to load the update from a file
 
-```
-function MonteCarlo.update(u::MyGlobalUpdate, mc, model)
-    mc.temp_conf = ...
-    return global_update(mc, model, mc.temp_conf)
-end
-MonteCarlo.name(::MyGlobalUpdate) = "MyGlobalUpdate"
-```
+It can implement
+- `init!(mc, update)` to perform simulation specific initialization
+- `is_full_sweep(update) = false` to disable sweep incrementation
+- `requires_temp_conf(update) = true` to request allocation of a temporery configuration
+- `should_be_unique(update) = true` to request removal of copies
+- `generate_key(update)` for finding copies
+- `_save(f::FileLike, name, update)` to provide a custom saving method
+- `name(update)` to provide a custom name for printing
 
-The latter is used for printing statistics of the scheduler. The former defines
-what the implemented update does. Usually this means creating a new 
-configuration and handing it to `global_update` to do a standard Metropolis 
-update. Note that you can and should use `mc.temp_conf` as temporary storage.
+See the individual docstrings for more information.
 
-Behind the scenes, the scheduler will wrap `MyGlobalUpdate` in 
-`AcceptanceStatistics` which collects the number of requested and accepted 
-updates. It is expected that you return `0` if the update is denied or `1` if it
-is accepted (as does the `global_update` returned above). 
+Behind the scenes, the scheduler will wrap updates in `AcceptanceStatistics` 
+which collect the number of requested and accepted updates. It is expected that 
+you return `0/false` if the update is denied or `1/true` if it is accepted
+for this purpose.
 """
 abstract type AbstractUpdate end
 abstract type AbstractLocalUpdate <: AbstractUpdate end
 
-# This initialization happens just before starting a simulation
+
+########################################
+### General Interface
+########################################
+
+
+"""
+    init!(mc, update::AbstractUpdate)
+
+Initializes an update with an otherwise initialized simulation `mc`. This is 
+called just before the main Simulation loop.
+"""
 init!(mc, update::AbstractUpdate) = nothing
-# If this returns true the sweep counter will be incremented
+
+"""
+    is_full_sweep(update::AbstractUpdate)
+
+If this returns `true` for a given `update` the sweep counter is incremented 
+after executing it. Defaults to `true`.
+"""
 is_full_sweep(update::AbstractUpdate) = true
-# If this is true the temp_conf in field will be initialized
+
+"""
+    requires_temp_conf(update::AbstractUpdate)
+
+If this returns `true` for a given `update` the simulation will allocate a 
+second configuration as a temporary buffer for the update. This configuration
+is reused between all updates and should be asumed to change between calls to 
+`update!(...)`
+"""
 requires_temp_conf(update::AbstractUpdate) = false
 # If this returns true updates with the same key will be combined into a single instance
+
+"""
+    should_be_unique(update::AbstractUpdate)
+
+If this returns `true` for a given `update`, updates of this type with same key 
+returned by `generate_key(update)` will refer to a single instance of the 
+update.
+
+For example, consider a queue of update 
+`(MyUpdate(), LocalSweep(), MyUpdate(), LocalSweep())` where `MyUpdate()` 
+includes some temporary storage which you do not want to dublicate. With 
+`should_be_unique(::MyUpdate) = true` you can tell the scheduler to search for
+instances of `MyUpdate` and replace them with the first, removing that extra
+storage. The key returned by `generate_key(::MyUpdate)` is used to check if two
+updates are the same and can be represented by the same object.
+"""
 should_be_unique(update::AbstractUpdate) = false
-# And this returns that key
+
+"""
+    generate_key(update::AbstractUpdate)
+
+Returns a key for comparing updates, defaulting to `hash(update)`. 
+See `should_be_unique(::AbstractUpdate)`.
+"""
 generate_key(u::AbstractUpdate) = hash(u)
 
+"""
+    _save(file::FileLike, name::String, update::AbstractUpdate)
+
+Saves an update to a file. By default, writes only `nameof(typeof(update))`.
+"""
 function _save(file::FileLike, name::String, update::AbstractUpdate)
     write(file, "$name/tag", nameof(typeof(update)))
 end
 
+"""
+    update(update::AbstractUpdate, mc, model, field_or_conf)
+
+Performs the `update` with the given simulation `mc`, `model` and 
+`field_or_conf`. Should return `true` if the update has been successfull.
+
+This function must to be implemented for each update.
+"""
+function update(update::AbstractUpdate, args...)
+    throw(MethodError(update, (update, args...)))
+end
 
 """
-AbstractSpecialUpdate <: AbstractUpdate
+    name(update::AbstractUpdate)
 
-An `AbstractSpecialUpdate` is one that doesn't update the configuration. In a way 
+Returns a string corresponding to the name of the update. Defaults to 
+`string(nameof(typeof(update)))`. Used in printing.
 """
-abstract type AbstractSpecialUpdate <: AbstractUpdate end
+name(update::AbstractUpdate) = update |> typeof |> nameof |> string
+
+
+
+"""
+AbstractUtilityUpdate <: AbstractUpdate
+
+An `AbstractUtilityUpdate` is one that doesn't update the configuration. It may
+be a placeholder, like `NoUpdate` and `Adaptive`, or modify the simulation in 
+some other way like `ChemicalPotentialTuning`
+"""
+abstract type AbstractUtilityUpdate <: AbstractUpdate end
 
 """
     NoUpdate([mc, model])
@@ -74,13 +149,12 @@ abstract type AbstractSpecialUpdate <: AbstractUpdate end
 An update that does nothing. Used internally to keep the adaptive scheduler 
 running if all (other) adaptive updates are discarded.
 """
-struct NoUpdate <: AbstractSpecialUpdate end
+struct NoUpdate <: AbstractUtilityUpdate end
 NoUpdate(mc, model) = NoUpdate()
 function update(u::NoUpdate, args...)
     # we count this as "denied" global update
     return 0
 end
-name(::NoUpdate) = "NoUpdate"
 is_full_sweep(update::NoUpdate) = false
 _load(f::FileLike, ::Val{:NoUpdate}) = NoUpdate()
 
@@ -92,7 +166,7 @@ _load(f::FileLike, ::Val{:NoUpdate}) = NoUpdate()
 
 A placeholder for adaptive updates in the `AdaptiveScheduler`.
 """
-struct Adaptive <: AbstractSpecialUpdate end
+struct Adaptive <: AbstractUtilityUpdate end
 name(::Adaptive) = "Adaptive"
 _load(f::FileLike, ::Val{:Adaptive}) = Adaptive()
 

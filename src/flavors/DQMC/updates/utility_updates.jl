@@ -30,7 +30,7 @@ diagmean(G::BlockDiagonal) = mapreduce(diagmean, +, G.blocks) / length(G.blocks)
 
 
 
-mutable struct ChemicalPotentialTuning <: AbstractUpdate
+mutable struct ChemicalPotentialTuning <: AbstractUtilityUpdate
     target_occupation::Float64
 
     # Put these here because mus and Ns should be synced and ever changing

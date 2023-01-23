@@ -137,7 +137,7 @@ include("FileIO.jl")
 # some others are in stack.jl and unequal_time_stack.jl
 include("greens.jl")
 
-include("updates/special_updates.jl")
+include("updates/utility_updates.jl")
 
 # Contains code related to make measurements. Specifically:
 # Greens iterators
