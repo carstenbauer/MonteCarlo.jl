@@ -30,8 +30,7 @@ It can implement
 - `init!(mc, update)` to perform simulation specific initialization
 - `is_full_sweep(update) = false` to disable sweep incrementation
 - `requires_temp_conf(update) = true` to request allocation of a temporery configuration
-- `should_be_unique(update) = true` to request removal of copies
-- `generate_key(update)` for finding copies
+- `can_replace(update1, update2)` to identify updates that can replace each other
 - `_save(f::FileLike, name, update)` to provide a custom saving method
 - `name(update)` to provide a custom name for printing
 
@@ -79,29 +78,15 @@ requires_temp_conf(update::AbstractUpdate) = false
 # If this returns true updates with the same key will be combined into a single instance
 
 """
-    should_be_unique(update::AbstractUpdate)
+    can_replace(update1, update2)
 
-If this returns `true` for a given `update`, updates of this type with same key 
-returned by `generate_key(update)` will refer to a single instance of the 
-update.
+If this returns `true` the scheduler is allowed to replace one of the updates 
+by the other. Defaults to false.
 
-For example, consider a queue of update 
-`(MyUpdate(), LocalSweep(), MyUpdate(), LocalSweep())` where `MyUpdate()` 
-includes some temporary storage which you do not want to dublicate. With 
-`should_be_unique(::MyUpdate) = true` you can tell the scheduler to search for
-instances of `MyUpdate` and replace them with the first, removing that extra
-storage. The key returned by `generate_key(::MyUpdate)` is used to check if two
-updates are the same and can be represented by the same object.
+This can be useful to save memory when an update needs some temporary storage 
+that can be shared between different instances.
 """
-should_be_unique(update::AbstractUpdate) = false
-
-"""
-    generate_key(update::AbstractUpdate)
-
-Returns a key for comparing updates, defaulting to `hash(update)`. 
-See `should_be_unique(::AbstractUpdate)`.
-"""
-generate_key(u::AbstractUpdate) = hash(u)
+can_replace(u1::AbstractUpdate, u2::AbstractUpdate) = false
 
 """
     _save(file::FileLike, name::String, update::AbstractUpdate)
@@ -175,7 +160,7 @@ _load(f::FileLike, ::Val{:Adaptive}) = Adaptive()
 
 # Should this inherit from AbstractUpdate?
 # This is required for AdaptiveScheduler, used by both
-mutable struct AcceptanceStatistics{Update <: AbstractUpdate}
+mutable struct AcceptanceStatistics{Update <: AbstractUpdate} <: AbstractUpdate
     accepted::Float64
     total::Int
     update::Update
@@ -185,8 +170,9 @@ AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
 AcceptanceStatistics(proxy::Adaptive) = proxy
 name(w::AcceptanceStatistics) = name(w.update)
 requires_temp_conf(update::AcceptanceStatistics) = requires_temp_conf(update.update)
-should_be_unique(update::AcceptanceStatistics) = should_be_unique(update.update)
-generate_key(u::AcceptanceStatistics) = hash((u.accepted, u.total), generate_key(u.update))
+function can_replace(u1::AcceptanceStatistics, u2::AcceptanceStatistics)
+    can_replace(u1.update, u2.update) && (u1.accepted == u2.accepted) && (u1.total == u2.total)
+end
 function update(w::AcceptanceStatistics, mc, m, field)
     accepted = update(w.update, mc, m, field)
     w.total += 1
@@ -230,9 +216,13 @@ function init_scheduler!(mc, scheduler::AbstractUpdateScheduler)
 end
 
 function make_unique(updates::Union{Tuple, Vector})
-    cache = Dict()
-    map(updates) do update
-        should_be_unique(update) ? get!(cache, generate_key(update), update) : update
+    cache = AbstractUpdate[]
+    return map(updates) do update
+        for cached_update in cache
+            can_replace(update, cached_update) && return cached_update
+        end
+        push!(cache, update)
+        return update
     end
 end
 

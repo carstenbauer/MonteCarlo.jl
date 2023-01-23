@@ -52,8 +52,10 @@ function init!(mc, u::ChemicalPotentialTuning)
     nothing
 end
 
-should_be_unique(::ChemicalPotentialTuning) = true
-generate_key(u::ChemicalPotentialTuning) = hash((u.target_occupation, u.mus, u.Ns, u.idx))
+function can_replace(u1::ChemicalPotentialTuning, u2::ChemicalPotentialTuning)
+    (u1.target_occupation == u2.target_occupation) && (u1.mus == u2.mus) && 
+    (u1.Ns == u2.Ns) && (u1.idx == u2.idx)
+end
 is_full_sweep(::ChemicalPotentialTuning) = false
 name(::ChemicalPotentialTuning) = "ChemicalPotentialTuning"
 
