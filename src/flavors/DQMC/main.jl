@@ -1,12 +1,18 @@
+abstract type AbstractDQMCStack end
+
+abstract type AbstractUpdateScheduler end
+init!(s::AbstractUpdateScheduler, mc, model) = s
+
+abstract type AbstractField end
+abstract type AbstractFieldCache end
+
+
 # Optimized math and matrix types
 include("linalg/main.jl")
 
 # Statistics for the DQMC simulation runtime. This has nothin to do with 
 # measurements/observables.
 include("statistics.jl")
-
-# Some tapes, checkerboard stuff (which has been neglected a lot)
-include("abstract.jl")
 
 # contains `DQMCParameters` which holds parameters relevant to DQMC and the 
 # general simulation. 
@@ -18,7 +24,7 @@ include("parameters.jl")
 # a ::DQMC to figure out how large a bunch of matrices need to be, but 
 # logically fits in `stack.jl`.
 mutable struct DQMC{
-        M <: Model, CB <: Checkerboard, FT <: AbstractField, RT <: AbstractRecorder, 
+        M <: Model, FT <: AbstractField, RT <: AbstractRecorder, 
         Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack,
         US <: AbstractUpdateScheduler
     } <: MonteCarloFlavor
@@ -36,10 +42,9 @@ mutable struct DQMC{
     recorder::RT
     thermalization_measurements::Dict{Symbol, AbstractMeasurement}
     measurements::Dict{Symbol, AbstractMeasurement}
-    lattice_iterator_cache::LatticeIteratorCache
 
-    function DQMC{M, CB, FT, RT, Stack, UTStack, US}(args...) where {
-            M <: Model, CB <: Checkerboard, FT <: AbstractField, 
+    function DQMC{M, FT, RT, Stack, UTStack, US}(args...) where {
+            M <: Model, FT <: AbstractField, 
             RT <: AbstractRecorder, 
             Stack <: AbstractDQMCStack, UTStack <: AbstractDQMCStack,
             US <: AbstractUpdateScheduler
@@ -52,20 +57,20 @@ mutable struct DQMC{
         @assert isconcretetype(RT)
         @assert isconcretetype(US)
         
-        new{M, CB, FT, RT, Stack, UTStack, US}(args..., LatticeIteratorCache())
+        new{M, FT, RT, Stack, UTStack, US}(args...)
     end
 end
 
 # Simplified constructor
 function DQMC(
-        CB, model::M, field::FT, last_sweep,
+        model::M, field::FT, last_sweep,
         stack::Stack, ut_stack::UTStack, scheduler::US,
         parameters, analysis,
         recorder::RT,
         thermalization_measurements, measurements
     ) where {M, FT, RT, Stack, UTStack, US}
 
-    DQMC{M, CB, FT, RT, Stack, UTStack, US}(
+    DQMC{M, FT, RT, Stack, UTStack, US}(
         model, field, last_sweep, stack, ut_stack, 
         scheduler, parameters, analysis, recorder,
         thermalization_measurements, measurements
@@ -75,17 +80,17 @@ end
 
 # copy constructor
 function DQMC(
-        mc::DQMC{x, CBT};
-        CB = CBT, model::M = mc.model, field::FT = mc.field, 
+        mc::DQMC{x};
+        model::M = mc.model, field::FT = mc.field, 
         last_sweep = mc.last_sweep,
         stack::Stack = mc.stack, ut_stack::UTStack = mc.ut_stack, 
         scheduler::US = mc.scheduler, parameters = mc.parameters, 
         analysis = mc.analysis, recorder::RT = mc.recorder,
         thermalization_measurements = mc.thermalization_measurements, 
         measurements = mc.measurements
-    ) where {x, CBT, M, FT, RT, Stack, UTStack, US}
+    ) where {x, M, FT, RT, Stack, UTStack, US}
 
-    DQMC{M, CB, FT, RT, Stack, UTStack, US}(
+    DQMC{M, FT, RT, Stack, UTStack, US}(
         model, field, last_sweep, stack, ut_stack, 
         scheduler, parameters, analysis, recorder,
         thermalization_measurements, measurements
@@ -105,8 +110,7 @@ include("fields.jl")
 # This also contains some functions for calculating greens functions.
 include("stack.jl")
 
-# Contains the `UnequalTimeStack`, related greens calculation methods and 
-# iterators (i.e. CombinedGreens). This is used for unequal time measurements.
+# Contains the `UnequalTimeStack` and code for time displaced greens functions
 include("unequal_time_stack.jl")
 
 # Contains functions for computations using the matrices representing a time 
@@ -136,13 +140,11 @@ include("greens.jl")
 include("updates/special_updates.jl")
 
 # Contains code related to make measurements. Specifically:
+# Greens iterators
+include("measurements/greens_iterators.jl")
 # The overall structure
 include("measurements/generic.jl")
-# Quick constructers and measurement kernels (i.e. applied Wicks theorem)
-include("measurements/measurements.jl")
-# Superfluid stiffness stuff
-include("measurements/superfluid_stiffness.jl")
-# Contains some post processing tools
-include("measurements/extensions.jl")
-# structs and conversions from the old system
-include("measurements/deprecated.jl")
+# coinstructors + Wicks expanded kernels
+include("measurements/constructors/main.jl")
+# distance/direction based Greens functions
+include("measurements/restructuring.jl")

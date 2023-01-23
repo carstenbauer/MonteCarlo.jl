@@ -150,7 +150,7 @@ Ls = (6, 8)
 betas = [8.0]
 dqmcs = []
 
-function my_kernel(mc, m, ij::NTuple{2}, G::AbstractArray)
+function my_kernel(mc, m, ij::NTuple{2}, G::GreensMatrix, flv)
     i, j = ij
     4 * (I[j, i] - G[j, i]) * G[i, j]
 end
@@ -179,10 +179,19 @@ qs = vcat(
     range(Float64[pi, 0],  Float64[pi, pi], length=10),
     range(Float64[pi, pi], Float64[0, 0], length=10),
 )
+
 ys = map(dqmcs) do dqmc
-    MonteCarlo.fourier_transform(
-        qs, directions(MonteCarlo.lattice(dqmc)), mean(dqmc[:CDC])
-    ) |> real
+    results = zeros(ComplexF64, length(qs))
+    vals = mean(dqmc[:CDC])
+    dirs = directions(dqmc[:CDC].lattice_iterator, lattice(dqmc))
+    for (j, q) in enumerate(qs)
+        # basis, basis, direction index
+        for b1 in axes(dirs, 1), b2 in axes(dirs, 2), i in axes(dirs, 3)
+            results[j] += vals[b1, b2, i] * cis(dot(dirs[b1, b2, i], q))
+        end
+    end
+
+    real(results)
 end
 
 using CairoMakie, FileIO, Colors

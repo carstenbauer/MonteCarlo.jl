@@ -84,12 +84,11 @@ function HamiltonMatrix(model::Model)
             E = 0.0
             # hopping (hermitian conjugate implied/included by lattice generation)
             for substate in [1, 2]
-                for (source, target) in neighbors(lattice, Val(true))
-                    target == -1 && continue
+                for b in bonds(lattice, Val(true))
                     # be careful not to change rstate 
                     # (or restore it with state_from_integer!)
-                    _sign1, state = annihilate(rstate, source, substate)    
-                    _sign2, state = create(state, target, substate)
+                    _sign1, state = annihilate(rstate, b.from, substate)    
+                    _sign2, state = create(state, b.to, substate)
                     if _sign1 * _sign2 != 0.0 && lstate == state
                         E -= _sign1 * _sign2 * t
                     end
@@ -706,12 +705,14 @@ end
     end
 
     @bm "compute O" begin
-        for τ in beta:-step:0.5step #0:step:beta-0.5step
+        M = round(Int, beta/step)
+        for i in 0:M
             o = 0.0
+            τ = step * i
             for n in eachindex(vals), m in eachindex(vals)
                 o += exp(-(beta-τ)*vals[n] - τ*vals[m]) * X[n, m]
             end
-            O += step * o / Z
+            O += ifelse(i in (0, M), 0.5step, step) * o / Z
         end
     end
     

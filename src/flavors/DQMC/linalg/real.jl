@@ -18,7 +18,7 @@ function vmul!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}) where {T <: Real}
         C[m,n] = A[m,n] * B.diag[n]
     end
 end
-function vmul!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}, range) where {T <: Real}
+function vmul!(C::Matrix{T}, A::Matrix{T}, B::Diagonal{T}, range::AbstractVector) where {T <: Real}
     @views d = B.diag[range]
     @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
         C[m,n] = A[m,n] * d[n]
@@ -29,12 +29,46 @@ function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}) where {T <: Real}
         C[m,n] = A.diag[m] * B[m,n]
     end
 end
-function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}, range) where {T <: Real}
+function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Matrix{T}, range::AbstractVector) where {T <: Real}
     @views d = A.diag[range]
     @turbo for m in 1:size(C, 1), n in 1:size(C, 2)
         C[m,n] = d[m] * B[m,n]
     end
 end
+
+function vmul!(C::Matrix{T}, A::Adjoint, B::Diagonal{T}) where {T <: Real}
+    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+        C[m,n] = A.parent[n,m] * B.diag[n]
+    end
+end
+function vmul!(C::Matrix{T}, A::Adjoint, B::Diagonal{T}, factor::Real) where {T <: Real}
+    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+        C[m,n] = factor * A.parent[n,m] * B.diag[n]
+    end
+end
+function vmul!(C::Matrix{T}, A::Adjoint, B::Diagonal{T}, range::AbstractVector) where {T <: Real}
+    @views d = B.diag[range]
+    @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
+        C[m,n] = A.parent[n,m] * d[n]
+    end
+end
+function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Adjoint) where {T <: Real}
+    @turbo for m in 1:size(C, 1), n in 1:size(C, 2)
+        C[m,n] = A.diag[m] * B.parent[n,m]
+    end
+end
+function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Adjoint, factor::Real) where {T <: Real}
+    @turbo for m in 1:size(C, 1), n in 1:size(C, 2)
+        C[m,n] = factor * A.diag[m] * B.parent[n,m]
+    end
+end
+function vmul!(C::Matrix{T}, A::Diagonal{T}, B::Adjoint, range::AbstractVector) where {T <: Real}
+    @views d = A.diag[range]
+    @turbo for m in 1:size(C, 1), n in 1:size(C, 2)
+        C[m,n] = d[m] * B.parent[n,m]
+    end
+end
+
 function vmul!(C::Matrix{T}, A::Matrix{T}, X::Adjoint{T}) where {T <: Real}
     B = X.parent
     @turbo for m in 1:size(A, 1), n in 1:size(B, 2)
@@ -66,6 +100,11 @@ function vmul!(C::Matrix{T}, X1::Adjoint{T}, X2::Adjoint{T}) where {T <: Real}
         C[m,n] = Cmn
     end
 end
+
+function vmul!(C::MT, D::Adjoint{T, <: Diagonal}, B::MT) where {T <: Real, MT <: Matrix{T}}
+    vmul!(C, D.parent, B)
+end
+
 function rvmul!(A::Matrix{T}, B::Diagonal{T}) where {T <: Real}
     @turbo for m in 1:size(A, 1), n in 1:size(A, 2)
         A[m,n] = A[m,n] * B.diag[n]

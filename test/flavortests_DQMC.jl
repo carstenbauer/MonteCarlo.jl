@@ -73,8 +73,8 @@ end
     @test_throws MethodError MonteCarlo.hopping_matrix(m)
     @test_throws MethodError rand(f)
     @test_throws MethodError rand!(f)
-    @test_throws MethodError MonteCarlo.nflavors(m)
-    @test_throws MethodError MonteCarlo.nflavors(f)
+    @test_throws MethodError MonteCarlo.unique_flavors(m)
+    @test_throws MethodError MonteCarlo.unique_flavors(f)
     @test_throws MethodError MonteCarlo.compress(f)
     @test_throws MethodError MonteCarlo.compressed_conf_type(f)
     @test_throws MethodError MonteCarlo.decompress(f, Int8[])
@@ -87,9 +87,9 @@ end
     @test_throws MethodError MonteCarlo.accept_local!(dqmc, f, 1, 1, 1.0, 1.0, nothing)
     
 
-    MonteCarlo.nflavors(::DummyModel) = 1
+    MonteCarlo.unique_flavors(::DummyModel) = 1
     MonteCarlo.lattice(m::DummyModel) = m.lattice
-    MonteCarlo.nflavors(::DummyField) = 2
+    MonteCarlo.unique_flavors(::DummyField) = 2
 
     # DQMC optional
     # method errors come from hopping_matrix(model)
@@ -117,7 +117,7 @@ end
 
     # constructors
     mc = DQMC{
-        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.field),
+        typeof(dqmc.model), typeof(dqmc.field),
         typeof(dqmc.recorder), typeof(dqmc.stack), typeof(dqmc.ut_stack), 
         typeof(dqmc.scheduler)
     }(
@@ -131,7 +131,7 @@ end
     end
 
     mc = DQMC(
-        MonteCarlo.CheckerboardFalse, dqmc.model, dqmc.field, 
+        dqmc.model, dqmc.field, 
         dqmc.last_sweep, dqmc.stack, dqmc.ut_stack, dqmc.scheduler, 
         dqmc.parameters, dqmc.analysis, dqmc.recorder, 
         dqmc.thermalization_measurements, dqmc.measurements
@@ -159,7 +159,7 @@ end
         end
     end
     @test mc isa DQMC{
-        typeof(dqmc.model), MonteCarlo.CheckerboardFalse, typeof(dqmc.field),
+        typeof(dqmc.model), typeof(dqmc.field),
         Discarder, typeof(dqmc.stack), typeof(dqmc.ut_stack), 
         typeof(dqmc.scheduler)
     }
@@ -242,7 +242,6 @@ end
 
 @testset "DQMC stack" begin
     # chunk generation
-    Random.seed!()
     check_chunks = true
     for _ in 1:100
         slices = rand(1:100)
@@ -271,38 +270,14 @@ end
     @test MonteCarlo.geltype(dqmc.stack) == Float64
     @test MonteCarlo.heltype(dqmc.stack) == Float64
     @test MonteCarlo.gmattype(dqmc.stack) == Matrix{Float64}
-    @test MonteCarlo.hmattype(dqmc.stack) == Matrix{Float64}
+    @test MonteCarlo.hmattype(dqmc.stack) == Hermitian{Float64, Matrix{Float64}}
     @test MonteCarlo.imattype(dqmc.stack) == Diagonal{Float64, Vector{Float64}}
     
     @test MonteCarlo.geltype(dqmc) == Float64
     @test MonteCarlo.heltype(dqmc) == Float64
     @test MonteCarlo.gmattype(dqmc) == Matrix{Float64}
-    @test MonteCarlo.hmattype(dqmc) == Matrix{Float64}
+    @test MonteCarlo.hmattype(dqmc) == Hermitian{Float64, Matrix{Float64}}
     @test MonteCarlo.imattype(dqmc) == Diagonal{Float64, Vector{Float64}}
-
-
-    # generic checkerboard
-    sq = MonteCarlo.SquareLattice(4);
-    @test MonteCarlo.build_checkerboard(sq) == ([1.0 3.0 5.0 7.0 9.0 11.0 13.0 15.0 1.0 2.0 4.0 6.0 9.0 10.0 12.0 14.0 2.0 3.0 4.0 5.0 8.0 10.0 11.0 16.0 6.0 7.0 8.0 12.0 13.0 14.0 15.0 16.0; 2.0 4.0 6.0 8.0 10.0 12.0 14.0 16.0 5.0 3.0 8.0 7.0 13.0 11.0 16.0 15.0 6.0 7.0 1.0 9.0 12.0 14.0 15.0 13.0 10.0 11.0 5.0 9.0 1.0 2.0 3.0 4.0; 1.0 5.0 9.0 13.0 17.0 21.0 25.0 29.0 2.0 3.0 8.0 11.0 18.0 19.0 24.0 27.0 4.0 6.0 7.0 10.0 16.0 20.0 22.0 31.0 12.0 14.0 15.0 23.0 26.0 28.0 30.0 32.0], UnitRange[1:8, 9:16, 17:24, 25:32], 4)
-
-    m = HubbardModel(8, 2, mu=0.5)
-    mc1 = DQMC(m, beta=5.0)
-    mc2 = DQMC(m, beta=5.0, checkerboard=false)
-    mc2.field.conf .= deepcopy(mc1.field.conf)
-    MonteCarlo.initialize_stack(mc1, mc1.stack)
-    MonteCarlo.initialize_stack(mc2, mc2.stack)
-    MonteCarlo.init_hopping_matrices(mc1, m)
-    MonteCarlo.init_hopping_matrices(mc2, m)
-    MonteCarlo.build_stack(mc1, mc1.stack)
-    MonteCarlo.build_stack(mc2, mc2.stack)
-    @test MonteCarlo.slice_matrix(mc1, m, 1, 1.) == MonteCarlo.slice_matrix(mc2, m, 1, 1.)
-
-    mc = DQMC(m, beta=5.0, checkerboard=true, delta_tau=0.1)
-    MonteCarlo.init_hopping_matrices(mc, m)
-    hop_mat_exp_chkr = foldl(*,mc.stack.chkr_hop_half) * sqrt.(mc.stack.chkr_mu)
-    r = MonteCarlo.effreldiff(mc.stack.hopping_matrix_exp,hop_mat_exp_chkr)
-    r[findall(x -> x==zero(x), hop_mat_exp_chkr)] .= 0.
-    @test maximum(MonteCarlo.absdiff(mc.stack.hopping_matrix_exp,hop_mat_exp_chkr)) <= mc.parameters.delta_tau
 
     # initial greens test
     mc = DQMC(m, beta=5.0, safe_mult=1)
@@ -369,173 +344,11 @@ end
 
 
 @testset "Unequal Time Stack" begin
-    @testset "range index search" begin
-        m = HubbardModel(2, 2)
-        mc = DQMC(m, beta = 2.3, safe_mult = 10, delta_tau = 0.1)
-        MonteCarlo.init!(mc)
-        
-        @test MonteCarlo._find_range_with_value(mc, -81273) == 0
-        @test MonteCarlo._find_range_with_value(mc, 0) == 0
-        for i in 1:23
-            idx = MonteCarlo._find_range_with_value(mc, i)
-            @test i in mc.stack.ranges[idx]
-        end
-        @test MonteCarlo._find_range_with_value(mc, 24) == length(mc.stack.ranges)+1
-        @test MonteCarlo._find_range_with_value(mc, 1239874) == length(mc.stack.ranges)+1
-    end
+    include("DQMC/unequal_time_stack.jl")
+end
 
-    m = HubbardModel(6, 1);
-    dqmc = DQMC(m; beta=15.0, safe_mult=5)
-    MonteCarlo.init!(dqmc)
-    MonteCarlo.initialize_stack(dqmc, dqmc.ut_stack)
-    MonteCarlo.build_stack(dqmc, dqmc.stack)
-
-    @testset "lazy build_stack forward/backward" begin
-        for i in 2:length(dqmc.ut_stack.forward_u_stack)
-            dqmc.ut_stack.forward_u_stack[i]  .= 0.0
-            dqmc.ut_stack.forward_d_stack[i]  .= 0.0
-            dqmc.ut_stack.forward_t_stack[i]  .= 0.0
-        end
-        for i in 1:length(dqmc.ut_stack.backward_d_stack)-1
-            dqmc.ut_stack.backward_u_stack[i] .= 0.0
-            dqmc.ut_stack.backward_d_stack[i] .= 0.0
-            dqmc.ut_stack.backward_t_stack[i] .= 0.0
-        end
-
-        for upto in (4, 6)
-            MonteCarlo.lazy_build_forward!(dqmc, dqmc.ut_stack, upto)
-            for i in 1:upto
-                @test dqmc.stack.u_stack[i] ≈ dqmc.ut_stack.forward_u_stack[i]
-                @test dqmc.stack.d_stack[i] ≈ dqmc.ut_stack.forward_d_stack[i]
-                @test dqmc.stack.t_stack[i] ≈ dqmc.ut_stack.forward_t_stack[i]
-            end
-            for i in upto+1:length(dqmc.ut_stack.forward_u_stack)
-                @test all(dqmc.ut_stack.forward_u_stack[i] .== 0)
-                @test all(dqmc.ut_stack.forward_d_stack[i] .== 0)
-                @test all(dqmc.ut_stack.forward_t_stack[i] .== 0)
-            end
-        end
-
-        while dqmc.stack.direction == -1
-            MonteCarlo.propagate(dqmc)
-        end
-
-        for downto in (8, 6)
-            MonteCarlo.lazy_build_backward!(dqmc, dqmc.ut_stack, downto)
-            for i in length(dqmc.ut_stack.backward_d_stack):-1:downto
-                @test dqmc.stack.u_stack[i] ≈ dqmc.ut_stack.backward_u_stack[i]
-                @test dqmc.stack.d_stack[i] ≈ dqmc.ut_stack.backward_d_stack[i]
-                @test dqmc.stack.t_stack[i] ≈ dqmc.ut_stack.backward_t_stack[i]
-            end
-            for i in downto-1:-1:1
-                @test all(dqmc.ut_stack.backward_u_stack[i] .== 0)
-                @test all(dqmc.ut_stack.backward_d_stack[i] .== 0)
-                @test all(dqmc.ut_stack.backward_t_stack[i] .== 0)
-            end
-        end
-    end
-
-    @testset "build_stack forward/backward" begin
-        MonteCarlo.build_stack(dqmc, dqmc.stack)
-        MonteCarlo.build_stack(dqmc, dqmc.ut_stack)
-
-        # test B(τ, 1) / B_l1 stacks
-        @test dqmc.stack.u_stack ≈ dqmc.ut_stack.forward_u_stack
-        @test dqmc.stack.d_stack ≈ dqmc.ut_stack.forward_d_stack
-        @test dqmc.stack.t_stack ≈ dqmc.ut_stack.forward_t_stack
-
-        # generate B(β, τ) / B_Nl stacks
-        while dqmc.stack.direction == -1
-            MonteCarlo.propagate(dqmc)
-        end
-
-        # test B(β, τ) / B_Nl stacks
-        # Note: dqmc.stack doesn't generate the full stack here
-        @test dqmc.stack.u_stack[2:end] ≈ dqmc.ut_stack.backward_u_stack[2:end]
-        @test dqmc.stack.d_stack[2:end] ≈ dqmc.ut_stack.backward_d_stack[2:end]
-        @test dqmc.stack.t_stack[2:end] ≈ dqmc.ut_stack.backward_t_stack[2:end]
-    end
-
-    while !(MonteCarlo.current_slice(dqmc) == 1 && dqmc.stack.direction == -1)
-        MonteCarlo.propagate(dqmc)
-    end
-
-    @testset "equal time Greens function" begin
-        # Check equal time greens functions from equal time and unequal time
-        # calculation against each other
-        for slice in 0:MonteCarlo.nslices(dqmc)
-            G1 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice))
-            G2 = deepcopy(MonteCarlo.calculate_greens(dqmc, slice, slice))
-            @test maximum(abs.(G1 .- G2)) < 1e-14
-        end
-
-        # Check G(t, 0) + G(0, beta - t) = 0
-        for slice in 0:MonteCarlo.nslices(dqmc)-1
-            G1 = MonteCarlo.greens(dqmc, slice, 0).val
-            G2 = MonteCarlo.greens(dqmc, slice, MonteCarlo.nslices(dqmc)).val
-            @test G1 ≈ -G2 atol = 1e-13
-        end
-    end
-
-
-    # Check Iterators
-    # For some reason Gkl/Gk0 errors jump in the last 10 steps
-    # when using UnequalTimeStack
-    
-    # As in G(τ = Δτ * k, 0)
-    # Note: G(0, l) = G(M-l, 0)
-    Gk0s = [deepcopy(MonteCarlo.greens(dqmc, slice, 0).val) for slice in 0:MonteCarlo.nslices(dqmc)]
-    
-    @testset "GreensIterator" begin
-        # Calculated from UnequalTimeStack (high precision)
-        it = MonteCarlo.GreensIterator(dqmc, :, 0, dqmc.parameters.safe_mult)
-        for (i, G) in enumerate(it)
-            @test maximum(abs.(G.val .- Gk0s[i])) < 1e-14
-        end
-
-        # Calculated from mc.stack.greens using UDT decompositions (lower precision)
-        it = MonteCarlo.GreensIterator(dqmc, :, 0, 4dqmc.parameters.safe_mult)
-        for (i, G) in enumerate(it)
-            @test maximum(abs.(G.val .- Gk0s[i])) < 1e-11
-        end
-    end
-
-    Gkks = map(0:MonteCarlo.nslices(dqmc)) do slice
-        g = MonteCarlo.calculate_greens(dqmc, slice)
-        deepcopy(MonteCarlo._greens!(dqmc, dqmc.stack.greens_temp, g))
-    end
-    G0ks = [deepcopy(MonteCarlo.greens(dqmc, 0, slice).val) for slice in 0:MonteCarlo.nslices(dqmc)]
-    MonteCarlo.calculate_greens(dqmc, 0) # restore mc.stack.greens
-
-    @testset "CombinedGreensIterator" begin
-        # high precision
-        it = MonteCarlo.CombinedGreensIterator(dqmc, recalculate = dqmc.parameters.safe_mult)
-        @test it isa CombinedGreensIterator
-        @test it.recalculate == dqmc.parameters.safe_mult
-        @test it.start == 1
-        @test it.stop == MonteCarlo.nslices(dqmc)
-        @test length(it) == it.stop - it.start + 1
-
-        iter = MonteCarlo.init(dqmc, it)
-        @test iter isa MonteCarlo._CombinedGreensIterator
-        @test iter.mc == dqmc
-        @test iter.spec == it
-        @test length(iter) == length(it)
-
-        for (i, (G0k, Gk0, Gkk)) in enumerate(iter)
-            @test maximum(abs.(Gk0.val .- Gk0s[i+1])) < 1e-14
-            @test maximum(abs.(G0k.val .- G0ks[i+1])) < 1e-14
-            @test maximum(abs.(Gkk.val .- Gkks[i+1])) < 1e-14
-        end
-
-        # low precision
-        it = MonteCarlo.CombinedGreensIterator(dqmc, recalculate = 4dqmc.parameters.safe_mult)
-        for (i, (G0k, Gk0, Gkk)) in enumerate(MonteCarlo.init(dqmc, it))
-            @test maximum(abs.(Gk0.val .- Gk0s[i+1])) < 1e-10
-            @test maximum(abs.(G0k.val .- G0ks[i+1])) < 1e-10
-            @test maximum(abs.(Gkk.val .- Gkks[i+1])) < 1e-10
-        end
-    end
+@testset "Checkerboard Decomposition" begin
+    include("DQMC/checkerboard.jl")
 end
 
 
@@ -550,7 +363,6 @@ end
     @info "Exact Greens comparison"
     for model in models, beta in (1.0, 10.0)
         @testset "$(typeof(model).name.name) β=$(beta)" begin
-            Random.seed!(123)
             dqmc = DQMC(
                 model, beta=beta, delta_tau = 0.1, safe_mult=5, recorder = Discarder(), 
                 thermalization = 1, sweeps = 2, measure_rate = 1
@@ -566,14 +378,7 @@ end
             N = length(lattice(model))
 
             # Direct calculation similar to what DQMC should be doing
-            T = Matrix(dqmc.stack.hopping_matrix)
-            # Doing an eigenvalue decomposition makes this pretty stable
-            vals, U = eigen(exp(-T))
-            D = Diagonal(vals)^(dqmc.parameters.beta)
-
-            # Don't believe "Quantum Monte Carlo Methods", this is the right
-            # formula (believe dos Santos DQMC review instead)
-            G = U * inv(I + D) * adjoint(U)
+            G = analytic_greens(dqmc)(0)
 
             @test check(mean(dqmc[:G]), G, atol, rtol)
         end

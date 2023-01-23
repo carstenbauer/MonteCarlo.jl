@@ -1,32 +1,32 @@
-function vmul!(C, A, B)
+function vmul!(C::AbstractArray, A::AbstractArray, B::AbstractArray)
     @debug "vmul!($(typeof(C)), $(typeof(A)), $(typeof(B)))"
     mul!(C, A, B)
 end
-function vmul!(C, A::Diagonal, B, range)
+function vmul!(C::AbstractArray, A::Diagonal, B::AbstractArray, range::AbstractVector)
     @debug "vmul!($(typeof(C)), $(typeof(A)), $(typeof(B)), $(typeof(range)))"
     @views mul!(C, Diagonal(A.diag[range]), B)
 end
-function vmul!(C, A, B::Diagonal, range)
+function vmul!(C::AbstractArray, A::AbstractArray, B::Diagonal, range::AbstractVector)
     @debug "vmul!($(typeof(C)), $(typeof(A)), $(typeof(B)), $(typeof(range)))"
     @views mul!(C, A, Diagonal(B.diag[range]))
 end
-function rvmul!(A, B)
+function rvmul!(A::AbstractArray, B::AbstractArray)
     @debug "rvmul!($(typeof(A)), $(typeof(B)))"
     rmul!(A, B)
 end
-function lvmul!(A, B)
+function lvmul!(A::AbstractArray, B::AbstractArray)
     @debug "lvmul!($(typeof(A)), $(typeof(B)))"
     lmul!(A, B)
 end
-function rvadd!(A, B)
+function rvadd!(A::AbstractArray, B::AbstractArray)
     @debug "rvadd!($(typeof(A)), $(typeof(B)))"
     A .+= B
 end
-function vsub!(A, B, C)
+function vsub!(A::AbstractArray, B::AbstractArray, C::AbstractArray)
     @debug "vsub!($(typeof(A)), $(typeof(B)), $(typeof(C)))"
     A .= B .- C
 end
-function vsub!(A, B, ::UniformScaling)
+function vsub!(A::AbstractArray, B::AbstractArray, ::UniformScaling)
     @debug "vsub!($(typeof(A)), $(typeof(B)), ::UniformScaling)"
     T1 = one(eltype(A))
     T0 = zero(eltype(A))
@@ -36,7 +36,7 @@ function vsub!(A, B, ::UniformScaling)
     A
 end
 
-function rdivp!(A::Matrix{<: Complex}, T::Matrix{<: Complex}, O::Matrix{<: Complex}, pivot)
+function rdivp!(A::Matrix{<: Complex}, T::Matrix{<: Complex}, O::Matrix{<: Complex}, pivot::AbstractVector)
     @debug "rdivp!($(typeof(A)), $(typeof(T)), $(typeof(O)), $(typeof(pivot)))"
     # assume Diagonal is ±1!
     @inbounds begin
@@ -62,3 +62,7 @@ function rdivp!(A::Matrix{<: Complex}, T::Matrix{<: Complex}, O::Matrix{<: Compl
     end
     A
 end
+
+# Hermitian optimization
+vmul!(C::AbstractArray, A::AbstractArray, B::Hermitian) = vmul!(C, A, adjoint(B.data)) # slightly faster
+vmul!(C::AbstractArray, A::Hermitian, B::AbstractArray) = vmul!(C, adjoint(A.data), B) # lots faster

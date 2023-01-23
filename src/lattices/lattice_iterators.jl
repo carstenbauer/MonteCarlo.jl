@@ -1,147 +1,29 @@
-################################################################################
-### Lattice Iteration Cache
-################################################################################
+"""
+    BondDirections()
 
-#=
-Many of the iterators implemented here do some sorting or filtering based on 
-distance vectors. For them to run efficiently they may need various maps 
-connecting distance vector indices, source site indices and target site indices.
+Used to specify directions to iterate over. While giving specific indices 
+considers all possible pairing of sites, this only considers sites connected by 
+bonds.
 
-In order to avoid duplicating data across different iterators we construct a 
-cache here. Each iterator will fetch the data it needs from the cache or 
-generate the data if it is not available yet.
-=#
+Currently only works with EachLocalQuadByDistance.
+"""
+struct BondDirections end
 
-abstract type LICacheKeys end
-struct Dir2SrcTrg <: LICacheKeys end
-struct Src2DirTrg <: LICacheKeys end
-struct SrcTrg2Dir <: LICacheKeys end
-# remaps dirs: filter -> 1:length(filter) to avoid empty data in output
-struct FilteredSrc2IdxTrg{T} <: LICacheKeys
-    filter::T
+function _dir_idxs(l::Lattice, x::BondDirections, src::Int)
+    return _dir_idxs_uc(l, x, mod1(src, length(unitcell(l))))
 end
-
-struct LatticeIteratorCache
-    cache::Dict{Any, Any}
+function _dir_idxs_uc(l::Lattice, ::BondDirections, uc::Int)
+    uc2bonddir = l[:uc2bonddir]::Tuple{Int, Vector{Vector{Pair{Int, Int}}}}
+    @inbounds return uc2bonddir[2][uc]
 end
-LatticeIteratorCache() = LatticeIteratorCache(Dict{Any, Any}())
+_dir_idxs(::Lattice, iterable, ::Int) = iterable
+_dir_idxs_uc(::Lattice, iterable, ::Int) = iterable
 
-# for simplicity
-function Base.getindex(mc::MonteCarloFlavor, key::LICacheKeys)
-    get!(mc.lattice_iterator_cache, key, lattice(mc))
+function _length(l::Lattice, ::BondDirections) 
+    uc2bonddir = l[:uc2bonddir]::Tuple{Int, Vector{Vector{Pair{Int, Int}}}}
+    return uc2bonddir[1]
 end
-
-
-Base.getindex(cache::LatticeIteratorCache, key::LICacheKeys) = cache.cache[key]
-function Base.get!(cache::LatticeIteratorCache, key::LICacheKeys, lattice::AbstractLattice)
-    !haskey(cache, key) && push!(cache, key, lattice)
-    cache[key]
-end
-Base.empty!(cache::LatticeIteratorCache) = empty!(cache.cache)
-Base.haskey(cache::LatticeIteratorCache, key::LICacheKeys) = haskey(cache.cache, key)
-
-
-# For shifting sites across periodic bounds
-function generate_combinations(vs::Vector{<: Vector})
-    out = [zeros(length(vs[1]))]
-    for v in vs
-        out = vcat([e.-v for e in out], out, [e.+v for e in out])
-    end
-    out
-end
-
-# norm + ϵ * angle(v, e_x)
-function directed_norm(v, ϵ)
-    l = norm(v)
-    if length(v) == 2 && l > ϵ
-        angle = acos(dot([1, 0], v) / l)
-        v[2] < 0 && (angle = 2pi - angle)
-        return l + ϵ * angle
-    else
-        return l
-    end
-end
-
-function Base.push!(cache::LatticeIteratorCache, key::Dir2SrcTrg, lattice::AbstractLattice, ϵ=1e-6)
-    if !haskey(cache.cache, key)
-        _positions = positions(lattice)
-        wrap = generate_combinations(lattice_vectors(lattice))
-        directions = Vector{Float64}[]
-        # (src, trg), first index is dir, second index irrelevant
-        bonds = [Tuple{Int64, Int64}[] for _ in 1:length(lattice)]
-
-        for origin in 1:length(lattice)
-            for (trg, p) in enumerate(_positions)
-                d = _positions[origin] .- p .+ wrap[1]
-                for v in wrap[2:end]
-                    new_d = _positions[origin] .- p .+ v
-                    if directed_norm(new_d, ϵ) + ϵ < directed_norm(d, ϵ)
-                        d .= new_d
-                    end
-                end
-                # The rounding will allow us to use == here
-                idx = findfirst(dir -> isapprox(dir, d, atol=ϵ), directions)
-                if idx === nothing
-                    push!(directions, d)
-                    if length(bonds) < length(directions)
-                        push!(bonds, Tuple{Int64, Int64}[])
-                    end
-                    push!(bonds[length(directions)], (origin, trg))
-                else
-                    push!(bonds[idx], (origin, trg))
-                end
-            end
-        end
-
-        temp = sortperm(directions, by = v -> directed_norm(v, ϵ))
-        cache.cache[key] = bonds[temp]
-    end
-    nothing
-end
-
-function Base.push!(cache::LatticeIteratorCache, key::SrcTrg2Dir, lattice::AbstractLattice)
-    if !haskey(cache.cache, key)
-        push!(cache, Dir2SrcTrg(), lattice)
-        dir2srctrg = cache[Dir2SrcTrg()]
-        srctrg2dir = [-1 for _ in 1:length(lattice), __ in 1:length(lattice)]
-        for dir in eachindex(dir2srctrg)
-            for (src, trg) in dir2srctrg[dir]
-                srctrg2dir[src, trg] = dir
-            end
-        end
-        cache.cache[key] = srctrg2dir
-    end
-end
-function Base.push!(cache::LatticeIteratorCache, key::Src2DirTrg, lattice::AbstractLattice)
-    if !haskey(cache.cache, key)
-        push!(cache, Dir2SrcTrg(), lattice)
-        dir2srctrg = cache[Dir2SrcTrg()]
-        trg_from_src = [Tuple{Int64, Int64}[] for _ in 1:length(lattice)]
-        for dir in eachindex(dir2srctrg)
-            for (src, trg) in dir2srctrg[dir]
-                push!(trg_from_src[src], (dir, trg))
-            end
-        end
-        cache.cache[key] = trg_from_src
-    end
-    nothing
-end
-
-function Base.push!(cache::LatticeIteratorCache, key::FilteredSrc2IdxTrg, lattice::AbstractLattice)
-    if !haskey(cache.cache, key)
-        push!(cache, Src2DirTrg(), lattice)
-
-        dir2idx = [-1 for _ in 1:length(lattice)]
-        for (idx, dir) in enumerate(key.filter)
-            dir2idx[dir] = idx
-        end
-
-        cache.cache[key] = map(cache[Src2DirTrg()]) do dir_trg_list
-            [(dir2idx[dir], trg) for (dir, trg) in dir_trg_list if dir in key.filter]
-        end
-    end
-    nothing
-end
+_length(::Lattice, xs) = length(xs)
 
 
 ################################################################################
@@ -151,24 +33,54 @@ end
 
 abstract type AbstractLatticeIterator end
 # All indices are sites
-abstract type DirectLatticeIterator <: AbstractLatticeIterator end 
+abstract type DirectLatticeIterator <: AbstractLatticeIterator end # TODO I think this is kinda useless now?
 # first index is a meta index (e.g. direction), rest for sites
 abstract type DeferredLatticeIterator <: AbstractLatticeIterator end 
-# Wraps a lattice iterator to do change what happens with the output
-abstract type LatticeIterationWrapper{LI <: AbstractLatticeIterator} <: AbstractLatticeIterator end
 
-abstract type AbstractLatticeIteratorTemplate end
-abstract type DirectLatticeIteratorTemplate <: AbstractLatticeIteratorTemplate end
-abstract type DeferredLatticeIteratorTemplate <: AbstractLatticeIteratorTemplate end
-
-# is this valid?
-function (iter::AbstractLatticeIteratorTemplate)(mc::MonteCarloFlavor, ::Model)
-    iter(mc.lattice_iterator_cache, lattice(mc))
+function _save(file::FileLike, key::String, m::T) where {T <: AbstractLatticeIterator}
+    write(file, "$key/VERSION", 1)
+    write(file, "$key/tag", "LatticeIterator")
+    write(file, "$key/name", nameof(T))
+    write(file, "$key/fields", getfield.((m,), fieldnames(T)))
+    return
 end
+
+function _load(data, ::Val{:LatticeIterator})
+    # ifelse maybe long but should be better for compile time than adding a 
+    # bunch more _load methods and better for runtime than an eval
+    tag = haskey(data, "name") ? data["name"] : data["tag"]
+    fields = data["fields"]
+    for T in _all_lattice_iterator_types
+        if tag == nameof(T)
+            return T(fields...)
+        end
+    end
+
+    # Fallback
+    return eval(:($tag($(fields)...)))
+end
+
+struct WithLattice{T, N} <: AbstractLatticeIterator
+    iter::T
+    lattice::Lattice{N}
+end
+
+# We need to two-step the construction so we can interfere with it
+with_lattice(iter, lattice) = WithLattice(iter, lattice)
+
+# Iterator interface
+Base.iterate(iter::WithLattice) = _iterate(iter.iter, iter.lattice)
+Base.iterate(iter::WithLattice, state) = _iterate(iter.iter, iter.lattice, state)
+Base.length(iter::WithLattice) = _length(iter.iter, iter.lattice)
+Base.eltype(iter::WithLattice) = _eltype(iter.iter, iter.lattice)
+
+# for wrappers
+_length(iter::AbstractLatticeIterator, l::Lattice) = _length(iter.iter, l)
+_eltype(iter::AbstractLatticeIterator, l::Lattice) = _eltype(iter.iter, l)
 
 
 ################################################################################
-### RangeIterator (1 index)
+### Simple Ranges (DirectLatticeIterator)
 ################################################################################
 
 
@@ -177,31 +89,42 @@ end
 
 Creates an iterator template which iterates through the diagonal of the Greensfunction.
 """
-struct EachSiteAndFlavor <: DirectLatticeIteratorTemplate end
-function (::EachSiteAndFlavor)(mc::MonteCarloFlavor, model::Model)
-    RangeIterator(1 : length(lattice(mc)) * nflavors(mc))
+struct EachSiteAndFlavor <: DirectLatticeIterator
+    Nflv::Int
 end
+EachSiteAndFlavor(mc::MonteCarloFlavor) = EachSiteAndFlavor(unique_flavors(mc))
+with_lattice(iter::EachSiteAndFlavor, l::Lattice) = 1 : length(l) * iter.Nflv
+output_size(iter::EachSiteAndFlavor, l::Lattice) = (length(l) * iter.Nflv,)
+
 
 """
     EachSite()
 
 Creates an iterator template which iterates through every site of a given lattice.
 """
-struct EachSite <: DirectLatticeIteratorTemplate end
-(::EachSite)(_, l::AbstractLattice) = RangeIterator(1 : length(l))
+struct EachSite <: DirectLatticeIterator end
+EachSite(::MonteCarloFlavor) = EachSite()
+with_lattice(::EachSite, l::Lattice) = eachindex(l)
+output_size(::EachSite, l::Lattice) = (length(l),)
 
+"""
+    EachSitePair()
 
-struct RangeIterator <: DirectLatticeIterator
-    range::UnitRange{Int64}
+Creates an iterator template which returns every pair of sites `(s1, s2)` with 
+`s1, s2 ∈ 1:Nsites`.
+"""
+struct EachSitePair <: DirectLatticeIterator end
+EachSitePair(::MonteCarloFlavor) = EachSitePair()
+output_size(::EachSitePair, l::Lattice) = (length(l), length(l))
+function _iterate(::EachSitePair, l::Lattice, state = 0)
+    state == length(l)^2 ? nothing : (fldmod1(state+1, length(l)), state+1)
 end
-Base.iterate(iter::RangeIterator) = iterate(iter.range)
-Base.iterate(iter::RangeIterator, state) = iterate(iter.range, state)
-Base.length(iter::RangeIterator) = length(iter.range)
-Base.eltype(iter::RangeIterator) = eltype(iter.range)
+_length(::EachSitePair, l::Lattice) = length(l)^2
+_eltype(::EachSitePair, l::Lattice) = NTuple{2, Int}
 
 
 ################################################################################
-### OnSite (src, trg)
+### DeferredLatticeIterator
 ################################################################################
 
 
@@ -211,47 +134,19 @@ Base.eltype(iter::RangeIterator) = eltype(iter.range)
 Creates an iterator template which iterates through every site of a given lattice, 
 returning the linear index equivalent to (site, site) at every step.
 """
-struct OnSite <: DirectLatticeIteratorTemplate end
-(::OnSite)(_, l::AbstractLattice) = _OnSite(length(l))
-
-struct _OnSite <: DirectLatticeIterator
-    N::Int64
+struct OnSite <: DeferredLatticeIterator end
+OnSite(::MonteCarloFlavor) = OnSite()
+output_size(::OnSite, l::Lattice) = (length(l), )
+function _iterate(::OnSite, l::Lattice, i = 0)
+    i == length(l) ? nothing : begin i += 1; ((i,i,i), i) end
 end
-
-Base.iterate(iter::_OnSite, i=1) = i ≤ iter.N ? ((i, i), i+1) : nothing 
-Base.length(iter::_OnSite) = iter.N
-Base.eltype(::_OnSite) = Tuple{Int64, Int64}
+_length(::OnSite, l::Lattice) = length(l)
+_eltype(::OnSite, l::Lattice) = NTuple{3, Int}
 
 
-################################################################################
-### EachSitePair (src, trg)
-################################################################################
-
-
-"""
-    EachSitePair()
-
-Creates an iterator template which returns every pair of sites `(s1, s2)` with 
-`s1, s2 ∈ 1:Nsites`.
-"""
-struct EachSitePair <: DirectLatticeIteratorTemplate end
-(::EachSitePair)(_, l::AbstractLattice) = _EachSitePair(length(l))
-
-struct _EachSitePair <: DirectLatticeIterator
-    N::Int64
-end
-
-function Base.iterate(iter::_EachSitePair, i=1)
-    i ≤ iter.N^2 ? ((div(i-1, iter.N)+1, mod1(i, iter.N)), i+1) : nothing
-end
-Base.length(iter::_EachSitePair) = iter.N^2
-Base.eltype(::_EachSitePair) = NTuple{2, Int64}
-
-
-################################################################################
-### EachSitePairByDistance (dir, src, trg)
-################################################################################
-
+#-----------------------------------------------------------
+# EachSitePairByDistance (combined_dir, src, trg)
+#-----------------------------------------------------------
 
 """
     EachSitePairByDistance()
@@ -262,185 +157,128 @@ identifies each unique direction `position(target) - position(source)`.
 
 Requires `lattice` to implement `positions` and `lattice_vectors`.
 """
-struct EachSitePairByDistance <: DeferredLatticeIteratorTemplate end
-function (::EachSitePairByDistance)(cache::LatticeIteratorCache, l::AbstractLattice)
-    push!(cache, Dir2SrcTrg(), l)
-    # this should only keep a reference I think?
-    dir2srctrg = cache[Dir2SrcTrg()]
-    _EachSitePairByDistance(length(l)^2, dir2srctrg)
-end
-function ndirections(mc, ::EachSitePairByDistance)
-    push!(mc.lattice_iterator_cache, Dir2SrcTrg(), lattice(mc))
-    Ndir = length(mc.lattice_iterator_cache[Dir2SrcTrg()])
-    (Ndir, )
+struct EachSitePairByDistance <: DeferredLatticeIterator end
+EachSiteByDistance(::MonteCarloFlavor) = EachSiteByDistance()
+
+function output_size(::EachSitePairByDistance, l::Lattice)
+    B = length(l.unitcell.sites)
+    # Periodicity allows us to only consider one origin and no two sites are at 
+    # the same position, so length(dirs) = length(Bravais_lattice) here
+    Ndir = length(Bravais(l)) # on Bravais lattice
+    return (Ndir, B, B)
 end
 
-struct _EachSitePairByDistance <: DeferredLatticeIterator
-    N::Int64
-    dir2srctrg::Vector{Vector{Tuple{Int64, Int64}}}
-end 
+# function _iterate(::EachSitePairByDistance, l::Lattice, state = (0, 1, 1, 1))
+#     B = length(l.unitcell.sites)
+#     dir2srctrg = l[:Bravais_dir2srctrg]::Vector{Vector{Int}}
+#     uc1, uc2, dir, Bravais_src = state
 
+#     #= # IF structure
+#     if uc1 == B
+#         if uc2 == B
+#             if i == length(dir2srctrg[dir])
+#                 if dir == length(dir2srctrg)
+#                     return nothing
+#                 else
+#                     dir += 1
+#                 end
+#                 i = 1
+#             else
+#                 i += 1
+#             end
+#             uc2 = 1
+#         else
+#             uc2 += 1
+#         end
+#         uc1 = 1
+#     else
+#         uc1 += 1
+#     end
+#     =#
 
-function Base.iterate(iter::_EachSitePairByDistance, state = (1, 1))
-    dir, i = state
-    # next_dir = dir + div(i, length(iter.pairs[dir]))
-    # next_i = mod1(i+1, length(iter.pairs[dir]))
-    # if next_dir > length(iter.pairs)
-    #     return nothing
-    # else
-    #     src, trg = iter.pairs[dir][i]
-    #     return (dir, src, trg), (next_dir, next_i)
-    # end
+#     # branchless version:
+#     b1 = uc1 == B
+#     b2 = b1 && (uc2 == B)
+#     b3 = b2 && (Bravais_src == length(dir2srctrg[dir]))
+#     b4 = b3 && (dir == length(dir2srctrg))
 
+#     b4 && return nothing
 
-    if dir ≤ length(iter.dir2srctrg)
-        if i ≤ length(iter.dir2srctrg[dir])
-            src, trg = iter.dir2srctrg[dir][i]
-            return (dir, src, trg), (dir, i+1)
-        else
-            return iterate(iter, (dir+1, 1))
-        end
-    else
-        return nothing
-    end
-end
-Base.length(iter::_EachSitePairByDistance) = iter.N
-Base.eltype(::_EachSitePairByDistance) = NTuple{3, Int64}
+#     uc1 = Int(b1 || (uc1 + 1))
+#     uc2 = Int(b2 || (uc2 + b1))
+#     Bravais_src = Int(b3 || (Bravais_src + b2))
+#     dir = Int(dir + b3)
 
+#     # Bravais sites -> lattice sites
+#     Bravais_trg = dir2srctrg[dir][Bravais_src]
+#     src = (Bravais_src-1) * B + uc1
+#     trg = (Bravais_trg-1) * B + uc2
 
-################################################################################
-### EachLocalQuadByDistance
-################################################################################
+#     # (uc1, uc2, dir) -> flat index
+#     combined_dir = _sub2ind((B, B), (uc1, uc2, dir))
 
+#     return ((combined_dir, src, trg), (uc1, uc2, dir, Bravais_src))
+# end
 
-
-"""
-    EachLocalQuadByDistance([directions])()
-
-Creates an iterator template which yields 4-tuples of sites with 3 directions
-inbetween. The output is given as `(combined_dir, src1, trg1, src2, trg2)`
-where `combined_dir` is a linear index of `(dir12, dir1, dir2)` corresponding to
-the distance vectors `(src2 - src1, trg1 - src1, trg2 - src2)`. 
-
-The target-source directions can be limited with `directions`. If an integer is 
-passed it will include `1:directions` as dir1 and dir2. If a range or vector is
-passed it will use that range. Note that if that range or vector is 
-discontinuous, the output will be remapped to avoid storing unnecessary data. 
-I.e. `directions = [2, 5, 6]` will pick target sites matching directions 2, 5
-and 6, but return 1, 2 and 3 as directions.
-
-Requires `lattice` to implement `positions` and `lattice_vectors`.
-"""
-struct EachLocalQuadByDistance{T} <: DeferredLatticeIteratorTemplate
-    directions::T
-    EachLocalQuadByDistance(N::Integer) = EachLocalQuadByDistance(1:N)
-    EachLocalQuadByDistance(dirs::T) where T = new{T}(dirs)
-end
-
-function EachLocalQuadByDistance{K}(args...) where {K}
-    EachLocalQuadByDistance(K)(args...)
-end
-function Base.:(==)(l::EachLocalQuadByDistance, r::EachLocalQuadByDistance)
-    l.directions == r.directions
-end
-function ndirections(mc, iter::EachLocalQuadByDistance)
-    push!(mc.lattice_iterator_cache, Dir2SrcTrg(), lattice(mc))
-    Ndir = length(mc.lattice_iterator_cache[Dir2SrcTrg()])
-    K = length(iter.directions)
-    (Ndir, K, K)
-end
-
-struct _EachLocalQuadByDistance <: DeferredLatticeIterator
-    mult::Tuple{Int64, Int64}
-    N::Int64
-    src_mask::Vector{Int64}
-    srctrg2dir::Matrix{Int64}
-    filtered_src2dirtrg::Vector{Vector{Tuple{Int64, Int64}}}
-end
-function (config::EachLocalQuadByDistance)(cache::LatticeIteratorCache, lattice::AbstractLattice)
-    key = FilteredSrc2IdxTrg(config.directions)
-    push!(cache, key, lattice)
-    push!(cache, SrcTrg2Dir(), lattice)
-    
-    Ndir = length(cache[Dir2SrcTrg()])
-    srctrg2dir = cache[SrcTrg2Dir()]
-    filtered_src2dirtrg = cache[key]
-    
-    src_mask = [i for i in eachindex(filtered_src2dirtrg) if !isempty(filtered_src2dirtrg[i])]
-    N = mapreduce(length, +, filtered_src2dirtrg)
-    
-    _EachLocalQuadByDistance(
-        (Ndir, Ndir * length(config.directions)), 
-        N^2, src_mask, srctrg2dir, filtered_src2dirtrg
-    )
-end
-
-function Base.iterate(iter::_EachLocalQuadByDistance)
-    src = iter.src_mask[1]
-    dir12 = iter.srctrg2dir[src, src]
-    dir, trg = iter.filtered_src2dirtrg[src][1]
-    combined_dir = dir12 + iter.mult[1] * (dir-1) + iter.mult[2] * (dir-1)
-    # state = (src1 mask index, src2 mask index, filter1 index, filter2 index)
-    return ((combined_dir, src, trg, src, trg), (1, 1, 1, 1))
-end
-
-function Base.iterate(iter::_EachLocalQuadByDistance, state)
-    midx1, midx2, fidx1, fidx2 = state
-    src1 = iter.src_mask[midx1]
-    src2 = iter.src_mask[midx2]
-
-    # for reference:
-    # if fidx2 == length(iter.filtered_src2dirtrg[src2])
-    #     if fidx1 == length(iter.filtered_src2dirtrg[src1])
-    #         if midx2 == length(iter.src_mask)
-    #             if midx1 == length(iter.src_mask)
-    #                 return nothing
-    #             else
-    #                 fidx1 = fidx2 = midx2 = 1
-    #                 midx1 += 1
+function _iterate(::EachSitePairByDistance, l::Lattice, state = (0, 1, 1, 1))
+    # This is effectively
+    # for b1 in eachindex(l.unitcell.sites)
+    #     for b2 in eachindex(l.unitcell.sites)
+    #         for dir in 0:N-1
+    #             for i in 1:N
+    #                 combined_dir = _sub2ind((N, B), (dir, uc1, uc2))
+    #                 src = i + (b1-1) * N
+    #                 trg = mod1(i+dir, N) + (b2-1) * N
+    #                 # call
     #             end
-    #         else
-    #             fidx1 = fidx2 = 1
-    #             midx2 += 1
     #         end
-    #     else
-    #         fidx2 = 1
-    #         fidx1 += 1
     #     end
-    # else
-    #     fidx2 += 1
     # end
 
-    # Branchless V2
-    b1 = fidx2 == length(iter.filtered_src2dirtrg[src2])
-    b2 = b1 && (fidx1 == length(iter.filtered_src2dirtrg[src1]))
-    b3 = b2 && (midx2 == length(iter.src_mask))
-    b4 = b3 && (midx1 == length(iter.src_mask))
-    b4 && return nothing
-    fidx2 = Int64(b1 || (fidx2 + 1))
-    fidx1 = Int64(b2 || (fidx1 + b1))
-    midx2 = Int64(b3 || (midx2 + b2))
-    midx1 = Int64(midx1 + b3)
 
-    src1 = iter.src_mask[midx1]
-    src2 = iter.src_mask[midx2]
-    dir12 = iter.srctrg2dir[src1, src2]
-    dir1, trg1 = iter.filtered_src2dirtrg[src1][fidx1]
-    dir2, trg2 = iter.filtered_src2dirtrg[src2][fidx2]
-    combined_dir = dir12 + iter.mult[1] * (dir1-1) + iter.mult[2] * (dir2-1)
-    # state = (src1 mask index, src2 mask index, filter1 index, filter2 index)
-    return ((combined_dir, src1, trg1, src2, trg2), (midx1, midx2, fidx1, fidx2))
+    N = length(Bravais(l))
+    B = length(l.unitcell.sites)
+    dir2srctrg = l[:Bravais_dir2srctrg]::Vector{Vector{Int}}
+    
+    idx, shift, uc1, uc2 = state
+
+    # which indices hit their maximum?
+    b1 = idx == N
+    b2 = b1 && (shift == N)
+    b3 = b2 && (uc1 == B)
+    b4 = b3 && (uc2 == B)
+
+    # exit when all hit their maximum
+    b4 && return nothing
+
+    # ifelse(hit_max, 1, ifelse(previous_hit_max, increment_value, keep_value))
+    idx   = Int(b1 || (idx + 1))
+    shift = Int(b2 || (shift + b1))
+    uc1   = Int(b3 || (uc1 + b2))
+    uc2   = Int(b4 || (uc2 + b3))
+
+    # shift needs to apply periodically in x/y/z direction so we can't just use
+    # mod1(trg, N). dir2srctrg caches the correct mapping for us.
+    trg = dir2srctrg[shift][idx]
+
+    # Convert from Bravais index to lattice index
+    src = idx + (uc1-1) * N
+    trg = trg + (uc2-1) * N
+
+    # matrix -> flat index
+    combined_dir = _sub2ind((N, B), (shift, uc1, uc2))
+
+    return ((combined_dir, src, trg), (idx, shift, uc1, uc2))
 end
 
+# end
+_length(::EachSitePairByDistance, l::Lattice) = length(l)^2
+_eltype(::EachSitePairByDistance, l::Lattice) = NTuple{3, Int}
 
-Base.length(iter::_EachLocalQuadByDistance) = iter.N
-Base.eltype(::_EachLocalQuadByDistance) = NTuple{5, Int64}
 
-
-################################################################################
-### EachLocalQuadBySyncedDistance
-################################################################################
-
+#-----------------------------------------------------------
+# EachLocalQuadBySyncedDistance (combined_dir, src, src + Δ, trg, trg + Δ)
+#-----------------------------------------------------------
 
 """
     EachLocalQuadBySyncedDistance(directions)
@@ -456,64 +294,94 @@ passed it will include `1:directions` as dir1 and dir2. If a range or vector is
 passed it will use that range. Note that if that range or vector is 
 discontinuous, the output will be remapped to avoid storing unnecessary data. 
 I.e. `directions = [2, 5, 6]` will pick target sites matching directions 2, 5
-and 6, but return 1, 2 and 3 as directions.
+and 6, but return 1, 2 and 3 as indices.
 
 Requires `lattice` to implement `positions` and `lattice_vectors`.
 """
-struct EachLocalQuadBySyncedDistance{T} <: DeferredLatticeIteratorTemplate
+struct EachLocalQuadBySyncedDistance{T} <: DeferredLatticeIterator
     directions::T
     EachLocalQuadBySyncedDistance(N::Integer) = EachLocalQuadBySyncedDistance(1:N)
     EachLocalQuadBySyncedDistance(dirs::T) where T = new{T}(dirs)
 end
 
-function EachLocalQuadBySyncedDistance{K}(args...) where {K}
-    EachLocalQuadBySyncedDistance(K)(args...)
+function EachLocalQuadBySyncedDistance(::MonteCarloFlavor, arg)
+    EachLocalQuadBySyncedDistance(arg)
 end
+
 function Base.:(==)(l::EachLocalQuadBySyncedDistance, r::EachLocalQuadBySyncedDistance)
     l.directions == r.directions
 end
-function ndirections(mc, iter::EachLocalQuadBySyncedDistance)
-    push!(mc.lattice_iterator_cache, Dir2SrcTrg(), lattice(mc))
-    Ndir = length(mc.lattice_iterator_cache[Dir2SrcTrg()])
+
+function output_size(iter::EachLocalQuadBySyncedDistance, l::Lattice)
+    B = length(l.unitcell.sites)
+    Ndir = length(Bravais(l)) # on Bravais lattice
     K = length(iter.directions)
-    (Ndir, K)
+    return (Ndir, K, B, B)
 end
 
-struct _EachLocalQuadBySyncedDistance <: DeferredLatticeIterator
-    N::Int64
-    Ndir::Int64
-    directions::Vector{Int64}
-    dir2srctrg::Vector{Vector{Tuple{Int64, Int64}}}
-    srctrg2dir::Matrix{Int64}
-end
+# function _iterate(iter::EachLocalQuadBySyncedDistance, l::Lattice, state = (1,1,0))
+#     #  sync_idx                sync_idx
+#     #     🡣                       🡣
+#     # (sync_dir, idx1)        (sync_dir, idx2)
+#     #    🡧        🡦             🡧        🡦
+#     # src' <----- src ------> trg -----> trg'
+#     #              🡣  🡦     🡧  🡣        
+#     #             uc1   dir   uc2
 
-function (config::EachLocalQuadBySyncedDistance)(
-        cache::LatticeIteratorCache, lattice::AbstractLattice
-    )
-    push!(cache, Dir2SrcTrg(), lattice)
-    push!(cache, SrcTrg2Dir(), lattice)
+#     sync_idx, idx1, idx2 = state
 
-    dir2srctrg = cache[Dir2SrcTrg()]
-    srctrg2dir = cache[SrcTrg2Dir()]
+#     # Branchless increments
+#     sync_dir = iter.directions[sync_idx]
+#     dir2srctrg = l[:dir2srctrg]::Vector{Vector{Tuple{Int, Int}}}
+#     Ndir = length(Bravais(l)) # on Bravais lattice
+#     N = length(dir2srctrg[sync_dir])
+#     B = length(l.unitcell.sites)
 
-    # Loop structure
-    # for sync_dir in directions
-    #     for (src1, trg1) in dir2srctrg[sync_dir]
-    # 	    for (src2, trg2) in dir2srctrg[sync_dir]
-    # 		    dir12 = srctrg2dir[src1, src2]
-    N = mapreduce(dir -> length(dir2srctrg[dir])^2, +, config.directions)
+#     b1 = idx2 == N
+#     b2 = b1 && (idx1 == N)
+#     b3 = b2 && (sync_idx == length(iter.directions))
 
-    _EachLocalQuadBySyncedDistance(
-        N, length(dir2srctrg), collect(config.directions), dir2srctrg, srctrg2dir
-    )
-end
+#     b3 && return nothing
 
-function Base.iterate(iter::_EachLocalQuadBySyncedDistance, state = (1,1,0))
+#     idx2 = Int64(b1 || (idx2 + 1))
+#     idx1 = Int64(b2 || (idx1 + b1))
+#     sync_idx = Int64(sync_idx + b2)
+
+#     sync_dir = iter.directions[sync_idx]
+    
+#     # These are lattice indices
+#     src1, trg1 = dir2srctrg[sync_dir][idx1]
+#     src2, trg2 = dir2srctrg[sync_dir][idx2]
+    
+#     # convert to uc idx + Bravais lattice index
+#     Bsrc1, uc1 = fldmod1(src1, B)
+#     Bsrc2, uc2 = fldmod1(src2, B)
+#     dir12 = (l[:Bravais_srctrg2dir]::Matrix{Int})[Bsrc1, Bsrc2]
+
+#     # combine (uc1, uc2, dir12, sync_idx) to linear index
+#     combined_dir = _sub2ind((B, B, Ndir, length(iter.directions)), (uc1, uc2, dir12, sync_idx))
+
+#     # state = (src1 mask index, src2 mask index, filter1 index, filter2 index)
+#     return ((combined_dir, src1, trg1, src2, trg2), (sync_idx, idx1, idx2))
+# end
+
+function _iterate(iter::EachLocalQuadBySyncedDistance, l::Lattice, state = (1,1,0))
+    #  sync_idx                sync_idx
+    #     🡣                       🡣
+    # (sync_dir, idx1)        (sync_dir, idx2)
+    #    🡧        🡦             🡧        🡦
+    # src' <----- src ------> trg -----> trg'
+    #              🡣  🡦     🡧  🡣        
+    #             uc1   dir   uc2
+
     sync_idx, idx1, idx2 = state
 
     # Branchless increments
     sync_dir = iter.directions[sync_idx]
-    N = length(iter.dir2srctrg[sync_dir])
+    dir2srctrg = l[:dir2srctrg]::Vector{Vector{Tuple{Int, Int}}}
+    Ndir = length(Bravais(l)) # on Bravais lattice
+    N = length(dir2srctrg[sync_dir])
+    B = length(l.unitcell.sites)
 
     b1 = idx2 == N
     b2 = b1 && (idx1 == N)
@@ -523,168 +391,303 @@ function Base.iterate(iter::_EachLocalQuadBySyncedDistance, state = (1,1,0))
 
     idx2 = Int64(b1 || (idx2 + 1))
     idx1 = Int64(b2 || (idx1 + b1))
-    sync_idx = Int64(sync_idx + b2)
+    new_sync_idx = Int64(sync_idx + b2)
 
     sync_dir = iter.directions[sync_idx]
-    src1, trg1 = iter.dir2srctrg[sync_dir][idx1]
-    src2, trg2 = iter.dir2srctrg[sync_dir][idx2]
-    dir12 = iter.srctrg2dir[src1, src2]
-    combined_dir = dir12 + iter.Ndir * (sync_dir - 1)
+    
+    # These are lattice indices
+    src1, trg1 = dir2srctrg[sync_dir][idx1]
+    src2, trg2 = dir2srctrg[sync_dir][idx2]
+    
+    # convert to uc idx + Bravais lattice index
+    uc1, Bsrc1 = fldmod1(src1, N)
+    uc2, Bsrc2 = fldmod1(src2, N)
+    dir12 = (l[:Bravais_srctrg2dir]::Matrix{Int})[Bsrc1, Bsrc2]
+
+    # combine (uc1, uc2, dir12, sync_idx) to linear index
+    combined_dir = _sub2ind((Ndir, length(iter.directions), B, B), (dir12, sync_idx, uc1, uc2))
 
     # state = (src1 mask index, src2 mask index, filter1 index, filter2 index)
-    return ((combined_dir, src1, trg1, src2, trg2), (sync_idx, idx1, idx2))
+    return ((combined_dir, src1, trg1, src2, trg2), (new_sync_idx, idx1, idx2))
 end
 
-Base.length(iter::_EachLocalQuadBySyncedDistance) = iter.N
-Base.eltype(::_EachLocalQuadBySyncedDistance) = NTuple{5, Int64}
+
+function _length(iter::EachLocalQuadBySyncedDistance, l::Lattice)
+    dir2srctrg = l[:dir2srctrg]::Vector{Vector{Tuple{Int, Int}}}
+    return mapreduce(dir -> length(dir2srctrg[dir])^2, +, iter.directions)
+end
+_eltype(::EachLocalQuadBySyncedDistance, ::Lattice) = NTuple{5, Int64}
 
 
-################################################################################
-### Sum Wrapper
-################################################################################
+#-----------------------------------------------------------
+# EachLocalQuadByDistance (combined_dir, src, src', trg, trg')
+#-----------------------------------------------------------
 
 
 """
-    Sum(iteration_template)
+    EachLocalQuadByDistance(directions)
 
-Sum is a wrapper for iteration templates that indicates summation. It generates 
-`_Sum(iter)` when constructed (constructing whatever template it holds) so that
-it can be dispatched on. 
+Returns a lattice iterator that iterates through combinations of four sites.
+
+In each step the iterator returns `(out_idx, src, src', trg, trg')`. The first
+index combines `(dir, idxs1, idx2, b1, b2)` where `b` refer to site indices
+within the unit cell, `dir` refers to a direction on the Bravais lattice and 
+idx1, idx2 refer to indices into `directions`. This can be visualized as
+
+```
+          b1      b2
+          ↓       ↓
+src' <-- src --> trg --> trg'
+      ↑       ↑       ↑
+    dir1     dir     dir2
+      ↑               ↑
+    idx1             idx2
+```
+
 """
-struct Sum{T} <: AbstractLatticeIteratorTemplate
-    template::T
-end
-# compat
-Sum{T}(args...) where {T} = _Sum(T()(args...))
-struct _Sum{LI} <: LatticeIterationWrapper{LI}
-    iter::LI
-end
-function (config::Sum)(cache::LatticeIteratorCache, lattice::AbstractLattice)
-    if config.template isa EachSitePairByDistance
-        _Sum(EachSitePair()(cache, lattice))
-    else
-        _Sum(config.template(cache, lattice))
+struct EachLocalQuadByDistance{T} <: DeferredLatticeIterator
+    directions::T
+    
+    EachLocalQuadByDistance(N::Integer) = EachLocalQuadByDistance(1:N)
+    EachLocalQuadByDistance(dirs::BondDirections) = new{BondDirections}(dirs)
+    EachLocalQuadByDistance(dirs::Vector{Pair{Int, Int}}) = new{Vector{Pair{Int, Int}}}(dirs)
+    function EachLocalQuadByDistance(dirs)
+        pairs = Pair.(eachindex(dirs), dirs)
+        new{typeof(pairs)}(pairs)
     end
 end
 
-Base.iterate(s::_Sum) = iterate(s.iter)
-Base.iterate(s::_Sum, state) = iterate(s.iter, state)
-Base.length(s::_Sum) = length(s.iter)
-Base.eltype(s::_Sum) = eltype(s.iter)
-
-
-################################################################################
-### Symmetry Wrapper
-################################################################################
-
-
-# This is a weird monster :(
-# The idea is that we construct a thin wrapper
-# li = ApplySymmetries{EachLocalQuadByDistance{5}}(sym1, sym2, ...)
-# which contains weights for different neighbors in the given symmetries
-# The backend then bundles all of these and constructs one thick wrapper by
-# calling
-# li(dqmc, model)
-# This then actually contains the udnerlying lattice iterator
-
-"""
-    ApplySymmetries{lattice_iterator_type}(symmetries...)
-
-`ApplySymmetries` is a wrapper for a `DeferredLatticeIterator`. It is meant to
-specify how results from different directions are to be added up.
-
-For example `T = EachLocalQuadByDistance{5}` specifies 4 site tuples where two
-sites have set distances between them - one of the first 5 smallest ones. In a 
-square lattice these would be on-site (1) and the four nearest neighbors (2-5).
-We may use `iter = ApplySymmetries{}([1], [0, 1, 1, 1, 1])` to specify how 
-results in these directions should be added up. The first rule would be s-wave,
-the second extended s-wave.
-These rules will be applied for DQMCMeasurements during the simulation. I.e. 
-first, the normal iteration and summation from `EachLocalQuadByDistance` is 
-performed. After that we have 5 values for each direction. These are then 
-weighted by each "symmetry" in `ApplySymmetries` to give the final result, saved
-in the DQMCMeasurement.
-"""
-struct ApplySymmetries{IT, N, T} <: AbstractLatticeIteratorTemplate
-    template::IT
-    symmetries::NTuple{N, Vector{T}}
-end
-function ApplySymmetries{LI}(symmetries::Vector...) where {LI}
-    ApplySymmetries(LI(), symmetries)
-end
-function ApplySymmetries(template::DeferredLatticeIteratorTemplate, symmetries::Vector...)
-    ApplySymmetries(template, symmetries)
+function EachLocalQuadByDistance(::MonteCarloFlavor, arg)
+    EachLocalQuadByDistance(arg)
 end
 
-struct _ApplySymmetries{LI <: DeferredLatticeIterator, N, T} <: LatticeIterationWrapper{LI}
-    iter::LI
-    symmetries::NTuple{N, T}
-end
-function (x::ApplySymmetries)(cache::LatticeIteratorCache, lattice::AbstractLattice)
-    iter = x.template(cache, lattice)
-    _ApplySymmetries(iter, x.symmetries)
+function Base.:(==)(l::EachLocalQuadByDistance, r::EachLocalQuadByDistance)
+    l.directions == r.directions
 end
 
-Base.iterate(s::_ApplySymmetries) = iterate(s.iter)
-Base.iterate(s::_ApplySymmetries, state) = iterate(s.iter, state)
-Base.length(s::_ApplySymmetries) = length(s.iter)
-Base.eltype(s::_ApplySymmetries) = eltype(s.iter)
+function output_size(iter::EachLocalQuadByDistance, l::Lattice)
+    B = length(l.unitcell.sites)
+    N = length(Bravais(l)) # on Bravais lattice
+    K = length(iter.directions)
+    return (N, K, K, B, B,)
+end
+function output_size(::EachLocalQuadByDistance{BondDirections}, l::Lattice)
+    B = length(l.unitcell.sites)
+    N = length(Bravais(l)) # on Bravais lattice
+    K = length(hopping_directions(l))
+    return (N, K, K, B, B)
+end
 
+# function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1))
+#     state == (0,0,0,0) && return nothing
+#     src1, src2, sub_idx1, sub_idx2 = state
 
-################################################################################
-### Utility (directions)
-################################################################################
+#     # convert to uc idx + Bravais lattice index
+#     B = length(l.unitcell.sites)
+#     Bsrc1, uc1 = fldmod1(src1, B)
+#     Bsrc2, uc2 = fldmod1(src2, B)
+#     dir12 = (l[:Bravais_srctrg2dir]::Matrix{Int})[Bsrc1, Bsrc2]
 
+#     # Get src -- trg directions (idx is for the output matrix)
+#     dirs1 = _dir_idxs_uc(l, iter.directions, uc1)
+#     idx1, sub_dir1 = dirs1[sub_idx1]
+#     dirs2 = _dir_idxs_uc(l, iter.directions, uc2)
+#     idx2, sub_dir2 = dirs2[sub_idx2]
 
-# function directions(::EachSitePair, lattice::AbstractLattice)
-#     pos = positions(lattice)
-#     [p2 .- p1 for p2 in pos for p1 in pos]
+#     # target sites
+#     srcdir2trg = l[:srcdir2trg]::Matrix{Int}
+#     trg1 = srcdir2trg[src1, sub_dir1]
+#     trg2 = srcdir2trg[src2, sub_dir2]
+
+#     # Prepare next iteration
+
+#     # fast changing
+#     b1 = sub_idx2 == length(dirs2)
+#     b2 = b1 && (sub_idx1 == length(dirs1))
+#     b3 = b2 && (src2 == length(l))
+#     b4 = b3 && (src1 == length(l))
+#     # slow changing
+
+#     sub_idx2 = Int64(b1 || (sub_idx2 + 1))
+#     sub_idx1 = Int64(b2 || (sub_idx1 + b1))
+#     next_src2 = Int64(b3 || (src2 + b2))
+#     next_src1 = Int64(src1 + b3)
+
+#     next_state = Int(!b4) .* (next_src1, next_src2, sub_idx1, sub_idx2)
+
+#     # Check validity
+#     if trg1 == 0 || trg2 == 0
+#         return _iterate(iter, l, next_state)
+#     end
+
+#     # TODO
+#     subN = _length(l, iter.directions)
+#     Ndir = length(Bravais(l)) # on Bravais lattice
+#     combined_dir = _sub2ind(
+#         (B, B, Ndir, subN, subN), (uc1, uc2, dir12, idx1, idx2)
+#     )
+
+#     return ((combined_dir, src1, trg1, src2, trg2), next_state)
 # end
 
-function directions(iter::_EachSitePairByDistance, lattice::AbstractLattice, ϵ=1e-6)
-    pos = MonteCarlo.positions(lattice)
-    wrap = generate_combinations(lattice_vectors(lattice))
+function _iterate(iter::EachLocalQuadByDistance, l::Lattice, state = (1,1, 1,1, 1,1))
+    state == (0,0, 0,0, 0,0) && return nothing
 
-    map(iter.dir2srctrg) do pairs
-        src, trg = pairs[1]
-        _d = pos[src] - pos[trg]
-        # Find lowest distance w/ periodic bounds
-        d = _d .+ wrap[1]
-        for v in wrap[2:end]
-            new_d = _d .+ v
-            if directed_norm(new_d, ϵ) + ϵ < directed_norm(d, ϵ)
-                d .= new_d
-            end
-        end
-        d
+    # This updates states after computing the next set of indices
+    src, shift, sub_idx1, sub_idx2, uc1, uc2 = state
+    
+    B = length(l.unitcell.sites)
+    N = length(Bravais(l))
+    dir2srctrg = l[:Bravais_dir2srctrg]::Vector{Vector{Int}}
+
+    # Get src -- trg directions (idx is for the output matrix)
+    dirs1 = _dir_idxs_uc(l, iter.directions, uc1)
+    idx1, sub_dir1 = dirs1[sub_idx1]
+    dirs2 = _dir_idxs_uc(l, iter.directions, uc2)
+    idx2, sub_dir2 = dirs2[sub_idx2]
+
+    # full src sites
+    src1 = src + N * (uc1-1)
+    src2 = dir2srctrg[shift][src] + N * (uc2-1)
+
+    # target sites
+    srcdir2trg = l[:srcdir2trg]::Matrix{Int}
+    trg1 = srcdir2trg[src1, sub_dir1]
+    trg2 = srcdir2trg[src2, sub_dir2]
+
+    # boundschecks
+    # fast
+    b1 = src == N
+    b2 = b1 && (shift == N)
+    b3 = b2 && (sub_idx1 == length(dirs1))
+    b4 = b3 && (sub_idx2 == length(dirs2))
+    b5 = b4 && (uc1 == B)
+    b6 = b5 && (uc2 == B)
+    # slow
+
+    next_src = Int(b1 || (src + 1))
+    next_shift = Int(b2 || (shift + b1))
+    next_sub_idx1 = Int64(b3 || (sub_idx1 + b2))
+    next_sub_idx2 = Int64(b4 || (sub_idx2 + b3))
+    next_uc1 = Int64(b5 || (uc1 + b4))
+    next_uc2 = Int64(b6 || (uc2 + b5))
+
+    # setup state to cancel iteration if necessary
+    next_state = Int(!b6) .* (next_src, next_shift, next_sub_idx1, next_sub_idx2, next_uc1, next_uc2)
+
+    # Check validity
+    if trg1 == 0 || trg2 == 0
+        # should probably have a fast forward...
+        return _iterate(iter, l, next_state)
     end
+
+    # Matrix index -> Vector index
+    subN = _length(l, iter.directions)
+    combined_dir = _sub2ind(
+        (N, subN, subN, B, B), (shift, idx1, idx2, uc1, uc2)
+    )
+
+    return ((combined_dir, src1, trg1, src2, trg2), next_state)
 end
 
 
-directions(dqmc::MonteCarloFlavor, ϵ=1e-6) = directions(lattice(dqmc), ϵ)
-directions(model::Model, ϵ=1e-6) = directions(lattice(model), ϵ)
-function directions(lattice::AbstractLattice, ϵ = 1e-6)
-    _positions = positions(lattice)
-    wrap = generate_combinations(lattice_vectors(lattice))
-    directions = Vector{Float64}[]
-    for origin in 1:length(lattice)
-        for (trg, p) in enumerate(_positions)
-            d = _positions[origin] .- p .+ wrap[1]
-            for v in wrap[2:end]
-                new_d = _positions[origin] .- p .+ v
-                if directed_norm(new_d, ϵ) + ϵ < directed_norm(d, ϵ)
-                    d .= new_d
-                end
-            end
-            idx = findfirst(dir -> isapprox(dir, d, atol=ϵ), directions)
-            if idx === nothing
-                push!(directions, d)
-            end
+function _length(iter::EachLocalQuadByDistance, l::Lattice)
+    dir2srctrg = l[:dir2srctrg]::Vector{Vector{Tuple{Int, Int}}}
+    return mapreduce(dir -> length(dir2srctrg[dir[2]]), +, iter.directions)^2
+end
+_eltype(::EachLocalQuadByDistance, ::Lattice) = NTuple{5, Int64}
+
+
+################################################################################
+### Bond pairs - [EXPERIMENTAL]
+################################################################################
+
+struct EachBondPairByBravaisDistance{T} <: MonteCarlo.DeferredLatticeIterator
+    bond_idxs::T
+end
+EachBondPairByBravaisDistance(N::Integer) = EachBondPairByBravaisDistance(1:N)
+EachBondPairByBravaisDistance() = EachBondPairByBravaisDistance(Colon())
+EachBondPairByBravaisDistance(mc::MonteCarloFlavor) = EachBondPairByBravaisDistance(lattice(mc))
+function EachBondPairByBravaisDistance(l::Lattice)
+    rejected = Int[]
+    accepted = Int[]
+    sizehint!(accepted, div(length(l.unitcell.bonds), 2))
+
+    for (i, b) in enumerate(l.unitcell.bonds)
+        if !(i in rejected)
+            idx = findfirst(l.unitcell.bonds) do _b
+                _b.from == b.to &&
+                _b.to == b.from &&
+                _b.uc_shift == .- b.uc_shift
+            end::Int
+            push!(accepted, i)
+            push!(rejected, idx)
         end
     end
-    # temp = sortperm(directions, by=norm)
-    # directions[temp]
-    sort!(directions, by = v -> directed_norm(v, ϵ))
+
+    return EachBondPairByBravaisDistance(accepted)
+end
+
+function MonteCarlo.output_size(iter::EachBondPairByBravaisDistance, l::Lattice)
+    if iter.bond_idxs isa Colon
+        B = length(l.unitcell.bonds)
+    else
+        B = length(iter.bond_idxs)
+    end
+    return (l.Ls..., B, B)
 end
 
 
+################################################################################
+### Temp friends
+################################################################################
+
+struct Sum{T} <: DeferredLatticeIterator
+    iter::T
+    # drop::Vector{Bool}
+    # Sum(iter::AbstractLatticeIterator, drop = Bool[]) = new(iter, drop)
+end
+Sum(::MonteCarloFlavor, arg) = Sum(arg)
+
+function _iterate(iter::Sum, l::Lattice)
+    idxs_state = _iterate(iter.iter, l)
+    idxs_state === nothing && return nothing
+    return (tuple(1, idxs_state[1][2:end]...), idxs_state[2])
+end
+function _iterate(iter::Sum, l::Lattice, state)
+    idxs_state = _iterate(iter.iter, l, state)
+    idxs_state === nothing && return nothing
+    return (tuple(1, idxs_state[1][2:end]...), idxs_state[2])
+end
+
+# In this case the get and set indices are the same and the iterator only 
+# returns one index (or set of indices). So instead of adjusting indices we 
+# want to add one here.
+function _iterate(iter::Sum{<: DirectLatticeIterator}, l::Lattice)
+    idxs_state = _iterate(iter.iter, l)
+    idxs_state === nothing && return nothing
+    return (tuple(1, idxs_state[1]), idxs_state[2])
+end
+function _iterate(iter::Sum{<: DirectLatticeIterator}, l::Lattice, state)
+    idxs_state = _iterate(iter.iter, l, state)
+    idxs_state === nothing && return nothing
+    return (tuple(1, idxs_state[1]), idxs_state[2])
+end
+
+function _eltype(iter::Sum{<: DirectLatticeIterator}, l::Lattice)
+    s = _size(iter, l); typeof(s) # Yuck. It's an NTuple{N+1, Int}
+end
+_size(iter::Sum{<: DirectLatticeIterator}, l::Lattice) = (1, _size(iter.iter, l)...)
+output_size(::Sum, l::Lattice) = (1,)
+
+
+# struct ApplySymmetries{IT, N, T} <: DeferredLatticeIterator
+#     iter::IT
+#     symmetries::NTuple{N, Vector{T}}
+# end
+
+const _all_lattice_iterator_types = [
+    EachSiteAndFlavor, EachSite, EachSitePair, EachSiteByDistance,
+    OnSite, EachLocalQuadByDistance, EachLocalQuadBySyncedDistance,
+    Sum
+]

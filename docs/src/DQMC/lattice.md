@@ -1,43 +1,90 @@
 # Lattices
 
-Lattices are a generic component for both quantum and classical Monte Carlo simulations. At this point they are part of the model. We currently offer a couple of directly implemented lattices, an interface for loading ALPS lattices and an interface to [LatticePhysics.jl](https://github.com/janattig/LatticePhysics.jl).
+A lattice as we implement it describes a collection of sites in space, connected by bonds.
 
-#### Available Lattices
 
-We currently have the following lattices. Unless mentioned, they all include nearest neighbor bonds.
+## Interface
 
-* `Chain(N)`: A one dimensional chain lattice with `N` sites.
-* `SquareLattice(L)`: A two dimensional square lattice with `L²` sites.
-* `CubicLattice(D, L)`: A `D` dimensional cubic lattice with `L^D` sites.
-* `TriangularLattice(L[; Lx = L, Ly = L])`: A two dimensional triangular lattice with `Lx * Ly` sites. This lattice also includes next nearest neighbor bonds.
+There are a few functions defined for lattices which you may find useful. 
 
-Additionally we have `ALPSLattice(file)` which loads an ALPS lattice from an xml file and `LatPhysLattice(lattice)` which wraps a generic lattice from [LatticePhysics.jl](https://github.com/janattig/LatticePhysics.jl).
+- `position(lattice)` returns an iterator which produces all site position of the lattice. When collected, this will create a D+1 dimensional array for a D dimensional lattice, where the first index represents the basis and the following represent the extend along the different lattice vectors.
+- `bonds(lattice[, directed = Val(false)])` returns an iterator which produces all bonds of the lattice. If `directed = Val(false)` bonds will be assumed to be directionless, meaning that only one of $1 \to 2$ and $2 \to 1$ will be returned. If `directed = Val(true)` both bonds will be generated.
+- `bond_open(lattice[, directed = false)` returns an iterator which filters out periodic bonds which might be useful for plotting.
+- `bonds(lattice, site::Int)` returns an iterator which produces bonds starting from `site`.
+- `lattice_vectors(lattice)` returns the lattice vectors of the lattice. (These are the vectors $v_i$ in $R = v_1 i_1 + v_2 i_2 + v_3 i_3$, i.e.e the vectors that generate the periodic Bravais lattice.)
+- `reciprocal_vectors(lattice)` returns the Fourier transformed lattice vectors.
+- `length(lattice)` returns the total number of sites in the lattice.
+- `size(lattice)` returns the size of the lattice starting with the number of basis sites. 
+- `eachindex(lattice)` returns a `1:length(lattice)`
+- `Bravais(lattice)` returns a wrapped lattice for which the above methods ignore the basis. For example `positions(Bravais(lattice))` will return an iterator of all Bravais lattice positions.
 
-#### Implementing your own Lattice
 
-If you want to implement your own lattice you need to implement a couple of things for compatibility. Your lattice should inherit from `MonteCarlo.AbstractLattice`. It should implement a method `length(lattice)` returning the total number of sites. 
-The more complex lattice iterators require a method `positions(lattice)` returning the positions of each site in matching order, and a method `lattice_vectors(lattice)` returning D vectors pointing from one end of the lattice to the other along nearest neighbor directions, where D is the dimensionality of the lattice. 
-If you are using the default models you will also need to implement some way to get nearest neighbor directions. You have two options here - either implement some traits and fields or implement the getter function directly. For the first option you need to implement: 
-* the field `neighs::Matrix{Int}` with `target = neighs[neighbor_idx, source]` and `has_neighbors_table(lattice) = true`
-* the field `bonds::Matrix{Int}` where `(source, target, type) = bonds[total_bond_idx, :]` and `has_bonds_table(lattice) = true`
-For the second option you need to write your own `neighbors(lattice, directed)` where `directed = Val{true}` returns forward and backwards facing bonds and `directed = Val{false}` considers those the same, returning only one of them.
+## Implementing your own lattice
 
-#### Lattice Iterators
+### LatticePhysics.jl
 
-Lattice Iterators are to some degree a backend component. They specify and often cache a way to iterate through the lattice. They are mainly used for DQMC measurements, which frequently require specific pairing of sites. There are currently three abstract subtypes of lattice iterators, each with multiple concrete types. Each concrete iterator can be created via `iterator(dqmc, model)`.
+[LatticePhysics.jl](https://github.com/janattig/LatticePhysics.jl) already has a lot of common lattices implemented, which can be converted to MonteCarlo.jl lattices. For this you simple need to call `MonteCarlo.Lattice(lattice_physics_lattice)`. Note that the reverse is also implemented as `LatPhysBase.Lattice(mc_lattice)`.
+
+### MonteCarlo.jl
+
+If neither MonteCarlo.jl nor LatticePhysics.jl implements the lattice you need, you can implement your own through a custom constructor. This process is very similar between both libraries. Let us take the implementation for the `Honeycomb` lattice as an example:
+
+```julia
+function Honeycomb(Lx, Ly = Lx)
+    uc = UnitCell(
+        # Name
+        "Honeycomb",
+        # lattice vectors
+        (Float64[sqrt(3.0)/2, -0.5], Float64[sqrt(3.0)/2, +0.5]),
+        # basis
+        [Float64[0.0, 0.0], Float64[1/sqrt(3.0), 0.0]],
+        # bonds
+        [
+            Bond(1, 2, (0, 0)), Bond(1, 2, (-1, 0)), Bond(1, 2, (0, -1)),
+            Bond(2, 1, (0, 0)), Bond(2, 1, ( 1, 0)), Bond(2, 1, (0,  1)),
+        ]
+    )
+
+    return Lattice(uc, (Lx, Ly))
+end
+```
+
+As you can see the main task here is to create a fitting unit cell. In order, the unit cell constructors takes the following arguments.
+
+1. The name of the lattice. This is used for printing and might be useful if you wish to restrict a model to a specific lattice.
+2. The basis of the lattice. (The positions of sites within a unit cell.)
+3. The lattice vectors, i.e. the vectors that generate the periodic Bravais lattice.
+4. The bonds of the lattice. Each bond contains three values: The basis site the bond starts at, the basis site it ends at and the Bravais shift which allows a bond to connect to neighboring unit cell. 
+   
+Note that bonds also have an integer label which can be used to differentiate them later. Note as well that the `UnitCell` constructor will generate missing bonds $b \to a$ if $a \to b$ exists.
+
+
+## Lattice Iterators
+
+Lattice Iterators are to some degree a backend component. They specify a way to iterate through the lattice, and are mainly used for DQMC measurements which frequently require specific pairings of sites. The iterators fall into three categories:
+
+### DirectLatticeIterator`
 
 First we have `DirectLatticeIterator`. These iterators return just site indices, e.g. `(source_index, target_index)`. The concrete implementations include:
-* `EachSiteAndFlavor` iterates all indices from 1 to `length(lattice) * nflavors(model)`
-* `EachSite` iterates all indices from 1 to `length(lattice)`
-* `OnSite` also iterates from `1:length(lattice)`, however returns two indices `(i, i)` at each step
-* `EachSitePair` iterates through all possible pairs `(i, j)` where both i and j run from 1 to `length(lattice)`.
 
-Next we have `DeferredLatticeIterator`. These iterators return some meta information with each site index, for example a directional index. They are used to do partial summation. The concrete implementations include:
-* `EachSitePairByDistance` which iterates the same range as `EachSitePair` but returns `(dir_idx, i, j)` at each step.
-* `EachLocalQuadByDistance{K}` iterates through four sets `(1, length(lattice))`, returning `(combined_dir_idx, src1, trg1, src2, trg2)` at each step. Here the directional index relates to three directional indices `(dir_idx, dir_idx1, dir_idx2)` representing the vectors between `src1` and `src2`, `src1` and `trg1`, and `src2` and `trg2` respectively. `K` restricts the included number of bonds between `src1` and `trg1` (and `src2` and `trg2`). Note that an on-site connection is also counted here - i.e. to include four nearest neighbors you must set `K = 5`.
-* `EachLocalQuadBySyncedDistance{K}` does the same thing as `EachLocalQuadByDistance{K}` with the additional of synchronizing the direction between `(src1, trg1)` and `(src2, trg2)`.
-Note that you can get the directions matching the indices from `directions(lattice/model/dqmc)`.
+* `EachSiteAndFlavor` iterates all indices from 1 to `length(lattice) * nflavors(mc)`
+* `EachSite` iterates through `eachindex(lattice)`
+* `EachSitePair` iterates through all possible pairs `(i, j)` where both i and j iterate `eachindex(lattice)`.
 
-Lastly we have `LatticeIterationWrapper{LI <: LatticeIterator}`. Generally results from `DeferredLatticeIterator`s will be saved in a vector, where `values[dir_idx]` is the sum of all values with the same directional index. The wrappers are there to further process what happens to these values before they are saved. The parametric type of them specifies the iteration procedure that is used. The concrete implementations are:
-* `Sum{LI}` tells the measurement to sum up all values before saving.
-* `ApplySymmetry{LI}(symmetries...)` tells the measurement to do sum directional indices past the first with some weights given as `symmetries`. For example you may use `ApplySymmetry{EachLocalQuadByDistance}([1], [0, 1, 1, 1, 1])` to generate s-wave and extended s-wave summations for square lattices.
+
+### DeferredLatticeIterator
+
+The second category inherit from `DeferredLatticeIterator`. Iterators in this category produce two sets of indices, one which is used to access lattice sites and one which is used to access some output array. In this category we have:
+
+* `OnSite` which also `eachindex(lattice)`, but returns three indices `(i, i, i)` at each step.
+* `EachSitePairByDistance` which iterates the same range as `EachSitePair` but returns `(combined_idx, i, j)` at each step. The `combined_idx` combines the index of source basis site, the target basis and an index corresponding to a Bravais lattice direction. The output array is generally assumed to be three dimensional, matching those indices.
+* `EachLocalQuadByDistance(directions)` iterators through combinations of four sites $s^\prime \leftarrow s \rightarrow t \rightarrow t^\prime$. The given `directions` are directional indices used to derive $s^\prime$ and $t^\prime$ from the current source and target site $s$ and $t$. The full output of this iterator is `(combined_idx, s, t, s', t')`, where `combined_idx` includes the basis index of $s$, $t$, the direction $s \to t$ as well as the indices into `directions` for $s \to s^\prime$ and $t \to t^\prime$.
+* `EachLocalQuadBySyncedDistance(directions)` is the same as `EachLocalQuadByDistance` with the restriction that the directions $s \to s^\prime$ and $t \to t^\prime$ are the same. The `combined_idx` does contain an index $t \to t^\prime$ as result.
+
+
+### Wrappers
+
+
+The last category are wrappers around lattice iterators. They are used either to adjust the summation and further compress the output array, or to dispatch to different methods during measurement. The following are currently available:
+
+* `Sum(iter)` sets the output index to 1. This has the effect of summing all site combinations.

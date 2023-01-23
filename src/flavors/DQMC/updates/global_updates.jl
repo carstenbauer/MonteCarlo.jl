@@ -159,7 +159,7 @@ end
     end
     ΔE_Boson = energy_boson(field, conf(field)) - energy_boson(field, temp_conf(field))
     
-    if max(nflavors(m), nflavors(field)) == 1
+    if unique_flavors(mc) == 1
         detratio = detratio * detratio
     end
 
@@ -232,6 +232,7 @@ A global update that flips the configuration (±1 -> ∓1).
 struct GlobalFlip <: AbstractGlobalUpdate end
 GlobalFlip(mc, model) = GlobalFlip()
 name(::GlobalFlip) = "GlobalFlip"
+_load(::FileLike, ::Val{:GlobalFlip}) = GlobalFlip()
 
 @bm function propose_conf!(::GlobalFlip, mc, model, field::AbstractHirschField)
     c = conf(field); tc = temp_conf(field)
@@ -257,6 +258,7 @@ local to a time slice.
 struct GlobalShuffle <: AbstractGlobalUpdate end
 GlobalShuffle(mc, model) = GlobalShuffle()
 name(::GlobalShuffle) = "GlobalShuffle"
+_load(::FileLike, ::Val{:GlobalShuffle}) = GlobalShuffle()
 
 
 @bm function propose_conf!(::GlobalShuffle, mc, model, field::AbstractField)
@@ -286,6 +288,7 @@ function init!(mc, u::SpatialShuffle)
     nothing
 end
 name(::SpatialShuffle) = "SpatialShuffle"
+_load(::FileLike, ::Val{:SpatialShuffle}) = SpatialShuffle()
 
 
 @bm function propose_conf!(u::SpatialShuffle, mc, model, field::AbstractHirschField)
@@ -319,6 +322,7 @@ function init!(mc, u::TemporalShuffle)
     nothing
 end
 name(::TemporalShuffle) = "TemporalShuffle"
+_load(::FileLike, ::Val{:TemporalShuffle}) = TemporalShuffle()
 
 
 @bm function propose_conf!(u::TemporalShuffle, mc, model, field::AbstractHirschField)
@@ -342,6 +346,7 @@ domains. This is done by setting each site to dominant surrounding value.
 struct Denoise <: AbstractGlobalUpdate end
 Denoise(mc, model) = Denoise()
 name(::Denoise) = "Denoise"
+_load(::FileLike, ::Val{:Denoise}) = Denoise()
 
 
 @bm function propose_conf!(::Denoise, mc, model, field::AbstractHirschField)
@@ -349,8 +354,8 @@ name(::Denoise) = "Denoise"
     copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))
         average = tc[i, slice]
-        for j in neighbors(lattice(model), i)
-            average += 2 * tc[j, slice]
+        for b in bonds(lattice(model), i)
+            average += 2 * tc[b.to, slice]
         end
         c[i, slice] = sign(average)
     end
@@ -368,6 +373,7 @@ its surrounding.
 struct DenoiseFlip <: AbstractGlobalUpdate end
 DenoiseFlip(mc, model) = DenoiseFlip()
 name(::DenoiseFlip) = "DenoiseFlip"
+_load(::FileLike, ::Val{:DenoiseFlip}) = DenoiseFlip()
 
 
 @bm function propose_conf!(::DenoiseFlip, mc, model, field::AbstractHirschField)
@@ -375,8 +381,8 @@ name(::DenoiseFlip) = "DenoiseFlip"
     copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))
         average = tc[i, slice]
-        for j in neighbors(lattice(model), i)
-            average += 2 * tc[j, slice]
+        for b in bonds(lattice(model), i)
+            average += 2 * tc[b.to, slice]
         end
         c[i, slice] = -sign(average)
     end
@@ -393,6 +399,7 @@ index. Even sites get multiplied by `+1`, odd sites by `-1`.
 struct StaggeredDenoise <: AbstractGlobalUpdate end
 StaggeredDenoise(mc, model) = StaggeredDenoise()
 name(::StaggeredDenoise) = "StaggeredDenoise"
+_load(::FileLike, ::Val{:StaggeredDenoise}) = StaggeredDenoise()
 
 
 @bm function propose_conf!(::StaggeredDenoise, mc, model, field::AbstractHirschField)
@@ -400,8 +407,8 @@ name(::StaggeredDenoise) = "StaggeredDenoise"
     copyto!(tc, c)
     for slice in 1:nslices(mc), i in 1:length(lattice(mc))
         average = tc[i, slice]
-        for j in neighbors(lattice(model), i)
-            average += 2 * tc[j, slice]
+        for b in bonds(lattice(model), i)
+            average += 2 * tc[b.to, slice]
         end
         c[i, slice] = (1 - 2 * (i % 2)) * sign(average)
     end

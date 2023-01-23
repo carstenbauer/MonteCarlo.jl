@@ -38,9 +38,9 @@ A custom model needs to implement these methods to function
 These methods aren't strictly necessary to implement, but may boost performance when implemented. It is recommended to provide these if the defaults do not apply.
 
 
-- `save_model(file::JLDFile, model, entryname)` should write model information to the given file. It should also save the lattice via `save_lattice` and save a unqiue `tag`. If this is not implemented JLD2 will be asked to save the type as is, which makes it hard to load data when the model type is edited.
-- `_load_model(data, ::Val{Symbol(tag)})` loads a model from `data`, which typically is a JLDFile. Note that saved tag is used to dispatch to the correct method.
-- `intE_kernel(mc, model, G, ::Val{flv})` should be implemented to enable measurements of the energy from the interactive term as well as the total energy. 
+- `_save(file::FileLike, entryname, model)` should write model information to the given file. It should also save the lattice via `_save(file, entryname, lattice)` and save a unique `tag`. If this is not implemented JLD2 will be asked to save the type as is, which makes it hard to load data when the model type is edited.
+- `_load(data, ::Val{Symbol(tag)})` loads a model from `data`, which typically is a JLDFile. Note that saved tag is used to dispatch to the correct method.
+- `intE_kernel(mc, model, idxs, G, ::Val{flv})` should be implemented to enable measurements of the energy from the interactive term as well as the total energy. 
 - `choose_field(model)` returns the default field type for a given model. If this is not implemented a field must be passed to `DQMC`.
 
 #### Optional Methods

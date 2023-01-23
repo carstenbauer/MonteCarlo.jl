@@ -31,7 +31,6 @@ will start with sweep `last_sweep + 1`.
 """
 function DQMC(model::M;
         seed::Int=-1,
-        checkerboard::Bool=false,
         thermalization_measurements = Dict{Symbol, AbstractMeasurement}(),
         measurements = Dict{Symbol, AbstractMeasurement}(),
         last_sweep = 0,
@@ -50,14 +49,13 @@ function DQMC(model::M;
     field_data = field(parameters, model)
     rand!(field_data)
 
-    stack = DQMCStack(field_data, model)
+    stack = DQMCStack(field_data, model, parameters.checkerboard)
     ut_stack = UnequalTimeStack{geltype(stack), gmattype(stack)}()
 
     analysis = DQMCAnalysis()
-    CB = checkerboard ? CheckerboardTrue : CheckerboardFalse
 
     mc = DQMC(
-        CB, model, field_data, last_sweep, stack, ut_stack, scheduler,
+        model, field_data, last_sweep, stack, ut_stack, scheduler,
         parameters, analysis, recorder, thermalization_measurements, measurements
     )
     
@@ -91,6 +89,43 @@ DQMC(m::Model, params::NamedTuple) = DQMC(m; params...)
     beta = p.beta, delta_tau = p.delta_tau, thermalization = p.thermalization, sweeps = p.sweeps
 )
 
+estimate_size(NSites, Nflavors, ::BlockDiagonal{CMat64}) = 16 * Nflavors * NSites^2
+estimate_size(NSites, Nflavors, ::BlockDiagonal{T}) where {T} = Nflavors * NSites^2 * sizeof(T)
+estimate_size(NSites, Nflavors, ::Matrix{T}) where {T} = Nflavors^2 * NSites^2 * sizeof(T)
+estimate_size(NSites, Nflavors, ::CMat64) = 16 * Nflavors^2 * NSites^2
+estimate_size(NSites, Nflavors, ::Diagonal{T}) where {T} = Nflavors * NSites * sizeof(T)
+estimate_size(NSites, Nflavors, ::Vector{T}) where {T} = Nflavors * NSites * sizeof(T)
+
+# function estimate_size()
+#     Nsites
+#     Nflavors
+#     NSweeps
+#     field
+#     model # TODO move lattice out. I keep thinking I should
+#     NChunks = length(generate_chunks(NSlices, safe_mult))
+
+#     # Stack (w/o field cache because that's not really a relevant size)
+#     GET = greens_eltype(field, model)
+#     IMT = interaction_matrix_type(field, model)
+#     HMT = hopping_matrix_type(field, model)
+#     GMT = greens_matrix_type(field, model)
+#     stack_size = (
+#         (2 * NChunks + 9) * estimate_size(NSites, Nflavors, GMT) + 
+#         (NChunks + 4) * estimate_size(NSites, Nflavors, Vector{Float64}) + # pivot + diagonals
+#         estimate_size(NSites, Nflavors, Vector{GET}) +
+#         estimate_size(NSites, Nflavors, Matrix{ComplexF64}) +
+#         estimate_size(Nsites, nflavors, IMT) +
+#         5 * estimate_size(Nsites, nflavors, HMT)
+#     )
+
+#     # conf is kind of relevant
+#     field_size = Base.summarysize(field)
+#     # because of recorders but we don't want to load them...
+
+#     # same with measurements?
+
+# end
+
 # cosmetics
 import Base.summary
 import Base.show
@@ -115,12 +150,86 @@ function init!(mc::DQMC)
 end
 @deprecate resume_init!(mc::DQMC) init!(mc) false
 
+function initialize_run(mc; 
+        verbose::Bool = true, ignore = tuple(),
+        sweeps::Int = mc.parameters.sweeps,
+        thermalization = mc.parameters.thermalization,
+    )
+
+    # Update number of sweeps
+    if (mc.parameters.thermalization != thermalization) || (mc.parameters.sweeps != sweeps)
+        verbose && println("Rebuilding DQMCParameters with new number of sweeps.")
+        mc.parameters = DQMCParameters(mc.parameters, thermalization = thermalization, sweeps = sweeps)
+    end
+
+    # Generate measurement groups
+    init!(mc)
+    th_groups = generate_groups(
+        mc, mc.model, 
+        [mc.measurements[k] for k in keys(mc.thermalization_measurements) if !(k in ignore)]
+    )
+    groups = generate_groups(
+        mc, mc.model, 
+        [mc.measurements[k] for k in keys(mc.measurements) if !(k in ignore)]
+    )
+
+    # fresh stack
+    verbose && println("Preparing Green's function stack")
+    reverse_build_stack(mc, mc.stack)
+    propagate(mc)
+
+    # Check assumptions for global updates
+    # if !all(update isa AbstractLocalUpdate for update in updates(mc.scheduler))
+    if any(isa(update, AbstractGlobalUpdate) || isa(update, AbstractParallelUpdate) for update in updates(mc.scheduler))
+        try
+            copyto!(mc.stack.tmp2, mc.stack.greens)
+            udt_AVX_pivot!(mc.stack.tmp1, mc.stack.tempvf, mc.stack.tmp2, mc.stack.pivot, mc.stack.tempv)
+            ud = det(Matrix(mc.stack.tmp1))
+            td = det(Matrix(mc.stack.tmp2))
+            if !(0.9999999 <= abs(td) <= 1.0000001) || !(0.9999999 <= abs(ud) <= 1.0000001)
+                @error("Assumptions for global updates broken! ($td, $ud should be 1)")
+            end
+        catch e
+            @warn "Could not verify global update" exception = e
+        end
+    end
+
+    return th_groups, groups
+end
+
+function sweep_once!(mc, th_groups, groups, thermalization, t0 = time())
+    # Perform whatever update is scheduled next
+    update(mc.scheduler, mc, mc.model)
+
+    # Trigger measurements
+    if mc.last_sweep ≤ thermalization
+        if iszero(mc.last_sweep % mc.parameters.measure_rate)
+            for (requirement, group) in th_groups
+                apply!(requirement, group, mc)
+            end
+        end
+        if mc.last_sweep == thermalization
+            mc.analysis.th_runtime += time() - t0
+            t0 = time()
+        end
+    else
+        push!(mc.recorder, field(mc), mc.last_sweep)
+        if iszero(mc.last_sweep % mc.parameters.measure_rate)
+            for (requirement, group) in groups
+                apply!(requirement, group, mc)
+            end
+        end
+    end
+
+    return t0
+end
 
 """
     run!(mc::DQMC[; kwargs...])
 
-Runs the given Monte Carlo simulation `mc`. Returns true if the run finished and
-false if it cancelled early to generate a resumable save-file.
+Runs the given Monte Carlo simulation `mc`. Returns `SUCCESS::ExitCode = 0` if 
+the simulation finished normally or various other codes if failed or cancelled. 
+See [`ExitCode`](@ref).
 
 ### Keyword Arguments:
 - `verbose = true`: If true, print progress messaged to stdout.
@@ -155,80 +264,33 @@ See also: [`resume!`](@ref)
         fail_filename = "failed_$(Dates.format(safe_before, "d_u_yyyy-HH_MM")).jld2"
     )
 
-    # Update number of sweeps
-    if (mc.parameters.thermalization != thermalization) || (mc.parameters.sweeps != sweeps)
-        verbose && println("Rebuilding DQMCParameters with new number of sweeps.")
-        mc.parameters = DQMCParameters(mc.parameters, thermalization = thermalization, sweeps = sweeps)
-    end
-    total_sweeps = sweeps + thermalization
-
-    # Generate measurement groups
-    init!(mc)
-    th_groups = generate_groups(
-        mc, mc.model, 
-        [mc.measurements[k] for k in keys(mc.thermalization_measurements) if !(k in ignore)]
-    )
-    groups = generate_groups(
-        mc, mc.model, 
-        [mc.measurements[k] for k in keys(mc.measurements) if !(k in ignore)]
-    )
-
-    start_time = now()
-    last_checkpoint = now()
+    start_time = now()       # unchanged starting time
+    last_checkpoint = now()  # last interval-save
+    _time = time()           # for sweep time estimations (for safe_before)
+    t0 = time()              # for analysis.runtime, might be reset
     max_sweep_duration = 0.0
-    verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
+    exit_code = SUCCESS
 
-    # fresh stack
-    verbose && println("Preparing Green's function stack")
-    reverse_build_stack(mc, mc.stack)
-    propagate(mc)
-
-    # Check assumptions for global updates
-    try
-        copyto!(mc.stack.tmp2, mc.stack.greens)
-        udt_AVX_pivot!(mc.stack.tmp1, mc.stack.tempvf, mc.stack.tmp2, mc.stack.pivot, mc.stack.tempv)
-        ud = det(Matrix(mc.stack.tmp1))
-        td = det(Matrix(mc.stack.tmp2))
-        if !(0.9999999 <= abs(td) <= 1.0000001) || !(0.9999999 <= abs(ud) <= 1.0000001)
-            @error("Assumptions for global updates broken! ($td, $ud should be 1)")
-        end
-    catch e
-        @warn "Could not verify global update" exception = e
-    end
-
+    total_sweeps = sweeps + thermalization
     min_sweeps = round(Int, 1 / min_update_rate)
+    next_print = (div(mc.last_sweep, mc.parameters.print_rate) + 1) * mc.parameters.print_rate
+    first_sweep = mc.last_sweep
 
-    _time = time() # for step estimations
-    t0 = time() # for analysis.runtime, may need to reset
+    verbose && println("Started: ", Dates.format(start_time, "d.u yyyy HH:MM"))
     verbose && println("\n\nThermalization stage - ", thermalization)
 
-    next_print = (div(mc.last_sweep, mc.parameters.print_rate) + 1) * mc.parameters.print_rate
+    # Organize measurements into groups, initialize stack
+    th_groups, groups = initialize_run(mc; 
+        verbose = verbose, ignore = ignore,
+        thermalization = thermalization, sweeps = sweeps
+    )
+
     while mc.last_sweep < total_sweeps
         verbose && (mc.last_sweep == thermalization + 1) && println("\n\nMeasurement stage - ", sweeps)
         
-        # Perform whatever update is scheduled next
-        update(mc.scheduler, mc, mc.model)
+        t0 = sweep_once!(mc, th_groups, groups, thermalization, t0)
 
-        # Trigger measurements
-        if mc.last_sweep ≤ thermalization
-            if iszero(mc.last_sweep % mc.parameters.measure_rate)
-                for (requirement, group) in th_groups
-                    apply!(requirement, group, mc, mc.model, mc.last_sweep)
-                end
-            end
-            if mc.last_sweep == thermalization
-                mc.analysis.th_runtime += time() - t0
-                t0 = time()
-            end
-        else
-            push!(mc.recorder, field(mc), mc.last_sweep)
-            if iszero(mc.last_sweep % mc.parameters.measure_rate)
-                for (requirement, group) in groups
-                    apply!(requirement, group, mc, mc.model, mc.last_sweep)
-                end
-            end
-        end
-
+        # Cancel if updates don't get accepted
         if mc.last_sweep > min_sweeps
             acc = max_acceptance(mc.scheduler)
             if acc < min_update_rate
@@ -239,14 +301,16 @@ See also: [`resume!`](@ref)
                 if overwrite && isfile(resumable_filename)
                     rm(resumable_filename)
                 end
-                return true
+                exit_code = CANCELLED_LOW_ACCEPTANCE
+                break
             end
         end
 
         # Show sweep statistics - i.e. time/sweep, acceptance rates
         if mc.last_sweep >= next_print
             next_print += mc.parameters.print_rate
-            sweep_dur = (time() - _time)/mc.parameters.print_rate
+            N = min(mc.last_sweep - first_sweep, mc.parameters.print_rate)
+            sweep_dur = (time() - _time) / N
             max_sweep_duration = max(max_sweep_duration, sweep_dur)
             if verbose
                 println("\t", mc.last_sweep)
@@ -268,7 +332,8 @@ See also: [`resume!`](@ref)
             save(resumable_filename, mc, overwrite = overwrite, rename = false)
             verbose && println("\nEarly save finished")
             disconnect(connected_ids)
-            return false
+            exit_code = CANCELLED_TIME_LIMIT
+            break
         elseif (now() - last_checkpoint) > safe_every
             verbose && println("Performing scheduled save.")
             last_checkpoint = now()
@@ -276,6 +341,7 @@ See also: [`resume!`](@ref)
         end
     end
     
+    # Update runtimes
     if mc.last_sweep ≤ thermalization
         mc.analysis.th_runtime += time() - t0
     else
@@ -283,6 +349,7 @@ See also: [`resume!`](@ref)
     end
 
     disconnect(connected_ids)
+    end_time = now()
 
     # Print (numerical) error information
     if verbose
@@ -310,14 +377,20 @@ See also: [`resume!`](@ref)
     end
 
     # Total timings
-    end_time = now()
     if verbose
-        println("\nEnded: ", Dates.format(end_time, "d.u yyyy HH:MM"))
-        @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
+        println("\nEnded:          ", Dates.format(end_time, "d.u yyyy HH:MM"))
+        println("Run duration:   ", canonicalize((end_time - start_time)))
+        th = Millisecond(round(Int, 1000 * mc.analysis.th_runtime))
+        me = Millisecond(round(Int, 1000 * mc.analysis.me_runtime))
+        println("Total duration: ", canonicalize(th), " + ", canonicalize(me))
+        thps = Millisecond(round(Int, th.value / max(1, min(mc.last_sweep, mc.parameters.thermalization))))
+        meps = Millisecond(round(Int, me.value / max(1, mc.last_sweep - mc.parameters.thermalization)))
+        println("Per sweep:      ", canonicalize(thps), " + ", canonicalize(meps))
+
         println()
     end
 
-    return true
+    return exit_code
 end
 
 
@@ -391,7 +464,7 @@ function replay!(
         decompress!(field(mc), configurations[i])
         calculate_greens(mc, 0) # outputs to mc.stack.greens
         for (requirement, group) in groups
-            apply!(requirement, group, mc, mc.model, i)
+            apply!(requirement, group, mc)
         end
         mc.last_sweep = i
 
@@ -415,7 +488,7 @@ function replay!(
             save(resumable_filename, mc, overwrite = overwrite, rename = false)
             verbose && println("\nEarly save finished")
 
-            return false
+            return CANCELLED_TIME_LIMIT
         elseif (now() - last_checkpoint) > safe_every
             verbose && println("Performing scheduled save.")
             last_checkpoint = now()
@@ -428,5 +501,5 @@ function replay!(
     verbose && println("Ended: ", Dates.format(end_time, "d.u yyyy HH:MM"))
     verbose && @printf("Duration: %.2f minutes", (end_time - start_time).value/1000. /60.)
 
-    return true
+    return SUCCESS
 end

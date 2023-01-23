@@ -61,7 +61,7 @@ function initialize_stack(mc::DQMC, s::UnequalTimeStack)
     GreensElType  = geltype(mc)
     GreensMatType = gmattype(mc)
     N = length(lattice(mc))
-    flv = nflavors(mc)
+    flv = unique_flavors(mc)
     # mirror stack
     M = mc.stack.n_elements
 
@@ -553,50 +553,50 @@ end
     @bm "compute G" begin
         # [B_{l+1}^-1 B_{l+2}^-1 ⋯ B_k^-1 + B_l ⋯ B_1 B_N ⋯ B_{k+1}]^-1
         # [U D T + Ul (Dl Tl Tr^† Dr) Ur^†]^-1
-        @bm "B1" begin
+        # @bm "B1" begin
             vmul!(s.greens, mc.stack.Tl, adjoint(mc.stack.Tr))
             vmul!(mc.stack.tmp1, s.greens, Diagonal(mc.stack.Dr))
             vmul!(s.greens, Diagonal(mc.stack.Dl), mc.stack.tmp1)
-        end
+        # end
         # [U D T + Ul (G) Ur^†]^-1
-        @bm "udt" begin
+        # @bm "udt" begin
             udt_AVX_pivot!(mc.stack.Tr, mc.stack.Dr, s.greens, mc.stack.pivot, mc.stack.tempv, Val(false))
-        end
+        # end
         # [U D T + (Ul Tr) Dr (G Ur^†)]^-1
-        @bm "B2" begin
+        # @bm "B2" begin
             vmul!(mc.stack.Tl, mc.stack.Ul, mc.stack.Tr)
             # (G Ur^†) = (Ur / G)^-1
             # Ur := Ur / G
             rdivp!(mc.stack.Ur, s.greens, mc.stack.Ul, mc.stack.pivot) 
-        end
+        # end
         # [U D T + Tl Dr Ur^-1]^-1
         # [U (D T Ur + U^† Tl Dr) Ur^-1]^-1
         # [U D_max (D_min T Ur 1/Dr_max + 1/D_max U^† Tl Dr_min) Dr_max Ur^-1]^-1
-        @bm "B3" begin
+        # @bm "B3" begin
             # 1/D_max U^† Tl Dr_min
             vmul!(mc.stack.Tr, adjoint(s.U), mc.stack.Tl)
             vmaxinv!(mc.stack.Dl, s.D) # mc.stack.Dl .= 1.0 ./ max.(1.0, s.D)
             vmul!(mc.stack.tmp1, Diagonal(mc.stack.Dl), mc.stack.Tr)
             vmin!(mc.stack.Dl, mc.stack.Dr) # mc.stack.Dl .= min.(1.0, mc.stack.Dr)
             vmul!(mc.stack.Tr, mc.stack.tmp1, Diagonal(mc.stack.Dl))
-        end
+        # end
         # [U D_max (D_min T Ur 1/Dr_max + Tr) Dr_max Ur^-1]^-1
-        @bm "B4" begin
+        # @bm "B4" begin
             # D_min T Ur 1/Dr_max
             vmul!(mc.stack.Tl, s.T, mc.stack.Ur)
             vmin!(mc.stack.Dl, s.D) # mc.stack.Dl .= min.(1.0, s.D)
             vmul!(mc.stack.tmp1, Diagonal(mc.stack.Dl), mc.stack.Tl)
             vmaxinv!(mc.stack.Dl, mc.stack.Dr) # mc.stack.Dl .= 1.0 ./ max.(1.0, mc.stack.Dr)
             vmul!(mc.stack.Tl, mc.stack.tmp1, Diagonal(mc.stack.Dl))
-        end
+        # end
         # [U D_max (Tl + Tr) Dr_max Ur^-1]^-1
-        @bm "sum, UDT" begin
+        # @bm "sum, UDT" begin
             rvadd!(mc.stack.Tl, mc.stack.Tr)
             udt_AVX_pivot!(mc.stack.Tr, mc.stack.Dl, mc.stack.Tl, mc.stack.pivot, mc.stack.tempv, Val(false))
-        end
+        # end
         # [U D_max (Tr Dl Tl) Dr_max Ur^-1]^-1
         # Ur 1/Dr_max Tl^-1 1/Dl Tr^† D_max U^†
-        @bm "B5" begin
+        # @bm "B5" begin
             # [[((1/Dr_max) / Tl) 1/Dl] Tr^†] D_max
             vmaxinv!(mc.stack.Dr, mc.stack.Dr) # mc.stack.Dr .= 1.0 ./ max.(1.0, mc.stack.Dr)
             copyto!(mc.stack.Ul, Diagonal(mc.stack.Dr))
@@ -606,12 +606,12 @@ end
             vmul!(mc.stack.Ul, mc.stack.tmp1, adjoint(mc.stack.Tr))
             vmaxinv!(mc.stack.Dl, s.D) # mc.stack.Dl .= 1.0 ./ max.(1.0, s.D)
             vmul!(s.greens, mc.stack.Ul, Diagonal(mc.stack.Dl))
-        end
+        # end
         # Ur G U^†
-        @bm "B6" begin
+        # @bm "B6" begin
             vmul!(mc.stack.Tr, s.greens, adjoint(s.U))
             vmul!(s.greens, mc.stack.Ur, mc.stack.Tr)
-        end
+        # end
     end
 
     s.greens
@@ -638,18 +638,18 @@ end
         # [B_{l} B_{l-1} ⋯ B_{k+1} + (B_k ⋯ B_1 B_M ⋯ B_{l+1})^-1]^-1
         # [T^-1 D^-1 U^† + (Ul Dl Tl Tr^† Dr Ur^†)^-1]^-1
         # [T^-1 D^-1 U^† + Ur (Dl Tl Tr^† Dr)^-1 Ul^†]^-1
-        @bm "B1" begin
+        # @bm "B1" begin
             vmul!(s.greens, mc.stack.Tl, adjoint(mc.stack.Tr))
             vmul!(mc.stack.tmp1, Diagonal(mc.stack.Dl), s.greens)
             vmul!(s.greens, mc.stack.tmp1, Diagonal(mc.stack.Dr))
-        end
+        # end
         # [T^-1 D^-1 U^† + Ur G^-1 Ul^†]^-1
-        @bm "udt" begin
+        # @bm "udt" begin
             udt_AVX_pivot!(mc.stack.Tr, mc.stack.Dr, s.greens, mc.stack.pivot, mc.stack.tempv, Val(false))
-        end
+        # end
         # [T^-1 D^-1 U^† + Ur G^-1 Dr^-1 Tr^† Ul^†]^-1
         # [T^-1 D_min^-1 (D_max^-1 U^† (Ul Tr) Dr_min + D_min T Ur G^-1 Dr_max^-1) Dr_min^-1 (Ul Tr)^†]^-1
-        @bm "B2" begin
+        # @bm "B2" begin
             # D_max^-1 U^† (Ul Tr) Dr_min
             vmul!(mc.stack.Tl, mc.stack.Ul, mc.stack.Tr) # keep me alive
             vmul!(mc.stack.Ul, adjoint(s.U), mc.stack.Tl)
@@ -657,9 +657,9 @@ end
             vmul!(s.U, Diagonal(mc.stack.Dl), mc.stack.Ul)
             vmin!(mc.stack.Dl, mc.stack.Dr)
             vmul!(mc.stack.Ul, s.U, Diagonal(mc.stack.Dl))
-        end
+        # end
         # [T^-1 D_min^-1 (Ul + D_min T Ur G^-1 Dr_max^-1) Dr_min^-1 Tl^†]^-1
-        @bm "B3" begin
+        # @bm "B3" begin
             # D_min T Ur G^-1 Dr_max^-1
             vmul!(s.U, s.T, mc.stack.Ur)
             rdivp!(s.U, s.greens, mc.stack.Ur, mc.stack.pivot)
@@ -667,15 +667,15 @@ end
             vmul!(mc.stack.Ur, Diagonal(mc.stack.Dl), s.U)
             vmaxinv!(mc.stack.Dl, mc.stack.Dr)
             vmul!(mc.stack.Tr, mc.stack.Ur, Diagonal(mc.stack.Dl))
-        end
+        # end
         # [T^-1 D_min^-1 (Ul + Tr) Dr_min^-1 Tl^†]^-1
-        @bm "sum, udt" begin
+        # @bm "sum, udt" begin
             rvadd!(mc.stack.Tr, mc.stack.Ul)
             udt_AVX_pivot!(mc.stack.Ul, mc.stack.Dl, mc.stack.Tr, mc.stack.pivot, mc.stack.tempv, Val(false))
-        end
+        # end
         # [T^-1 D_min^-1 Ul Dl Tr Dr_min^-1 Tl^-1]^-1
         # Tl ({[(Dr_min / Tr) Dl^-1] Ul^†} D_min) T
-        @bm "B4" begin
+        # @bm "B4" begin
             vmin!(mc.stack.Dr, mc.stack.Dr)
             copyto!(s.U, Diagonal(mc.stack.Dr))
             rdivp!(s.U, mc.stack.Tr, mc.stack.Ur, mc.stack.pivot)
@@ -684,486 +684,14 @@ end
             vmul!(s.U, mc.stack.Ur, adjoint(mc.stack.Ul))
             vmin!(s.D, s.D)
             vmul!(mc.stack.Ur, s.U, Diagonal(s.D))
-        end
+        # end
         # Tl Ur T
-        @bm "B6" begin
+        # @bm "B6" begin
             vmul!(mc.stack.Tr, mc.stack.Ur, s.T)
             vmul!(s.greens, mc.stack.Tl, mc.stack.Tr)
             rmul!(s.greens, -1.0)
-        end
+        # end
     end
     
     s.greens
-end
-
-
-
-################################################################################
-### Iterators
-################################################################################
-
-
-
-# The method above provides the unequal-time Greens function in a stable, 
-# general but expensive way. The idea of iterators is to provide what is needed
-# more quickly, without the UnequalTimeStack and without having to worry about
-# managing stack variables.
-
-# Currently we have:
-# GreensIterator
-#   - attempts to be general (but isn't yet)
-#   - requires UnequalTimeStack
-#   - should have high accuracy, but still faster than manual
-# CombinedGreensIterator
-#   - does just l = 0, k = 0:M-1, but returns G_kl and G_ll
-#   - does not require UnequalTimeStack
-#   - same accuracy as GreensIterator
-
-abstract type AbstractGreensIterator end
-abstract type AbstractUnequalTimeGreensIterator <: AbstractGreensIterator end
-
-init!(::AbstractUnequalTimeGreensIterator) = nothing
-"""
-    verify(iterator::AbstractUnequalTimeGreensIterator[, maxerror=1e-6])
-
-Returns true if the given `iterator` is accurate up to the given `maxerror`.
-
-See also: (@ref)[`accuracy`]
-"""
-verify(it::AbstractUnequalTimeGreensIterator, maxerror=1e-6) = maximum(accuracy(it)) < maxerror
-
-# Maybe split into multiple types?
-struct GreensIterator{slice1, slice2, T <: DQMC} <: AbstractUnequalTimeGreensIterator
-    mc::T
-    recalculate::Int64
-end
-
-"""
-    GreensIterator(mc::DQMC[, ks=Colon(), ls=0, recalculate=4mc.parameters.safe_mult])
-
-Creates an Iterator which calculates all `[G[k <- l] for l in ls for k in ks]`
-efficiently. Currently only allows `ks = :, ls::Integer`. 
-
-For stability it is necessary to fully recompute `G[k <- l]` every so often. one
-can adjust the frequency of recalculations via `recalculate`. To estimate the 
-resulting accuracy, one may use `accuracy(GreensIterator(...))`.
-
-This iterator requires the `UnequalTimeStack`. Iteration overwrites the 
-`DQMCStack` variables `curr_U`, `Ul`, `Dl`, `Tl`, `Ur`, `Dr`, `Tr`, `tmp1` and 
-`tmp2`, with `curr_U` acting as the output. For the iteration to remain valid, 
-the UnequalTimeStack must not be overwritten. As such:
-- `greens!(mc)` can be called and remains valid
-- `greens!(mc, slice)` can be called and remains valid
-- `greens!(mc, k, l)` will break iteration but remains valid (call before iterating)
-"""
-function GreensIterator(
-        mc::T, slice1 = Colon(), slice2 = 0, recalculate = 4mc.parameters.safe_mult
-    ) where {T <: DQMC}
-    GreensIterator{slice1, slice2, T}(mc, recalculate)
-end
-init!(it::GreensIterator) = initialize_stack(it.mc, it.mc.ut_stack)
-Base.length(it::GreensIterator{:, i}) where {i} = it.mc.parameters.slices + 1 - i
-
-# Slower, versatile version:
-function Base.iterate(it::GreensIterator{:, i}) where {i}
-    s = it.mc.ut_stack
-    calculate_greens_full1!(it.mc, s, i, i)
-    copyto!(s.T, s.greens)
-    udt_AVX_pivot!(s.U, s.D, s.T, it.mc.stack.pivot, it.mc.stack.tempv)
-    G = _greens!(it.mc, it.mc.stack.curr_U, s.greens, it.mc.stack.Ur)
-    return (GreensMatrix(i, i, G), (i+1, i))
-end
-function Base.iterate(it::GreensIterator{:}, state)
-    s = it.mc.ut_stack
-    k, l = state
-    if k > it.mc.parameters.slices
-        return nothing
-    elseif k % it.recalculate == 0
-        # Recalculate
-        calculate_greens_full1!(it.mc, s, k, l) # writes s.greens
-        G = _greens!(it.mc, it.mc.stack.curr_U, s.greens, it.mc.stack.Tl)
-        copyto!(s.T, s.greens)
-        udt_AVX_pivot!(s.U, s.D, s.T, it.mc.stack.pivot, it.mc.stack.tempv)
-        return (GreensMatrix(k, l, G), (k+1, l))
-    elseif k % it.mc.parameters.safe_mult == 0
-        # Stabilization
-        multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.U)
-        vmul!(it.mc.stack.curr_U, s.U, Diagonal(s.D))
-        vmul!(it.mc.stack.tmp1, it.mc.stack.curr_U, s.T)
-        udt_AVX_pivot!(s.U, s.D, it.mc.stack.curr_U, it.mc.stack.pivot, it.mc.stack.tempv)
-        vmul!(it.mc.stack.tmp2, it.mc.stack.curr_U, s.T)
-        copyto!(s.T, it.mc.stack.tmp2)
-        G = _greens!(it.mc, it.mc.stack.curr_U, it.mc.stack.tmp1, it.mc.stack.tmp2)
-        return (GreensMatrix(k, l, G), (k+1, l))
-    else
-        # Quick advance
-        multiply_slice_matrix_left!(it.mc, it.mc.model, k, s.U)
-        vmul!(it.mc.stack.curr_U, s.U, Diagonal(s.D))
-        vmul!(it.mc.stack.tmp1, it.mc.stack.curr_U, s.T)
-        G = _greens!(it.mc, it.mc.stack.curr_U, it.mc.stack.tmp1, it.mc.stack.Ur)
-        s.last_slices = (-1, -1) # for safety
-        return (GreensMatrix(k, l, G), (k+1, l))
-    end
-end
-"""
-    accuracy(iterator::AbstractUnequalTimeGreensIterator)
-
-Compares values from the given iterator to more verbose computations, returning 
-the maximum differences for each. This can be used to check numerical stability.
-"""
-function accuracy(iter::GreensIterator{:, l}) where {l}
-    mc = iter.mc
-    Gk0s = [deepcopy(greens(mc, k, l).val) for k in l:nslices(mc)]
-    [maximum(abs.(Gk0s[i] .- G.val)) for (i, G) in enumerate(iter)]
-end
-
-
-
-"""
-    CombinedGreensIterator(mc::DQMC)
-
-Returns an iterator which efficiently calculates and returns triples 
-(G(0, l), G(l, 0), G(l, l)) for each iteration.
-
-By default `l` runs from 1 (Δτ) to M (β), including both. This can be adjusted
-by the keyword arguments `start = 1` and `stop = mc.parameters.slices`.
-
-## Warning
-
-Calling `greens(mc)`, `greens(mc, slice)`, `greens(mc, slice1, slice2)` or 
-similar functions will break the iteration sequence. If you need the result of 
-one of these, call it before starting the iteration. The result will remain 
-valid.
-
-This happens because the iterator uses a bunch of temporary matrices as storage
-between iterations. Unlike the functions mentioned above, the iterator does not 
-usually calculate greens function from scratch. Instead results from the last
-iteration are used to calculate the next. Note that even with matrix 
-stabilization this only works for some time and therefore a full recalculation
-happens every so often. This can be changed by adjusting the keyword argument 
-`recalculate = 2mc.paremeters.safe_mult`. 
-
-You can also set `recalculate = nothing` and pass a `max_delta = 1e-7`. In this
-case the iterator will pick `recalculate` such that the difference between the 
-iterator and the respective results from `greens(...)` is at most `max_delta`. 
-Note that this is an experimental feature - the dependence of the error on the 
-state of the simulation has not been thoroughly investigated.
-
-For reference - the iterator uses the stack matrices `tmp1` and `tmp2` as well
-as the `UnequalTimeStack` matrix `greens` as temporary outputs. The UDT
-decompositions are saved in the stack matrices `Ul`, `Dl`, `Tl`, `Ur`, `Dr`, `Tr`
-and the `UnequalTimeStack` matrices `U, `D`, `T`. All of these matrices 
-(not outputs) need to remain valid between iterations. The stack matrix `curr_U`
-and unequal time stack matrix `tmp` are used as temporary storage.
-"""
-struct CombinedGreensIterator <: AbstractUnequalTimeGreensIterator
-    recalculate::Int
-    start::Int
-    stop::Int
-end
-
-function CombinedGreensIterator(
-        mc::DQMC, model::Model; 
-        recalculate = 2mc.parameters.safe_mult, max_delta = 1e-7,
-        start = 1, stop = mc.parameters.slices
-    )
-    if recalculate === nothing
-        iter = CombinedGreensIterator(typemax(Int64), start, stop)
-        recalc = estimate_recalculate(iter, max_delta)
-        CombinedGreensIterator(recalc, start, stop)
-    else
-        CombinedGreensIterator(recalculate, start, stop)
-    end
-end
-function CombinedGreensIterator(
-        mc; recalculate = 2mc.parameters.safe_mult, max_delta=1e-7,
-        start = 1, stop = mc.parameters.slices
-    )
-    if recalculate === nothing
-        iter = CombinedGreensIterator(typemax(Int64), start, stop)
-        recalc = estimate_recalculate(iter, max_delta)
-        CombinedGreensIterator(recalc, start, stop)
-    else
-        CombinedGreensIterator(recalculate, start, stop)
-    end
-end
-init!(it::CombinedGreensIterator) = error("Woops")
-Base.length(it::CombinedGreensIterator) = it.stop - it.start + 1 # both included
-function Base.:(==)(a::CombinedGreensIterator, b::CombinedGreensIterator)
-    (a.recalculate == b.recalculate) && (a.start == b.start) && (a.stop == b.stop)
-end
-
-struct _CombinedGreensIterator{T <: DQMC}
-    mc::T
-    spec::CombinedGreensIterator
-    # TODO rework measurements to work well with StructArrays and remove this
-    copy_to_array::Bool
-end
-
-function init(mc::DQMC, it::CombinedGreensIterator)
-    _CombinedGreensIterator(mc, it, isdefined(mc.stack, :complex_greens_temp))
-end
-# Base.iterate(it::CombinedGreensIterator, mc::DQMC) = iterate(_CombinedGreensIterator(it, mc))
-# function Base.iterate(it::CombinedGreensIterator, mc::DQMC, idx)
-#     iterate(_CombinedGreensIterator(it, mc), idx)
-# end
-
-Base.length(it::_CombinedGreensIterator) = length(it.spec)
-
-# Fast specialized version
-@bm function Base.iterate(it::_CombinedGreensIterator)
-    s = it.mc.stack
-    uts = it.mc.ut_stack
-
-    # Need full built stack for curr_U to be save
-    build_stack(it.mc, uts)
-    # force invalidate stack because we modify uts.greens
-    uts.last_slices = (-1, -1)
-
-    if it.spec.start in (0, 1)
-        # Get G00
-        if current_slice(it.mc) == 1
-            # The measure system triggers here to be a bit more performant
-            copyto!(s.Tl, s.greens)
-        else
-            # calculate G00
-            calculate_greens_full1!(it.mc, it.mc.ut_stack, 0, 0)
-            copyto!(s.Tl, uts.greens)
-        end
-        copyto!(s.tmp1, s.Tl)
-
-        # Prepare next iteration
-        # G01 = (G00-I)B_1^-1; then G0l+1 = G0l B_{l+1}^-1
-        vsub!(s.Tr, s.Tl, I)
-
-        # prepare UDT stacks
-        udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, it.mc.stack.pivot, it.mc.stack.tempv)
-        copyto!(uts.U, s.Ul)
-        copyto!(uts.D, s.Dl)
-        copyto!(uts.T, s.Tl)
-
-        # G01 = (G00-I)B_1^-1; then G0l+1 = G0l B_{l+1}^-1
-        udt_AVX_pivot!(s.Ur, s.Dr, s.Tr, it.mc.stack.pivot, it.mc.stack.tempv)
-
-        if it.spec.start == 0
-            # return for G00 iteration
-            Gll = _greens!(it.mc, uts.greens, s.tmp1, s.tmp2)
-            Gl0 = copyto!(s.tmp1, uts.greens)
-            G0l = copyto!(s.tmp2, uts.greens)
-            if it.copy_to_array
-                return ((
-                    GreensMatrix(0, 0, copyto!(uts.complex_greens_temp1, G0l)), 
-                    GreensMatrix(0, 0, copyto!(uts.complex_greens_temp2, Gl0)), 
-                    GreensMatrix(0, 0, copyto!(uts.complex_greens_temp3, Gll))
-                ), 1)
-            else
-                return ((
-                    GreensMatrix(0, 0, G0l), 
-                    GreensMatrix(0, 0, Gl0), 
-                    GreensMatrix(0, 0, Gll)
-                ), 1)
-            end
-        elseif it.spec.start == 1
-            # start with l = 1 iteration
-            return iterate(it, 1)
-        end
-    else
-        # See recalculate step below
-        calculate_greens_full1!(it.mc, it.mc.ut_stack, it.spec.start, 0)
-        copyto!(s.curr_U, uts.greens)
-        calculate_greens_full2!(it.mc, it.mc.ut_stack, 0, it.spec.start)
-        copyto!(uts.tmp, uts.greens)
-        calculate_greens_full1!(it.mc, it.mc.ut_stack, it.spec.start, it.spec.start)
-
-        copyto!(uts.T, uts.greens)
-        Gll = _greens!(it.mc, uts.greens, uts.T, s.tmp2) 
-        udt_AVX_pivot!(uts.U, uts.D, uts.T, s.pivot, s.tempv)
-
-        Gl0 = _greens!(it.mc, s.tmp1, s.curr_U, s.tmp2)
-        copyto!(s.Tl, s.curr_U)
-        udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, s.pivot, s.tempv)
-        
-        G0l = _greens!(it.mc, s.tmp2, uts.tmp, s.curr_U)
-        copyto!(s.Tr, uts.tmp)
-        udt_AVX_pivot!(s.Ur, s.Dr, s.Tr, s.pivot, s.tempv)
-
-        if it.copy_to_array
-            l = it.spec.start
-            return ((
-                GreensMatrix(0, l, copyto!(uts.complex_greens_temp1, G0l)), 
-                GreensMatrix(l, 0, copyto!(uts.complex_greens_temp2, Gl0)), 
-                GreensMatrix(l, l, copyto!(uts.complex_greens_temp3, Gll))
-            ), l+1)
-        else
-            return ((
-                GreensMatrix(0, it.spec.start, G0l), 
-                GreensMatrix(it.spec.start, 0, Gl0), 
-                GreensMatrix(it.spec.start, it.spec.start, Gll)
-            ), it.spec.start+1)
-        end
-    end
-end
-# probably need extra temp variables
-@bm function Base.iterate(it::_CombinedGreensIterator, l)
-    # l is 1-based
-    s = it.mc.stack
-    uts = it.mc.ut_stack
-    # force invalidate stack because we modify uts.greens
-    uts.last_slices = (-1, -1)
-    # if start is 1 we need to stabilize like if it were 0
-    shift = (it.spec.start != 1) * it.spec.start 
-
-    if l > it.spec.stop
-        return nothing
-    elseif (l - shift) % it.spec.recalculate == 0 
-        # Recalculation will overwrite 
-        # Ul, Dl, Tl, Ur, Dr, Tr, U, D, T, tmp1, tmp2, greens
-        # curr_U is used only if the stack is rebuilt
-        # this leaves uts.tmp (and curr_U)
-
-        calculate_greens_full1!(it.mc, it.mc.ut_stack, l, 0)
-        copyto!(s.curr_U, uts.greens)
-        calculate_greens_full2!(it.mc, it.mc.ut_stack, 0, l)
-        copyto!(uts.tmp, uts.greens)
-        calculate_greens_full1!(it.mc, it.mc.ut_stack, l, l)
-
-        # input and output can be the same here
-        copyto!(uts.T, uts.greens)
-        Gll = _greens!(it.mc, uts.greens, uts.T, s.tmp2) 
-        udt_AVX_pivot!(uts.U, uts.D, uts.T, s.pivot, s.tempv)
-
-        Gl0 = _greens!(it.mc, s.tmp1, s.curr_U, s.tmp2)
-        copyto!(s.Tl, s.curr_U)
-        udt_AVX_pivot!(s.Ul, s.Dl, s.Tl, s.pivot, s.tempv)
-        
-        G0l = _greens!(it.mc, s.tmp2, uts.tmp, s.curr_U)
-        copyto!(s.Tr, uts.tmp)
-        udt_AVX_pivot!(s.Ur, s.Dr, s.Tr, s.pivot, s.tempv)
-
-        if it.copy_to_array
-            return ((
-                GreensMatrix(0, l, copyto!(uts.complex_greens_temp1, G0l)), 
-                GreensMatrix(l, 0, copyto!(uts.complex_greens_temp2, Gl0)), 
-                GreensMatrix(l, l, copyto!(uts.complex_greens_temp3, Gll))
-            ), l+1)
-        else
-            return ((
-                GreensMatrix(0, l, G0l), 
-                GreensMatrix(l, 0, Gl0), 
-                GreensMatrix(l, l, Gll)
-            ), l+1)
-        end
-
-    elseif ((l - shift) % it.spec.recalculate) % it.mc.parameters.safe_mult == 0
-        # Stabilization        
-        # Reminder: These overwrite s.tmp1 and s.tmp2
-        multiply_slice_matrix_left!(it.mc, it.mc.model, l, s.Ul) 
-        multiply_slice_matrix_inv_right!(it.mc, it.mc.model, l, s.Tr)
-        multiply_slice_matrix_left!(it.mc, it.mc.model, l, uts.U)
-        multiply_slice_matrix_inv_right!(it.mc, it.mc.model, l, uts.T)
-
-        # Gl0
-        vmul!(s.tmp1, s.Ul, Diagonal(s.Dl))
-        vmul!(s.tmp2, s.tmp1, s.Tl)
-        udt_AVX_pivot!(s.Ul, s.Dl, s.tmp1, s.pivot, s.tempv)
-        vmul!(s.curr_U, s.tmp1, s.Tl)
-        copyto!(s.Tl, s.curr_U)
-        Gl0 = _greens!(it.mc, s.tmp1, s.tmp2, s.curr_U)
-        # tmp1 must not change anymore
-        
-        # G0l
-        vmul!(s.curr_U, Diagonal(s.Dr), s.Tr)
-        vmul!(uts.greens, s.Ur, s.curr_U)
-        copyto!(s.Tr, s.curr_U)
-        udt_AVX_pivot!(s.tmp2, s.Dr, s.Tr, s.pivot, s.tempv)
-        vmul!(s.curr_U, s.Ur, s.tmp2)
-        copyto!(s.Ur, s.curr_U)
-        G0l = _greens!(it.mc, s.tmp2, uts.greens, s.curr_U)
-        # tmp1, tmp2 must not change anymore
-        
-        # Gll
-        vmul!(uts.tmp, uts.U, Diagonal(uts.D))
-        vmul!(uts.greens, uts.tmp, uts.T)
-        udt_AVX_pivot!(s.curr_U, uts.D, uts.tmp, it.mc.stack.pivot, it.mc.stack.tempv)
-        vmul!(uts.U, uts.tmp, uts.T)
-        vmul!(uts.T, Diagonal(uts.D), uts.U)
-        udt_AVX_pivot!(uts.tmp, uts.D, uts.T, it.mc.stack.pivot, it.mc.stack.tempv)
-        vmul!(uts.U, s.curr_U, uts.tmp)
-        Gll = _greens!(it.mc, uts.greens, uts.greens, s.curr_U)
-
-        if it.copy_to_array
-            return ((
-                GreensMatrix(0, l, copyto!(uts.complex_greens_temp1, G0l)), 
-                GreensMatrix(l, 0, copyto!(uts.complex_greens_temp2, Gl0)), 
-                GreensMatrix(l, l, copyto!(uts.complex_greens_temp3, Gll))
-            ), l+1)
-        else
-            return ((
-                GreensMatrix(0, l, G0l), 
-                GreensMatrix(l, 0, Gl0), 
-                GreensMatrix(l, l, Gll)
-            ), l+1)
-        end
-
-    else
-        # Quick advance
-        multiply_slice_matrix_left!(it.mc, it.mc.model, l, s.Ul) 
-        # multiply_slice_matrix_inv_left!(it.mc, it.mc.model, nslices(it.mc)-l+1, s.Ur)
-        multiply_slice_matrix_inv_right!(it.mc, it.mc.model, l, s.Tr)
-        multiply_slice_matrix_left!(it.mc, it.mc.model, l, uts.U)
-        multiply_slice_matrix_inv_right!(it.mc, it.mc.model, l, uts.T)
-
-        # Gl0
-        vmul!(s.curr_U, s.Ul, Diagonal(s.Dl))
-        vmul!(s.tmp2, s.curr_U, s.Tl)
-        Gl0 = _greens!(it.mc, s.tmp1, s.tmp2, s.curr_U)
-
-        # G0l
-        vmul!(s.curr_U, s.Ur, Diagonal(s.Dr))
-        vmul!(uts.greens, s.curr_U, s.Tr)
-        G0l = _greens!(it.mc, s.tmp2, uts.greens, s.curr_U)
-
-        # Gll
-        vmul!(s.curr_U, uts.U, Diagonal(uts.D))
-        vmul!(uts.greens, s.curr_U, uts.T)
-        Gll = _greens!(it.mc, uts.greens, uts.greens, s.curr_U)
-
-        if it.copy_to_array
-            return ((
-                GreensMatrix(0, l, copyto!(uts.complex_greens_temp1, G0l)), 
-                GreensMatrix(l, 0, copyto!(uts.complex_greens_temp2, Gl0)), 
-                GreensMatrix(l, l, copyto!(uts.complex_greens_temp3, Gll))
-            ), l+1)
-        else
-            return ((
-                GreensMatrix(0, l, G0l), 
-                GreensMatrix(l, 0, Gl0), 
-                GreensMatrix(l, l, Gll)
-            ), l+1)
-        end
-    end
-end
-
-function accuracy(mc::DQMC, it::CombinedGreensIterator)
-    iter = _CombinedGreensIterator(mc, it)
-    Gk0s = [deepcopy(greens(mc, k, 0).val) for k in 1:nslices(mc)]
-    G0ks = [deepcopy(greens(mc, 0, k).val) for k in 1:nslices(mc)]
-    Gkks = [deepcopy(greens(mc, k, k).val) for k in 1:nslices(mc)]
-    map(enumerate(iter)) do (i, Gs)
-        (
-            maximum(abs.(G0ks[i] .- Gs[1].val)),
-            maximum(abs.(Gk0s[i] .- Gs[2].val)),
-            maximum(abs.(Gkks[i] .- Gs[3].val))
-        )
-    end
-end
-
-function estimate_recalculate(iter::CombinedGreensIterator, max_delta=1e-7)
-    deltas = accuracy(iter)
-    idx = findfirst(ds -> any(ds .> max_delta), deltas)
-    if idx === nothing
-        return typemax(Int)
-    else
-        return idx
-    end
 end

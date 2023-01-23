@@ -9,13 +9,13 @@ end
 
 function FieldCache(field, model)
     N = size(field.conf, 1)
-    flv = nflavors(field, model)
+    flv = unique_flavors(field, model)
     T = interaction_eltype(field)
     GET = greens_eltype(field, model)
     VT = vector_type(GET)
     MT = matrix_type(GET)
 
-    Δ = nflavors(field) == 1 ? zero(T) : vector_type(T)(undef, nflavors(field))
+    Δ = unique_flavors(field) == 1 ? zero(T) : vector_type(T)(undef, unique_flavors(field))
 
     if flv == 1
         # full greens matrix is flavor symmetric
@@ -240,6 +240,7 @@ function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::ComplexF64)
     end
     nothing
 end
+
 function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::Float64)
     @inbounds begin
         # Reminder: 1/c = c* / (cc*) (complex conjugate)
@@ -249,6 +250,19 @@ function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::Float64)
         cache.invRΔ.re[2] = f2 * Δ * R.re[2]
         cache.invRΔ.im[1] = - f1 * Δ * R.im[1]
         cache.invRΔ.im[2] = - f2 * Δ * R.im[2]
+    end
+    nothing
+end
+
+function vldiv22!(cache::StandardFieldCache, R::CVec64, Δ::FVec64)
+    @inbounds begin
+        # Reminder: 1/c = c* / (cc*) (complex conjugate)
+        f1 = 1.0 / (R.re[1] * R.re[1] + R.im[1] * R.im[1])
+        f2 = 1.0 / (R.re[2] * R.re[2] + R.im[2] * R.im[2])
+        cache.invRΔ.re[1] = f1 * Δ[1] * R.re[1]
+        cache.invRΔ.re[2] = f2 * Δ[2] * R.re[2]
+        cache.invRΔ.im[1] = - f1 * Δ[1] * R.im[1]
+        cache.invRΔ.im[2] = - f2 * Δ[2] * R.im[2]
     end
     nothing
 end
@@ -281,13 +295,14 @@ maybe_to_float(c::ComplexF64) = abs(imag(c)) < 10eps(real(c)) ? real(c) : c
 
 Base.length(f::AbstractField) = length(conf(f))
 
-function save_field(file, field::AbstractField, entryname="field")
+function _save(file::FileLike, entryname::String, field::AbstractField)
     write(file, entryname * "/VERSION", 1)
+    write(file, entryname * "/tag", "Field")
     write(file, entryname * "/name", nameof(typeof(field)))
     write(file, entryname * "/conf", conf(field))
 end
 
-function load_field(data, ::Val{:Field}, param, model)
+function _load(data::FileLike, ::Val{:Field}, param::DQMCParameters, model::Model)
     name = data["name"]
     c = data["conf"]
     field = if name == "DensityHirschField"
@@ -360,7 +375,7 @@ function DensityHirschField(param::DQMCParameters, model::Model, U::Number = mod
     )
 end
 
-nflavors(::DensityHirschField) = 1
+unique_flavors(::DensityHirschField) = 1
 
 @inline function interaction_matrix_exp!(f::DensityHirschField, result::Diagonal, slice, power)
     N = size(f.conf, 1)
@@ -409,7 +424,7 @@ function MagneticHirschField(param::DQMCParameters, model::Model, U::Number = mo
     )
 end
 
-nflavors(::MagneticHirschField) = 2
+unique_flavors(::MagneticHirschField) = 2
 
 @inline function interaction_matrix_exp!(f::MagneticHirschField, result::Diagonal, slice, power)
     N = size(f.conf, 1)
@@ -525,7 +540,7 @@ function MagneticGHQField(param::DQMCParameters, model::Model, U::Number = model
     )
 end
 
-nflavors(::MagneticGHQField) = 2
+unique_flavors(::MagneticGHQField) = 2
 energy_boson(::MagneticGHQField, conf=nothing) = 0.0
 
 
@@ -595,7 +610,7 @@ function DensityGHQField(param::DQMCParameters, model::Model, U::Number = model.
     )
 end
 
-nflavors(::DensityGHQField) = 1
+unique_flavors(::DensityGHQField) = 1
 energy_boson(f::DensityGHQField, conf = f.conf) = f.α * sum(conf)
 
 

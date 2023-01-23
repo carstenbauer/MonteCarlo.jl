@@ -2,6 +2,7 @@ mutable struct DQMCStack{
         GreensElType <: Number, 
         HoppingElType <: Number, 
         GreensMatType <: AbstractArray{GreensElType},
+        HoppingMatBaseType <: AbstractArray{HoppingElType},
         HoppingMatType <: AbstractArray{HoppingElType},
         InteractionMatType <: AbstractArray,
         FieldCacheType <: AbstractFieldCache
@@ -44,53 +45,40 @@ mutable struct DQMCStack{
     eV::InteractionMatType
 
     # hopping matrices (mu included)
-    hopping_matrix::HoppingMatType
+    hopping_matrix::HoppingMatBaseType
     hopping_matrix_exp::HoppingMatType
     hopping_matrix_exp_inv::HoppingMatType
     hopping_matrix_exp_squared::HoppingMatType
     hopping_matrix_exp_inv_squared::HoppingMatType
 
-    # checkerboard hopping matrices
-    checkerboard::Matrix{Int} # src, trg, bondid
-    groups::Vector{UnitRange{Int}}
-    n_groups::Int
-    chkr_hop_half::Vector{SparseMatrixCSC{HoppingElType, Int64}}
-    chkr_hop_half_inv::Vector{SparseMatrixCSC{HoppingElType, Int64}}
-    chkr_hop_half_dagger::Vector{SparseMatrixCSC{HoppingElType, Int64}}
-    chkr_hop::Vector{SparseMatrixCSC{HoppingElType, Int64}} # without prefactor 0.5 in matrix exponentials
-    chkr_hop_inv::Vector{SparseMatrixCSC{HoppingElType, Int64}}
-    chkr_hop_dagger::Vector{SparseMatrixCSC{HoppingElType, Int64}}
-    chkr_mu_half::SparseMatrixCSC{HoppingElType, Int64}
-    chkr_mu_half_inv::SparseMatrixCSC{HoppingElType, Int64}
-    chkr_mu::SparseMatrixCSC{HoppingElType, Int64}
-    chkr_mu_inv::SparseMatrixCSC{HoppingElType, Int64}
 
 
-    function DQMCStack{GET, HET, GMT, HMT, IMT}(field_cache::FCT) where {
-            GET<:Number, HET<:Number, 
-            GMT<:AbstractArray{GET}, HMT<:AbstractArray{HET}, IMT<:AbstractArray,
-            FCT<:AbstractFieldCache
+    function DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}(field_cache::FCT) where {
+            GET<:Number, HET<:Number, GMT<:AbstractArray{GET}, 
+            HMBT<:AbstractArray{HET}, HMT<:AbstractArray{HET}, 
+            IMT<:AbstractArray, FCT<:AbstractFieldCache
         }
         @assert isconcretetype(FCT);
         @assert isconcretetype(GET);
         @assert isconcretetype(HET);
         @assert isconcretetype(GMT);
+        @assert isconcretetype(HMBT);
         @assert isconcretetype(HMT);
         @assert isconcretetype(IMT);
         @assert eltype(GMT) == GET;
         @assert eltype(HMT) == HET;
-        stack = new{GET, HET, GMT, HMT, IMT, FCT}()
+        stack = new{GET, HET, GMT, HMBT, HMT, IMT, FCT}()
         stack.field_cache = field_cache
         return stack
     end
 end
 
 # type helpers
-geltype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = GET
-heltype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = HET
-gmattype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = GMT
-hmattype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = HMT
-imattype(::DQMCStack{GET, HET, GMT, HMT, IMT}) where {GET, HET, GMT, HMT, IMT} = IMT
+geltype(::DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}) where {GET, HET, GMT, HMBT, HMT, IMT} = GET
+heltype(::DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}) where {GET, HET, GMT, HMBT, HMT, IMT} = HET
+gmattype(::DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}) where {GET, HET, GMT, HMBT, HMT, IMT} = GMT
+hmattype(::DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}) where {GET, HET, GMT, HMBT, HMT, IMT} = HMT
+imattype(::DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}) where {GET, HET, GMT, HMBT, HMT, IMT} = IMT
 
 geltype(mc::DQMC) = geltype(mc.stack)
 heltype(mc::DQMC) = heltype(mc.stack)
@@ -107,16 +95,40 @@ imattype(mc::DQMC) = imattype(mc.stack)
 #     ...
 # end
 
-function DQMCStack(field::AbstractField, model::Model)
+function to_checkerboard_type(::Type{Matrix{T}}) where {T <: Union{ComplexF64, Float64}}
+    CheckerboardDecomposed{T}
+end
+function to_checkerboard_type(::Type{BlockDiagonal{T, N, MT}}) where {T, N, MT}
+    BlockDiagonal{T, N, to_checkerboard_type(MT)}
+end
+function to_checkerboard_type(::Type{CMat64})
+    StructArray{
+        ComplexF64, 2, 
+        NamedTuple{(:re, :im), Tuple{CheckerboardDecomposed{Float64}, CheckerboardDecomposed{Float64}}}, 
+        Int64
+    }
+end
+
+
+function DQMCStack(field::AbstractField, model::Model, checkerboard::Bool)
     # Why do we need eltypes?
     HET = hopping_eltype(model)
     GET = greens_eltype(field, model)
     
     IMT = interaction_matrix_type(field, model)
-    HMT = hopping_matrix_type(field, model)
+    HMBT = hopping_matrix_type(field, model)
     GMT = greens_matrix_type(field, model)
+    
+    if checkerboard
+        # Matrix -> CheckerboardDecomposed
+        # BlockDiagonal{Matrix} -> BlockDiagonal{CheckerboardDecomposed}
+        # StructArray -> ... dunno yet
+        HMT = to_checkerboard_type(HMBT)
+    else
+        HMT = Hermitian{HET, HMBT}
+    end
 
-    DQMCStack{GET, HET, GMT, HMT, IMT}(FieldCache(field, model))
+    DQMCStack{GET, HET, GMT, HMBT, HMT, IMT}(FieldCache(field, model))
 end
 
 
@@ -148,9 +160,8 @@ end
 function initialize_stack(mc::DQMC, ::DQMCStack)
     GreensElType = geltype(mc)
     GreensMatType = gmattype(mc)
-    HoppingElType = heltype(mc)
     N = length(lattice(mc))
-    flv = nflavors(mc)
+    flv = unique_flavors(mc)
 
     # Generate safe multiplication chunks
     # - every chunk must have ≤ safe_mult elements
@@ -195,17 +206,12 @@ function initialize_stack(mc::DQMC, ::DQMCStack)
 end
 
 # hopping
-function init_hopping_matrices(mc::DQMC{M,CB}, m::Model) where {M, CB<:Checkerboard}
-    init_hopping_matrix_exp(mc, m)
-    CB <: CheckerboardTrue && init_checkerboard_matrices(mc, m)
-    nothing
-end
-function init_hopping_matrix_exp(mc::DQMC, m::Model)
+function init_hopping_matrices(mc::DQMC, m::Model)
     dtau = mc.parameters.delta_tau
-    T = pad_to_nflavors(mc, hopping_matrix(m))
+    T = pad_to_unique_flavors(mc, hopping_matrix(m))
 
     if !is_approximately_hermitian(T)
-        @error(
+        error(
             "The hopping matrix from `hopping_matrix(::DQMC, ::$(typeof(m)))`" *
             " is not approximately Hermitian. Since the Hamiltonian is a" * 
             " Hermitian operator, the hopping matrix should also be Hermitian." *
@@ -222,68 +228,26 @@ function init_hopping_matrix_exp(mc::DQMC, m::Model)
         )
     end
 
+    # Assuming T is Hermitian we have e^T/2 e^T/2 e^V = e^T e^V as e^aA e^bA = e^(a+b)A
     mc.stack.hopping_matrix = T
-    mc.stack.hopping_matrix_exp = fallback_exp(-0.5 * dtau * T)
-    mc.stack.hopping_matrix_exp_inv = fallback_exp(0.5 * dtau * T)
-    mc.stack.hopping_matrix_exp_squared = mc.stack.hopping_matrix_exp * mc.stack.hopping_matrix_exp
-    mc.stack.hopping_matrix_exp_inv_squared = mc.stack.hopping_matrix_exp_inv * mc.stack.hopping_matrix_exp_inv
-    nothing
-end
-
-
-# checkerboard
-rem_eff_zeros!(X::AbstractArray) = map!(e -> abs.(e)<1e-15 ? zero(e) : e,X,X)
-function init_checkerboard_matrices(mc::DQMC, m::Model)
-    s = mc.stack
-    l = lattice(m)
-    flv = nflavors(mc)
-    H = heltype(mc)
-    N = length(l)
-    dtau = mc.parameters.delta_tau
-    mu = m.mu
-
-    s.checkerboard, s.groups, s.n_groups = build_checkerboard(l)
-    n_grps = s.n_groups
-    cb = s.checkerboard
-
-    T = reshape(pad_to_nflavors(mc, hopping_matrix(m)), (N, flv, N, flv))
-
-    s.chkr_hop_half = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
-    s.chkr_hop_half_inv = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
-    s.chkr_hop = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
-    s.chkr_hop_inv = Vector{SparseMatrixCSC{H, Int}}(undef, n_grps)
-
-    for (g, gr) in enumerate(s.groups)
-        Tg = zeros(H, N, flv, N, flv)
-        for i in gr
-            src, trg = cb[1:2,i]
-            for f1 in 1:flv, f2 in 1:flv
-                Tg[trg, f1, src, f2] = T[trg, f1, src, f2]
-            end
-        end
-
-        Tgg = reshape(Tg, (N*flv, N*flv))
-        s.chkr_hop_half[g] = sparse(rem_eff_zeros!(exp(-0.5 * dtau * Tgg)))
-        s.chkr_hop_half_inv[g] = sparse(rem_eff_zeros!(exp(0.5 * dtau * Tgg)))
-        s.chkr_hop[g] = sparse(rem_eff_zeros!(exp(- dtau * Tgg)))
-        s.chkr_hop_inv[g] = sparse(rem_eff_zeros!(exp(dtau * Tgg)))
+    if !mc.parameters.checkerboard
+        # greens
+        mc.stack.hopping_matrix_exp = Hermitian(fallback_exp(-0.5 * dtau * T))
+        mc.stack.hopping_matrix_exp_inv = Hermitian(fallback_exp(+0.5 * dtau * T))
+        # slice matrix multiplications
+        mc.stack.hopping_matrix_exp_squared = Hermitian(fallback_exp(-dtau * T))
+        mc.stack.hopping_matrix_exp_inv_squared = Hermitian(fallback_exp(+dtau * T))
+    else
+        l = lattice(mc)
+        mc.stack.hopping_matrix_exp = CheckerboardDecomposed(T, l, -0.5 * dtau)
+        mc.stack.hopping_matrix_exp_inv = CheckerboardDecomposed(T, l, +0.5 * dtau)
+        mc.stack.hopping_matrix_exp_squared = CheckerboardDecomposed(T, l, -dtau)
+        mc.stack.hopping_matrix_exp_inv_squared = CheckerboardDecomposed(T, l, +dtau)
     end
 
-    s.chkr_hop_half_dagger = adjoint.(s.chkr_hop_half)
-    s.chkr_hop_dagger = adjoint.(s.chkr_hop)
-
-    mus = diag(reshape(T, (N*flv, N*flv)))
-    s.chkr_mu_half = spdiagm(0 => exp.(-0.5 * dtau * mus))
-    s.chkr_mu_half_inv = spdiagm(0 => exp.(0.5 * dtau * mus))
-    s.chkr_mu = spdiagm(0 => exp.(-dtau * mus))
-    s.chkr_mu_inv = spdiagm(0 => exp.(dtau * mus))
-
-    # hop_mat_exp_chkr = foldl(*,s.chkr_hop_half) * sqrt.(s.chkr_mu)
-    # r = effreldiff(s.hopping_matrix_exp,hop_mat_exp_chkr)
-    # r[find(x->x==zero(x),hop_mat_exp_chkr)] = 0.
-    # println("Checkerboard - Exact ≈ ", round(maximum(absdiff(s.hopping_matrix_exp,hop_mat_exp_chkr)), 4))
     nothing
 end
+
 
 """
     build_stack(mc::DQMC)
@@ -586,7 +550,6 @@ end
 end
 
 @bm function propagate(mc::DQMC)
-    flush(stdout)
     @debug(
         '[' * lpad(mc.stack.current_slice, 3, ' ') * " -> " * 
         rpad(mc.stack.current_slice + mc.stack.direction, 3, ' ') * 

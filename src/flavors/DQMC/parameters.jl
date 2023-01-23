@@ -45,6 +45,7 @@ struct DQMCParameters
     
     measure_rate::Int
     print_rate::Int
+    checkerboard::Bool
 end
 
 function DQMCParameters(
@@ -58,6 +59,7 @@ function DQMCParameters(
         delta_tau = p.delta_tau,
         measure_rate = p.measure_rate,
         print_rate = p.print_rate,
+        checkerboard = p.checkerboard,
         kwargs...
     )
     if (!haskey(kwargs, :beta)) && (!haskey(kwargs, :slices))
@@ -73,7 +75,8 @@ function DQMCParameters(
         safe_mult = safe_mult,
         delta_tau = delta_tau,
         measure_rate = measure_rate,
-        print_rate = print_rate;
+        print_rate = print_rate,
+        checkerboard = checkerboard;
         kwargs...
     )
 end
@@ -88,6 +91,7 @@ function DQMCParameters(;
         measure_rate::Int   = 10,
         warn_round::Bool    = true,
         print_rate::Int     = max(10, div(thermalization + sweeps, 100)),
+        checkerboard::Bool  = false,
         kwargs...
     )
     nt = (;kwargs...)
@@ -129,6 +133,7 @@ function DQMCParameters(;
         beta,
         slices,
         measure_rate,
-        print_rate
+        print_rate,
+        checkerboard
     )
 end

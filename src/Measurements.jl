@@ -51,8 +51,9 @@ The default implementation searches for all fields `<: AbstractObservable` and
 builds a dictionary pairs `name(obs) => obs`.
 """
 function observables(m::AbstractMeasurement)
-    os = [getfield(m, n) for n in obs_fieldnames_from_obj(m)]
-    Dict{String, AbstractObservable}(MonteCarloObservable.name(o) => o for o in os)
+    Dict{String, Any}(
+        string(n) => getfield(m, n) for n in obs_fieldnames_from_obj(m)
+    )
 end
 
 
@@ -69,7 +70,7 @@ measurement phase.
 
 See also [`save_measurements`](@ref), [`measurements`](@ref), [`_load`](@ref)
 """
-function _save(file::JLDFile, m::AbstractMeasurement, entryname::String)
+function _save(file::FileLike, entryname::String, m::AbstractMeasurement)
     # NOTE: `VERSION` and `type` are necessary
     write(file, entryname * "/VERSION", 0)
     write(file, entryname * "/tag", "Generic")
@@ -99,7 +100,7 @@ for (func, name) in zip(
     """
     @eval begin
         @doc $docstring $func
-        function MonteCarloObservable.$(func)(m::AbstractMeasurement)
+        function BinningAnalysis.$(func)(m::AbstractMeasurement)
             fn = obs_fieldnames_from_obj(m)
             os = [getfield(m, n) for n in fn]
             if isempty(os)
@@ -107,7 +108,7 @@ for (func, name) in zip(
             elseif length(os) == 1
                 return $(func)(os[1])
             else
-                return Dict(MonteCarloObservable.name(o) => $(func)(o) for o in os)
+                return Dict(string(n) => $(func)(o) for (n, o) in zip(fn, os))
             end
         end
     end
@@ -123,7 +124,7 @@ for func in (:length, :isempty, :empty!)
             elseif length(os) == 1
                 return $(func)(os[1])
             else
-                return Dict(MonteCarloObservable.name(o) => $(func)(o) for o in os)
+                return Dict(string(n) => $(func)(o) for (n, o) in zip(fn, os))
             end
         end
     end
@@ -142,92 +143,6 @@ model. If there is no implementation given for the specific Monte Carlo flavour
 an empty dictionary will be returned.
 """
 default_measurements(mc, model) = Dict{Symbol, AbstractMeasurement}()
-
-
-################################################################################
-# mc based, default measurements
-
-
-"""
-    ConfigurationMeasurement(mc, model[, rate=1])
-
-Measures configurations of the given Monte Carlo flavour and model. The rate of
-measurements can be reduced with `rate`. (e.g. `rate=10` means 1 measurement per
-10 sweeps)
-"""
-struct ConfigurationMeasurement{OT <: Observable} <: AbstractMeasurement
-    obs::OT
-    rate::Int64
-    function ConfigurationMeasurement{OT}(obs, rate) where {OT <: Observable}
-        @warn(
-            "`ConfigurationMeasurement` is deprecated. Configurations can now " *
-            "be collected in `mc.configs` using an `<: AbstractConfiguartionAccumulator`"
-        )
-        new{OT}(obs, rate)
-    end
-end
-function ConfigurationMeasurement(mc::MonteCarloFlavor, model::Model, rate=1)
-    o = Observable(typeof(mc.conf), "Configurations")
-    ConfigurationMeasurement{typeof(o)}(o, rate)
-end
-@bm function measure!(m::ConfigurationMeasurement, mc, model, i::Int64)
-    (i % m.rate == 0) && push!(m.obs, conf(mc))
-    nothing
-end
-
-
-"""
-    ValueWrapper(mc, ::Val{key})
-    ValueWrapper(mc, m::AbstractMeasurement)
-
-Attempt to calculate a (value, error) pair for a given measurement. You can call
-`mean` and `std_error` to get those values.
-
-
-
-The conversion is split into a few simple, generic methods so that the default behavior
-can be adjusted at different points. The call stack from `load` is:
-
-1. `simplify_measurements!(mc)` calls `simplify(ms, mc, ::Val{key})` with each
-    measurement key to populate a new measurements Dict `ms` which will replace
-    the old one.
-2. `simplify(ms, mc, v::Val{key}) = ms[key] = ValueWrapper(mc, v)`
-3. `ValueWrapper(mc, ::Val{key}) = ValueWrapper(mc, mc[key])`
-4. `ValueWrapper(mc, measurement) = ValueWrapper(mean(measurement), std_error(measurement))`
-
-Example Modifications:
-- If you want to further process a specifically typed set of measurements you 
-    can add a method for (4)
-- Replacing the default behavior for a specific key can be done at (2) or (3).
-- Adjusting the name of a measurement or splitting one can be done at (2)
-- Removing measurements can be done at (2) by not inserting the value in `ms`.
-"""
-struct ValueWrapper{T1, T2} <: AbstractMeasurement
-    exp_value::T1
-    std_error::T2
-end
-
-function simplify_measurements!(mc)
-    ms = Dict{Symbol, AbstractMeasurement}()
-    for key in keys(mc)
-        simplify(ms, mc, Val(key))
-    end
-    mc.measurements = ms
-    nothing
-end
-simplify(ms, mc, v::Val{key}) where key = ms[key] = ValueWrapper(mc, v)
-ValueWrapper(mc, ::Val{key}) where key = ValueWrapper(mc, mc[key])
-function ValueWrapper(mc::MonteCarloFlavor, m::AbstractMeasurement)
-    return ValueWrapper(mean(m), std_error(m))
-end
-MonteCarloObservable.mean(v::ValueWrapper) = v.exp_value
-MonteCarloObservable.std_error(v::ValueWrapper) = v.std_error
-Base.show(io::IO, ::MIME"text/plain", m::ValueWrapper) = show(io, m)
-function Base.show(io::IO, m::ValueWrapper)
-    print(io, m.exp_value)
-    print(io, " ± ")
-    print(io, m.std_error)
-end
 
 
 ################################################################################
@@ -267,7 +182,7 @@ end
 # if get_all_names = false, return array of fieldnames <: AbstractObservable
 # if get_all_names = true, also return other fieldnames
 function obs_fieldnames_from_obj(obj, get_all_names=false)
-    ObsTypes = Union{AbstractObservable, LogBinner}
+    ObsTypes = Union{FullBinner, LogBinner}
     fnames = fieldnames(typeof(obj))
     obs_names = [
         s for s in fnames if getfield(obj, s) isa ObsTypes
@@ -283,32 +198,12 @@ function obs_fieldnames_from_obj(obj, get_all_names=false)
 end
 
 
-# printing
-# function Base.show(io::IO, m::AbstractMeasurement)
-#     #  no parametrization -v    v- no MonteCarlo.
-#     typename = typeof(m).name.name
-#     observables, other = obs_fieldnames_from_obj(m, true)
-#     println(io, typename)
-#     for obs_fieldname in observables
-#         o = getfield(m, obs_fieldname)
-#         oname = MonteCarloObservable.name(o)
-#         otypename = typeof(o).name.name
-#         println(io, "\t", obs_fieldname, "::", otypename, "\t → \"", oname, "\"")
-#     end
-#     for fieldname in other
-#         println(io, "\t", fieldname, "::", typeof(getfield(m, fieldname)))
-#     end
-#     nothing
-# end
-
 function Base.show(io::IO, ::MIME"text/plain", m::AbstractMeasurement)
     #small
     #  no parametrization -v    v- no MonteCarlo.
     typename = typeof(m).name.name
     temp = obs_fieldnames_from_obj(m)
-    observable_names = map(temp) do obs_fieldname
-        MonteCarloObservable.name(getfield(m, obs_fieldname))
-    end
+    observable_names = string.(temp)
     print(io, typename, "(\"", join(observable_names, "\", \""), "\")")
     nothing
 end
@@ -387,22 +282,22 @@ function observables(mc::MonteCarloFlavor, stage = :ME)
     all_stages = (:all, :ALL)
 
     if stage in measurement_stage
-        me_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+        me_obs = Dict{Symbol, Dict{String, Any}}(
             k => observables(m) for (k, m) in mc.measurements
         )
         return me_obs
 
     elseif stage in thermalization_stage
-        th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+        th_obs = Dict{Symbol, Dict{String, Any}}(
             k => observables(m) for (k, m) in mc.thermalization_measurements
         )
         return th_obs
 
     elseif stage in all_stages
-        th_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+        th_obs = Dict{Symbol, Dict{String, Any}}(
             k => observables(m) for (k, m) in mc.thermalization_measurements
         )
-        me_obs = Dict{Symbol, Dict{String, AbstractObservable}}(
+        me_obs = Dict{Symbol, Dict{String, Any}}(
             k => observables(m) for (k, m) in mc.measurements
         )
         return Dict(:TH => th_obs, :ME => me_obs)
@@ -566,45 +461,8 @@ end
 ### FileIO
 ################################################################################
 
-# This is just for dispath
-struct Measurements end
 
-
-"""
-    save_measurements!(mc, filename[, entryname=""; overwrite=false, rename=true])
-
-Saves all measurements to `filename`.
-
-If `overwrite = true` the file will
-be overwritten if it already exists. If `rename = true` random characters
-will be added to the filename until it becomes unique.
-"""
-function save_measurements(
-        filename::String, mc::MonteCarloFlavor, entryname::String="";
-        backend = endswith(filename, "jld2") ? JLD2 : JLD,
-        overwrite = false, rename = true
-    )
-    isfile(filename) && !overwrite && !rename && throw(ErrorException(
-        "Cannot save because \"$filename\" already exists. Consider setting " *
-        "`reanme = true` to adjust the filename or `overwrite = true`" *
-        " to overwrite the file."
-    ))
-    if isfile(filename) && !overwrite && rename
-        while isfile(filename)
-            # those map to 0-9, A-Z, a-z
-            x = rand([(48:57)..., (65:90)..., (97:122)...])
-            s = string(Char(x))
-            filename = filename[1:end-4] * s * ".jld"
-        end
-    end
-
-    mode = isfile(filename) ? "r+" : "w"
-    file = backend.jldopen(filename, mode)
-    save_measurements(file, mc, entryname)
-    close(file)
-    filename
-end
-function save_measurements(file::JLDFile, mc::MonteCarloFlavor, entryname::String="")
+function save_measurements(file::FileLike, entryname::String, mc::MonteCarloFlavor)
     !isempty(entryname) && !endswith(entryname, "/") && (entryname *= "/")
     write(file, entryname * "VERSION", 1)
     write(file, entryname * "tag", "Measurements")
@@ -612,13 +470,12 @@ function save_measurements(file::JLDFile, mc::MonteCarloFlavor, entryname::Strin
     for (k0, v0) in measurement_dict # :TH or :ME
         for (k1, meas) in v0 # Measurement name
             _entryname = entryname * "$k0/$k1"
-            _save(file, meas, _entryname)
+            _save(file, _entryname, meas)
         end
     end
 end
 
 
-to_tag(::Type{<: Measurements}) = Val(:Measurements)
 function _load(data, ::Val{:Measurements})
     if !(data["VERSION"] == 1)
         throw(ErrorException("Failed to load measurements version $(data["VERSION"])"))

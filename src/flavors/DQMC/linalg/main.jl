@@ -15,6 +15,12 @@ include("blockdiagonal.jl")
 # This is not as generic...
 include("updates.jl")
 
+# Used for measurements to differentiate [M 0; 0 M] from M
+include("repeating.jl")
+
+# Checkerboard decomposition
+include("checkerboard.jl")
+
 # There is some additional glue code here
 
 # Not sure if this should be here
