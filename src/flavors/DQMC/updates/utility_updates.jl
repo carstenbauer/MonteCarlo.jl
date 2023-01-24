@@ -1,27 +1,4 @@
-# mutable struct ChemicalPotentialTuningMeasurement{T} <: AbstractMeasurement
-#     N::T
-#     count::Int
-# end
-
-# function ChemicalPotentialTuningMeasurement(mc)
-#     T = greens_eltype(model(mc), field(mc))
-#     ChemicalPotentialTuningMeasurement(zero(T), zero(T), 0)
-# end
-
-# function reset!(m::ChemicalPotentialTuningMeasurement{T}) where T
-#     m.N = m.N2 = zero(T)
-#     m.count = 0
-#     nothing
-# end
-# requires(::ChemicalPotentialTuningMeasurement) = (Greens(), nothing)
-# @bm function measure!(::Nothing, m::ChemicalPotentialTuningMeasurement, mc::DQMC, model, sweep, G)
-#     N = diagmean(G)
-#     m.N += N
-#     m.N2 += N^2
-#     m.count += 1
-#     nothing
-# end
-# For occupations we'll throw away the complex part anyway...
+# occupation = real diagonal of the Greens function
 diagmean(G::GreensMatrix) = diagmean(G.val)
 diagmean(G::CMat64) = diagmean(G.re)
 diagmean(G::Matrix) = mapreduce(i -> 1 - G[i], +, diagind(G)) / size(G, 1)
@@ -29,7 +6,22 @@ diagmean(G::BlockDiagonal) = mapreduce(diagmean, +, G.blocks) / length(G.blocks)
 
 
 
+"""
+    ChemicalPotentialTuning(target_occupation[; max_dmu = 1.0])
 
+Creates an update that tunes the chemical potential µ of a model to match a 
+given `target_occupation` <n>.
+
+For this the statistical derivative `d<n>/dµ` is used to adjust the chemical 
+potential. These adjustments run every time the update takes place, so long as 
+the simulation is in the thermalization stage. The stength of the adjustment
+gets weaker each sweep and the absolute adjustment to the chemical potential is 
+bounded by `max_dmu`.
+
+This update assumes `model.mu` to refer to the chemical potential, and for it 
+to be a mutable field. Furthermore it assumes `diagmean` to exist for the 
+active GreensMatrix type.
+"""
 mutable struct ChemicalPotentialTuning <: AbstractUtilityUpdate
     target_occupation::Float64
 
