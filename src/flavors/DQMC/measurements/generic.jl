@@ -216,7 +216,7 @@ _binner_zero_element(mc, ::Nothing, eltype) = zero(eltype)
 ################################################################################
 
 
-requires(::AbstractMeasurement) = (Nothing, Nothing)
+requires(::AbstractMeasurement) = (nothing, nothing)
 requires(m::DQMCMeasurement) = (m.greens_iterator, m.lattice_iterator)
 
 function _flatten_measurements(measurements)

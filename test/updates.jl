@@ -392,3 +392,28 @@ end
     end
     @test ReplicaExchange(mc, model, 1) == ReplicaExchange(1)
 end
+
+@testset "Chemical Potential Tuning Update" begin
+    m = HubbardModel(L = 2, U = 1, dims = 2, mu = 0)
+    scheduler = SimpleScheduler(
+        LocalSweep(), ChemicalPotentialTuning(0.75),
+        LocalSweep(), ChemicalPotentialTuning(0.75)
+    )
+
+    # Test that make_unique is doing its thing
+    @test scheduler.sequence[1] !== scheduler.sequence[3]
+    @test scheduler.sequence[2] == scheduler.sequence[4]
+
+    mc = DQMC(m, beta = 5.0, scheduler = scheduler, thermalization = 5000)
+    mc[:occ] = occupation(mc, m)
+    run!(mc, verbose = false)
+
+    tuner = mc.scheduler.sequence[2].update
+    @test mean(tuner.Ns[1:10]) < mean(tuner.Ns[4000:end])
+    @test 0.74 < mean(tuner.Ns[4000:end]) < 0.76
+    @test isapprox(mean(tuner.Ns[4000:end]), mean(mean(mc[:occ])), rtol = 0.01)
+    
+    @test mean(tuner.mus[1:10]) < mean(tuner.mus[4000:end])
+    @test 1.7 < mean(tuner.mus[4000:end]) < 1.9 # based on what I got locally
+    @test isapprox(mean(tuner.mus[div(end, 2):end]), m.mu, rtol = 0.01)
+end

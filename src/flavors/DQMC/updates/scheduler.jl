@@ -4,7 +4,7 @@
 
 
 ################################################################################
-### Utility updates
+### Interface Utility updates
 ################################################################################
 
 
@@ -12,7 +12,7 @@
 """
     AbstractUpdate
 
-A update should be a struct inhereting from AbstractUpdate or one of its 
+An update should be a struct inhereting from AbstractUpdate or one of its 
 abstract children `AbstractLocalUpdate`, `AbstractGlobalUpdate` or 
 `AbstractParallelUpdate`. 
 
@@ -22,36 +22,111 @@ struct MyGlobalUpdate <: MonteCarlo.AbstractGlobalUpdate
 end
 ```
 
-It should implement the methods
+It must implement: 
+- `update(update, mc, model, field_or_conf)` to perform the update
+- `_load(f::FileLike, ::Val{name})` to load the update from a file
 
-```
-function MonteCarlo.update(u::MyGlobalUpdate, mc, model)
-    mc.temp_conf = ...
-    return global_update(mc, model, mc.temp_conf)
-end
-MonteCarlo.name(::MyGlobalUpdate) = "MyGlobalUpdate"
-```
+It can implement
+- `init!(mc, update)` to perform simulation specific initialization
+- `is_full_sweep(update) = false` to disable sweep incrementation
+- `requires_temp_conf(update) = true` to request allocation of a temporery configuration
+- `can_replace(update1, update2)` to identify updates that can replace each other
+- `_save(f::FileLike, name, update)` to provide a custom saving method
+- `name(update)` to provide a custom name for printing
 
-The latter is used for printing statistics of the scheduler. The former defines
-what the implemented update does. Usually this means creating a new 
-configuration and handing it to `global_update` to do a standard Metropolis 
-update. Note that you can and should use `mc.temp_conf` as temporary storage.
+See the individual docstrings for more information.
 
-Behind the scenes, the scheduler will wrap `MyGlobalUpdate` in 
-`AcceptanceStatistics` which collects the number of requested and accepted 
-updates. It is expected that you return `0` if the update is denied or `1` if it
-is accepted (as does the `global_update` returned above). 
+Behind the scenes, the scheduler will wrap updates in `AcceptanceStatistics` 
+which collect the number of requested and accepted updates. It is expected that 
+you return `0/false` if the update is denied or `1/true` if it is accepted
+for this purpose.
 """
 abstract type AbstractUpdate end
 abstract type AbstractLocalUpdate <: AbstractUpdate end
 
+
+########################################
+### General Interface
+########################################
+
+
+"""
+    init!(mc, update::AbstractUpdate)
+
+Initializes an update with an otherwise initialized simulation `mc`. This is 
+called just before the main Simulation loop.
+"""
 init!(mc, update::AbstractUpdate) = nothing
+
+"""
+    is_full_sweep(update::AbstractUpdate)
+
+If this returns `true` for a given `update` the sweep counter is incremented 
+after executing it. Defaults to `true`.
+"""
 is_full_sweep(update::AbstractUpdate) = true
+
+"""
+    requires_temp_conf(update::AbstractUpdate)
+
+If this returns `true` for a given `update` the simulation will allocate a 
+second configuration as a temporary buffer for the update. This configuration
+is reused between all updates and should be asumed to change between calls to 
+`update!(...)`
+"""
 requires_temp_conf(update::AbstractUpdate) = false
+# If this returns true updates with the same key will be combined into a single instance
+
+"""
+    can_replace(update1, update2)
+
+If this returns `true` the scheduler is allowed to replace one of the updates 
+by the other. Defaults to false.
+
+This can be useful to save memory when an update needs some temporary storage 
+that can be shared between different instances.
+"""
+can_replace(u1::AbstractUpdate, u2::AbstractUpdate) = false
+
+"""
+    _save(file::FileLike, name::String, update::AbstractUpdate)
+
+Saves an update to a file. By default, writes only `nameof(typeof(update))`.
+"""
 function _save(file::FileLike, name::String, update::AbstractUpdate)
     write(file, "$name/tag", nameof(typeof(update)))
 end
 
+"""
+    update(update::AbstractUpdate, mc, model, field_or_conf)
+
+Performs the `update` with the given simulation `mc`, `model` and 
+`field_or_conf`. Should return `true` if the update has been successfull.
+
+This function must to be implemented for each update.
+"""
+function update(update::AbstractUpdate, args...)
+    throw(MethodError(update, (update, args...)))
+end
+
+"""
+    name(update::AbstractUpdate)
+
+Returns a string corresponding to the name of the update. Defaults to 
+`string(nameof(typeof(update)))`. Used in printing.
+"""
+name(update::AbstractUpdate) = update |> typeof |> nameof |> string
+
+
+
+"""
+AbstractUtilityUpdate <: AbstractUpdate
+
+An `AbstractUtilityUpdate` is one that doesn't update the configuration. It may
+be a placeholder, like `NoUpdate` and `Adaptive`, or modify the simulation in 
+some other way like `ChemicalPotentialTuning`
+"""
+abstract type AbstractUtilityUpdate <: AbstractUpdate end
 
 """
     NoUpdate([mc, model])
@@ -59,13 +134,12 @@ end
 An update that does nothing. Used internally to keep the adaptive scheduler 
 running if all (other) adaptive updates are discarded.
 """
-struct NoUpdate <: AbstractUpdate end
+struct NoUpdate <: AbstractUtilityUpdate end
 NoUpdate(mc, model) = NoUpdate()
 function update(u::NoUpdate, args...)
     # we count this as "denied" global update
     return 0
 end
-name(::NoUpdate) = "NoUpdate"
 is_full_sweep(update::NoUpdate) = false
 _load(f::FileLike, ::Val{:NoUpdate}) = NoUpdate()
 
@@ -77,7 +151,7 @@ _load(f::FileLike, ::Val{:NoUpdate}) = NoUpdate()
 
 A placeholder for adaptive updates in the `AdaptiveScheduler`.
 """
-struct Adaptive <: AbstractUpdate end
+struct Adaptive <: AbstractUtilityUpdate end
 name(::Adaptive) = "Adaptive"
 _load(f::FileLike, ::Val{:Adaptive}) = Adaptive()
 
@@ -86,7 +160,7 @@ _load(f::FileLike, ::Val{:Adaptive}) = Adaptive()
 
 # Should this inherit from AbstractUpdate?
 # This is required for AdaptiveScheduler, used by both
-mutable struct AcceptanceStatistics{Update <: AbstractUpdate}
+mutable struct AcceptanceStatistics{Update <: AbstractUpdate} <: AbstractUpdate
     accepted::Float64
     total::Int
     update::Update
@@ -96,6 +170,9 @@ AcceptanceStatistics(wrapped::AcceptanceStatistics) = wrapped
 AcceptanceStatistics(proxy::Adaptive) = proxy
 name(w::AcceptanceStatistics) = name(w.update)
 requires_temp_conf(update::AcceptanceStatistics) = requires_temp_conf(update.update)
+function can_replace(u1::AcceptanceStatistics, u2::AcceptanceStatistics)
+    can_replace(u1.update, u2.update) && (u1.accepted == u2.accepted) && (u1.total == u2.total)
+end
 function update(w::AcceptanceStatistics, mc, m, field)
     accepted = update(w.update, mc, m, field)
     w.total += 1
@@ -138,7 +215,16 @@ function init_scheduler!(mc, scheduler::AbstractUpdateScheduler)
     nothing
 end
 
-
+function make_unique(updates::Union{Tuple, Vector})
+    cache = AbstractUpdate[]
+    return map(updates) do update
+        for cached_update in cache
+            can_replace(update, cached_update) && return cached_update
+        end
+        push!(cache, update)
+        return update
+    end
+end
 
 
 ################################################################################
@@ -180,7 +266,7 @@ mutable struct SimpleScheduler{ST} <: AbstractUpdateScheduler
 
     function SimpleScheduler(updates...)
         # Without local sweeps we don't have a sweep increment
-        updates = map(AcceptanceStatistics, Tuple(vcat(updates...)))
+        updates = make_unique(AcceptanceStatistics.(Tuple(vcat(updates...))))
         if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, updates)
             error("The scheduler requires local updates, but none were passed.")
         end
@@ -244,7 +330,7 @@ function _save(file::FileLike, entryname::String, s::SimpleScheduler)
     nothing
 end
 function _load(data, ::Val{:SimpleScheduler})
-    sequence = _load_collection(data["sequence"])
+    sequence = make_unique(_load_collection(data["sequence"]))
     SimpleScheduler(Tuple(sequence), data["idx"])
 end
 
@@ -314,7 +400,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
             minimum_sampling_rate = 0.01, grace_period = 99, adaptive_rate = 9.0
         )
         # Without local updates we have no sweep increment
-        sequence = map(AcceptanceStatistics, vcat(sequence...))
+        sequence = make_unique(AcceptanceStatistics.(vcat(sequence...)))
         if !any(u -> u isa AcceptanceStatistics{<: AbstractLocalUpdate}, sequence)
             error("The scheduler requires local updates, but none were passed.")
         end
@@ -334,7 +420,7 @@ mutable struct AdaptiveScheduler{PT, ST} <: AbstractUpdateScheduler
         end
 
         # Wrap in AcceptanceStatistics
-        adaptive_pool = map(AcceptanceStatistics, pool)
+        adaptive_pool = make_unique(AcceptanceStatistics.(pool))
 
         adaptive_pool = Tuple(adaptive_pool)
         sequence = Tuple(sequence)
@@ -463,8 +549,8 @@ function _save(file::FileLike, entryname::String, s::AdaptiveScheduler)
     nothing
 end
 function _load(data, ::Val{:AdaptiveScheduler})
-    sequence = _load_collection(data["sequence"])
-    pool = _load_collection(data["pool"])
+    sequence = make_unique(_load_collection(data["sequence"]))
+    pool = make_unique(_load_collection(data["pool"]))
     s = AdaptiveScheduler(Tuple(sequence), Tuple(pool))
     s.sampling_rates = data["sampling_rates"]
     s.minimum_sampling_rate = data["minimum_sampling_rate"]
