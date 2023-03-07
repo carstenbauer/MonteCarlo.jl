@@ -1,16 +1,21 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Triangular Attractive Hubbard · MonteCarlo.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="MonteCarlo.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">MonteCarlo.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Introduction</a></li><li><span class="tocitem">DQMC</span><ul><li><a class="tocitem" href="../../DQMC/Introduction/">Introduction</a></li><li><a class="tocitem" href="../../DQMC/model/">Model</a></li><li><a class="tocitem" href="../../DQMC/lattice/">Lattices</a></li><li><a class="tocitem" href="../../DQMC/fields/">Fields</a></li><li><a class="tocitem" href="../../DQMC/dqmc/">DQMC</a></li><li><a class="tocitem" href="../../DQMC/recorder/">Configuration Recorder</a></li><li><a class="tocitem" href="../../DQMC/scheduler/">Update Scheduler</a></li><li><a class="tocitem" href="../../DQMC/measurements/">Measurements</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li class="is-active"><a class="tocitem" href>Triangular Attractive Hubbard</a></li><li><a class="tocitem" href="../ALF1/">Crosscheck with ALF</a></li><li><a class="tocitem" href="../HofmannBergChowdhury/">Topological Flat Band Model</a></li></ul></li><li><span class="tocitem">Legacy</span><ul><li><a class="tocitem" href="../../legacy/">Introduction</a></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Manual</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/manual/gettingstarted/">Getting started</a></li><li><a class="tocitem" href="../../legacy/manual/showcase/">Showcase</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Physical models</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/models/ising/">Ising model</a></li><li><a class="tocitem" href="../../legacy/models/hubbardattractive/">Attractive Hubbard model</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-4" type="checkbox"/><label class="tocitem" for="menuitem-4-4"><span class="docs-label">Monte Carlo flavors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/flavors/mc/">MC</a></li><li><a class="tocitem" href="../../legacy/flavors/dqmc/">DQMC</a></li></ul></li><li><a class="tocitem" href="../../legacy/lattices/">Lattices</a></li><li><a class="tocitem" href="../../legacy/customize/">Customize</a></li><li><input class="collapse-toggle" id="menuitem-4-7" type="checkbox"/><label class="tocitem" for="menuitem-4-7"><span class="docs-label">Interfaces</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/interfaces/MC/">MC</a></li><li><a class="tocitem" href="../../legacy/interfaces/DQMC/">DQMC</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-8" type="checkbox"/><label class="tocitem" for="menuitem-4-8"><span class="docs-label">General exports</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/methods/general/">General</a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Triangular Attractive Hubbard</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Triangular Attractive Hubbard</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/carstenbauer/MonteCarlo.jl/blob/master/docs/src/examples/triangular_Hubbard.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Triangular-Attractive-Hubbard-1"><a class="docs-heading-anchor" href="#Triangular-Attractive-Hubbard-1">Triangular Attractive Hubbard</a><a class="docs-heading-anchor-permalink" href="#Triangular-Attractive-Hubbard-1" title="Permalink"></a></h1><p>This example implements the model from the paper <a href="https://journals.aps.org/prb/abstract/10.1103/PhysRevB.48.3976">Attractive Hubbard model on a triangular lattice</a>. This also serves as a cross-check for the DQMC and a few measurements, such as pairing correlations and occupations. </p><h3 id="Simulation-1"><a class="docs-heading-anchor" href="#Simulation-1">Simulation</a><a class="docs-heading-anchor-permalink" href="#Simulation-1" title="Permalink"></a></h3><p>In the paper simulations were done with <span>$500-1000$</span> sweeps and <span>$\Delta\tau = 0.125$</span>. Occupations are measured the same way as in MonteCarlo.jl. Pairing correlations seem to use <span>$\Delta \Delta^\dagger$</span> rather than the <span>$\Delta^\dagger \Delta + \Delta \Delta^\dagger$</span> given in the paper. The latter is the default in MonteCarlo.jl. To have the former we need to explicitly pass <code>kernel = MonteCarlo.pc_kernel</code>.</p><p>The first figure is done with interaction strength <span>$U = -4$</span>, linear system size <span>$L = 4$</span> at <span>$\beta = 2, 5, 7$</span> for varying <span>$\mu$</span>. The following simulations should take about 2 minutes.</p><pre><code class="language-julia">using MonteCarlo
+<html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width, initial-scale=1.0"/><title>Triangular Attractive Hubbard · MonteCarlo.jl</title><link href="https://fonts.googleapis.com/css?family=Lato|Roboto+Mono" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/fontawesome.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/solid.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.11.2/css/brands.min.css" rel="stylesheet" type="text/css"/><link href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.11.1/katex.min.css" rel="stylesheet" type="text/css"/><script>documenterBaseURL="../.."</script><script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.6/require.min.js" data-main="../../assets/documenter.js"></script><script src="../../siteinfo.js"></script><script src="../../../versions.js"></script><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-dark.css" data-theme-name="documenter-dark"/><link class="docs-theme-link" rel="stylesheet" type="text/css" href="../../assets/themes/documenter-light.css" data-theme-name="documenter-light" data-theme-primary/><script src="../../assets/themeswap.js"></script></head><body><div id="documenter"><nav class="docs-sidebar"><a class="docs-logo" href="../../"><img src="../../assets/logo.png" alt="MonteCarlo.jl logo"/></a><div class="docs-package-name"><span class="docs-autofit">MonteCarlo.jl</span></div><form class="docs-search" action="../../search/"><input class="docs-search-query" id="documenter-search-query" name="q" type="text" placeholder="Search docs"/></form><ul class="docs-menu"><li><a class="tocitem" href="../../">Introduction</a></li><li><span class="tocitem">DQMC</span><ul><li><a class="tocitem" href="../../DQMC/Introduction/">Introduction</a></li><li><a class="tocitem" href="../../DQMC/model/">Model</a></li><li><a class="tocitem" href="../../DQMC/lattice/">Lattices</a></li><li><a class="tocitem" href="../../DQMC/fields/">Fields</a></li><li><a class="tocitem" href="../../DQMC/dqmc/">DQMC</a></li><li><a class="tocitem" href="../../DQMC/recorder/">Configuration Recorder</a></li><li><a class="tocitem" href="../../DQMC/scheduler/">Update Scheduler</a></li><li><a class="tocitem" href="../../DQMC/measurements/">Measurements</a></li></ul></li><li><span class="tocitem">Examples</span><ul><li class="is-active"><a class="tocitem" href>Triangular Attractive Hubbard</a></li><li><a class="tocitem" href="../ALF1/">Crosscheck with ALF</a></li><li><a class="tocitem" href="../HofmannBergChowdhury/">Topological Flat Band Model</a></li></ul></li><li><span class="tocitem">Legacy</span><ul><li><a class="tocitem" href="../../legacy/">Introduction</a></li><li><input class="collapse-toggle" id="menuitem-4-2" type="checkbox"/><label class="tocitem" for="menuitem-4-2"><span class="docs-label">Manual</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/manual/gettingstarted/">Getting started</a></li><li><a class="tocitem" href="../../legacy/manual/showcase/">Showcase</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-3" type="checkbox"/><label class="tocitem" for="menuitem-4-3"><span class="docs-label">Physical models</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/models/ising/">Ising model</a></li><li><a class="tocitem" href="../../legacy/models/hubbardattractive/">Attractive Hubbard model</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-4" type="checkbox"/><label class="tocitem" for="menuitem-4-4"><span class="docs-label">Monte Carlo flavors</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/flavors/mc/">MC</a></li><li><a class="tocitem" href="../../legacy/flavors/dqmc/">DQMC</a></li></ul></li><li><a class="tocitem" href="../../legacy/lattices/">Lattices</a></li><li><a class="tocitem" href="../../legacy/customize/">Customize</a></li><li><input class="collapse-toggle" id="menuitem-4-7" type="checkbox"/><label class="tocitem" for="menuitem-4-7"><span class="docs-label">Interfaces</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/interfaces/MC/">MC</a></li><li><a class="tocitem" href="../../legacy/interfaces/DQMC/">DQMC</a></li></ul></li><li><input class="collapse-toggle" id="menuitem-4-8" type="checkbox"/><label class="tocitem" for="menuitem-4-8"><span class="docs-label">General exports</span><i class="docs-chevron"></i></label><ul class="collapsed"><li><a class="tocitem" href="../../legacy/methods/general/">General</a></li></ul></li></ul></li></ul><div class="docs-version-selector field has-addons"><div class="control"><span class="docs-label button is-static is-size-7">Version</span></div><div class="docs-selector control is-expanded"><div class="select is-fullwidth is-size-7"><select id="documenter-version-selector"></select></div></div></div></nav><div class="docs-main"><header class="docs-navbar"><nav class="breadcrumb"><ul class="is-hidden-mobile"><li><a class="is-disabled">Examples</a></li><li class="is-active"><a href>Triangular Attractive Hubbard</a></li></ul><ul class="is-hidden-tablet"><li class="is-active"><a href>Triangular Attractive Hubbard</a></li></ul></nav><div class="docs-right"><a class="docs-edit-link" href="https://github.com/carstenbauer/MonteCarlo.jl/blob/master/docs/src/examples/triangular_Hubbard.md" title="Edit on GitHub"><span class="docs-icon fab"></span><span class="docs-label is-hidden-touch">Edit on GitHub</span></a><a class="docs-settings-button fas fa-cog" id="documenter-settings-button" href="#" title="Settings"></a><a class="docs-sidebar-button fa fa-bars is-hidden-desktop" id="documenter-sidebar-button" href="#"></a></div></header><article class="content" id="documenter-page"><h1 id="Triangular-Attractive-Hubbard-1"><a class="docs-heading-anchor" href="#Triangular-Attractive-Hubbard-1">Triangular Attractive Hubbard</a><a class="docs-heading-anchor-permalink" href="#Triangular-Attractive-Hubbard-1" title="Permalink"></a></h1><p>This example implements the model from the paper <a href="https://journals.aps.org/prb/abstract/10.1103/PhysRevB.48.3976">Attractive Hubbard model on a triangular lattice</a>. This also serves as a cross-check for the DQMC and a few measurements, such as pairing correlations and occupations. </p><p>The summarized code for this example can be found under &quot;MonteCarlo/docs/src/examples&quot;.</p><h3 id="Simulation-1"><a class="docs-heading-anchor" href="#Simulation-1">Simulation</a><a class="docs-heading-anchor-permalink" href="#Simulation-1" title="Permalink"></a></h3><p>In the paper simulations were done with a rather low <span>$500-1000$</span> sweeps and <span>$\Delta\tau = 0.125$</span>. Occupations are measured the same way as in MonteCarlo.jl. Pairing correlations seem to use <span>$\Delta \Delta^\dagger$</span> rather than the <span>$\Delta^\dagger \Delta + \Delta \Delta^\dagger$</span> given in the paper. The latter is the default in MonteCarlo.jl. To get the former we need to explicitly pass <code>kernel = MonteCarlo.pc_kernel</code> to the relevant measurement constructor.</p><p>The first figure is done with interaction strength <span>$U = -4$</span>, linear system size <span>$L = 4$</span> at <span>$\beta = 2, 5, 7$</span> for varying <span>$\mu$</span>. The following simulations should take about 2 minutes. Note that at this number of sweeps you may still see some spikes in the data.</p><pre><code class="language-julia">using MonteCarlo
 
 betas = (2.0, 5.0, 7.0)
 mus = vcat(-2.0, -1.5, -1.25:0.05:-1.0, -0.8:0.2:0.8, 0.9:0.05:1.25, 1.5, 2.0)
 l = TriangularLattice(4)
-dqmcs = []
 
+dqmcs = []
 counter = 0
 N = length(mus) * length(betas)
 @time for beta in betas, mu in mus
     counter += 1
     print(&quot;\r[&quot;, lpad(&quot;$counter&quot;, 2), &quot;/$N] &quot;)
+
+    # Setup Simulation
+    # Note that the pairing correlation formula used the paper is not the 
+    # one MonteCarlo.jl uses by default, so we switch to the correct 
+    # version via `kernel = MonteCarlo.pc_kernel`
     m = HubbardModel(l = l, t = 1.0, U = 4.0, mu = mu)
     dqmc = DQMC(
         m, beta = beta, delta_tau = 0.125, safe_mult = 8, 
@@ -19,47 +24,56 @@ N = length(mus) * length(betas)
     )
     dqmc[:occ] = occupation(dqmc, m)
     dqmc[:PC] = pairing_correlation(dqmc, m, kernel = MonteCarlo.pc_kernel)
+
+    # Thermalize &amp; measure
     run!(dqmc, verbose = false)
 
     # for simplicity we just keep the whole simulation around
     push!(dqmcs, dqmc)
-end</code></pre><h3 id="Processing-Data-1"><a class="docs-heading-anchor" href="#Processing-Data-1">Processing Data</a><a class="docs-heading-anchor-permalink" href="#Processing-Data-1" title="Permalink"></a></h3><p>After running all the simulations we need to do a little bit of post-processing on the measured data. </p><pre><code class="language-julia">N = length(mus)
+end</code></pre><h3 id="Processing-Data-1"><a class="docs-heading-anchor" href="#Processing-Data-1">Processing Data</a><a class="docs-heading-anchor-permalink" href="#Processing-Data-1" title="Permalink"></a></h3><p>After running all the simulations we need to do a bit of post-processing on the measured data. </p><pre><code class="language-julia"># Extract points for plots
+N = length(mus)
 occs = []
 Δoccs = []
 pcs = []
 Δpcs = []
 
-for i in 0:2
-    # Measurements are saved in a LogBinner from BinningAnalysis by default.
-    # Taking the mean (std_error) of a LogBinner will return the Monte Carlo 
-    # average (error). Occupation measurements happen per site, so we need 
-    # another mean afterwards. 
+for i in 0:length(betas)-1
+    # MonteCarlo.jl records occupations for each site in a LogBinner from 
+    # BinningAnalysis.jl. The paper plots the average per site occupation.
+    # This iterates through the simulations, picks the occupation 
+    # measurement, calculates first the Monte Carlo average or standard 
+    # error and second the site average. The factor then maps 0..1 
+    # occupations to 0..2 occupations. (spin up + spin down)
     _occs = [2 * mean(mean(dqmcs[N*i + j][:occ])) for j in 1:N]
-    doccs = [2 * sqrt(mean(std_error(dqmcs[N*i + j][:occ]).^2)) for j in 1:N]
+    doccs = [2 * mean(std_error(dqmcs[N*i + j][:occ])) for j in 1:N]
     push!(occs, _occs)
     push!(Δoccs, doccs)
 
-    # pairing correlations are saved in a partially processed state - a 3D matrix
-    # where each index corresponds to vectors between sites
-    # y_{i, j, k} = ∑_x ⟨c_{x, ↑} c_{x+j, ↓} c_{x+i+k, ↓}^† c_{x+i, ↑}^†
-    # The vectors corresponding to the indices i, j, k are returned by 
-    # directions(lattice(dqmc)). To compute the pairing correlation of a certain
-    # symmetry, we need to apply the weights corresponding vector indices j, k.
-    # For s-wave symmetry these weights are always (1, 0, ..., 0) (only vector 0).
-    # To match the paper the index i should just be summed over. This is 
-    # equivalent to a q=0 Fourier transform.
-    _pcs = [sum(mean(dqmcs[N*i + j][:PC])[:, :, :, 1, 1]) for j in 1:N]
-    dpcs = [sqrt(sum(std_error(dqmcs[N*i + j][:PC])[:, :, :, 1, 1].^2)) for j in 1:N]
+    # For Pairing correlations the MonteCarlo representation is more 
+    # complicated. For pairing correlations we consider 4 sites:
+    #    (trg1, b1) ---- (src1, b1) ----- (src2, b2) ---- (trg2, b2)
+    #               dir1            dir12            dir2
+    # where b is a basis index, src and trg are Bravais site indices and
+    # dir is a Bravauis direction between them. This is represented in 
+    # MonteCarlo.jl by EachLocalQuadByDistance. The output of the 
+    # measurement takes the form of a 5D tensor:
+    #    PC[dir12, dir1, dir2, b1, b2]
+    # To get the local s-wave pairing correlation used in the paper, we 
+    # want dir1 = dir2 = 1. Since the triangular lattice has only one site 
+    # per unit cell b1 = b2 = 1. And finally the paper considers the q = 0
+    # pairing correlation, which is given by summing over dir12.
+    _pcs = [sum(mean(dqmcs[N*i + j][:PC])[:, 1, 1, 1, 1]) for j in 1:N]
+    dpcs = [sum(std_error(dqmcs[N*i + j][:PC])[:, 1, 1, 1, 1]) for j in 1:N]
     push!(pcs, _pcs)
     push!(Δpcs, dpcs)
-end</code></pre><h3 id="Plotting-1"><a class="docs-heading-anchor" href="#Plotting-1">Plotting</a><a class="docs-heading-anchor-permalink" href="#Plotting-1" title="Permalink"></a></h3><p>With the data in a processed form we can now plot it. To make comparison easier, we plot our data directly over figure 1 from our <a href="https://journals.aps.org/prb/abstract/10.1103/PhysRevB.48.397">reference</a>.</p><pre><code class="language-julia">using CairoMakie, FileIO, Colors
+end</code></pre><h3 id="Plotting-1"><a class="docs-heading-anchor" href="#Plotting-1">Plotting</a><a class="docs-heading-anchor-permalink" href="#Plotting-1" title="Permalink"></a></h3><p>With the data in a processed form we can now plot it. To make comparison easier, we plot our data directly over figure 1 from our <a href="https://journals.aps.org/prb/abstract/10.1103/PhysRevB.48.397">reference</a>.</p><pre><code class="language-julia">using CairoMakie, FileIO, Colors, LaTeXStrings
 
-
+# Create layout
 fig = Figure(resolution = (800, 800))
-top = Axis(fig[1, 1])
-bot = Axis(fig[2, 1])
+top = Axis(fig[1, 1], ylabel = L&quot;\rho&quot;, ylabelsize = 30)
+bot = Axis(fig[2, 1], xlabel = L&quot;\mu&quot;, ylabel = L&quot;P_s&quot;, xlabelsize = 30, ylabelsize = 30)
 
-# References
+# Load and plot reference image from paper as the background
 p = pkgdir(MonteCarlo)
 top_ref = FileIO.load(joinpath(p, &quot;docs/src/examples/assets/triangular/tri_Hub_ref1_1.png&quot;))
 bot_ref = FileIO.load(joinpath(p, &quot;docs/src/examples/assets/triangular/tri_Hub_ref1_2.png&quot;))
@@ -68,51 +82,72 @@ translate!(ip, 0, 0, -1)
 ip = image!(bot, -2..2, 0..2.5, bot_ref&#39;[:, end:-1:1], transparency=true)
 translate!(ip, 0, 0, -1)
 
+# Plot our occupations
 c = HSV(250, 0.6, 1)
+markers = (&#39;■&#39;, &#39;□&#39;, &#39;o&#39;)
+scatter_plots = []
 for (i, (ys, dys)) in enumerate(zip(occs, Δoccs))
     band!(top, mus, ys .- dys, ys .+ dys, color = (:red, 0.3))
     lines!(top, mus, ys, color = (c, 0.5), linewidth=2)
-    scatter!(top, mus, ys, color = c, marker = (&#39;■&#39;, &#39;□&#39;, &#39;o&#39;)[i])
+    s = scatter!(top, mus, ys, color = c, marker = markers[i])
+    push!(scatter_plots, s)
 end
 
-axislegend(top, top.scene.plots[4:3:end], [&quot;β = 2&quot;, &quot;β = 5&quot;, &quot;β = 7&quot;], position = :rb)
+# Add legend for scatter plots
+labels = map(beta -&gt; &quot;β = $beta&quot;, collect(betas))
+axislegend(top, scatter_plots, labels, position = :rb)
 
+# Plot pairing correlations
 for (i, (ys, dys)) in enumerate(zip(pcs, Δpcs))
     band!(bot, mus, ys .- dys, ys .+ dys, color = (:red, 0.3), transparency=true)
     lines!(bot, mus, ys, color = (c, 0.5), linewidth=2)
     scatter!(bot, mus, ys, color = c, marker = (&#39;■&#39;, &#39;□&#39;, &#39;o&#39;)[i])
 end
 
+# match limits to paper
 xlims!(top, -2 , 2)
 ylims!(top, 0 , 2)
 xlims!(bot, -2 , 2)
 ylims!(bot, 0 , 2.5)
 
-CairoMakie.save(joinpath(p, &quot;docs/src/examples/assets/triangular/fig1_comparison.png&quot;), fig)</code></pre><p><img src="../assets/triangular/fig1_comparison.png" alt/></p><h3 id="Other-runs-1"><a class="docs-heading-anchor" href="#Other-runs-1">Other runs</a><a class="docs-heading-anchor-permalink" href="#Other-runs-1" title="Permalink"></a></h3><p>The <a href="https://journals.aps.org/prb/abstract/10.1103/PhysRevB.48.3976">paper</a> has two more versions of the above plot for system sizes <span>$L = 6$</span> and <span>$L = 8$</span>. These show significantly different results.</p><p>For <span>$L = 6$</span> we use <code>mus = vcat(-2.0:0.25:-0.25, -0.1:0.1:1.1, 1.25, 1.5, 2.0)</code> with the same parameters other than that. The simulation should take about 5 minutes.</p><p><img src="../assets/triangular/fig2_comparison.png" alt/></p><p>For <span>$L=8$</span> we use <code>mus = vcat(-2.0:0.5:-0.5, -0.1:0.1:1.1, 1.25, 1.5, 2.0)</code> and <code>betas = (2.0, 5.0, 6.0, 7.0)</code>. The resulting simulation takes about 30min.</p><p><img src="../assets/triangular/fig3_comparison.png" alt/></p><h4 id="Charge-Density-Structure-Factor-1"><a class="docs-heading-anchor" href="#Charge-Density-Structure-Factor-1">Charge Density Structure Factor</a><a class="docs-heading-anchor-permalink" href="#Charge-Density-Structure-Factor-1" title="Permalink"></a></h4><p>The paper also investigates the charge density structure factor as a function of reciprocal lattice vectors <span>$q$</span>. In general structure factors can be computed from correlations via Fourier transform. In this case it is not quite as simple since MonteCarlo.jl implements <span>$\langle n_i n_j \rangle$</span> while the paper uses <span>$\langle n_i n_j \rangle - \langle n_i \rangle \langle n_j \rangle$</span>. As such we need to implement our own reduced charge density correlation measurement. First we need to figure out what this observable looks like in terms of Greens function elements.</p><div>\[\begin{aligned}
-	\langle n_{i, s} n_{j, s^\prime} \rangle - \langle n_{i, s} \rangle \langle n_{j, s^\prime} \rangle
-	&amp;= \langle c_{i, s}^\dagger c_{i, s} c_{j, s^\prime}^\dagger c_{j, s^\prime} \rangle  - \langle n_{i, s} \rangle \langle n_{j, s^\prime} \rangle\\
-	&amp;= \langle c_{i, s}^\dagger c_{i, s} \rangle \langle c_{j, s^\prime}^\dagger c_{j, s^\prime} \rangle + \langle c_{i, s}^\dagger c_{j, s^\prime} \rangle \langle c_{i, s} c_{j, s^\prime}^\dagger \rangle  - \langle n_{i, s} \rangle \langle n_{j, s^\prime} \rangle\\
-	&amp;= (\delta_{ij} \delta_{ss^\prime} - G_{ji}^{s^\prime s}) G_{ij}^{ss^\prime}
-\end{aligned}\]</div><p>Here we expanded the term into creation and annihilation operators, applied Wicks theorem and finally used <span>$G_{ij}^{ss^\prime} = \langle c_i c_j^\dagger \rangle$</span> to express the term with Greens function elements. (We note that expectation values of two creation or two annihilation operators are always zero in DQMC and are therefore dropped.) For the attractive Hubbard model, greens function elements with different spins <span>$G_{ij}^{ss^\prime}$</span> are zero and <span>$G_{ij}^{\uparrow\uparrow} = G_{ij}^{\downarrow\downarrow}$</span>. Thus the full expectation value is given by</p><div>\[\langle n_i n_j \rangle - \langle n_{i, s} \rangle \langle n_{j, s^\prime} \rangle = 2 (\delta_{ij} - G_{ji}) G_{ij}\]</div><p>which needs to be implemented as a function and passed to <code>MonteCarlo.Measurement</code> to be used.</p><pre><code class="language-julia">function my_kernel(mc, m, ij::NTuple{2}, G::GreensMatrix, flv)
-    i, j = ij
-    4 * (I[j, i] - G[j, i]) * G[i, j]
-end
+# show the plot
+fig</code></pre><p><img src="../assets/triangular/fig1_comparison.png" alt/></p><h3 id="Other-runs-1"><a class="docs-heading-anchor" href="#Other-runs-1">Other runs</a><a class="docs-heading-anchor-permalink" href="#Other-runs-1" title="Permalink"></a></h3><p>The <a href="https://journals.aps.org/prb/abstract/10.1103/PhysRevB.48.3976">paper</a> has two more versions of the above plot for system sizes <span>$L = 6$</span> and <span>$L = 8$</span>. These show significantly different results.</p><p>For <span>$L = 6$</span> we use <code>mus = vcat(-2.0:0.25:-0.25, -0.1:0.1:1.1, 1.25, 1.5, 2.0)</code> with the same parameters other than that. The simulation should take about 5 minutes.</p><p><img src="../assets/triangular/fig2_comparison.png" alt/></p><p>For <span>$L=8$</span> we use <code>mus = vcat(-2.0:0.5:-0.5, -0.1:0.1:1.1, 1.25, 1.5, 2.0)</code> and <code>betas = (2.0, 5.0, 6.0, 7.0)</code>. The resulting simulation takes about 30min.</p><p><img src="../assets/triangular/fig3_comparison.png" alt/></p><h4 id="Charge-Density-Structure-Factor-1"><a class="docs-heading-anchor" href="#Charge-Density-Structure-Factor-1">Charge Density Structure Factor</a><a class="docs-heading-anchor-permalink" href="#Charge-Density-Structure-Factor-1" title="Permalink"></a></h4><p>The paper also investigates the charge density structure factor as a function of reciprocal lattice vectors <span>$q$</span>. In general structure factors can be computed from correlations via Fourier transform. For charge density correlations one typically comes across one of two formulas: <span>$\langle n_i n_j \rangle$</span> and <span>$\langle n_i n_j \rangle - \langle n_i \rangle \langle n_j \rangle$</span>. MonteCarlo.jl defaults to the former, but the paper uses the latter. To switch we again need to change the measurement kernel to <code>MonteCarlo.reduced_cdc_kernel</code>.</p><p>With that we can now compare to the paper. As stated in the paper/figure, we set <span>$L = 6, 8$</span>, <span>$\beta = 8$</span> and <span>$|U| = 4$</span>. The chemical potential should be set to produce a filling of <span>$\rho = 1$</span>, which based on the occupation plots above is at about <span>$µ = 0.6$</span>.</p><pre><code class="language-julia">Ls = (6, 8)
+mus = (0.6, 0.6) # estimations for ρ = 1
+dqmcs = []
 
-dqmc[:CDC] = MonteCarlo.Measurement(mc, m, Greens, EachSitePairByDistance, my_kernel)</code></pre><p>In the above, <code>Greens</code> is a greens function iterator used by the measurement. It yields an equal time greens function to the measurement which is eventually passed as <code>G</code> to the kernel. <code>EachSitePairByDistance</code> defines which lattice indices are passed to the kernel and how they are saved. In this case i and j run through each site index independently and the results are summed such that we have one value per unique distance vector.</p><p>With that measurement we can now compare to the paper. We simulate with <span>$L = 6, 8$</span>, <span>$\beta = 8$</span>, <span>$\mu = 0$</span> and <span>$|U| = 4$</span>, which should take about a minute.</p><p>To match the paper we simulate <span>$L = 6, 8$</span>, <span>$\beta = 8$</span>, <span>$\mu = 0$</span> and <span>$U = -4$</span> with the new measurement. This should take about a minute. After the simulation we compute the fourier transform at various <span>$q$</span> with</p><pre><code class="language-julia">qs = vcat(
-    range(Float64[0, 0],   Float64[pi, 0], length=10),
-    range(Float64[pi, 0],  Float64[pi, pi], length=10),
-    range(Float64[pi, pi], Float64[0, 0], length=10),
-)
+counter = 0
+@time for (mu, L) in zip(mus, Ls)
+    counter += 1
+    print(&quot;\r[&quot;, lpad(&quot;$counter&quot;, 2), &quot;/$(length(betas) * length(Ls))]&quot;)
+    lattice = TriangularLattice(L)
+
+    m = HubbardModelAttractive(l = lattice, t = 1.0, U = 4.0, mu = mu)
+    dqmc = DQMC(
+        m, beta = 8.0, delta_tau = 0.125, safe_mult = 8, 
+        thermalization = 1000, sweeps = 1000, measure_rate = 1,
+        recorder = Discarder()
+    )
+    # MonteCarlo.jl uses &lt;n_i n_j&gt; as the default pairing correlation, the
+    # paper instead uses &lt;n_i n_j&gt; - &lt;n_i&gt;&lt;n_j&gt;. The latter is given by
+    # MonteCarlo.reduced_cdc_kernel
+    dqmc[:CDC] = charge_density_correlation(dqmc, m, kernel = MonteCarlo.reduced_cdc_kernel)
+    run!(dqmc, verbose = false)
+
+    # for simplicity we just keep the whole simulation around
+    push!(dqmcs, dqmc)
+end</code></pre><p>After the simulation we compute the fourier transform at various <span>$q$</span> with</p><pre><code class="language-julia"># Fourier transform
 ys = map(dqmcs) do dqmc
-    result = zeros(ComplexF64, length(qs))
-    vals = mean(dqmc[:CDC])
-    dirs = directions(dqmc[:CDC].lattice_iterator, lattice(dqmc))
-    for (j, q) in enumerate(qs)
-        # basis, basis, directional index (on Bravais lattice)
-        for b1 in axes(dirs, 1), b2 in axes(dirs, 2), i in axes(dirs, 3)
-            result += vals[b1, b2, i] * cis(dot(dirs[b1, b2, i], q))
-        end
+    # reciprocal path traced in paper
+    L = size(lattice(dqmc))[1]
+    N = div(L, 2)
+    qs = vcat(
+        range(Float64[0, 0],   Float64[pi, 0],  length = N+1),
+        range(Float64[pi, 0],  Float64[pi, pi], length = N+1)[2:end],
+        range(Float64[pi, pi], Float64[0, 0],   length = N+1)[2:end]
+    )
+    values = mean(dqmc[:CDC])
+    dirs = directions(lattice(dqmc), dqmc[:CDC].lattice_iterator)
+    map(qs) do q
+        2 * real(sum(cis(dot(q, v)) * o for (v, o) in zip(dirs, values)))
     end
-
-    real(result)
-end</code></pre><p><img src="../assets/triangular/fig6_comparison.png" alt/></p><h4 id="Magnetic-Susceptibility-1"><a class="docs-heading-anchor" href="#Magnetic-Susceptibility-1">Magnetic Susceptibility</a><a class="docs-heading-anchor-permalink" href="#Magnetic-Susceptibility-1" title="Permalink"></a></h4><p>The uniform susceptibility featured in figure 7 of the paper can be reproduced more easily. For it we need to run our simulation with a <code>spin_density_susceptibility(dqmc, model, :z)</code> measurement. The result will again be in a partially summed per-distance-vector form. The <span>$q=0$</span> Fourier transform follows from simple summation. With <code>L = 6</code> and <code>betas = [1.0, 2.0, 4.0, 5.0, 6.0, 7.0, 8.0]</code> this simulation should take about a minute.</p><p><img src="../assets/triangular/fig7_comparison.png" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../DQMC/measurements/">« Measurements</a><a class="docs-footer-nextpage" href="../ALF1/">Crosscheck with ALF »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 24 January 2023 16:33">Tuesday 24 January 2023</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
+end</code></pre><p><img src="../assets/triangular/fig6_comparison.png" alt/></p><h4 id="Magnetic-Susceptibility-1"><a class="docs-heading-anchor" href="#Magnetic-Susceptibility-1">Magnetic Susceptibility</a><a class="docs-heading-anchor-permalink" href="#Magnetic-Susceptibility-1" title="Permalink"></a></h4><p>The uniform susceptibility featured in figure 7 of the paper can be reproduced more easily. For it we need to run our simulation with a <code>spin_density_susceptibility(dqmc, model, :z)</code> measurement. The result will again be in a partially summed per-distance-vector form. The <span>$q=0$</span> Fourier transform follows from simple summation. With <code>L = 6</code> and <code>betas = [1.0, 2.0, 4.0, 5.0, 6.0, 7.0, 8.0]</code> this simulation should take about a minute.</p><p><img src="../assets/triangular/fig7_comparison.png" alt/></p></article><nav class="docs-footer"><a class="docs-footer-prevpage" href="../../DQMC/measurements/">« Measurements</a><a class="docs-footer-nextpage" href="../ALF1/">Crosscheck with ALF »</a></nav></div><div class="modal" id="documenter-settings"><div class="modal-background"></div><div class="modal-card"><header class="modal-card-head"><p class="modal-card-title">Settings</p><button class="delete"></button></header><section class="modal-card-body"><p><label class="label">Theme</label><div class="select"><select id="documenter-themepicker"><option value="documenter-light">documenter-light</option><option value="documenter-dark">documenter-dark</option></select></div></p><hr/><p>This document was generated with <a href="https://github.com/JuliaDocs/Documenter.jl">Documenter.jl</a> on <span class="colophon-date" title="Tuesday 7 March 2023 15:41">Tuesday 7 March 2023</span>. Using Julia version 1.6.0.</p></section><footer class="modal-card-foot"></footer></div></div></div></body></html>
