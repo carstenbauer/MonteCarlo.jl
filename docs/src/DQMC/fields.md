@@ -4,7 +4,7 @@ In MonteCarlo.jl fields describe how to handle the interactive term(s) in a mode
 
 ## Hirsch Transformation
 
-The Hirsch transformation applies specifically to a Hubbard interaction $U (n_{i\uparrow} - 0.5) (n_{i\downarrow} - 0.5)`. Each number operator can take the values 0 or 1, which allows us to rewrite the term as either $0.5 U (n_{i\uparrow} + n_{i\downarrow} - 1)^2 - 0.25$ or $0.5 U (n_{i\uparrow} - n_{i\downarrow})^2 + 0.25$. These two cases are the density- and spin-channel respectively. The next step is to is to introduce a bosonic field $x$ such that
+The Hirsch transformation applies specifically to a Hubbard interaction $U (n_{i\uparrow} - 0.5) (n_{i\downarrow} - 0.5)$. Each number operator can take the values 0 or 1, which allows us to rewrite the term as either $0.5 U (n_{i\uparrow} + n_{i\downarrow} - 1)^2 - 0.25$ or $0.5 U (n_{i\uparrow} - n_{i\downarrow})^2 + 0.25$. These two cases are the density- and spin-channel respectively. The next step is to is to introduce a bosonic field $x$ such that
 
 ```math
 e^{|U|\Delta \tau \left( n_{i\uparrow} - \frac{1}{2} \right) \left(n_{i\downarrow} - \frac{1}{2} \right)} 
