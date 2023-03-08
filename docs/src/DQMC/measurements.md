@@ -40,7 +40,7 @@ The pairing susceptibility $\Delta_v(s_1, t_1)(\tau) \Delta_v^\dagger(s_2, t_2)(
 
 ### Superfluid Density
 
-The superfluid density can be derived from the current-current susceptibility and the Greens function. [MonteCarloAnalysis.jl](https://github.com/ffreyer/MonteCarloAnalysis] provides functionality for that.
+The superfluid density can be derived from the current-current susceptibility and the Greens function. [MonteCarloAnalysis.jl](https://github.com/ffreyer/MonteCarloAnalysis) provides functionality for that.
 
 ### Energies
 
