@@ -13,3 +13,7 @@ As the name suggests this recorder simply discards all configurations. It is use
 #### ConfigRecorder
 
 This recorder keeps track of compressed configurations in memory. On creation a `rate` can be specified as the last argument in the constructor to reduce the amount of configurations saved. Compression relies on overloads of `compress(mc, model, conf)` and `decompress(mc, model, conf)`. For the available Hubbard models these simply transform from and to `BitArray`.
+
+#### BufferedConfigRecorder
+
+This recorder works similar to `ConfigRecorder` but only keeps a certain number of configurations in memory before writing them to disc or reading a new batch when replaying. For this the recorder need to be created with a filepath which can be given as an `AbsolutePath` or `RelativePath`. Optionally the buffer size can be set with `chunk_size`.

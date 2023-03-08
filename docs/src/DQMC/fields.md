@@ -4,7 +4,7 @@ In MonteCarlo.jl fields describe how to handle the interactive term(s) in a mode
 
 ## Hirsch Transformation
 
-The Hirsch transformation applies specifically to a Hubbard interaction $U (n_{i\uparrow} - 0.5) (n_{i\downarrow} - 0.5)`. Each number operator can take the values 0 or 1, which allows us to rewrite the term as either $0.5 U (n_{i\uparrow} + n_{i\downarrow} - 1)^2 - 0.25$ or $0.5 U (n_{i\uparrow} - n_{i\downarrow})^2 + 0.25$. These two cases are the density- and spin-channel respectively. The next step is to is to introduce a bosonic field $x$ such that
+The Hirsch transformation applies specifically to a Hubbard interaction $U (n_{i\uparrow} - 0.5) (n_{i\downarrow} - 0.5)$. Each number operator can take the values 0 or 1, which allows us to rewrite the term as either $0.5 U (n_{i\uparrow} + n_{i\downarrow} - 1)^2 - 0.25$ or $0.5 U (n_{i\uparrow} - n_{i\downarrow})^2 + 0.25$. These two cases are the density- and spin-channel respectively. The next step is to is to introduce a bosonic field $x$ such that
 
 ```math
 e^{|U|\Delta \tau \left( n_{i\uparrow} - \frac{1}{2} \right) \left(n_{i\downarrow} - \frac{1}{2} \right)} 
@@ -37,7 +37,7 @@ e^{-\frac{1}{2}\Delta\tau (c_i^\dagger V_{ij} c_j + C)^2 + C^\prime} = e^{-\Delt
 One method of solving this integral is Gauß-Hermite quadrature. With four weights and notes we get
 
 ```math
-\frac{1}{\sqrt{2\pi}} \int_{-\infty}^{\infty} e^{-\frac{1}{2}x^2 \pm x \sqrt{\Delta\tau} (c_i^\dagger V_{ij} c_j + C)} dx = \đrac{1}{4} \sum_{x = \pm 1, \pm 2} \gamma(x) e^{\sqrt{\Delta\tau} \eta(x) (c_i^\dagger V_{ij} c_j^\dagger + C)}
+\frac{1}{\sqrt{2\pi}} \int_{-\infty}^{\infty} e^{-\frac{1}{2}x^2 \pm x \sqrt{\Delta\tau} (c_i^\dagger V_{ij} c_j + C)} dx = \frac{1}{4} \sum_{x = \pm 1, \pm 2} \gamma(x) e^{\sqrt{\Delta\tau} \eta(x) (c_i^\dagger V_{ij} c_j^\dagger + C)}
 ```
 
 where $\gamma$ and $\eta$ give the weights and nodes for a given $x$. For the density-channel version $V_\uparrow = V_\downarrow = \sqrt{U}$ and $C = 0.5 \sqrt{U}$, for the spin channel $V_\uparrow = - V\downarrow = \sqrt{U}$ and $C = 0$. These two cases are implemented as `DensityGHQField` and `MagneticGHQField`. Just like with the Hirsch field these two methods can create real or complex interaction matrices depending on the sign $U$ and the Density case makes use of symmetry.

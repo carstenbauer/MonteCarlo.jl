@@ -54,7 +54,7 @@ Local updates affect one site at one time slice. In order for this to be on a si
 
 #### LocalSweep
 
-Currently there is only one local update - `LocalSweep([N=1])`. It performs N standard sweeps of local updates, which means two updates per site and time slice each in DQMC. (Two because we go from $\tau = 0$ to $\tau = \beta$ back to $\tau = 0$.) This update returns a float corresponding to its internal acceptance rate $accepted / (2 N_{sites} M_{slices}$
+Currently there is only one local update - `LocalSweep([N=1])`. It performs N standard sweeps of local updates, which means two updates per site and time slice each in DQMC. (Two because we go from $\tau = 0$ to $\tau = \beta$ back to $\tau = 0$.) This update returns a float corresponding to its internal acceptance rate $accepted / (2 N_{sites} \cdot M_{slices})$
 
 
 
