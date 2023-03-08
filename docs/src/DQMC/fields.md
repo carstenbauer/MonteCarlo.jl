@@ -37,7 +37,7 @@ e^{-\frac{1}{2}\Delta\tau (c_i^\dagger V_{ij} c_j + C)^2 + C^\prime} = e^{-\Delt
 One method of solving this integral is Gauß-Hermite quadrature. With four weights and notes we get
 
 ```math
-\frac{1}{\sqrt{2\pi}} \int_{-\infty}^{\infty} e^{-\frac{1}{2}x^2 \pm x \sqrt{\Delta\tau} (c_i^\dagger V_{ij} c_j + C)} dx = \đrac{1}{4} \sum_{x = \pm 1, \pm 2} \gamma(x) e^{\sqrt{\Delta\tau} \eta(x) (c_i^\dagger V_{ij} c_j^\dagger + C)}
+\frac{1}{\sqrt{2\pi}} \int_{-\infty}^{\infty} e^{-\frac{1}{2}x^2 \pm x \sqrt{\Delta\tau} (c_i^\dagger V_{ij} c_j + C)} dx = \frac{1}{4} \sum_{x = \pm 1, \pm 2} \gamma(x) e^{\sqrt{\Delta\tau} \eta(x) (c_i^\dagger V_{ij} c_j^\dagger + C)}
 ```
 
 where $\gamma$ and $\eta$ give the weights and nodes for a given $x$. For the density-channel version $V_\uparrow = V_\downarrow = \sqrt{U}$ and $C = 0.5 \sqrt{U}$, for the spin channel $V_\uparrow = - V\downarrow = \sqrt{U}$ and $C = 0$. These two cases are implemented as `DensityGHQField` and `MagneticGHQField`. Just like with the Hirsch field these two methods can create real or complex interaction matrices depending on the sign $U$ and the Density case makes use of symmetry.
