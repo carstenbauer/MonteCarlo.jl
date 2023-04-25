@@ -8,7 +8,7 @@ The minimal working example for a DQMC simulation is the following.
 using MonteCarlo
 
 dqmc = DQMC(HubbardModel(), beta = 1.0)
-run(dqmc)
+run!(dqmc)
 ```
 
 This will set up and run a DQMC simulation at inverse temperature $\beta = 1.0$ using an attractive Hubbard model with a two by two square lattice. Of course this example is not very useful. In practice you will want to modify lots of parameters and components of the simulation. We give a brief overview of the different components here. You can also check the examples section for some more involved and realistic examples.
