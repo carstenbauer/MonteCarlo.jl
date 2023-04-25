@@ -1,35 +1,3 @@
-#=
-# Process for DQMCMeasurements:
-
-1. Measurements are created with a
-- greens_iterator, specifying which greens functions are needed
-- lattice_iterator, specifying which lattice indices are needed (and how the summation runs)
-- kernel, which is Function calculating the Wicks expanded Observable for a 
-  given set of Matrices and indices
-- temp Array for intermediate storage
-- binner for long term storage and error analysis
-
-2. generate_groups groups ḿeasurements by greens iterator and initializes the 
-   unequal time stack if necessary (from run!(mc))
-
-3. At runtime groups are processed in the following order (callstack):
-  - `process_greens_iterator!(greens_iterator, group, mc)`
-    - calls `prepare!(lattice_iter, measurement, mc)` clears `temp` for each measurement
-    - generate Greens matrices `Gs`
-    - calls `measure!(lattice_iter, measurement, mc, Gs)` for each measurement
-      - could apply sweep based stuff (skipping, simulation time dependent stuff)
-      - calls `apply!(temp, lattice_iter, measurement, mc, greens, weight)`
-        - runs through lattice iterator (does summation)
-        - calls `kernel(mc, model, lattice_idxs, greens, flv)`
-          - computes Wicks expanded Observable for given indices
-    - calls `finish!(lattice_iterator, measurement, mc)`
-      - calls `finalize_temp!(lattice_iter, measurement, mc)`
-        - applies lattice normalization
-      - calls `commit!(lattice_iter, measurement)`
-        - stores the result
-=#
-
-
 struct Restructure{T}
     wrapped::T
 end

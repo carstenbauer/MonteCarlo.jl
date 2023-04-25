@@ -44,6 +44,9 @@ makedocs(
             "General exports" => [
                 "General" => "legacy/methods/general.md"
             ],
+        ],
+        "DQMC Dev Docs" => [
+            "devdocs/measurements.md"
         ]
     ],
     # assets = ["assets/custom.css", "assets/custom.js"]

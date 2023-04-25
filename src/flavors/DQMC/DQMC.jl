@@ -204,8 +204,8 @@ function sweep_once!(mc, th_groups, groups, thermalization, t0 = time())
     # Trigger measurements
     if mc.last_sweep ≤ thermalization
         if iszero(mc.last_sweep % mc.parameters.measure_rate)
-            for (requirement, group) in th_groups
-                apply!(requirement, group, mc)
+            for (greens_iterator, group) in th_groups
+                apply!(greens_iterator, group, mc)
             end
         end
         if mc.last_sweep == thermalization
@@ -215,8 +215,8 @@ function sweep_once!(mc, th_groups, groups, thermalization, t0 = time())
     else
         push!(mc.recorder, field(mc), mc.last_sweep)
         if iszero(mc.last_sweep % mc.parameters.measure_rate)
-            for (requirement, group) in groups
-                apply!(requirement, group, mc)
+            for (greens_iterator, group) in groups
+                apply!(greens_iterator, group, mc)
             end
         end
     end
@@ -463,8 +463,8 @@ function replay!(
         # copyto!(mc.conf, decompress(mc, mc.model, configurations[i]))
         decompress!(field(mc), configurations[i])
         calculate_greens(mc, 0) # outputs to mc.stack.greens
-        for (requirement, group) in groups
-            apply!(requirement, group, mc)
+        for (greens_iterator, group) in groups
+            apply!(greens_iterator, group, mc)
         end
         mc.last_sweep = i
 
