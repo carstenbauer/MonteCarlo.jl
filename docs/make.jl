@@ -46,7 +46,9 @@ makedocs(
             ],
         ],
         "DQMC Dev Docs" => [
-            "devdocs/measurements.md"
+            "devdocs/model_field.md",
+            "devdocs/measurements.md",
+            "devdocs/linalg.md"
         ]
     ],
     # assets = ["assets/custom.css", "assets/custom.js"]
