@@ -42,7 +42,7 @@ One method of solving this integral is Gauß-Hermite quadrature. With four weigh
 
 where $\gamma$ and $\eta$ give the weights and nodes for a given $x$. For the density-channel version $V_\uparrow = V_\downarrow = \sqrt{U}$ and $C = 0.5 \sqrt{U}$, for the spin channel $V_\uparrow = - V\downarrow = \sqrt{U}$ and $C = 0$. These two cases are implemented as `DensityGHQField` and `MagneticGHQField`. Just like with the Hirsch field these two methods can create real or complex interaction matrices depending on the sign $U$ and the Density case makes use of symmetry.
 
-See [ALF](https://git.physik.uni-wuerzburg.de/ALF/ALF) Documentation (Auxiliary Field Quantum Monte Carlo section) and https://arxiv.org/pdf/2009.04491.pdf
+See [ALF](https://git.physik.uni-wuerzburg.de/ALF/ALF) Documentation (Auxiliary Field Quantum Monte Carlo section) and the related [paper](https://arxiv.org/pdf/2009.04491.pdf).
 
 ## Performance & Accuracy
 
