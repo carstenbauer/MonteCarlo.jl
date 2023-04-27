@@ -1,31 +1,3 @@
-# Saving and loading happens in a nested fashion:
-# save(filename, mc) calls
-#   save_mc(filename, mc) calls
-#       save_model(filename, mc.model) calls
-#           save_lattice(filename, mc.lattice) (TODO, not used yet)
-#       save_measurements(filename, mc) calls
-#           save_measurement(filename, measurement)
-#
-# loading follows the same structure
-# > Each level (beyond the outermost save) also has an argument `entryname::String`.
-# > Each save_something() should write a "VERSION" and a "type" to the file. The
-#   former simplifies updates down the line, the latter allows for dispatch.
-# > Each load_something should be dispatched on a type, e.g.
-#   `load_model(data, ::Type(HubbardModelAttractive))`
-
-
-# Loading:
-# load(filename[, groups]) 
-#   - loads from filename, maybe specific group
-#   - jumps into _load at fitting part
-# _load(data, ::Type{...})
-#   - loads from Dict or JLD2.JLDFile or JLD2.Group (data) to some type (for dispatch)
-
-# TODOs:
-# - rename save_x to _save(filename, ::X, entryname) (mirror _load)
-# - make _load less volatile to changes, i.e. change Type -> Val{Symbol}
-
-
 """
     save(filename, mc; overwrite=false, rename=true)
 

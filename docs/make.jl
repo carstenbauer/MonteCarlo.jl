@@ -47,6 +47,7 @@ makedocs(
         ],
         "DQMC Dev Docs" => [
             "devdocs/model_field.md",
+            "devdocs/dqmc_stacks.md",
             "devdocs/measurements.md",
             "devdocs/linalg.md"
         ]

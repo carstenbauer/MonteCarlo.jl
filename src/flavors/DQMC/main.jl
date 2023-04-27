@@ -113,10 +113,6 @@ include("stack.jl")
 # Contains the `UnequalTimeStack` and code for time displaced greens functions
 include("unequal_time_stack.jl")
 
-# Contains functions for computations using the matrices representing a time 
-# slice. Also contains special methods for Checkerboard decomposed matrices.
-include("slice_matrices.jl")
-
 # Contains global update schedulers, the updates themselves as well as some 
 # functions necessary to calculate and perform those updates.
 # include("global.jl")
