@@ -44,6 +44,12 @@ makedocs(
             "General exports" => [
                 "General" => "legacy/methods/general.md"
             ],
+        ],
+        "DQMC Dev Docs" => [
+            "devdocs/model_field.md",
+            "devdocs/dqmc_stacks.md",
+            "devdocs/measurements.md",
+            "devdocs/linalg.md"
         ]
     ],
     # assets = ["assets/custom.css", "assets/custom.js"]

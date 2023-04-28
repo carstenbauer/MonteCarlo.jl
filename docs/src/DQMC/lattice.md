@@ -63,7 +63,7 @@ Note that bonds also have an integer label which can be used to differentiate th
 
 Lattice Iterators are to some degree a backend component. They specify a way to iterate through the lattice, and are mainly used for DQMC measurements which frequently require specific pairings of sites. The iterators fall into three categories:
 
-### DirectLatticeIterator`
+### DirectLatticeIterator
 
 First we have `DirectLatticeIterator`. These iterators return just site indices, e.g. `(source_index, target_index)`. The concrete implementations include:
 
