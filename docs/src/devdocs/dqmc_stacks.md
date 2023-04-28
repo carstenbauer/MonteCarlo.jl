@@ -1,6 +1,6 @@
 # DQMC Stacks
 
-There are currently two "stacks" associated with DQMC which mostly hold matrices for the calculations involved. The first one is `DQMCStack` (in "DQMC/stack.jl") which is responsible for the main simulation and the latter is `UnequalTimeStack` (in "DQMC/unequal_time_stack.jl") which is responsible for time displaced greens functions.
+There are currently two "stacks" associated with DQMC which mostly hold matrices for the calculations involved. The first one is `DQMCStack` (in "DQMC/stack.jl") which is responsible for the main simulation and the latter is `UnequalTimeStack` (in "DQMC/unequal\_time\_stack.jl") which is responsible for time displaced greens functions.
 
 ## DQMCStack
 
@@ -23,19 +23,19 @@ G(l) = [1 + B(l-1) B(l-2) \cdots B(1) B(M) \cdots B(l)]^{-1}
 
 where $B(l) = e^{-\Delta\tau H(l)}$ are propagation matrices. Specifically we will need two matrix product chains here, $B(l-1) \cdots B(1)$ and $B(M) \cdots B(l)$. When the simulation runs, we alternative between going from `l = 1` to `l = M` and back. Let us consider the former case for an example. We will need:
 
-- $I$ and $B(M) \cdots B(1)$ at `l = 1`
-- $B(1)$ and $B(M) \cdots B(2)$ at `l = 2`
-- $B(k-1) \cdots B(1)$ and $B(M) \cdots B(k)$ at `l = k`
-- $B(M-1) \cdots B(1)$ and $B(M)$ at `l = M`
+- ``I`` and ``B(M) \cdots B(1)`` at `l = 1`
+- ``B(1)`` and ``B(M) \cdots B(2)`` at `l = 2`
+- ``B(k-1) \cdots B(1)`` and ``B(M) \cdots B(k)`` at `l = k`
+- ``B(M-1) \cdots B(1)`` and ``B(M)`` at `l = M`
 
 Thus at the start we will want a full product chain for the right term and an empty chain i.e. an identity for the left side. In every step we multiply a propagation matrix to the left on the left chain and its inverse to right side of the right chain. The opposite direction then simply does the reverse of this. 
 
 One way to deal with this calculation is to store matrices for each step in a big array, and then update parts of the array as you move from one time to another. Matching the list above we would have
 
-- $[I, B(M) \cdots B(1), B(M) \cdots B(2), \dots, B(M)]$ at `l = 1`
-- $[I, B(1), B(M) \cdots B(2), \dots, B(M)]$ at `l = 2`
-- $[I, \dots, B(k-1) \cdots B(1), B(M) \cdots B(k), \dots, B(M)]$ at `l = k`
-- $[I, \dots, B(M-1) \cdots B(1), B(M)]$ at `l = M`
+- ``[I, B(M) \cdots B(1), B(M) \cdots B(2), \dots, B(M)]`` at `l = 1`
+- ``[I, B(1), B(M) \cdots B(2), \dots, B(M)]`` at `l = 2`
+- ``[I, \dots, B(k-1) \cdots B(1), B(M) \cdots B(k), \dots, B(M)]`` at `l = k`
+- ``[I, \dots, B(M-1) \cdots B(1), B(M)]`` at `l = M`
 
 which contains the necessary matrices at each step. Going backwards in time would rebuild this vector, so only need to fully populate it once. We can also cut a few values: The identity at the start is unnecessary and we can have the new value from the left chain overwrite it's partner from the right. This is effectively what `u_stack`, `d_stack` and `t_stack` contain before considering float precision problems and optimizations.
 
@@ -160,4 +160,4 @@ Their calculation is very similar to the `DQMCStack`. Time displaced Greens func
 
 To then compute the relevant Greens function, `calculate_greens_full` is called. In the first step the `compute_<forward/backward/inverse>_udt_block!` functions are called to get the specific UDT decomposed matrix product chains. Then another stabilized inversion like `calculate_greens` from `DQMCStack` is called. There is another quirk here however, which is that the scale-full diagonal matrices are split into parts smaller and larger than unit scale. This further boosts precision/stability which is necessary here.
 
-Note that the time displaced greens functions used for susceptibilities in measurements don't directly call the methods here. Instead they go through `CombinedGreensIterator`, which essentially implements `wrap_greens` and only refers back to `UnequalTimeStack` every so often to get a stabilized result. You can find the iterator in "DQMC/measurements/greens_iterators.jl".
+Note that the time displaced greens functions used for susceptibilities in measurements don't directly call the methods here. Instead they go through `CombinedGreensIterator`, which essentially implements `wrap_greens` and only refers back to `UnequalTimeStack` every so often to get a stabilized result. You can find the iterator in "DQMC/measurements/greens\_iterators.jl".
